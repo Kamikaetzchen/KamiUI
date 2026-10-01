@@ -1,0 +1,9 @@
+## Interface: 16001
+## Title: KamiUI - UnitFrames
+## Notes: UnitFrames module for KamiUI
+## Author: Kami Katze
+## Version: 0.1.0
+## RequiredDeps: KamiUI
+
+UnitFrames.lua
+Player.lua
