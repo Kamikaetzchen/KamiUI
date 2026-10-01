@@ -127,9 +127,12 @@ function UF:GetUnitDisplayName(unit)
 
     local status = ""
 
-    if UnitIsAFK and UnitIsAFK(unit) then
+    local isAFK = UnitIsAFK and UnitIsAFK(unit)
+    local isDND = UnitIsDND and UnitIsDND(unit)
+
+    if self:CanAccessValue(isAFK) and isAFK then
         status = "<AFK> "
-    elseif UnitIsDND and UnitIsDND(unit) then
+    elseif self:CanAccessValue(isDND) and isDND then
         status = "<DND> "
     end
 
