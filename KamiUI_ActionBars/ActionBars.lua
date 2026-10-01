@@ -9,6 +9,16 @@ local defaults = {
     buttonSize = 36,
     buttonSpacing = 0,
     alpha = 1,
+    offsetX = -20,
+    offsetY = 20,
+}
+
+local bars = {
+    MainMenuBar,
+    MultiBarBottomLeft,
+    MultiBarBottomRight,
+    MultiBarRight,
+    MultiBarLeft,
 }
 
 local function GetButtons()
@@ -46,10 +56,50 @@ local function StyleButton(button)
     button.KamiStyled = true
 end
 
+local function CompactBar(bar)
+    if not bar then
+        return
+    end
+
+    bar:SetScale(1)
+    bar:ClearAllPoints()
+end
+
+local function LayoutBars()
+    local xOffset = defaults.offsetX
+    local yOffset = defaults.offsetY
+
+    local anchors = {
+        MainMenuBar,
+        MultiBarBottomLeft,
+        MultiBarBottomRight,
+        MultiBarRight,
+    }
+
+    for index, bar in ipairs(anchors) do
+        if bar then
+            bar:ClearAllPoints()
+            bar:SetPoint(
+                "BOTTOMRIGHT",
+                UIParent,
+                "BOTTOMRIGHT",
+                xOffset,
+                yOffset + ((index - 1) * defaults.buttonSize)
+            )
+        end
+    end
+end
+
 local function StyleBars()
     for _, button in ipairs(GetButtons()) do
         StyleButton(button)
     end
+
+    for _, bar in ipairs(bars) do
+        CompactBar(bar)
+    end
+
+    LayoutBars()
 end
 
 function Module:Initialize()
