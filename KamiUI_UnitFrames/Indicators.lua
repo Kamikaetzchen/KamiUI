@@ -104,7 +104,7 @@ local function UpdateRaidMarker(frame)
     local icon = frame.centerIndicators.icons.raid
     local index = GetRaidTargetIndex and GetRaidTargetIndex(frame.unit)
 
-    if index and RAID_MARKER_COORDS[index] then
+    if UF:CanAccessValue(index) and index and RAID_MARKER_COORDS[index] then
         icon:SetTexture("Interface\\TargetingFrame\\UI-RaidTargetingIcons")
         icon:SetTexCoord(unpack(RAID_MARKER_COORDS[index]))
         icon:Show()
@@ -116,6 +116,11 @@ end
 local function UpdateReadyCheck(frame)
     local icon = frame.centerIndicators.icons.ready
     local status = GetReadyCheckStatus and GetReadyCheckStatus(frame.unit)
+
+    if not UF:CanAccessValue(status) then
+        icon:Hide()
+        return
+    end
 
     if status == "ready" then
         icon:SetTexture(
@@ -187,7 +192,7 @@ local function UpdateConnection(frame)
     local ghostIcon = frame.centerIndicators.icons.ghost
 
     local connected = UnitIsConnected and UnitIsConnected(frame.unit)
-    if connected ~= nil and UF:CanAccessValue(connected) and not connected then
+    if UF:CanAccessValue(connected) and connected == false then
         offlineIcon:SetTexture("Interface\\CharacterFrame\\Disconnect-Icon")
         offlineIcon:SetTexCoord(0, 1, 0, 1)
         offlineIcon:Show()
@@ -232,7 +237,7 @@ local function CreatePortraitIndicators(frame)
 
     local role = frame:CreateTexture(nil, "OVERLAY")
     role:SetSize(10, 10)
-    role:SetPoint("TOPLEFT", frame.portrait, "TOPLEFT", 11, -1)
+    role:SetPoint("TOPRIGHT", frame.portrait, "TOPRIGHT", -1, -1)
     role:Hide()
 
     local loot = frame:CreateTexture(nil, "OVERLAY")
@@ -304,7 +309,9 @@ local function UpdatePortraitIndicators(frame)
     local role = UnitGroupRolesAssigned
         and UnitGroupRolesAssigned(frame.unit)
 
-    if role == "TANK" or role == "HEALER" or role == "DAMAGER" then
+    if UF:CanAccessValue(role)
+        and (role == "TANK" or role == "HEALER" or role == "DAMAGER")
+    then
         frame.roleIndicator:SetTexture(
             "Interface\\LFGFrame\\UI-LFG-ICON-PORTRAITROLES"
         )
