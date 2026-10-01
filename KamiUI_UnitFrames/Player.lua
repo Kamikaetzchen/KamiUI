@@ -34,9 +34,18 @@ local content = CreateFrame("Frame", nil, frame)
 content:SetPoint("TOPLEFT", BORDER_SIZE, -BORDER_SIZE)
 content:SetPoint("BOTTOMRIGHT", -BORDER_SIZE, BORDER_SIZE)
 
-local portrait = content:CreateTexture(nil, "ARTWORK")
+local portrait = CreateFrame("PlayerModel", nil, content)
 portrait:SetSize(PORTRAIT_SIZE, PORTRAIT_SIZE)
 portrait:SetPoint("TOPLEFT")
+portrait:EnableMouse(false)
+
+if portrait.SetPortraitZoom then
+    portrait:SetPortraitZoom(1)
+end
+
+if portrait.SetCamDistanceScale then
+    portrait:SetCamDistanceScale(1)
+end
 
 local health = CreateFrame("StatusBar", nil, content)
 health:SetSize(BAR_WIDTH, HEALTH_HEIGHT)
@@ -239,7 +248,7 @@ end
 
 local function UpdateIdentity()
     nameText:SetText(UF:GetUnitDisplayName("player"))
-    SetPortraitTexture(portrait, "player")
+    portrait:SetUnit("player")
 end
 
 local function UpdateAll()
@@ -269,6 +278,7 @@ UI:RegisterEvent("UNIT_MAXPOWER", OnPlayerEvent)
 UI:RegisterEvent("UNIT_DISPLAYPOWER", OnPlayerEvent)
 UI:RegisterEvent("UNIT_NAME_UPDATE", OnPlayerEvent)
 UI:RegisterEvent("UNIT_PORTRAIT_UPDATE", OnPlayerEvent)
+UI:RegisterEvent("UNIT_MODEL_CHANGED", OnPlayerEvent)
 
 UI:RegisterEvent("UNIT_SPELLCAST_START", OnCastEvent)
 UI:RegisterEvent("UNIT_SPELLCAST_STOP", OnCastEvent)
