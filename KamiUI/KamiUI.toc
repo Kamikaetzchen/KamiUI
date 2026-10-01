@@ -1,0 +1,11 @@
+## Interface: 16001
+## Title: KamiUI
+## Notes: Core framework for KamiUI
+## Author: Kami Katze
+## Version: 0.1.0
+## SavedVariables: KamiUIDB
+
+Core.lua
+Config.lua
+Events.lua
+Modules.lua
