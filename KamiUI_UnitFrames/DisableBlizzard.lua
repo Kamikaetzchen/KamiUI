@@ -6,6 +6,9 @@ local BLIZZARD_FRAMES = {
     "TargetFrameToT",
     "FocusFrame",
     "FocusFrameToT",
+    "CastingBarFrame",
+    "PlayerCastingBarFrame",
+    "TargetFrameSpellBar",
 }
 
 local function DisableBlizzardFrame(frameName)
