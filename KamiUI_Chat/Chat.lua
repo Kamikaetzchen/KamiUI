@@ -47,6 +47,29 @@ local function StyleFont(frame)
     end
 end
 
+local function AddMessageGroups(frame, groups)
+    for _, group in ipairs(groups) do
+        ChatFrame_AddMessageGroup(frame, group)
+    end
+end
+
+local function CreateChatTab(name, groups)
+    local frame = CreateFrame("ScrollingMessageFrame", "KamiUI_" .. name)
+
+    frame:SetSize(defaults.width, defaults.height)
+    frame:SetFontObject(ChatFontNormal)
+    frame:SetFading(false)
+    frame:EnableMouseWheel(true)
+    frame:SetMaxLines(500)
+
+    StyleFrame(frame)
+    StyleFont(frame)
+
+    AddMessageGroups(frame, groups)
+
+    return frame
+end
+
 function Module:SetupChat()
     for index = 1, NUM_CHAT_WINDOWS do
         local chat = _G["ChatFrame" .. index]
@@ -64,6 +87,40 @@ function Module:SetupChat()
     if QuickJoinToastButton then
         QuickJoinToastButton:Hide()
     end
+end
+
+function Module:SetupTabs()
+    if self.tabsInitialized then
+        return
+    end
+
+    self.tabsInitialized = true
+
+    self.combatFrame = CreateChatTab("Combat", {
+        "COMBAT_XP_GAIN",
+        "COMBAT_HONOR_GAIN",
+        "COMBAT_FACTION_CHANGE",
+    })
+
+    self.guildFrame = CreateChatTab("Guild", {
+        "GUILD",
+        "OFFICER",
+    })
+
+    self.partyFrame = CreateChatTab("Party", {
+        "PARTY",
+        "PARTY_LEADER",
+        "RAID",
+        "RAID_LEADER",
+        "RAID_WARNING",
+    })
+
+    self.whisperFrame = CreateChatTab("Whisper", {
+        "WHISPER",
+        "WHISPER_INFORM",
+        "BN_WHISPER",
+        "BN_WHISPER_INFORM",
+    })
 end
 
 function Module:Reset()
@@ -93,6 +150,7 @@ function Module:Initialize()
     end
 
     self:SetupChat()
+    self:SetupTabs()
 
     KamiUIDB.chat.initialized = true
 end
