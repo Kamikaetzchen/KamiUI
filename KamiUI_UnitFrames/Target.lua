@@ -24,6 +24,7 @@ local frame = CreateFrame(
 frame:SetSize(FRAME_WIDTH, FRAME_HEIGHT)
 frame:SetPoint("LEFT", UIParent, "CENTER", 2, -180)
 UF:ConfigureUnitButton(frame, "target")
+RegisterUnitWatch(frame)
 
 local background = frame:CreateTexture(nil, "BACKGROUND")
 background:SetAllPoints()
@@ -209,11 +210,9 @@ end
 
 local function UpdateAll()
     if not UnitExists("target") then
-        frame:Hide()
         return
     end
 
-    frame:Show()
     UpdateIdentity()
     UpdateHealth()
     UpdatePower()
@@ -249,7 +248,5 @@ UI:RegisterEvent("UNIT_SPELLCAST_DELAYED", OnCastEvent)
 UI:RegisterEvent("UNIT_SPELLCAST_CHANNEL_START", OnCastEvent)
 UI:RegisterEvent("UNIT_SPELLCAST_CHANNEL_UPDATE", OnCastEvent)
 UI:RegisterEvent("UNIT_SPELLCAST_CHANNEL_STOP", OnCastEvent)
-
-frame:Hide()
 
 UF.targetFrame = frame
