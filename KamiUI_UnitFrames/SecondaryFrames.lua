@@ -1,7 +1,7 @@
 local UI = KamiUI
 local UF = UI:GetModule("UnitFrames")
 
-local FRAME_WIDTH = 150
+local FRAME_WIDTH = 100
 local FRAME_HEIGHT = 20
 local BORDER_SIZE = 1
 local CONTENT_WIDTH = FRAME_WIDTH - BORDER_SIZE * 2
@@ -10,9 +10,12 @@ local BAR_HEIGHT = CONTENT_HEIGHT / 2
 
 local frames = {}
 
+local fontPath = GameFontNormalSmall:GetFont()
+
 local function CreateUnitFrame(name, unit)
-    local frame = CreateFrame("Frame", name, UIParent)
+    local frame = CreateFrame("Button", name, UIParent, "SecureUnitButtonTemplate")
     frame:SetSize(FRAME_WIDTH, FRAME_HEIGHT)
+    UF:ConfigureUnitButton(frame, unit)
 
     local border = frame:CreateTexture(nil, "BACKGROUND")
     border:SetAllPoints()
@@ -25,7 +28,7 @@ local function CreateUnitFrame(name, unit)
     local health = CreateFrame("StatusBar", nil, content)
     health:SetSize(CONTENT_WIDTH, BAR_HEIGHT)
     health:SetPoint("TOPLEFT")
-    health:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
+    health:SetStatusBarTexture(UF.flatTexture)
 
     local healthBackground = health:CreateTexture(nil, "BACKGROUND")
     healthBackground:SetAllPoints()
@@ -34,34 +37,31 @@ local function CreateUnitFrame(name, unit)
     local power = CreateFrame("StatusBar", nil, content)
     power:SetSize(CONTENT_WIDTH, BAR_HEIGHT)
     power:SetPoint("TOPLEFT", health, "BOTTOMLEFT")
-    power:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
+    power:SetStatusBarTexture(UF.flatTexture)
 
     local powerBackground = power:CreateTexture(nil, "BACKGROUND")
     powerBackground:SetAllPoints()
     powerBackground:SetColorTexture(0.08, 0.08, 0.08, 1)
 
-    local nameText = health:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    local nameText = health:CreateFontString(nil, "OVERLAY")
+    nameText:SetFont(fontPath, 7, "OUTLINE")
     nameText:SetPoint("LEFT", 2, 0)
+    nameText:SetWidth(54)
     nameText:SetJustifyH("LEFT")
     nameText:SetTextColor(1, 1, 1)
-    nameText:SetShadowColor(0, 0, 0, 1)
-    nameText:SetShadowOffset(1, -1)
 
-    local healthText = health:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    local healthText = health:CreateFontString(nil, "OVERLAY")
+    healthText:SetFont(fontPath, 7, "OUTLINE")
     healthText:SetPoint("RIGHT", -2, 0)
     healthText:SetJustifyH("RIGHT")
     healthText:SetTextColor(1, 1, 1)
-    healthText:SetShadowColor(0, 0, 0, 1)
-    healthText:SetShadowOffset(1, -1)
 
-    local powerText = power:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    local powerText = power:CreateFontString(nil, "OVERLAY")
+    powerText:SetFont(fontPath, 7, "OUTLINE")
     powerText:SetPoint("RIGHT", -2, 0)
     powerText:SetJustifyH("RIGHT")
     powerText:SetTextColor(1, 1, 1)
-    powerText:SetShadowColor(0, 0, 0, 1)
-    powerText:SetShadowOffset(1, -1)
 
-    frame.unit = unit
     frame.health = health
     frame.power = power
     frame.nameText = nameText
@@ -104,7 +104,7 @@ local function UpdateFrame(frame)
     r, g, b = UF:GetPowerColor(unit)
     frame.power:SetStatusBarColor(r, g, b)
 
-    frame.nameText:SetText(UnitName(unit) or "")
+    frame.nameText:SetText(UF:GetUnitDisplayName(unit))
 end
 
 local targetTarget = CreateUnitFrame("KamiUITargetTargetFrame", "targettarget")
