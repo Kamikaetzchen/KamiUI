@@ -6,7 +6,7 @@ UF.name = "KamiUI_UnitFrames"
 UF.version = "0.1.0"
 
 UF.flatTexture = "Interface\\Buttons\\WHITE8X8"
-UF.colorMultiplier = 0.70
+UF.colorMultiplier = 0.55
 
 local FALLBACK_CLASS_COLORS = {
     DEATHKNIGHT = { 0.77, 0.12, 0.23 },
@@ -72,7 +72,7 @@ function UF:DarkenColor(r, g, b)
 end
 
 function UF:GetBarFontSize(height)
-    return math.min(height, 12)
+    return math.min(height, 10)
 end
 
 function UF:GetUnitDisplayName(unit)
