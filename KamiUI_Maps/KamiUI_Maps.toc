@@ -1,8 +1,0 @@
-## Interface: 16001
-## Title: KamiUI - Maps
-## Notes: Minimap and world map module for KamiUI
-## Author: Kami Katze
-## Version: 0.1.0
-## RequiredDeps: KamiUI
-
-Maps.lua
