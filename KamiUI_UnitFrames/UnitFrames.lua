@@ -6,6 +6,7 @@ UF.name = "KamiUI_UnitFrames"
 UF.version = "0.1.0"
 
 UF.flatTexture = "Interface\\Buttons\\WHITE8X8"
+UF.colorMultiplier = 0.70
 
 local FALLBACK_CLASS_COLORS = {
     DEATHKNIGHT = { 0.77, 0.12, 0.23 },
@@ -33,12 +34,12 @@ function UF:GetUnitColor(unit)
         local color = RAID_CLASS_COLORS and RAID_CLASS_COLORS[class]
 
         if color then
-            return color.r, color.g, color.b
+            return self:DarkenColor(color.r, color.g, color.b)
         end
 
         color = FALLBACK_CLASS_COLORS[class]
         if color then
-            return color[1], color[2], color[3]
+            return self:DarkenColor(color[1], color[2], color[3])
         end
     end
 
@@ -46,10 +47,10 @@ function UF:GetUnitColor(unit)
     local color = reaction and FACTION_BAR_COLORS and FACTION_BAR_COLORS[reaction]
 
     if color then
-        return color.r, color.g, color.b
+        return self:DarkenColor(color.r, color.g, color.b)
     end
 
-    return 0.2, 0.8, 0.2
+    return self:DarkenColor(0.2, 0.8, 0.2)
 end
 
 function UF:GetPowerColor(unit)
@@ -57,11 +58,21 @@ function UF:GetPowerColor(unit)
     local color = PowerBarColor and PowerBarColor[powerToken]
 
     if color then
-        return color.r, color.g, color.b
+        return self:DarkenColor(color.r, color.g, color.b)
     end
 
     color = FALLBACK_POWER_COLORS[powerToken] or { 0.00, 0.45, 1.00 }
-    return color[1], color[2], color[3]
+    return self:DarkenColor(color[1], color[2], color[3])
+end
+
+function UF:DarkenColor(r, g, b)
+    return r * self.colorMultiplier,
+        g * self.colorMultiplier,
+        b * self.colorMultiplier
+end
+
+function UF:GetBarFontSize(height)
+    return math.min(height, 12)
 end
 
 function UF:GetUnitDisplayName(unit)
