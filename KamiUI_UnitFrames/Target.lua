@@ -294,4 +294,11 @@ UI:RegisterEvent("UNIT_SPELLCAST_CHANNEL_START", OnCastEvent)
 UI:RegisterEvent("UNIT_SPELLCAST_CHANNEL_UPDATE", OnCastEvent)
 UI:RegisterEvent("UNIT_SPELLCAST_CHANNEL_STOP", OnCastEvent)
 
+frame.health = health
+frame.power = power
+frame.portrait = portrait
+frame.nameText = nameText
+frame.healthText = healthText
+frame.powerText = powerText
+
 UF.targetFrame = frame
