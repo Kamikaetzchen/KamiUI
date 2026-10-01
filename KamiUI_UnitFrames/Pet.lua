@@ -218,6 +218,7 @@ UI:RegisterEvent("UNIT_POWER_UPDATE", OnUnitEvent)
 UI:RegisterEvent("UNIT_MAXPOWER", OnUnitEvent)
 UI:RegisterEvent("UNIT_DISPLAYPOWER", OnUnitEvent)
 UI:RegisterEvent("UNIT_NAME_UPDATE", OnUnitEvent)
+UI:RegisterEvent("UNIT_HAPPINESS", UpdateAll)
 
 UF.petFrame = petFrame
 UF.petTargetFrame = petTargetFrame
