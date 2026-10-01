@@ -16,6 +16,7 @@ local function CreateUnitFrame(name, unit)
     local frame = CreateFrame("Button", name, UIParent, "SecureUnitButtonTemplate")
     frame:SetSize(FRAME_WIDTH, FRAME_HEIGHT)
     UF:ConfigureUnitButton(frame, unit)
+    RegisterUnitWatch(frame)
 
     local border = frame:CreateTexture(nil, "BACKGROUND")
     border:SetAllPoints()
@@ -69,8 +70,6 @@ local function CreateUnitFrame(name, unit)
     frame.powerText = powerText
 
     frames[unit] = frame
-    frame:Hide()
-
     return frame
 end
 
@@ -78,11 +77,8 @@ local function UpdateFrame(frame)
     local unit = frame.unit
 
     if not UnitExists(unit) then
-        frame:Hide()
         return
     end
-
-    frame:Show()
 
     local healthCurrent = UnitHealth(unit)
     local healthMaximum = UnitHealthMax(unit)
