@@ -23,7 +23,7 @@ local frame = CreateFrame(
     "SecureUnitButtonTemplate"
 )
 frame:SetSize(FRAME_WIDTH, FRAME_HEIGHT)
-frame:SetPoint("LEFT", UIParent, "CENTER", 2, -180)
+frame:SetPoint("LEFT", UIParent, "CENTER", 2, -240)
 UF:ConfigureUnitButton(frame, "target")
 RegisterUnitWatch(frame)
 
