@@ -9,3 +9,4 @@ Core.lua
 Config.lua
 Events.lua
 Modules.lua
+Commands.lua
