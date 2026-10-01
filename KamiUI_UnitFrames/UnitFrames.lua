@@ -28,7 +28,37 @@ local FALLBACK_POWER_COLORS = {
     ENERGY = { 1.00, 1.00, 0.00 },
 }
 
+local HAPPINESS_COLORS = {
+    [1] = { 0.85, 0.10, 0.10 },
+    [2] = { 0.85, 0.65, 0.05 },
+    [3] = { 0.10, 0.75, 0.20 },
+}
+
+function UF:CanAccessValue(value)
+    if canaccessvalue then
+        return canaccessvalue(value)
+    end
+
+    if issecretvalue then
+        return not issecretvalue(value)
+    end
+
+    return true
+end
+
 function UF:GetUnitColor(unit)
+    if unit == "pet" and C_PetInfo and C_PetInfo.GetPetHappiness then
+        local happiness = C_PetInfo.GetPetHappiness()
+
+        if happiness and self:CanAccessValue(happiness) then
+            local color = HAPPINESS_COLORS[happiness]
+
+            if color then
+                return self:DarkenColor(color[1], color[2], color[3])
+            end
+        end
+    end
+
     if UnitIsPlayer(unit) then
         local _, class = UnitClass(unit)
         local color = RAID_CLASS_COLORS and RAID_CLASS_COLORS[class]
@@ -75,15 +105,54 @@ function UF:GetBarFontSize(height)
     return math.min(height, 10)
 end
 
+local CLASSIFICATION_SUFFIX = {
+    elite = "E",
+    rare = "R",
+    rareelite = "RE",
+    worldboss = "B",
+}
+
+local function ToHexChannel(value)
+    return math.floor(math.max(0, math.min(1, value)) * 255 + 0.5)
+end
+
 function UF:GetUnitDisplayName(unit)
+    local name
+
     if GetUnitName then
-        local name = GetUnitName(unit)
-        if name then
-            return name
-        end
+        name = GetUnitName(unit)
     end
 
-    return UnitName(unit) or ""
+    name = name or UnitName(unit) or ""
+
+    local status = ""
+
+    if UnitIsAFK and UnitIsAFK(unit) then
+        status = "<AFK> "
+    elseif UnitIsDND and UnitIsDND(unit) then
+        status = "<DND> "
+    end
+
+    local level = UnitLevel(unit)
+    local levelText = level and level > 0 and tostring(level) or "??"
+    local classification = UnitClassification(unit)
+    local suffix = CLASSIFICATION_SUFFIX[classification] or ""
+
+    local color
+    if level and level > 0 and GetQuestDifficultyColor then
+        color = GetQuestDifficultyColor(level)
+    else
+        color = { r = 1.0, g = 0.1, b = 0.1 }
+    end
+
+    local levelColor = string.format(
+        "|cff%02x%02x%02x",
+        ToHexChannel(color.r),
+        ToHexChannel(color.g),
+        ToHexChannel(color.b)
+    )
+
+    return status .. levelColor .. levelText .. suffix .. "|r " .. name
 end
 
 function UF:ConfigureUnitButton(frame, unit)
