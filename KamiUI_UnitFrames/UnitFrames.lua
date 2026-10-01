@@ -5,6 +5,8 @@ local UF = UI:NewModule("UnitFrames")
 UF.name = "KamiUI_UnitFrames"
 UF.version = "0.1.0"
 
+UF.flatTexture = "Interface\\Buttons\\WHITE8X8"
+
 local FALLBACK_CLASS_COLORS = {
     DEATHKNIGHT = { 0.77, 0.12, 0.23 },
     DRUID = { 1.00, 0.49, 0.04 },
@@ -60,4 +62,23 @@ function UF:GetPowerColor(unit)
 
     color = FALLBACK_POWER_COLORS[powerToken] or { 0.00, 0.45, 1.00 }
     return color[1], color[2], color[3]
+end
+
+function UF:GetUnitDisplayName(unit)
+    if GetUnitName then
+        local name = GetUnitName(unit)
+        if name then
+            return name
+        end
+    end
+
+    return UnitName(unit) or ""
+end
+
+function UF:ConfigureUnitButton(frame, unit)
+    frame.unit = unit
+    frame:RegisterForClicks("AnyUp")
+    frame:SetAttribute("unit", unit)
+    frame:SetAttribute("*type1", "target")
+    frame:SetAttribute("*type2", "togglemenu")
 end
