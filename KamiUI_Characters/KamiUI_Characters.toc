@@ -1,0 +1,8 @@
+## Interface: 16001
+## Title: KamiUI - Characters
+## Notes: Account-wide character data module for KamiUI
+## Author: Kami Katze
+## Version: 0.1.0
+## RequiredDeps: KamiUI
+
+Characters.lua

@@ -1,0 +1,9 @@
+## Interface: 16001
+## Title: KamiUI - Tooltips
+## Notes: Tooltip module for KamiUI
+## Author: Kami Katze
+## Version: 0.1.0
+## RequiredDeps: KamiUI
+## OptionalDeps: KamiUI_Characters
+
+Tooltips.lua

@@ -1,0 +1,9 @@
+## Interface: 16001
+## Title: KamiUI - Bags
+## Notes: Inventory and bank module for KamiUI
+## Author: Kami Katze
+## Version: 0.1.0
+## RequiredDeps: KamiUI
+## OptionalDeps: KamiUI_Characters
+
+Bags.lua

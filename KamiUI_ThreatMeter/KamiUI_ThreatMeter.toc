@@ -1,0 +1,8 @@
+## Interface: 16001
+## Title: KamiUI - ThreatMeter
+## Notes: Threat meter module for KamiUI
+## Author: Kami Katze
+## Version: 0.1.0
+## RequiredDeps: KamiUI
+
+ThreatMeter.lua

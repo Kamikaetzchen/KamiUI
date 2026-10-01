@@ -1,0 +1,8 @@
+## Interface: 16001
+## Title: KamiUI - Nameplates
+## Notes: Nameplate module for KamiUI
+## Author: Kami Katze
+## Version: 0.1.0
+## RequiredDeps: KamiUI
+
+Nameplates.lua

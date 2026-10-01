@@ -1,0 +1,8 @@
+## Interface: 16001
+## Title: KamiUI - ActionBars
+## Notes: Action bars module for KamiUI
+## Author: Kami Katze
+## Version: 0.1.0
+## RequiredDeps: KamiUI
+
+ActionBars.lua
