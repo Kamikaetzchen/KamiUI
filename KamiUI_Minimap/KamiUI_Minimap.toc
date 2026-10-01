@@ -1,0 +1,8 @@
+## Interface: 16001
+## Title: KamiUI - Minimap
+## Notes: Clean minimap module for KamiUI
+## Author: Kami Katze
+## Version: 0.1.0
+## RequiredDeps: KamiUI
+
+Minimap.lua
