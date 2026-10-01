@@ -104,17 +104,17 @@ local function UpdateFrame(frame)
 end
 
 local targetTarget = CreateUnitFrame("KamiUITargetTargetFrame", "targettarget")
-targetTarget:SetPoint("BOTTOMLEFT", UF.targetFrame, "TOPRIGHT", 0, 0)
+targetTarget:SetPoint("BOTTOMLEFT", UF.targetFrame, "TOPRIGHT", 2, 2)
 
 local targetTargetTarget =
     CreateUnitFrame("KamiUITargetTargetTargetFrame", "targettargettarget")
-targetTargetTarget:SetPoint("LEFT", targetTarget, "RIGHT", 0, 0)
+targetTargetTarget:SetPoint("LEFT", targetTarget, "RIGHT", 2, 0)
 
 local focus = CreateUnitFrame("KamiUIFocusFrame", "focus")
-focus:SetPoint("TOPLEFT", UF.targetFrame, "BOTTOMRIGHT", 0, 0)
+focus:SetPoint("TOPLEFT", UF.targetFrame, "BOTTOMRIGHT", 2, -2)
 
 local focusTarget = CreateUnitFrame("KamiUIFocusTargetFrame", "focustarget")
-focusTarget:SetPoint("LEFT", focus, "RIGHT", 0, 0)
+focusTarget:SetPoint("LEFT", focus, "RIGHT", 2, 0)
 
 local function UpdateAll()
     UpdateFrame(targetTarget)
