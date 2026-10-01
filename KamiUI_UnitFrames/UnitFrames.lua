@@ -6,7 +6,7 @@ UF.name = "KamiUI_UnitFrames"
 UF.version = "0.1.0"
 
 UF.flatTexture = "Interface\\Buttons\\WHITE8X8"
-UF.colorMultiplier = 0.55
+UF.colorMultiplier = 0.60
 
 local FALLBACK_CLASS_COLORS = {
     DEATHKNIGHT = { 0.77, 0.12, 0.23 },
