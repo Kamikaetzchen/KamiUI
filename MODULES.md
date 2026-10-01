@@ -6,7 +6,8 @@ KamiUI is split into a small core and independent feature addons.
 | --- | --- |
 | KamiUI_UnitFrames | Player, target, pet, focus, secondary, party and raid frames |
 | KamiUI_ActionBars | Action bars, pet/stance bars, micro menu and bag bar |
-| KamiUI_Maps | Minimap and world map |
+| KamiUI_Minimap | Minimap styling, layout and minimap overlays |
+| KamiUI_WorldMap | World map styling and customization |
 | KamiUI_Chat | Chat frames, tabs and chat styling |
 | KamiUI_ThreatMeter | Threat display and threat meter |
 | KamiUI_Bags | Unified inventory and bank, Bagnon-style |
