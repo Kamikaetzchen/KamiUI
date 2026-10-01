@@ -11,8 +11,9 @@ local BAR_WIDTH = CONTENT_WIDTH - PORTRAIT_SIZE
 
 local HEALTH_HEIGHT = 22
 local POWER_HEIGHT = 15
-local POWER_CAST_HEIGHT = 7
-local CAST_HEIGHT = 7
+local HEALTH_CAST_HEIGHT = 18
+local POWER_CAST_HEIGHT = 12
+local CAST_HEIGHT = 6
 local SEPARATOR_SIZE = 1
 
 local frame = CreateFrame(
@@ -60,7 +61,7 @@ local cast = CreateFrame("StatusBar", nil, content)
 cast:SetSize(BAR_WIDTH, CAST_HEIGHT)
 cast:SetPoint("TOPLEFT", power, "BOTTOMLEFT", 0, -SEPARATOR_SIZE)
 cast:SetStatusBarTexture(UF.flatTexture)
-cast:SetStatusBarColor(0.95, 0.65, 0.15)
+cast:SetStatusBarColor(0.65, 0.45, 0.10)
 cast:Hide()
 
 local castBackground = cast:CreateTexture(nil, "BACKGROUND")
@@ -88,16 +89,20 @@ powerText:SetTextColor(1, 1, 1)
 powerText:SetShadowColor(0, 0, 0, 1)
 powerText:SetShadowOffset(1, -1)
 
-local fontPath, powerFontSize, powerFontFlags = GameFontNormalSmall:GetFont()
+local fontPath, _, fontFlags = GameFontNormalSmall:GetFont()
+
+nameText:SetFont(fontPath, UF:GetBarFontSize(HEALTH_HEIGHT), fontFlags)
+healthText:SetFont(fontPath, UF:GetBarFontSize(HEALTH_HEIGHT), fontFlags)
+powerText:SetFont(fontPath, UF:GetBarFontSize(POWER_HEIGHT), fontFlags)
 
 local castNameText = cast:CreateFontString(nil, "OVERLAY")
-castNameText:SetFont(fontPath, 5, "OUTLINE")
+castNameText:SetFont(fontPath, UF:GetBarFontSize(CAST_HEIGHT), "OUTLINE")
 castNameText:SetPoint("LEFT", 2, 0)
 castNameText:SetJustifyH("LEFT")
 castNameText:SetTextColor(1, 1, 1)
 
 local castProgressText = cast:CreateFontString(nil, "OVERLAY")
-castProgressText:SetFont(fontPath, 5, "OUTLINE")
+castProgressText:SetFont(fontPath, UF:GetBarFontSize(CAST_HEIGHT), "OUTLINE")
 castProgressText:SetPoint("RIGHT", -2, 0)
 castProgressText:SetJustifyH("RIGHT")
 castProgressText:SetTextColor(1, 1, 1)
@@ -133,12 +138,42 @@ end
 
 local function SetCastingLayout(isCasting)
     if isCasting then
+        health:SetHeight(HEALTH_CAST_HEIGHT)
         power:SetHeight(POWER_CAST_HEIGHT)
-        powerText:SetFont(fontPath, 5, powerFontFlags)
+        nameText:SetFont(
+            fontPath,
+            UF:GetBarFontSize(HEALTH_CAST_HEIGHT),
+            fontFlags
+        )
+        healthText:SetFont(
+            fontPath,
+            UF:GetBarFontSize(HEALTH_CAST_HEIGHT),
+            fontFlags
+        )
+        powerText:SetFont(
+            fontPath,
+            UF:GetBarFontSize(POWER_CAST_HEIGHT),
+            fontFlags
+        )
         cast:Show()
     else
+        health:SetHeight(HEALTH_HEIGHT)
         power:SetHeight(POWER_HEIGHT)
-        powerText:SetFont(fontPath, powerFontSize, powerFontFlags)
+        nameText:SetFont(
+            fontPath,
+            UF:GetBarFontSize(HEALTH_HEIGHT),
+            fontFlags
+        )
+        healthText:SetFont(
+            fontPath,
+            UF:GetBarFontSize(HEALTH_HEIGHT),
+            fontFlags
+        )
+        powerText:SetFont(
+            fontPath,
+            UF:GetBarFontSize(POWER_HEIGHT),
+            fontFlags
+        )
         cast:Hide()
     end
 end
