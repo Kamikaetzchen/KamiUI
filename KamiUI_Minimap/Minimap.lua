@@ -7,16 +7,18 @@ Module.version = "0.1.0"
 
 local defaults = {
     size = 180,
+    position = {
+        point = "BOTTOM",
+        relativePoint = "BOTTOM",
+        x = 0,
+        y = 20,
+    },
     border = { 0.2, 0.2, 0.2, 1 },
 }
 
-local function StyleMinimap()
-    Minimap:SetSize(defaults.size, defaults.size)
-    Minimap:SetPoint("BOTTOM", UIParent, "BOTTOM", 0, 20)
-
-    Minimap:SetMaskTexture("Interface\\Buttons\\WHITE8X8")
-
+local function CreateBorder()
     local border = CreateFrame("Frame", nil, Minimap, "BackdropTemplate")
+    border:SetFrameLevel(Minimap:GetFrameLevel() + 1)
     border:SetAllPoints()
     border:SetBackdrop({
         edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
@@ -24,7 +26,20 @@ local function StyleMinimap()
     })
     border:SetBackdropBorderColor(unpack(defaults.border))
 
-    Minimap.KamiBorder = border
+    return border
+end
+
+local function StyleMinimap()
+    Minimap:SetSize(defaults.size, defaults.size)
+    Minimap:SetPoint(
+        defaults.position.point,
+        UIParent,
+        defaults.position.relativePoint,
+        defaults.position.x,
+        defaults.position.y
+    )
+
+    Minimap:SetMaskTexture("Interface\\Buttons\\WHITE8X8")
 
     if MinimapBorder then
         MinimapBorder:Hide()
@@ -37,6 +52,8 @@ local function StyleMinimap()
     if MinimapZoomOut then
         MinimapZoomOut:Hide()
     end
+
+    Minimap.KamiBorder = CreateBorder()
 end
 
 function Module:Initialize()
