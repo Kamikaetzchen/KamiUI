@@ -9,3 +9,4 @@ UnitFrames.lua
 Player.lua
 Target.lua
 SecondaryFrames.lua
+DisableBlizzard.lua
