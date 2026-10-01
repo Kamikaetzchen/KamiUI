@@ -10,4 +10,5 @@ Player.lua
 Pet.lua
 Target.lua
 SecondaryFrames.lua
+Indicators.lua
 DisableBlizzard.lua
