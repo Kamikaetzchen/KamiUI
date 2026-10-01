@@ -1,12 +1,13 @@
 local UI = KamiUI
 local UF = UI:GetModule("UnitFrames")
 
-local FRAME_WIDTH = 100
-local FRAME_HEIGHT = 20
+local FRAME_WIDTH = 150
+local FRAME_HEIGHT = 25
 local BORDER_SIZE = 1
 local CONTENT_WIDTH = FRAME_WIDTH - BORDER_SIZE * 2
-local CONTENT_HEIGHT = FRAME_HEIGHT - BORDER_SIZE * 2
-local BAR_HEIGHT = CONTENT_HEIGHT / 2
+local HEALTH_HEIGHT = 13
+local POWER_HEIGHT = 9
+local SEPARATOR_SIZE = 1
 
 local frames = {}
 
@@ -27,7 +28,7 @@ local function CreateUnitFrame(name, unit)
     content:SetPoint("BOTTOMRIGHT", -BORDER_SIZE, BORDER_SIZE)
 
     local health = CreateFrame("StatusBar", nil, content)
-    health:SetSize(CONTENT_WIDTH, BAR_HEIGHT)
+    health:SetSize(CONTENT_WIDTH, HEALTH_HEIGHT)
     health:SetPoint("TOPLEFT")
     health:SetStatusBarTexture(UF.flatTexture)
 
@@ -36,8 +37,8 @@ local function CreateUnitFrame(name, unit)
     healthBackground:SetColorTexture(0.08, 0.08, 0.08, 1)
 
     local power = CreateFrame("StatusBar", nil, content)
-    power:SetSize(CONTENT_WIDTH, BAR_HEIGHT)
-    power:SetPoint("TOPLEFT", health, "BOTTOMLEFT")
+    power:SetSize(CONTENT_WIDTH, POWER_HEIGHT)
+    power:SetPoint("TOPLEFT", health, "BOTTOMLEFT", 0, -SEPARATOR_SIZE)
     power:SetStatusBarTexture(UF.flatTexture)
 
     local powerBackground = power:CreateTexture(nil, "BACKGROUND")
@@ -45,20 +46,20 @@ local function CreateUnitFrame(name, unit)
     powerBackground:SetColorTexture(0.08, 0.08, 0.08, 1)
 
     local nameText = health:CreateFontString(nil, "OVERLAY")
-    nameText:SetFont(fontPath, 7, "OUTLINE")
+    nameText:SetFont(fontPath, UF:GetBarFontSize(HEALTH_HEIGHT), "OUTLINE")
     nameText:SetPoint("LEFT", 2, 0)
-    nameText:SetWidth(54)
+    nameText:SetWidth(92)
     nameText:SetJustifyH("LEFT")
     nameText:SetTextColor(1, 1, 1)
 
     local healthText = health:CreateFontString(nil, "OVERLAY")
-    healthText:SetFont(fontPath, 7, "OUTLINE")
+    healthText:SetFont(fontPath, UF:GetBarFontSize(HEALTH_HEIGHT), "OUTLINE")
     healthText:SetPoint("RIGHT", -2, 0)
     healthText:SetJustifyH("RIGHT")
     healthText:SetTextColor(1, 1, 1)
 
     local powerText = power:CreateFontString(nil, "OVERLAY")
-    powerText:SetFont(fontPath, 7, "OUTLINE")
+    powerText:SetFont(fontPath, UF:GetBarFontSize(POWER_HEIGHT), "OUTLINE")
     powerText:SetPoint("RIGHT", -2, 0)
     powerText:SetJustifyH("RIGHT")
     powerText:SetTextColor(1, 1, 1)
