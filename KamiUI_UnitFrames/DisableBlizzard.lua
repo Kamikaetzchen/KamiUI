@@ -2,6 +2,7 @@ local UI = KamiUI
 
 local BLIZZARD_FRAMES = {
     "PlayerFrame",
+    "PetFrame",
     "TargetFrame",
     "TargetFrameToT",
     "FocusFrame",
