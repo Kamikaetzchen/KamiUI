@@ -1,60 +1,75 @@
 local UI = KamiUI
+local LAB = LibStub("LibActionButton-1.0")
 
 local Module = UI:NewModule("ActionBars")
 
 Module.name = "KamiUI_ActionBars"
-Module.version = "0.1.0"
+Module.version = "0.2.0"
 
 local defaults = {
     buttonSize = 40,
+    secondaryButtonSize = 30,
     buttonSpacing = 0,
     iconZoom = 0.08,
-    petButtonSize = 30,
-    secondaryButtonSize = 30,
     alpha = 1,
     offsetX = -400,
     offsetY = 0,
 }
 
 Module.bottomInset = UI:GetBottomInset()
+Module.bars = {}
+Module.layoutPending = false
+Module.bindingsPending = false
 
-local barConfigs = {
+local BAR_DEFS = {
     {
-        frameName = "MainActionBar",
-        prefix = "ActionButton",
+        id = 1,
+        page = 1,
+        count = 12,
+        binding = "ACTIONBUTTON%d",
+        layout = "primary",
+        row = 1,
+        paged = true,
     },
     {
-        frameName = "MultiBarBottomLeft",
-        prefix = "MultiBarBottomLeftButton",
+        id = 2,
+        page = 6,
+        count = 12,
+        binding = "MULTIACTIONBAR1BUTTON%d",
+        layout = "primary",
+        row = 2,
     },
     {
-        frameName = "MultiBarBottomRight",
-        prefix = "MultiBarBottomRightButton",
+        id = 3,
+        page = 5,
+        count = 12,
+        binding = "MULTIACTIONBAR2BUTTON%d",
+        layout = "primary",
+        row = 3,
     },
     {
-        frameName = "MultiBarRight",
-        prefix = "MultiBarRightButton",
+        id = 4,
+        page = 3,
+        count = 12,
+        binding = "MULTIACTIONBAR3BUTTON%d",
+        layout = "primary",
+        row = 4,
+    },
+    {
+        id = 5,
+        page = 4,
+        count = 12,
+        binding = "MULTIACTIONBAR4BUTTON%d",
+        layout = "secondaryGrid",
+    },
+    {
+        id = 6,
+        page = 13,
+        count = 8,
+        binding = "MULTIACTIONBAR5BUTTON%d",
+        layout = "secondaryRow",
     },
 }
-
-local function HideObject(object)
-    if not object then
-        return
-    end
-
-    object:SetAlpha(0)
-
-    if object.EnableMouse then
-        object:EnableMouse(false)
-    end
-end
-
-local function HideBlizzardMenuAndBags()
-    HideObject(MicroButtonAndBagsBar)
-    HideObject(MicroMenuContainer)
-    HideObject(MicroMenu)
-    HideObject(BagsBar)
-end
 
 local function HideTexture(texture)
     if texture then
@@ -62,49 +77,77 @@ local function HideTexture(texture)
     end
 end
 
-local function HideMainActionBarArt()
-    if not MainActionBar then
+local function CreateEdge(parent, pointA, pointB, width, height)
+    local edge = parent:CreateTexture(nil, "OVERLAY")
+    edge:SetColorTexture(0, 0, 0, 1)
+    edge:SetPoint(pointA, parent, pointA)
+    edge:SetPoint(pointB, parent, pointB)
+
+    if width then
+        edge:SetWidth(width)
+    end
+
+    if height then
+        edge:SetHeight(height)
+    end
+
+    return edge
+end
+
+local function CreateButtonChrome(button)
+    if button.KamiBackground then
         return
     end
 
-    HideTexture(MainActionBar.BorderArt)
+    local background = button:CreateTexture(nil, "BACKGROUND")
+    background:SetAllPoints()
+    background:SetColorTexture(0.025, 0.025, 0.025, 1)
+    button.KamiBackground = background
 
-    -- Do not touch Blizzard's divider pools or action-bar state here.
-    -- Mutating those objects taints protected action-bar execution.
-    if MainActionBar.EndCaps then
-        MainActionBar.EndCaps:SetAlpha(0)
-    end
-
-    if MainActionBar.ActionBarPageNumber then
-        MainActionBar.ActionBarPageNumber:SetAlpha(0)
-    end
+    button.KamiBorderTop = CreateEdge(
+        button,
+        "TOPLEFT",
+        "TOPRIGHT",
+        nil,
+        1
+    )
+    button.KamiBorderBottom = CreateEdge(
+        button,
+        "BOTTOMLEFT",
+        "BOTTOMRIGHT",
+        nil,
+        1
+    )
+    button.KamiBorderLeft = CreateEdge(
+        button,
+        "TOPLEFT",
+        "BOTTOMLEFT",
+        1,
+        nil
+    )
+    button.KamiBorderRight = CreateEdge(
+        button,
+        "TOPRIGHT",
+        "BOTTOMRIGHT",
+        1,
+        nil
+    )
 end
 
 local function GetButtonIcon(button)
-    if not button then
-        return
-    end
-
     return button.icon
         or button.Icon
         or _G[button:GetName() .. "Icon"]
 end
 
-local function MakeIconSquare(button, icon)
+local function StyleIcon(button)
+    local icon = GetButtonIcon(button)
     if not icon then
         return
     end
 
-    local mask = button.IconMask
-
-    if mask then
-        if icon.RemoveMaskTexture then
-            icon:RemoveMaskTexture(mask)
-        else
-            mask:SetTexture("Interface\\Buttons\\WHITE8X8")
-            mask:ClearAllPoints()
-            mask:SetAllPoints(button)
-        end
+    if button.IconMask and icon.RemoveMaskTexture then
+        icon:RemoveMaskTexture(button.IconMask)
     end
 
     icon:ClearAllPoints()
@@ -117,36 +160,6 @@ local function MakeIconSquare(button, icon)
     )
 end
 
-local function RefreshButtonVisuals(button)
-    if not button then
-        return
-    end
-
-    HideTexture(button.NormalTexture or button:GetNormalTexture())
-    HideTexture(button.SlotBackground)
-    HideTexture(button.SlotArt)
-    HideTexture(button.Border)
-    HideTexture(button.IconBorder)
-    HideTexture(button.NewActionTexture)
-    HideTexture(button.SpellHighlightTexture)
-    HideTexture(button.Flash)
-
-    HideTexture(button.PushedTexture or button:GetPushedTexture())
-    HideTexture(button.HighlightTexture or button:GetHighlightTexture())
-    HideTexture(button.CheckedTexture or button:GetCheckedTexture())
-
-    local icon = GetButtonIcon(button)
-
-    if icon then
-        icon:SetTexCoord(
-            defaults.iconZoom,
-            1 - defaults.iconZoom,
-            defaults.iconZoom,
-            1 - defaults.iconZoom
-        )
-    end
-end
-
 local function StyleCooldown(cooldown, button)
     if not cooldown then
         return
@@ -156,79 +169,221 @@ local function StyleCooldown(cooldown, button)
     cooldown:SetAllPoints(button)
 end
 
-local function GetButtonSize(button, size)
-    if size then
-        return size
-    end
-
-    local name = button:GetName() or ""
-
-    if name:match("^PetActionButton")
-        or name:match("^StanceButton")
-        or name:match("^MultiBarLeftButton")
-        or name:match("^MultiBar5Button")
-    then
-        return defaults.secondaryButtonSize
-    end
-
-    return defaults.buttonSize
-end
-
 local function StyleButton(button, size)
-    if not button then
-        return
-    end
-
-    size = GetButtonSize(button, size)
-
     button:SetSize(size, size)
     button:SetAlpha(defaults.alpha)
 
-    if button.container then
-        button.container:SetScale(1)
-        button.container:SetSize(size, size)
-    end
+    CreateButtonChrome(button)
 
+    HideTexture(button.NormalTexture or button:GetNormalTexture())
+    HideTexture(button.SlotBackground)
+    HideTexture(button.SlotArt)
+    HideTexture(button.Border)
+    HideTexture(button.IconBorder)
+    HideTexture(button.NewActionTexture)
+    HideTexture(button.SpellHighlightTexture)
+
+    StyleIcon(button)
     StyleCooldown(button.cooldown, button)
     StyleCooldown(button.lossOfControlCooldown, button)
     StyleCooldown(button.chargeCooldown, button)
-
-    RefreshButtonVisuals(button)
-    MakeIconSquare(button, GetButtonIcon(button))
 end
 
-local function LayoutBarButtons(config, rowIndex)
-    if not _G[config.frameName] then
-        return
+local function NewLABConfig(binding)
+    return {
+        showGrid = true,
+        tooltip = "enabled",
+        flyoutDirection = "UP",
+        actionButtonUI = false,
+        spellCastVFX = false,
+        keyBoundTarget = binding,
+        keyBoundClickButton = "Keybind",
+        hideElements = {
+            macro = false,
+            hotkey = false,
+            equipped = true,
+            border = true,
+            borderIfEmpty = true,
+        },
+    }
+end
+
+local function BuildMainPageDriver()
+    local _, class = UnitClass("player")
+    local states = {
+        "[overridebar][possessbar][shapeshift]possess",
+        "[bar:2]2",
+        "[bar:3]3",
+        "[bar:4]4",
+        "[bar:5]5",
+        "[bar:6]6",
+    }
+
+    if class == "DRUID" then
+        table.insert(states, "[bonusbar:1,stealth:1]8")
+        table.insert(states, "[bonusbar:1]7")
+        table.insert(states, "[bonusbar:3]9")
+    elseif class == "ROGUE" then
+        table.insert(states, "[bonusbar:1]7")
+    elseif class == "WARRIOR" then
+        table.insert(states, "[bonusbar:1]7")
+        table.insert(states, "[bonusbar:2]8")
+        table.insert(states, "[bonusbar:3]9")
     end
 
+    table.insert(states, "1")
+    return table.concat(states, ";")
+end
+
+local function ConfigurePagedHeader(header)
+    header:SetAttribute("_onstate-page", [[
+        if newstate == "possess" then
+            if HasVehicleActionBar() then
+                newstate = GetVehicleBarIndex()
+            elseif HasOverrideActionBar() then
+                newstate = GetOverrideBarIndex()
+            elseif HasTempShapeshiftActionBar() then
+                newstate = GetTempShapeshiftBarIndex()
+            elseif HasBonusActionBar() then
+                newstate = GetBonusBarIndex()
+            else
+                newstate = 1
+            end
+        end
+
+        self:SetAttribute("state", newstate)
+        control:ChildUpdate("state", newstate)
+    ]])
+
+    RegisterStateDriver(header, "page", BuildMainPageDriver())
+end
+
+local function CreateActionBar(def)
+    local header = CreateFrame(
+        "Frame",
+        "KamiUIActionBar" .. def.id,
+        UIParent,
+        "SecureHandlerStateTemplate"
+    )
+    header:SetSize(1, 1)
+
+    local bar = {
+        def = def,
+        frame = header,
+        buttons = {},
+    }
+
+    for index = 1, def.count do
+        local name = string.format("KamiUIActionBar%dButton%d", def.id, index)
+        local button = LAB:CreateButton(
+            def.id * 100 + index,
+            name,
+            header,
+            NewLABConfig(string.format(def.binding, index))
+        )
+
+        if def.paged then
+            button:SetState(0, "action", index)
+
+            for page = 1, 18 do
+                button:SetState(
+                    page,
+                    "action",
+                    (page - 1) * 12 + index
+                )
+            end
+        else
+            button:SetState(
+                0,
+                "action",
+                (def.page - 1) * 12 + index
+            )
+        end
+
+        button:SetAttribute("buttonlock", true)
+        StyleButton(
+            button,
+            def.layout == "primary"
+                and defaults.buttonSize
+                or defaults.secondaryButtonSize
+        )
+
+        bar.buttons[index] = button
+    end
+
+    if def.paged then
+        ConfigurePagedHeader(header)
+    end
+
+    Module.bars[def.id] = bar
+    return bar
+end
+
+local function LayoutPrimaryBar(bar)
     local nextButton
     local y = defaults.offsetY
         + Module.bottomInset
-        + ((rowIndex - 1) * defaults.buttonSize)
+        + ((bar.def.row - 1) * defaults.buttonSize)
 
-    for index = 12, 1, -1 do
-        local button = _G[config.prefix .. index]
+    for index = #bar.buttons, 1, -1 do
+        local button = bar.buttons[index]
+        button:ClearAllPoints()
 
-        if button then
-            StyleButton(button)
+        if nextButton then
+            button:SetPoint(
+                "RIGHT",
+                nextButton,
+                "LEFT",
+                -defaults.buttonSpacing,
+                0
+            )
+        else
+            button:SetPoint(
+                "BOTTOMRIGHT",
+                UIParent,
+                "BOTTOMRIGHT",
+                defaults.offsetX,
+                y
+            )
+        end
+
+        nextButton = button
+    end
+end
+
+local function LayoutBar5(bar)
+    local bar4 = Module.bars[4]
+    if not bar4 then
+        return
+    end
+
+    local bar4Right = bar4.buttons[12]
+
+    for row = 1, 2 do
+        local rightIndex = row * 6
+        local nextButton
+
+        for index = rightIndex, rightIndex - 5, -1 do
+            local button = bar.buttons[index]
             button:ClearAllPoints()
 
             if nextButton then
+                button:SetPoint("RIGHT", nextButton, "LEFT", 0, 0)
+            elseif row == 1 then
                 button:SetPoint(
-                    "RIGHT",
-                    nextButton,
-                    "LEFT",
-                    -defaults.buttonSpacing,
+                    "BOTTOMRIGHT",
+                    bar4Right,
+                    "TOPRIGHT",
+                    0,
                     0
                 )
             else
                 button:SetPoint(
                     "BOTTOMRIGHT",
-                    UIParent,
-                    "BOTTOMRIGHT",
-                    defaults.offsetX,
-                    y
+                    bar.buttons[6],
+                    "TOPRIGHT",
+                    0,
+                    0
                 )
             end
 
@@ -237,303 +392,425 @@ local function LayoutBarButtons(config, rowIndex)
     end
 end
 
-local StyleCheckedState
-
-local function GetBar4Edges()
-    return _G["MultiBarRightButton1"], _G["MultiBarRightButton12"]
-end
-
-local function SetButtonVisible(button, visible)
-    if not button then
-        return
-    end
-
-    button:SetAlpha(visible and defaults.alpha or 0)
-
-    if button.EnableMouse then
-        button:EnableMouse(visible)
-    end
-
-    if button.container then
-        button.container:SetAlpha(visible and 1 or 0)
-
-        if button.container.EnableMouse then
-            button.container:EnableMouse(visible)
-        end
-    end
-end
-
-local function LayoutActionBar5()
-    local bar4Left, bar4Right = GetBar4Edges()
-
-    if not MultiBarLeft or not bar4Left or not bar4Right then
-        return
-    end
-
-    for row = 1, 2 do
-        local rightIndex = row * 6
-        local nextButton
-
-        for index = rightIndex, rightIndex - 5, -1 do
-            local button = _G["MultiBarLeftButton" .. index]
-
-            if button then
-                SetButtonVisible(button, true)
-                StyleButton(button, defaults.secondaryButtonSize)
-                button:ClearAllPoints()
-
-                if nextButton then
-                    button:SetPoint(
-                        "RIGHT",
-                        nextButton,
-                        "LEFT",
-                        0,
-                        0
-                    )
-                elseif row == 1 then
-                    button:SetPoint(
-                        "BOTTOMRIGHT",
-                        bar4Right,
-                        "TOPRIGHT",
-                        0,
-                        0
-                    )
-                else
-                    button:SetPoint(
-                        "BOTTOMRIGHT",
-                        _G["MultiBarLeftButton6"],
-                        "TOPRIGHT",
-                        0,
-                        0
-                    )
-                end
-
-                nextButton = button
-            end
-        end
-    end
-end
-
-local function LayoutActionBar6()
-    local bar4Left = _G["MultiBarRightButton1"]
-
-    if not MultiBar5 or not bar4Left then
+local function LayoutBar6(bar)
+    local bar4 = Module.bars[4]
+    if not bar4 then
         return
     end
 
     local previous
+    local bar4Left = bar4.buttons[1]
 
-    for index = 1, 12 do
-        local button = _G["MultiBar5Button" .. index]
+    for index, button in ipairs(bar.buttons) do
+        button:ClearAllPoints()
 
-        if button then
-            local visible = index <= 8
-            SetButtonVisible(button, visible)
+        if previous then
+            button:SetPoint("LEFT", previous, "RIGHT", 0, 0)
+        else
+            button:SetPoint(
+                "BOTTOMLEFT",
+                bar4Left,
+                "TOPLEFT",
+                0,
+                0
+            )
+        end
 
-            if visible then
-                StyleButton(button, defaults.secondaryButtonSize)
-                button:ClearAllPoints()
+        previous = button
+    end
+end
 
-                if previous then
-                    button:SetPoint(
-                        "LEFT",
-                        previous,
-                        "RIGHT",
-                        0,
-                        0
-                    )
-                else
+local function CreatePetBar()
+    if Module.petBar or not PetActionButtonMixin then
+        return
+    end
+
+    local frame = CreateFrame(
+        "Frame",
+        "KamiUIPetActionBar",
+        UIParent,
+        "SecureHandlerStateTemplate"
+    )
+    frame:SetSize(defaults.secondaryButtonSize * 10, defaults.secondaryButtonSize)
+
+    local buttons = {}
+
+    for index = 1, 10 do
+        local button = CreateFrame(
+            "CheckButton",
+            "KamiUIPetActionButton" .. index,
+            frame,
+            "PetActionButtonTemplate"
+        )
+        button:SetID(index)
+        button.index = index
+        button:SetSize(defaults.secondaryButtonSize, defaults.secondaryButtonSize)
+
+        button:SetScript("OnDragStart", function(self)
+            if InCombatLockdown and InCombatLockdown() then
+                return
+            end
+
+            if not Settings.GetValue("lockActionBars")
+                or IsModifiedClick("PICKUPACTION")
+            then
+                self:SetChecked(false)
+                PickupPetAction(self:GetID())
+            end
+        end)
+
+        button:SetScript("OnReceiveDrag", function(self)
+            if InCombatLockdown and InCombatLockdown() then
+                return
+            end
+
+            if GetCursorInfo() == "petaction" then
+                self:SetChecked(false)
+                PickupPetAction(self:GetID())
+            end
+        end)
+
+        if button.AutoCastOverlay then
+            button.AutoCastOverlay:Hide()
+        end
+
+        local autoCast = button:CreateTexture(nil, "OVERLAY")
+        autoCast:SetColorTexture(0.35, 0.65, 1, 0.65)
+        autoCast:SetPoint("TOPLEFT", button, "TOPLEFT", -1, 1)
+        autoCast:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", 2, -2)
+        autoCast:Hide()
+        button.KamiAutoCast = autoCast
+
+        local checked = button.CheckedTexture or button:GetCheckedTexture()
+        if checked then
+            checked:ClearAllPoints()
+            checked:SetPoint("TOPLEFT", button, "TOPLEFT", -1, 1)
+            checked:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", 2, -2)
+        end
+
+        StyleButton(button, defaults.secondaryButtonSize)
+
+        if index == 1 then
+            button:SetPoint("LEFT", frame, "LEFT", 0, 0)
+        else
+            button:SetPoint("LEFT", buttons[index - 1], "RIGHT", 0, 0)
+        end
+
+        buttons[index] = button
+    end
+
+    frame.buttons = buttons
+    RegisterStateDriver(frame, "visibility", "[nopet]hide;show")
+
+    Module.petBar = frame
+end
+
+local function UpdatePetBar()
+    local frame = Module.petBar
+    if not frame then
+        return
+    end
+
+    for index, button in ipairs(frame.buttons) do
+        local name, texture, isToken, isActive, autoCastAllowed,
+            autoCastEnabled = GetPetActionInfo(index)
+
+        if isToken then
+            button.icon:SetTexture(texture and _G[texture])
+            button.tooltipName = name and _G[name]
+        else
+            button.icon:SetTexture(texture)
+            button.tooltipName = name
+        end
+
+        button.icon:SetShown(texture ~= nil)
+        button:SetChecked(isActive and true or false)
+        button.KamiAutoCast:SetShown(
+            autoCastAllowed and autoCastEnabled and true or false
+        )
+
+        if texture then
+            local usable = not GetPetActionSlotUsable
+                or GetPetActionSlotUsable(index)
+            button.icon:SetVertexColor(
+                usable and 1 or 0.4,
+                usable and 1 or 0.4,
+                usable and 1 or 0.4
+            )
+        end
+
+        local start, duration, enable = GetPetActionCooldown(index)
+        CooldownFrame_Set(button.cooldown, start, duration, enable)
+    end
+end
+
+local function LayoutPetBar()
+    if not Module.petBar then
+        return
+    end
+
+    Module.petBar:ClearAllPoints()
+
+    if KamiUIPlayerFrame then
+        Module.petBar:SetPoint(
+            "TOPLEFT",
+            KamiUIPlayerFrame,
+            "BOTTOMLEFT",
+            51,
+            -2
+        )
+    else
+        Module.petBar:SetPoint(
+            "TOP",
+            UIParent,
+            "CENTER",
+            0,
+            -260
+        )
+    end
+end
+
+local function CreateStanceBar()
+    if Module.stanceBar or not StanceButtonMixin then
+        return
+    end
+
+    local frame = CreateFrame("Frame", "KamiUIStanceBar", UIParent)
+    frame:SetSize(defaults.secondaryButtonSize * 10, defaults.secondaryButtonSize)
+    frame.buttons = {}
+
+    for index = 1, 10 do
+        local button = CreateFrame(
+            "CheckButton",
+            "KamiUIStanceButton" .. index,
+            frame,
+            "StanceButtonTemplate"
+        )
+        button:SetID(index)
+        button.index = index
+        button:SetSize(defaults.secondaryButtonSize, defaults.secondaryButtonSize)
+
+        button:SetScript("OnClick", function(self)
+            if not KeybindFrames_InQuickKeybindMode() then
+                CastShapeshiftForm(self:GetID())
+            end
+        end)
+
+        StyleButton(button, defaults.secondaryButtonSize)
+
+        frame.buttons[index] = button
+    end
+
+    Module.stanceBar = frame
+end
+
+local function UpdateStanceBar()
+    local frame = Module.stanceBar
+    if not frame then
+        return
+    end
+
+    local count = GetNumShapeshiftForms and GetNumShapeshiftForms() or 0
+    local previous
+
+    for index, button in ipairs(frame.buttons) do
+        if index <= count then
+            local texture, isActive, isCastable = GetShapeshiftFormInfo(index)
+            button.icon:SetTexture(texture)
+            button.icon:SetShown(texture ~= nil)
+            button.icon:SetVertexColor(
+                isCastable and 1 or 0.4,
+                isCastable and 1 or 0.4,
+                isCastable and 1 or 0.4
+            )
+            button:SetChecked(isActive and true or false)
+
+            local start, duration, enable = GetShapeshiftFormCooldown(index)
+            CooldownFrame_Set(button.cooldown, start, duration, enable)
+
+            button:ClearAllPoints()
+            if previous then
+                button:SetPoint("LEFT", previous, "RIGHT", 0, 0)
+            else
+                local bar4 = Module.bars[4]
+                if bar4 then
                     button:SetPoint(
                         "BOTTOMLEFT",
-                        bar4Left,
+                        bar4.buttons[1],
                         "TOPLEFT",
                         0,
                         0
                     )
                 end
-
-                previous = button
-            end
-        end
-    end
-end
-
-local function LayoutStanceBar()
-    local bar4Left = _G["MultiBarRightButton1"]
-
-    if not StanceBar or not bar4Left then
-        return
-    end
-
-    local previous
-
-    for index = 1, 10 do
-        local button = _G["StanceButton" .. index]
-
-        if button then
-            StyleButton(button, defaults.secondaryButtonSize)
-            StyleCheckedState(button)
-            button:ClearAllPoints()
-
-            if previous then
-                button:SetPoint(
-                    "LEFT",
-                    previous,
-                    "RIGHT",
-                    0,
-                    0
-                )
-            else
-                button:SetPoint(
-                    "BOTTOMLEFT",
-                    bar4Left,
-                    "TOPLEFT",
-                    0,
-                    0
-                )
             end
 
+            button:Show()
             previous = button
+        else
+            button:Hide()
         end
+    end
+
+    frame:SetShown(count > 0)
+
+    local bar6 = Module.bars[6]
+    if bar6 then
+        bar6.frame:SetShown(count == 0)
     end
 end
 
-local function HasStanceBar()
-    return GetNumShapeshiftForms
-        and GetNumShapeshiftForms() > 0
+local function LayoutBars()
+    for _, bar in pairs(Module.bars) do
+        if bar.def.layout == "primary" then
+            LayoutPrimaryBar(bar)
+        elseif bar.def.layout == "secondaryGrid" then
+            LayoutBar5(bar)
+        elseif bar.def.layout == "secondaryRow" then
+            LayoutBar6(bar)
+        end
+    end
+
+    LayoutPetBar()
+    UpdateStanceBar()
 end
 
-local function LayoutUpperBars()
-    LayoutActionBar5()
+local function PurgeSecureKey(frame, key)
+    if not frame or not issecurevariable then
+        return
+    end
 
-    if HasStanceBar() then
-        for index = 1, 12 do
-            SetButtonVisible(_G["MultiBar5Button" .. index], false)
-        end
+    frame[key] = nil
+    local index = 42
 
-        LayoutStanceBar()
+    while not issecurevariable(frame, key) do
+        frame[index] = nil
+        index = index + 1
+    end
+end
+
+local function HideBlizzardFrame(frame, clearEvents)
+    if not frame then
+        return
+    end
+
+    if clearEvents then
+        frame:UnregisterAllEvents()
+    end
+
+    if frame.system then
+        PurgeSecureKey(frame, "isShownExternal")
+    end
+
+    if frame.HideBase then
+        frame:HideBase()
     else
-        LayoutActionBar6()
+        frame:Hide()
     end
+
+    frame:SetParent(Module.blizzardHider)
 end
 
-local function StylePetAutoCastOverlay(button)
-    local overlay = button.AutoCastOverlay
-
-    if not overlay then
-        return
-    end
-
-    overlay:ClearAllPoints()
-    overlay:SetAllPoints(button)
-    overlay:SetSize(defaults.petButtonSize, defaults.petButtonSize)
-
-    if overlay.Shine then
-        local overflow = defaults.petButtonSize * 0.175
-
-        overlay.Shine:ClearAllPoints()
-        overlay.Shine:SetPoint(
-            "TOPLEFT",
-            overlay,
-            "TOPLEFT",
-            -overflow,
-            overflow
-        )
-        overlay.Shine:SetPoint(
-            "BOTTOMRIGHT",
-            overlay,
-            "BOTTOMRIGHT",
-            overflow,
-            -overflow
-        )
-    end
-
-    if overlay.Mask then
-        overlay.Mask:ClearAllPoints()
-        overlay.Mask:SetPoint("TOPLEFT", overlay, "TOPLEFT", 1, -1)
-        overlay.Mask:SetPoint("BOTTOMRIGHT", overlay, "BOTTOMRIGHT", -1, 1)
-    end
-
-    if overlay.Corners then
-        overlay.Corners:ClearAllPoints()
-        overlay.Corners:SetAllPoints(overlay)
-    end
-end
-
-StyleCheckedState = function(button)
-    local checked = button.CheckedTexture or button:GetCheckedTexture()
-
-    if not checked then
-        return
-    end
-
-    checked:ClearAllPoints()
-    checked:SetPoint("TOPLEFT", button, "TOPLEFT", -1, 1)
-    checked:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", 2, -2)
-    checked:SetAlpha(button:GetChecked() and 1 or 0)
-end
-
-local function LayoutPetButtons()
+local function HideBlizzardBars()
     if InCombatLockdown and InCombatLockdown() then
         Module.layoutPending = true
         return
     end
 
-    local previousContainer
+    if not Module.blizzardHider then
+        Module.blizzardHider = CreateFrame("Frame", "KamiUIActionBarHider")
+        Module.blizzardHider:Hide()
+    end
 
-    for index = 1, 10 do
-        local button = _G["PetActionButton" .. index]
-        local container = button and button.container
+    HideBlizzardFrame(MainActionBar, false)
+    HideBlizzardFrame(MultiBarBottomLeft, true)
+    HideBlizzardFrame(MultiBarBottomRight, true)
+    HideBlizzardFrame(MultiBarRight, true)
+    HideBlizzardFrame(MultiBarLeft, true)
+    HideBlizzardFrame(MultiBar5, true)
+    HideBlizzardFrame(MultiBar6, true)
+    HideBlizzardFrame(MultiBar7, true)
+    HideBlizzardFrame(StanceBar, true)
+    HideBlizzardFrame(PetActionBar, true)
 
-        if button then
-            StyleButton(button, defaults.petButtonSize)
-            StylePetAutoCastOverlay(button)
-            StyleCheckedState(button)
-        end
+    HideBlizzardFrame(MicroButtonAndBagsBar, false)
+    HideBlizzardFrame(MicroMenuContainer, true)
+    HideBlizzardFrame(MicroMenu, true)
+    HideBlizzardFrame(BagsBar, true)
+end
 
-        if container then
-            container:ClearAllPoints()
-            container:SetScale(1)
-            container:SetSize(
-                defaults.petButtonSize,
-                defaults.petButtonSize
-            )
+local function BindFrameButtons(owner, buttons, bindingPattern, clickButton)
+    ClearOverrideBindings(owner)
 
-            if previousContainer then
-                container:SetPoint(
-                    "LEFT",
-                    previousContainer,
-                    "RIGHT",
-                    0,
-                    0
-                )
-            elseif KamiUIPlayerFrame then
-                container:SetPoint(
-                    "TOPLEFT",
-                    KamiUIPlayerFrame,
-                    "BOTTOMLEFT",
-                    51,
-                    -2
-                )
-            else
-                container:SetPoint(
-                    "TOP",
-                    UIParent,
-                    "CENTER",
-                    -(defaults.petButtonSize * 4.5),
-                    -260
+    for index, button in ipairs(buttons) do
+        local binding = string.format(bindingPattern, index)
+
+        for keyIndex = 1, select("#", GetBindingKey(binding)) do
+            local key = select(keyIndex, GetBindingKey(binding))
+
+            if key and key ~= "" then
+                SetOverrideBindingClick(
+                    owner,
+                    false,
+                    key,
+                    button:GetName(),
+                    clickButton
                 )
             end
-
-            previousContainer = container
         end
     end
 end
 
-local function LayoutBars()
-    for index, config in ipairs(barConfigs) do
-        LayoutBarButtons(config, index)
+function Module:ReassignBindings()
+    if InCombatLockdown and InCombatLockdown() then
+        self.bindingsPending = true
+        return
     end
+
+    self.bindingsPending = false
+
+    for _, def in ipairs(BAR_DEFS) do
+        local bar = self.bars[def.id]
+
+        if bar then
+            BindFrameButtons(
+                bar.frame,
+                bar.buttons,
+                def.binding,
+                "Keybind"
+            )
+        end
+    end
+
+    if self.petBar then
+        BindFrameButtons(
+            self.petBar,
+            self.petBar.buttons,
+            "BONUSACTIONBUTTON%d",
+            "LeftButton"
+        )
+    end
+
+    if self.stanceBar then
+        BindFrameButtons(
+            self.stanceBar,
+            self.stanceBar.buttons,
+            "SHAPESHIFTBUTTON%d",
+            "LeftButton"
+        )
+    end
+end
+
+local function CreateBars()
+    if next(Module.bars) then
+        return
+    end
+
+    for _, def in ipairs(BAR_DEFS) do
+        CreateActionBar(def)
+    end
+
+    CreatePetBar()
+    CreateStanceBar()
 end
 
 function Module:Apply()
@@ -544,11 +821,11 @@ function Module:Apply()
 
     self.layoutPending = false
 
-    HideBlizzardMenuAndBags()
-    HideMainActionBarArt()
+    CreateBars()
     LayoutBars()
-    LayoutUpperBars()
-    LayoutPetButtons()
+    HideBlizzardBars()
+    UpdatePetBar()
+    self:ReassignBindings()
 end
 
 function Module:Initialize()
@@ -558,6 +835,64 @@ function Module:Initialize()
         C_Timer.After(0, function()
             Module:Apply()
         end)
+    end)
+
+    UI:RegisterEvent("UPDATE_BINDINGS", function()
+        Module:ReassignBindings()
+    end)
+
+    UI:RegisterEvent("UPDATE_SHAPESHIFT_FORMS", function()
+        if InCombatLockdown and InCombatLockdown() then
+            Module.layoutPending = true
+            return
+        end
+
+        UpdateStanceBar()
+        Module:ReassignBindings()
+    end)
+
+    UI:RegisterEvent("UPDATE_SHAPESHIFT_FORM", function()
+        UpdateStanceBar()
+    end)
+
+    UI:RegisterEvent("UPDATE_SHAPESHIFT_USABLE", function()
+        UpdateStanceBar()
+    end)
+
+    UI:RegisterEvent("UPDATE_SHAPESHIFT_COOLDOWN", function()
+        UpdateStanceBar()
+    end)
+
+    for _, event in ipairs({
+        "PLAYER_CONTROL_LOST",
+        "PLAYER_CONTROL_GAINED",
+        "PLAYER_FARSIGHT_FOCUS_CHANGED",
+        "PET_BAR_UPDATE",
+        "PET_BAR_UPDATE_COOLDOWN",
+        "PET_BAR_UPDATE_USABLE",
+        "PET_UI_UPDATE",
+        "PLAYER_TARGET_CHANGED",
+        "PLAYER_MOUNT_DISPLAY_CHANGED",
+    }) do
+        UI:RegisterEvent(event, UpdatePetBar)
+    end
+
+    UI:RegisterEvent("UNIT_PET", function(_, unit)
+        if unit == "player" then
+            UpdatePetBar()
+        end
+    end)
+
+    UI:RegisterEvent("UNIT_FLAGS", function(_, unit)
+        if unit == "pet" then
+            UpdatePetBar()
+        end
+    end)
+
+    UI:RegisterEvent("UNIT_AURA", function(_, unit)
+        if unit == "pet" then
+            UpdatePetBar()
+        end
     end)
 
     UI:RegisterEvent("ADDON_LOADED", function(_, addonName)
@@ -572,28 +907,6 @@ function Module:Initialize()
         end
     end)
 
-    UI:RegisterEvent("UPDATE_SHAPESHIFT_FORMS", function()
-        if InCombatLockdown and InCombatLockdown() then
-            Module.layoutPending = true
-            return
-        end
-
-        C_Timer.After(0, function()
-            LayoutUpperBars()
-        end)
-    end)
-
-    UI:RegisterEvent("UPDATE_SHAPESHIFT_FORM", function()
-        if InCombatLockdown and InCombatLockdown() then
-            Module.layoutPending = true
-            return
-        end
-
-        C_Timer.After(0, function()
-            LayoutUpperBars()
-        end)
-    end)
-
     UI:RegisterBottomInsetCallback(function(inset)
         Module.bottomInset = inset
 
@@ -602,15 +915,14 @@ function Module:Initialize()
             return
         end
 
-        C_Timer.After(0, function()
-            LayoutBars()
-            LayoutUpperBars()
-        end)
+        LayoutBars()
     end)
 
     UI:RegisterEvent("PLAYER_REGEN_ENABLED", function()
         if Module.layoutPending then
             Module:Apply()
+        elseif Module.bindingsPending then
+            Module:ReassignBindings()
         end
     end)
 end
