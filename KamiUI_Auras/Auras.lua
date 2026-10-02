@@ -257,18 +257,22 @@ local function CollectAuras()
     CollectAurasForFilter(auras, "HARMFUL", false)
 
     table.sort(auras, function(a, b)
-        local aExpiration = a.duration > 0
-            and a.expirationTime
-            or math.huge
-        local bExpiration = b.duration > 0
-            and b.expirationTime
-            or math.huge
+        local aPermanent = not a.duration or a.duration <= 0
+        local bPermanent = not b.duration or b.duration <= 0
 
-        if aExpiration == bExpiration then
+        if aPermanent ~= bPermanent then
+            return aPermanent
+        end
+
+        if aPermanent and bPermanent then
             return (a.name or "") < (b.name or "")
         end
 
-        return aExpiration < bExpiration
+        if a.expirationTime == b.expirationTime then
+            return (a.name or "") < (b.name or "")
+        end
+
+        return a.expirationTime > b.expirationTime
     end)
 
     return auras
