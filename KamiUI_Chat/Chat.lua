@@ -148,9 +148,10 @@ local function HideFrameTextures(frame)
         return
     end
 
-    if frame.Background then
-        frame.Background:SetAlpha(0)
-    end
+    -- Do not merely set these to alpha 0. Blizzard's FCF_FadeInChatFrame()
+    -- animates the stock chat chrome back to DEFAULT_CHATFRAME_ALPHA whenever
+    -- the mouse enters the chat. Hidden regions are skipped by that code.
+    HideObject(frame.Background)
 
     local name = frame:GetName()
 
@@ -159,11 +160,7 @@ local function HideFrameTextures(frame)
     end
 
     for _, suffix in ipairs(CHAT_FRAME_TEXTURES or {}) do
-        local texture = _G[name .. suffix]
-
-        if texture then
-            texture:SetAlpha(0)
-        end
+        HideObject(_G[name .. suffix])
     end
 end
 
@@ -178,6 +175,9 @@ local function HideFrameButtons(frame)
         HideObject(_G[name .. "ButtonFrame"])
     end
 
+    -- The scrollbar is also faded back in by Blizzard on hover. We do not use
+    -- any of the stock chat controls, so keep the whole lot permanently hidden.
+    HideObject(frame.ScrollBar)
     HideObject(frame.ScrollToBottomButton)
     HideObject(frame.ResizeButton)
 end
