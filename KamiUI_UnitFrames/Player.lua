@@ -15,6 +15,7 @@ local HEALTH_CAST_HEIGHT = 17
 local POWER_CAST_HEIGHT = 11
 local CAST_HEIGHT = 8
 local SEPARATOR_SIZE = 1
+local FRAME_Y = -250
 
 local frame = CreateFrame(
     "Button",
@@ -23,8 +24,28 @@ local frame = CreateFrame(
     "SecureUnitButtonTemplate"
 )
 frame:SetSize(FRAME_WIDTH, FRAME_HEIGHT)
-frame:SetPoint("RIGHT", UIParent, "CENTER", -1, -240)
 UF:ConfigureUnitButton(frame, "player")
+
+local layoutPending = false
+
+local function PositionFrame()
+    if InCombatLockdown and InCombatLockdown() then
+        layoutPending = true
+        return
+    end
+
+    layoutPending = false
+    frame:ClearAllPoints()
+    frame:SetPoint(
+        "RIGHT",
+        UIParent,
+        "CENTER",
+        -1,
+        FRAME_Y + UI:GetBottomInset()
+    )
+end
+
+PositionFrame()
 
 local background = frame:CreateTexture(nil, "BACKGROUND")
 background:SetAllPoints()
@@ -269,6 +290,14 @@ local function OnCastEvent(_, unit)
         UpdateCast()
     end
 end
+
+UI:RegisterBottomInsetCallback(PositionFrame)
+
+UI:RegisterEvent("PLAYER_REGEN_ENABLED", function()
+    if layoutPending then
+        PositionFrame()
+    end
+end)
 
 UI:RegisterEvent("PLAYER_ENTERING_WORLD", OnPlayerEvent)
 UI:RegisterEvent("UNIT_HEALTH", OnPlayerEvent)
