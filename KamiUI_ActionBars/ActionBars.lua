@@ -22,6 +22,16 @@ Module.layoutPending = false
 Module.bindingsPending = false
 Module.blizzardHiddenFrames = setmetatable({}, { __mode = "k" })
 
+local cooldownFont = CreateFont("KamiUIActionBarCooldownFont")
+local cooldownFontSmall = CreateFont("KamiUIActionBarCooldownFontSmall")
+local cooldownFontPath, _, cooldownFontFlags = GameFontNormalLarge:GetFont()
+
+cooldownFont:SetFont(cooldownFontPath, 16, cooldownFontFlags)
+cooldownFont:SetTextColor(1.00, 0.12, 0.12, 1)
+
+cooldownFontSmall:SetFont(cooldownFontPath, 13, cooldownFontFlags)
+cooldownFontSmall:SetTextColor(1.00, 0.12, 0.12, 1)
+
 local BAR_DEFS = {
     {
         id = 1,
@@ -170,6 +180,15 @@ local function StyleCooldown(cooldown, button)
 
     cooldown:ClearAllPoints()
     cooldown:SetAllPoints(button)
+    cooldown:SetHideCountdownNumbers(false)
+
+    if cooldown.SetCountdownFont then
+        cooldown:SetCountdownFont(
+            button:GetWidth() <= defaults.secondaryButtonSize
+                and cooldownFontSmall
+                or cooldownFont
+        )
+    end
 end
 
 local function FitStateTexture(texture, button)
@@ -225,6 +244,7 @@ local function NewLABConfig(binding)
         flyoutDirection = "UP",
         actionButtonUI = false,
         spellCastVFX = false,
+        cooldownCount = true,
         keyBoundTarget = binding,
         keyBoundClickButton = "Keybind",
         hideElements = {
@@ -249,7 +269,6 @@ local function BuildMainPageDriver()
     }
 
     if class == "DRUID" then
-        table.insert(states, "[bonusbar:1,stealth:1]8")
         table.insert(states, "[bonusbar:1]7")
         table.insert(states, "[bonusbar:3]9")
     elseif class == "ROGUE" then
