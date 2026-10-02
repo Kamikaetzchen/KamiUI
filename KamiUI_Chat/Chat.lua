@@ -105,8 +105,9 @@ local function EnsurePanels()
         Module.inputPanel = CreatePanel(
             "KamiUIChatInputPanel",
             defaults.inputHeight,
-            defaults.position.y + defaults.height + 1
+            defaults.position.y + defaults.height + defaults.tabAreaHeight
         )
+        Module.inputPanel:Hide()
     end
 end
 
@@ -178,16 +179,36 @@ local function StyleEditBox(frame)
         UIParent,
         "BOTTOMLEFT",
         defaults.position.x,
-        defaults.position.y + defaults.height + 1
+        defaults.position.y + defaults.height + defaults.tabAreaHeight
     )
     editBox:SetPoint(
         "BOTTOMRIGHT",
         UIParent,
         "BOTTOMLEFT",
         defaults.position.x + defaults.width,
-        defaults.position.y + defaults.height + 1
+        defaults.position.y + defaults.height + defaults.tabAreaHeight
     )
     editBox:SetHeight(defaults.inputHeight)
+
+    if not editBox.KamiInputPanelHooked then
+        editBox.KamiInputPanelHooked = true
+
+        editBox:HookScript("OnShow", function()
+            if Module.inputPanel then
+                Module.inputPanel:Show()
+            end
+        end)
+
+        editBox:HookScript("OnHide", function()
+            if Module.inputPanel then
+                Module.inputPanel:Hide()
+            end
+        end)
+    end
+
+    if editBox:IsShown() and Module.inputPanel then
+        Module.inputPanel:Show()
+    end
 
     local editName = editBox:GetName()
 
@@ -273,16 +294,16 @@ local function PositionDock()
     GeneralDockManager:ClearAllPoints()
     GeneralDockManager:SetHeight(defaults.tabAreaHeight)
     GeneralDockManager:SetPoint(
-        "TOPLEFT",
-        ChatFrame1,
         "BOTTOMLEFT",
+        ChatFrame1,
+        "TOPLEFT",
         0,
         0
     )
     GeneralDockManager:SetPoint(
-        "TOPRIGHT",
-        ChatFrame1,
         "BOTTOMRIGHT",
+        ChatFrame1,
+        "TOPRIGHT",
         0,
         0
     )
