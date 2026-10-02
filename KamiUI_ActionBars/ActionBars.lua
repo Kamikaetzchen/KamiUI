@@ -101,6 +101,7 @@ local function CreateButtonChrome(button)
     end
 
     local background = button:CreateTexture(nil, "BACKGROUND")
+    background:SetDrawLayer("BACKGROUND", -8)
     background:SetAllPoints()
     background:SetColorTexture(0.025, 0.025, 0.025, 1)
     button.KamiBackground = background
@@ -151,6 +152,7 @@ local function StyleIcon(button)
         icon:RemoveMaskTexture(button.IconMask)
     end
 
+    icon:SetDrawLayer("ARTWORK", 0)
     icon:ClearAllPoints()
     icon:SetAllPoints(button)
     icon:SetTexCoord(
