@@ -134,16 +134,38 @@ local function StyleCooldown(cooldown, button)
     cooldown:SetAllPoints(button)
 end
 
+local function GetButtonSize(button, size)
+    if size then
+        return size
+    end
+
+    local name = button:GetName() or ""
+
+    if name:match("^PetActionButton")
+        or name:match("^StanceButton")
+        or name:match("^MultiBarLeftButton")
+        or name:match("^MultiBar5Button")
+    then
+        return defaults.secondaryButtonSize
+    end
+
+    return defaults.buttonSize
+end
+
 local function StyleButton(button, size)
     if not button then
         return
     end
 
-    size = size or defaults.buttonSize
+    size = GetButtonSize(button, size)
 
-    if button.KamiButtonSize ~= size then
-        button:SetSize(size, size)
-        button.KamiButtonSize = size
+    button:SetScale(1)
+    button:SetSize(size, size)
+    button.KamiButtonSize = size
+
+    if button.container then
+        button.container:SetScale(1)
+        button.container:SetSize(size, size)
     end
 
     button:SetAlpha(defaults.alpha)
@@ -651,14 +673,27 @@ local function StyleStatusTrackingBars()
     end
 end
 
+local function NormalizeBarScale(bar)
+    if bar then
+        bar:SetScale(1)
+    end
+end
+
+local function NormalizeManagedScales()
+    for _, config in ipairs(barConfigs) do
+        NormalizeBarScale(GetBarFrame(config))
+    end
+
+    NormalizeBarScale(MultiBarLeft)
+    NormalizeBarScale(MultiBar5)
+    NormalizeBarScale(StanceBar)
+    NormalizeBarScale(PetActionBar)
+end
+
 local function LayoutBars()
+    NormalizeManagedScales()
+
     for index, config in ipairs(barConfigs) do
-        local bar = GetBarFrame(config)
-
-        if bar then
-            bar:SetScale(1)
-        end
-
         LayoutBarButtons(config, index)
     end
 end
@@ -674,6 +709,7 @@ function Module:Apply()
 
     self.layoutPending = false
 
+    NormalizeManagedScales()
     LayoutBars()
     LayoutUpperBars()
     StylePetBar()
@@ -697,6 +733,24 @@ function Module:Initialize()
     hooksecurefunc("ActionButton_Update", function(button)
         StyleButton(button)
     end)
+
+    if EditModeActionBarSystemMixin
+        and EditModeActionBarSystemMixin.UpdateSystemSettingIconSize
+    then
+        hooksecurefunc(
+            EditModeActionBarSystemMixin,
+            "UpdateSystemSettingIconSize",
+            function(bar)
+                C_Timer.After(0, function()
+                    if not InCombatLockdown or not InCombatLockdown() then
+                        Module:Apply()
+                    else
+                        Module.layoutPending = true
+                    end
+                end)
+            end
+        )
+    end
 
     UI:RegisterEvent("PLAYER_ENTERING_WORLD", function()
         C_Timer.After(0, function()
