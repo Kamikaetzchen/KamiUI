@@ -1,0 +1,9 @@
+## Interface: 16001
+## Title: KamiUI - DamageMeter
+## Notes: Damage meter layout module for KamiUI
+## Author: Kami Katze
+## Version: 0.1.0
+## RequiredDeps: KamiUI
+## OptionalDeps: Blizzard_DamageMeter
+
+DamageMeter.lua
