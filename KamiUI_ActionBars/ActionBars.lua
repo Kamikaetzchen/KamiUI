@@ -501,36 +501,55 @@ local function CreatePetBar()
         end)
 
         if button.AutoCastOverlay then
-            button.AutoCastOverlay:Hide()
-        end
+            local autoCast = button.AutoCastOverlay
+            autoCast:ClearAllPoints()
+            autoCast:SetPoint("TOPLEFT", button, "TOPLEFT", 1, -1)
+            autoCast:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", -1, 1)
+            autoCast:SetFrameLevel(button:GetFrameLevel() + 5)
 
-        local autoCast = CreateFrame("Frame", nil, button)
-        autoCast:SetPoint("TOPLEFT", button, "TOPLEFT", 1, -1)
-        autoCast:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", -1, 1)
-        autoCast:SetFrameLevel(button:GetFrameLevel() + 5)
-        autoCast:Hide()
-
-        local function CreateAutoCastEdge(pointA, pointB, width, height)
-            local edge = autoCast:CreateTexture(nil, "OVERLAY")
-            edge:SetColorTexture(0.20, 0.55, 1.00, 0.9)
-            edge:SetPoint(pointA, autoCast, pointA)
-            edge:SetPoint(pointB, autoCast, pointB)
-
-            if width then
-                edge:SetWidth(width)
+            if autoCast.Shine then
+                autoCast.Shine:ClearAllPoints()
+                autoCast.Shine:SetPoint(
+                    "TOPLEFT",
+                    autoCast,
+                    "TOPLEFT",
+                    -4,
+                    4
+                )
+                autoCast.Shine:SetPoint(
+                    "BOTTOMRIGHT",
+                    autoCast,
+                    "BOTTOMRIGHT",
+                    4,
+                    -4
+                )
             end
 
-            if height then
-                edge:SetHeight(height)
+            if autoCast.Mask then
+                autoCast.Mask:ClearAllPoints()
+                autoCast.Mask:SetPoint(
+                    "TOPLEFT",
+                    autoCast,
+                    "TOPLEFT",
+                    2,
+                    -2
+                )
+                autoCast.Mask:SetPoint(
+                    "BOTTOMRIGHT",
+                    autoCast,
+                    "BOTTOMRIGHT",
+                    -2,
+                    2
+                )
             end
+
+            if autoCast.Corners then
+                autoCast.Corners:ClearAllPoints()
+                autoCast.Corners:SetAllPoints(autoCast)
+            end
+
+            autoCast:Hide()
         end
-
-        CreateAutoCastEdge("TOPLEFT", "TOPRIGHT", nil, 1)
-        CreateAutoCastEdge("BOTTOMLEFT", "BOTTOMRIGHT", nil, 1)
-        CreateAutoCastEdge("TOPLEFT", "BOTTOMLEFT", 1, nil)
-        CreateAutoCastEdge("TOPRIGHT", "BOTTOMRIGHT", 1, nil)
-
-        button.KamiAutoCast = autoCast
 
         StyleButton(button, defaults.secondaryButtonSize)
 
@@ -576,9 +595,12 @@ local function UpdatePetBar()
 
         button.icon:SetShown(texture ~= nil)
         button:SetChecked(isActive and true or false)
-        button.KamiAutoCast:SetShown(
-            autoCastAllowed and autoCastEnabled and true or false
-        )
+        if button.AutoCastOverlay then
+            button.AutoCastOverlay:SetShown(autoCastAllowed and true or false)
+            button.AutoCastOverlay:ShowAutoCastEnabled(
+                autoCastEnabled and true or false
+            )
+        end
 
         if texture then
             local usable = not GetPetActionSlotUsable
