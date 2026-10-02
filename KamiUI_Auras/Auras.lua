@@ -157,10 +157,6 @@ local function CreateAuraRow(index)
     )
     row:SetSize(defaults.width, defaults.height)
 
-    -- Rows only draw their bottom separator. The group frame provides the
-    -- shared outer border, so adjacent rows never stack two 1px borders.
-    CreateBorder(row, false, true, false, false)
-
     row:RegisterForClicks("RightButtonUp")
 
     local icon = row:CreateTexture(nil, "ARTWORK")
@@ -173,6 +169,14 @@ local function CreateAuraRow(index)
     bar:SetPoint("LEFT", icon, "RIGHT", 0, 0)
     bar:SetStatusBarTexture("Interface\\Buttons\\WHITE8X8")
     bar:SetMinMaxValues(0, 1)
+
+    -- Draw the shared row separator on its own frame above the StatusBar.
+    -- Parent OVERLAY textures can otherwise be covered by a child frame.
+    local separator = CreateFrame("Frame", nil, row)
+    separator:SetAllPoints(row)
+    separator:SetFrameLevel(bar:GetFrameLevel() + 10)
+    separator:EnableMouse(false)
+    CreateBorder(separator, false, true, false, false)
 
     local background = bar:CreateTexture(nil, "BACKGROUND")
     background:SetAllPoints()
@@ -253,6 +257,7 @@ local function CreateAuraRow(index)
 
     row.icon = icon
     row.bar = bar
+    row.separator = separator
     row.background = background
     row.nameText = nameText
     row.timeText = timeText
