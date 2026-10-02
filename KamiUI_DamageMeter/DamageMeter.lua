@@ -7,7 +7,7 @@ Module.version = "0.1.0"
 
 local defaults = {
     x = 0,
-    y = 10,
+    y = 0,
 }
 
 local layoutQueued = false
@@ -40,7 +40,7 @@ function Module:Apply()
         UIParent,
         "BOTTOMRIGHT",
         defaults.x,
-        defaults.y
+        defaults.y + UI:GetBottomInset()
     )
 
     return true
@@ -75,6 +75,10 @@ end
 function Module:Initialize()
     HookDamageMeter()
     self:Apply()
+
+    UI:RegisterBottomInsetCallback(function()
+        Module:Apply()
+    end)
 
     UI:RegisterEvent("PLAYER_ENTERING_WORLD", function()
         C_Timer.After(0, function()
