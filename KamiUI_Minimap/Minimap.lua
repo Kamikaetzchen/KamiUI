@@ -6,12 +6,12 @@ Module.name = "KamiUI_Minimap"
 Module.version = "0.1.0"
 
 local defaults = {
-    size = 180,
+    size = 220,
     position = {
         point = "BOTTOM",
         relativePoint = "BOTTOM",
         x = 0,
-        y = 20,
+        y = 10,
     },
     border = { 0.2, 0.2, 0.2, 1 },
 }

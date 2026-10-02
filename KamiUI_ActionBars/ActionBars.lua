@@ -259,7 +259,8 @@ local function StylePetCheckedState(button)
     end
 
     checked:ClearAllPoints()
-    checked:SetAllPoints(button)
+    checked:SetPoint("TOPLEFT", button, "TOPLEFT", -1, 1)
+    checked:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", 2, -2)
     checked:SetAlpha(button:GetChecked() and 1 or 0)
 end
 
