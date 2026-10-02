@@ -38,8 +38,6 @@ local barConfigs = {
     },
 }
 
-local hiddenObjects = setmetatable({}, { __mode = "k" })
-
 local function HideObject(object)
     if not object then
         return
@@ -47,12 +45,8 @@ local function HideObject(object)
 
     object:Hide()
 
-    if not hiddenObjects[object] and object.HookScript then
-        hiddenObjects[object] = true
-
-        object:HookScript("OnShow", function(self)
-            self:Hide()
-        end)
+    if object.EnableMouse then
+        object:EnableMouse(false)
     end
 end
 
@@ -69,16 +63,10 @@ local function HideTexture(texture)
     end
 end
 
-local function HideMainActionBarArt()
+local function HideMainActionBarDividers()
     if not MainActionBar then
         return
     end
-
-    HideTexture(MainActionBar.BorderArt)
-    HideObject(MainActionBar.EndCaps)
-    HideObject(MainActionBar.ActionBarPageNumber)
-
-    MainActionBar.enableDividers = false
 
     if MainActionBar.HorizontalDividersPool then
         MainActionBar.HorizontalDividersPool:ReleaseAll()
@@ -87,6 +75,17 @@ local function HideMainActionBarArt()
     if MainActionBar.VerticalDividersPool then
         MainActionBar.VerticalDividersPool:ReleaseAll()
     end
+end
+
+local function HideMainActionBarArt()
+    if not MainActionBar then
+        return
+    end
+
+    HideTexture(MainActionBar.BorderArt)
+    HideObject(MainActionBar.EndCaps)
+    HideObject(MainActionBar.ActionBarPageNumber)
+    HideMainActionBarDividers()
 end
 
 local function GetButtonIcon(button)
@@ -126,7 +125,7 @@ local function MakeIconSquare(button, icon)
     )
 end
 
-local function StripButtonArt(button)
+local function RefreshButtonVisuals(button)
     if not button then
         return
     end
@@ -144,6 +143,24 @@ local function StripButtonArt(button)
     HideTexture(button.HighlightTexture or button:GetHighlightTexture())
     HideTexture(button.CheckedTexture or button:GetCheckedTexture())
 
+    local icon = GetButtonIcon(button)
+
+    if icon then
+        icon:SetTexCoord(
+            defaults.iconZoom,
+            1 - defaults.iconZoom,
+            defaults.iconZoom,
+            1 - defaults.iconZoom
+        )
+    end
+end
+
+local function StripButtonArt(button)
+    if not button then
+        return
+    end
+
+    RefreshButtonVisuals(button)
     MakeIconSquare(button, GetButtonIcon(button))
 end
 
@@ -691,7 +708,13 @@ local function StyleStatusTrackingBars()
             StatusTrackingBarManager,
             "UpdateBarVisuals",
             function()
-                C_Timer.After(0, StyleStatusTrackingBars)
+                C_Timer.After(0, function()
+                    if not InCombatLockdown or not InCombatLockdown() then
+                        StyleStatusTrackingBars()
+                    else
+                        Module.layoutPending = true
+                    end
+                end)
             end
         )
     end
@@ -723,16 +746,16 @@ local function LayoutBars()
 end
 
 function Module:Apply()
-    HideBlizzardMenuAndBags()
-    HideMainActionBarArt()
-    StyleStatusTrackingBars()
-
     if InCombatLockdown and InCombatLockdown() then
         self.layoutPending = true
         return
     end
 
     self.layoutPending = false
+
+    HideBlizzardMenuAndBags()
+    HideMainActionBarArt()
+    StyleStatusTrackingBars()
 
     NormalizeManagedScales()
     LayoutBars()
@@ -756,12 +779,30 @@ function Module:Initialize()
     end
 
     hooksecurefunc("ActionButton_Update", function(button)
-        StyleButton(button)
+        RefreshButtonVisuals(button)
     end)
 
     if MainActionBar and MainActionBar.UpdateEndCaps then
         hooksecurefunc(MainActionBar, "UpdateEndCaps", function()
-            C_Timer.After(0, HideMainActionBarArt)
+            C_Timer.After(0, function()
+                if not InCombatLockdown or not InCombatLockdown() then
+                    HideMainActionBarArt()
+                else
+                    Module.layoutPending = true
+                end
+            end)
+        end)
+    end
+
+    if MainActionBar and MainActionBar.UpdateDividers then
+        hooksecurefunc(MainActionBar, "UpdateDividers", function()
+            C_Timer.After(0, function()
+                if not InCombatLockdown or not InCombatLockdown() then
+                    HideMainActionBarDividers()
+                else
+                    Module.layoutPending = true
+                end
+            end)
         end)
     end
 
