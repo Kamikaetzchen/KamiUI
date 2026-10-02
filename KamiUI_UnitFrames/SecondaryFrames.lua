@@ -11,7 +11,7 @@ local SEPARATOR_SIZE = 1
 
 local frames = {}
 
-local fontPath = GameFontNormalSmall:GetFont()
+local fontPath, _, fontFlags = GameFontNormalSmall:GetFont()
 
 local function CreateUnitFrame(name, unit)
     local frame = CreateFrame("Button", name, UIParent, "SecureUnitButtonTemplate")
@@ -46,23 +46,29 @@ local function CreateUnitFrame(name, unit)
     powerBackground:SetColorTexture(0.08, 0.08, 0.08, 1)
 
     local nameText = health:CreateFontString(nil, "OVERLAY")
-    nameText:SetFont(fontPath, UF:GetBarFontSize(HEALTH_HEIGHT), "OUTLINE")
+    nameText:SetFont(fontPath, UF:GetBarFontSize(HEALTH_HEIGHT), fontFlags)
     nameText:SetPoint("LEFT", 2, 0)
     nameText:SetWidth(92)
     nameText:SetJustifyH("LEFT")
     nameText:SetTextColor(1, 1, 1)
+    nameText:SetShadowColor(0, 0, 0, 1)
+    nameText:SetShadowOffset(1, -1)
 
     local healthText = health:CreateFontString(nil, "OVERLAY")
-    healthText:SetFont(fontPath, UF:GetBarFontSize(HEALTH_HEIGHT), "OUTLINE")
+    healthText:SetFont(fontPath, UF:GetBarFontSize(HEALTH_HEIGHT), fontFlags)
     healthText:SetPoint("RIGHT", -2, 0)
     healthText:SetJustifyH("RIGHT")
     healthText:SetTextColor(1, 1, 1)
+    healthText:SetShadowColor(0, 0, 0, 1)
+    healthText:SetShadowOffset(1, -1)
 
     local powerText = power:CreateFontString(nil, "OVERLAY")
-    powerText:SetFont(fontPath, UF:GetBarFontSize(POWER_HEIGHT), "OUTLINE")
+    powerText:SetFont(fontPath, UF:GetBarFontSize(POWER_HEIGHT), fontFlags)
     powerText:SetPoint("RIGHT", -2, 0)
     powerText:SetJustifyH("RIGHT")
     powerText:SetTextColor(1, 1, 1)
+    powerText:SetShadowColor(0, 0, 0, 1)
+    powerText:SetShadowOffset(1, -1)
 
     frame.health = health
     frame.power = power
