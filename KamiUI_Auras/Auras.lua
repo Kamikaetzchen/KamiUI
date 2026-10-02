@@ -6,21 +6,24 @@ Module.name = "KamiUI_Auras"
 Module.version = "0.1.0"
 
 local defaults = {
-    barWidth = 200,
+    width = 300,
     height = 20,
     iconSize = 20,
     groupGap = 4,
-    x = -20,
-    y = 310,
+    x = 0,
+    y = 250,
     fontSize = 11,
     updateInterval = 0.05,
     barAlpha = 0.60,
+    backgroundAlpha = 0.60,
     helpfulColor = { 0.20, 0.55, 0.90 },
+    neutralColor = { 0.03, 0.03, 0.03 },
 }
 
 local auraRows = {}
 local activeRows = {}
 local hiddenObjects = setmetatable({}, { __mode = "k" })
+local groupFrames = {}
 
 local function HideObject(object)
     if not object then
@@ -57,6 +60,28 @@ local function GetColorComponents(color, fallback)
     return unpack(fallback)
 end
 
+local function CreateBorder(parent)
+    local function CreateEdge(pointA, pointB, width, height)
+        local edge = parent:CreateTexture(nil, "OVERLAY")
+        edge:SetColorTexture(0, 0, 0, 1)
+        edge:SetPoint(pointA, parent, pointA)
+        edge:SetPoint(pointB, parent, pointB)
+
+        if width then
+            edge:SetWidth(width)
+        end
+
+        if height then
+            edge:SetHeight(height)
+        end
+    end
+
+    CreateEdge("TOPLEFT", "TOPRIGHT", nil, 1)
+    CreateEdge("BOTTOMLEFT", "BOTTOMRIGHT", nil, 1)
+    CreateEdge("TOPLEFT", "BOTTOMLEFT", 1, nil)
+    CreateEdge("TOPRIGHT", "BOTTOMRIGHT", 1, nil)
+end
+
 local function GetAuraColor(aura)
     local dispelColors = {
         Magic = DEBUFF_TYPE_MAGIC_COLOR,
@@ -80,7 +105,7 @@ local function GetAuraColor(aura)
         )
     end
 
-    return unpack(defaults.helpfulColor)
+    return unpack(defaults.neutralColor)
 end
 
 local function FormatTime(seconds)
@@ -109,10 +134,8 @@ local function CreateAuraRow(index)
         "KamiUIAuraRow" .. index,
         UIParent
     )
-    row:SetSize(
-        defaults.iconSize + defaults.barWidth,
-        defaults.height
-    )
+    row:SetSize(defaults.width, defaults.height)
+    CreateBorder(row)
     row:RegisterForClicks("RightButtonUp")
 
     local icon = row:CreateTexture(nil, "ARTWORK")
@@ -121,14 +144,19 @@ local function CreateAuraRow(index)
     icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
 
     local bar = CreateFrame("StatusBar", nil, row)
-    bar:SetSize(defaults.barWidth, defaults.height)
+    bar:SetSize(defaults.width - defaults.iconSize, defaults.height)
     bar:SetPoint("LEFT", icon, "RIGHT", 0, 0)
     bar:SetStatusBarTexture("Interface\\Buttons\\WHITE8X8")
     bar:SetMinMaxValues(0, 1)
 
     local background = bar:CreateTexture(nil, "BACKGROUND")
     background:SetAllPoints()
-    background:SetColorTexture(0.05, 0.05, 0.05, 0.90)
+    background:SetColorTexture(
+        defaults.neutralColor[1],
+        defaults.neutralColor[2],
+        defaults.neutralColor[3],
+        defaults.backgroundAlpha
+    )
 
     local nameText = bar:CreateFontString(nil, "OVERLAY")
     nameText:SetPoint("LEFT", 4, 0)
@@ -322,6 +350,43 @@ local function UpdateRow(row, aura)
     row:Show()
 end
 
+local function GetGroupFrame(key)
+    local group = groupFrames[key]
+    if group then
+        return group
+    end
+
+    group = CreateFrame("Frame", nil, UIParent)
+    group:SetWidth(defaults.width)
+    group:SetFrameLevel(50)
+    group:EnableMouse(false)
+    CreateBorder(group)
+    group:Hide()
+
+    groupFrames[key] = group
+    return group
+end
+
+local function LayoutGroupBorder(key, count, baseY)
+    local group = GetGroupFrame(key)
+
+    if count <= 0 then
+        group:Hide()
+        return
+    end
+
+    group:ClearAllPoints()
+    group:SetPoint(
+        "BOTTOMRIGHT",
+        UIParent,
+        "BOTTOMRIGHT",
+        defaults.x,
+        baseY
+    )
+    group:SetSize(defaults.width, count * defaults.height)
+    group:Show()
+end
+
 local function LayoutAuraGroup(auras, startRow, baseY)
     for index, aura in ipairs(auras) do
         local rowIndex = startRow + index - 1
@@ -353,6 +418,7 @@ local function LayoutRows(helpful, harmful)
         1,
         baseY
     )
+    LayoutGroupBorder("helpful", #helpful, baseY)
 
     local harmfulY = baseY + (#helpful * defaults.height)
 
@@ -365,6 +431,7 @@ local function LayoutRows(helpful, harmful)
         nextRow,
         harmfulY
     )
+    LayoutGroupBorder("harmful", #harmful, harmfulY)
 
     for index = nextRow, #auraRows do
         local row = auraRows[index]
