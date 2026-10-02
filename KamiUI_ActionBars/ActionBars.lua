@@ -74,6 +74,17 @@ local function HideMainActionBarArt()
 
     HideTexture(MainActionBar.BorderArt)
     HideObject(MainActionBar.EndCaps)
+    HideObject(MainActionBar.ActionBarPageNumber)
+
+    MainActionBar.enableDividers = false
+
+    if MainActionBar.HorizontalDividersPool then
+        MainActionBar.HorizontalDividersPool:ReleaseAll()
+    end
+
+    if MainActionBar.VerticalDividersPool then
+        MainActionBar.VerticalDividersPool:ReleaseAll()
+    end
 end
 
 local function GetButtonIcon(button)
