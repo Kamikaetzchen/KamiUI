@@ -197,6 +197,8 @@ local function LayoutBarButtons(config, rowIndex)
     end
 end
 
+local StyleCheckedState
+
 local function GetBar4Edges()
     return _G["MultiBarRightButton1"], _G["MultiBarRightButton12"]
 end
@@ -413,7 +415,7 @@ local function StylePetAutoCastOverlay(button)
     end
 end
 
-local function StyleCheckedState(button)
+StyleCheckedState = function(button)
     local checked = button.CheckedTexture or button:GetCheckedTexture()
 
     if not checked then
