@@ -63,6 +63,8 @@ local function CreatePetFrame()
     nameText:SetWidth(54)
     nameText:SetJustifyH("LEFT")
     nameText:SetTextColor(1, 1, 1)
+    nameText:SetShadowColor(0, 0, 0, 1)
+    nameText:SetShadowOffset(1, -1)
 
     local healthText = health:CreateFontString(nil, "OVERLAY")
     healthText:SetFont(
@@ -73,6 +75,8 @@ local function CreatePetFrame()
     healthText:SetPoint("RIGHT", -2, 0)
     healthText:SetJustifyH("RIGHT")
     healthText:SetTextColor(1, 1, 1)
+    healthText:SetShadowColor(0, 0, 0, 1)
+    healthText:SetShadowOffset(1, -1)
 
     local powerText = power:CreateFontString(nil, "OVERLAY")
     powerText:SetFont(
@@ -83,6 +87,8 @@ local function CreatePetFrame()
     powerText:SetPoint("RIGHT", -2, 0)
     powerText:SetJustifyH("RIGHT")
     powerText:SetTextColor(1, 1, 1)
+    powerText:SetShadowColor(0, 0, 0, 1)
+    powerText:SetShadowOffset(1, -1)
 
     frame.health = health
     frame.power = power
@@ -131,6 +137,8 @@ local function CreatePetTargetFrame(petFrame)
     nameText:SetPoint("RIGHT", -2, 0)
     nameText:SetJustifyH("LEFT")
     nameText:SetTextColor(1, 1, 1)
+    nameText:SetShadowColor(0, 0, 0, 1)
+    nameText:SetShadowOffset(1, -1)
 
     frame.health = health
     frame.nameText = nameText
