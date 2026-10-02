@@ -79,8 +79,8 @@ end
 
 local function InitializeAuraButton(button, color)
     button:SetSize(defaults.width, defaults.height)
-    button:RegisterForClicks("RightButtonUp")
-    button:SetCancelAuraButtons("RightButton")
+    button:EnableMouse(true)
+    button:SetCancelAuraButtons("RightButtonUp")
 
     local icon = button:CreateTexture(nil, "ARTWORK")
     icon:SetSize(defaults.iconSize, defaults.iconSize)
