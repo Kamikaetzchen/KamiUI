@@ -16,6 +16,7 @@ local defaults = {
     updateInterval = 0.05,
     barAlpha = 0.40,
     backgroundAlpha = 0.60,
+    backgroundTint = 0.28,
     helpfulColor = { 0.20, 0.55, 0.90 },
     neutralColor = { 0.03, 0.03, 0.03 },
 }
@@ -106,6 +107,15 @@ local function GetAuraColor(aura)
     end
 
     return unpack(defaults.neutralColor)
+end
+
+local function GetAuraBackgroundColor(r, g, b)
+    local tint = defaults.backgroundTint
+    local nr, ng, nb = unpack(defaults.neutralColor)
+
+    return nr + (r - nr) * tint,
+        ng + (g - ng) * tint,
+        nb + (b - nb) * tint
 end
 
 local function FormatTime(seconds)
@@ -332,6 +342,14 @@ local function UpdateRow(row, aura)
     local r, g, b = GetAuraColor(aura)
     row.bar:SetStatusBarColor(r, g, b, defaults.barAlpha)
 
+    local br, bg, bb = GetAuraBackgroundColor(r, g, b)
+    row.background:SetColorTexture(
+        br,
+        bg,
+        bb,
+        defaults.backgroundAlpha
+    )
+
     if aura.duration and aura.duration > 0 then
         local remaining = math.max(
             aura.expirationTime - GetTime(),
@@ -343,7 +361,7 @@ local function UpdateRow(row, aura)
         row.timeText:SetText(FormatTime(remaining))
     else
         row.bar:SetMinMaxValues(0, 1)
-        row.bar:SetValue(1)
+        row.bar:SetValue(0)
         row.timeText:SetText("")
     end
 
