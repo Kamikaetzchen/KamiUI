@@ -199,10 +199,14 @@ local function StyleButton(button, size)
         button.HighlightTexture or button:GetHighlightTexture(),
         button
     )
-    FitStateTexture(
-        button.PushedTexture or button:GetPushedTexture(),
-        button
-    )
+    local pushed = button.PushedTexture or button:GetPushedTexture()
+    FitStateTexture(pushed, button)
+
+    if pushed and pushed.SetAtlas then
+        pushed:SetAtlas("UI-HUD-ActionBar-IconFrame-Mouseover", false)
+        pushed:SetVertexColor(1, 0.82, 0.20, 1)
+    end
+
     FitStateTexture(
         button.CheckedTexture or button:GetCheckedTexture(),
         button
