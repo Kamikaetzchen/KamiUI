@@ -17,6 +17,8 @@ local defaults = {
     offsetY = 0,
 }
 
+Module.bottomInset = UI:GetBottomInset()
+
 local barConfigs = {
     {
         frameName = "MainActionBar",
@@ -208,7 +210,7 @@ local function LayoutBarButtons(config, rowIndex)
 
     local nextButton
     local y = defaults.offsetY
-        + UI:GetBottomInset()
+        + Module.bottomInset
         + ((rowIndex - 1) * defaults.buttonSize)
 
     for index = 12, 1, -1 do
@@ -839,8 +841,18 @@ function Module:Initialize()
         end)
     end)
 
-    UI:RegisterBottomInsetCallback(function()
-        Module:Apply()
+    UI:RegisterBottomInsetCallback(function(inset)
+        Module.bottomInset = inset
+
+        if InCombatLockdown and InCombatLockdown() then
+            Module.layoutPending = true
+            return
+        end
+
+        C_Timer.After(0, function()
+            LayoutBars()
+            LayoutUpperBars()
+        end)
     end)
 
     UI:RegisterEvent("PLAYER_REGEN_ENABLED", function()
