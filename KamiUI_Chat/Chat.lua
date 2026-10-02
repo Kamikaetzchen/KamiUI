@@ -435,10 +435,6 @@ function Module:SetupTabs()
     self.guildFrame = EnsureWindow(managedWindows[1])
     self.partyFrame = EnsureWindow(managedWindows[2])
     self.whisperFrame = EnsureWindow(managedWindows[3])
-
-    if ChatFrame1 and ChatFrame1.isDocked then
-        FCF_SelectDockFrame(ChatFrame1)
-    end
 end
 
 function Module:ApplyLayout()
@@ -488,7 +484,7 @@ function Module:Initialize()
 
     UI:RegisterEvent("PLAYER_ENTERING_WORLD", function()
         C_Timer.After(0, function()
-            Module:Apply()
+            Module:ApplyLayout()
         end)
     end)
 
