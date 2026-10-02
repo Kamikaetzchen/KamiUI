@@ -103,7 +103,7 @@ local function CreateButtonChrome(button)
     local background = button:CreateTexture(nil, "BACKGROUND")
     background:SetDrawLayer("BACKGROUND", -8)
     background:SetAllPoints()
-    background:SetColorTexture(0.025, 0.025, 0.025, 1)
+    background:SetColorTexture(0.025, 0.025, 0.025, 0.30)
     button.KamiBackground = background
 
     button.KamiBorderTop = CreateEdge(
