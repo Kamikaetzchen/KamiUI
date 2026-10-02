@@ -11,7 +11,6 @@ local defaults = {
     iconZoom = 0.08,
     petButtonSize = 30,
     secondaryButtonSize = 30,
-    statusBarHeight = UI.defaults.layout.xpBarHeight,
     alpha = 1,
     offsetX = -400,
     offsetY = 0,
@@ -63,29 +62,22 @@ local function HideTexture(texture)
     end
 end
 
-local function HideMainActionBarDividers()
-    if not MainActionBar then
-        return
-    end
-
-    if MainActionBar.HorizontalDividersPool then
-        MainActionBar.HorizontalDividersPool:ReleaseAll()
-    end
-
-    if MainActionBar.VerticalDividersPool then
-        MainActionBar.VerticalDividersPool:ReleaseAll()
-    end
-end
-
 local function HideMainActionBarArt()
     if not MainActionBar then
         return
     end
 
     HideTexture(MainActionBar.BorderArt)
-    HideObject(MainActionBar.EndCaps)
-    HideObject(MainActionBar.ActionBarPageNumber)
-    HideMainActionBarDividers()
+
+    -- Do not touch Blizzard's divider pools or action-bar state here.
+    -- Mutating those objects taints protected action-bar execution.
+    if MainActionBar.EndCaps then
+        MainActionBar.EndCaps:SetAlpha(0)
+    end
+
+    if MainActionBar.ActionBarPageNumber then
+        MainActionBar.ActionBarPageNumber:SetAlpha(0)
+    end
 end
 
 local function GetButtonIcon(button)
@@ -155,15 +147,6 @@ local function RefreshButtonVisuals(button)
     end
 end
 
-local function StripButtonArt(button)
-    if not button then
-        return
-    end
-
-    RefreshButtonVisuals(button)
-    MakeIconSquare(button, GetButtonIcon(button))
-end
-
 local function StyleCooldown(cooldown, button)
     if not cooldown then
         return
@@ -198,30 +181,24 @@ local function StyleButton(button, size)
 
     size = GetButtonSize(button, size)
 
-    button:SetScale(1)
     button:SetSize(size, size)
-    button.KamiButtonSize = size
+    button:SetAlpha(defaults.alpha)
 
     if button.container then
         button.container:SetScale(1)
         button.container:SetSize(size, size)
     end
 
-    button:SetAlpha(defaults.alpha)
-
     StyleCooldown(button.cooldown, button)
     StyleCooldown(button.lossOfControlCooldown, button)
     StyleCooldown(button.chargeCooldown, button)
 
-    StripButtonArt(button)
-end
-
-local function GetBarFrame(config)
-    return _G[config.frameName]
+    RefreshButtonVisuals(button)
+    MakeIconSquare(button, GetButtonIcon(button))
 end
 
 local function LayoutBarButtons(config, rowIndex)
-    if not GetBarFrame(config) then
+    if not _G[config.frameName] then
         return
     end
 
@@ -266,28 +243,32 @@ local function GetBar4Edges()
     return _G["MultiBarRightButton1"], _G["MultiBarRightButton12"]
 end
 
-local function SetBarButtonCount(bar, count)
-    if not bar then
+local function SetButtonVisible(button, visible)
+    if not button then
         return
     end
 
-    bar.numButtonsShowable = count
+    button:SetAlpha(visible and defaults.alpha or 0)
 
-    if bar.UpdateShownButtons then
-        bar:UpdateShownButtons()
+    if button.EnableMouse then
+        button:EnableMouse(visible)
+    end
+
+    if button.container then
+        button.container:SetAlpha(visible and 1 or 0)
+
+        if button.container.EnableMouse then
+            button.container:EnableMouse(visible)
+        end
     end
 end
 
 local function LayoutActionBar5()
-    local bar = MultiBarLeft
     local bar4Left, bar4Right = GetBar4Edges()
 
-    if not bar or not bar4Left or not bar4Right then
+    if not MultiBarLeft or not bar4Left or not bar4Right then
         return
     end
-
-    bar:SetScale(1)
-    SetBarButtonCount(bar, 12)
 
     for row = 1, 2 do
         local rightIndex = row * 6
@@ -297,6 +278,7 @@ local function LayoutActionBar5()
             local button = _G["MultiBarLeftButton" .. index]
 
             if button then
+                SetButtonVisible(button, true)
                 StyleButton(button, defaults.secondaryButtonSize)
                 button:ClearAllPoints()
 
@@ -333,44 +315,45 @@ local function LayoutActionBar5()
 end
 
 local function LayoutActionBar6()
-    local bar = MultiBar5
     local bar4Left = _G["MultiBarRightButton1"]
 
-    if not bar or not bar4Left then
+    if not MultiBar5 or not bar4Left then
         return
     end
 
-    bar:SetScale(1)
-    SetBarButtonCount(bar, 8)
-
     local previous
 
-    for index = 1, 8 do
+    for index = 1, 12 do
         local button = _G["MultiBar5Button" .. index]
 
         if button then
-            StyleButton(button, defaults.secondaryButtonSize)
-            button:ClearAllPoints()
+            local visible = index <= 8
+            SetButtonVisible(button, visible)
 
-            if previous then
-                button:SetPoint(
-                    "LEFT",
-                    previous,
-                    "RIGHT",
-                    0,
-                    0
-                )
-            else
-                button:SetPoint(
-                    "BOTTOMLEFT",
-                    bar4Left,
-                    "TOPLEFT",
-                    0,
-                    0
-                )
+            if visible then
+                StyleButton(button, defaults.secondaryButtonSize)
+                button:ClearAllPoints()
+
+                if previous then
+                    button:SetPoint(
+                        "LEFT",
+                        previous,
+                        "RIGHT",
+                        0,
+                        0
+                    )
+                else
+                    button:SetPoint(
+                        "BOTTOMLEFT",
+                        bar4Left,
+                        "TOPLEFT",
+                        0,
+                        0
+                    )
+                end
+
+                previous = button
             end
-
-            previous = button
         end
     end
 end
@@ -381,10 +364,6 @@ local function LayoutStanceBar()
     if not StanceBar or not bar4Left then
         return
     end
-
-    StanceBar:SetScale(1)
-    StanceBar.minButtonPadding = 0
-    StanceBar.buttonPadding = 0
 
     local previous
 
@@ -428,7 +407,10 @@ local function LayoutUpperBars()
     LayoutActionBar5()
 
     if HasStanceBar() then
-        SetBarButtonCount(MultiBar5, 0)
+        for index = 1, 12 do
+            SetButtonVisible(_G["MultiBar5Button" .. index], false)
+        end
+
         LayoutStanceBar()
     else
         LayoutActionBar6()
@@ -491,18 +473,6 @@ StyleCheckedState = function(button)
     checked:SetAlpha(button:GetChecked() and 1 or 0)
 end
 
-local function RestylePetButtons()
-    for index = 1, 10 do
-        local button = _G["PetActionButton" .. index]
-
-        if button then
-            StripButtonArt(button)
-            StylePetAutoCastOverlay(button)
-            StyleCheckedState(button)
-        end
-    end
-end
-
 local function LayoutPetButtons()
     if InCombatLockdown and InCombatLockdown() then
         Module.layoutPending = true
@@ -515,8 +485,15 @@ local function LayoutPetButtons()
         local button = _G["PetActionButton" .. index]
         local container = button and button.container
 
+        if button then
+            StyleButton(button, defaults.petButtonSize)
+            StylePetAutoCastOverlay(button)
+            StyleCheckedState(button)
+        end
+
         if container then
             container:ClearAllPoints()
+            container:SetScale(1)
             container:SetSize(
                 defaults.petButtonSize,
                 defaults.petButtonSize
@@ -531,8 +508,6 @@ local function LayoutPetButtons()
                     0
                 )
             elseif KamiUIPlayerFrame then
-                -- 10 * 30 = 300px. Player + target span 402px with
-                -- the 2px center gap, so 51px inset centers the pet bar.
                 container:SetPoint(
                     "TOPLEFT",
                     KamiUIPlayerFrame,
@@ -555,191 +530,7 @@ local function LayoutPetButtons()
     end
 end
 
-local function StylePetBar()
-    if not PetActionBar then
-        return
-    end
-
-    PetActionBar:SetScale(1)
-    PetActionBar.minButtonPadding = 0
-    PetActionBar.buttonPadding = 0
-    PetActionBar.numRows = 1
-    PetActionBar.isHorizontal = true
-    PetActionBar.addButtonsToRight = true
-    PetActionBar.addButtonsToTop = true
-
-    for index = 1, 10 do
-        local button = _G["PetActionButton" .. index]
-
-        if button then
-            StyleButton(button, defaults.petButtonSize)
-
-            if button.container then
-                button.container:SetSize(
-                    defaults.petButtonSize,
-                    defaults.petButtonSize
-                )
-            end
-
-            StylePetAutoCastOverlay(button)
-            StyleCheckedState(button)
-        end
-    end
-
-    PetActionBar.oldGridSettings = nil
-
-    if PetActionBar.UpdateShownButtons then
-        PetActionBar:UpdateShownButtons()
-    end
-
-    if PetActionBar.UpdateGridLayout then
-        PetActionBar:UpdateGridLayout()
-    end
-
-    LayoutPetButtons()
-    RestylePetButtons()
-
-    if not PetActionBar.KamiGridHooked and PetActionBar.UpdateGridLayout then
-        PetActionBar.KamiGridHooked = true
-
-        hooksecurefunc(PetActionBar, "UpdateGridLayout", function()
-            C_Timer.After(0, LayoutPetButtons)
-        end)
-    end
-
-    if not PetActionBar.KamiUpdateHooked and PetActionBar.Update then
-        PetActionBar.KamiUpdateHooked = true
-
-        hooksecurefunc(PetActionBar, "Update", function()
-            RestylePetButtons()
-        end)
-    end
-end
-
-local function StyleStatusBar(bar, width)
-    if not bar then
-        return
-    end
-
-    bar:ClearAllPoints()
-    bar:SetPoint("BOTTOMLEFT", bar:GetParent(), "BOTTOMLEFT", 0, 0)
-    bar:SetSize(width, defaults.statusBarHeight)
-
-    if bar.StatusBar then
-        bar.StatusBar:ClearAllPoints()
-        bar.StatusBar:SetAllPoints(bar)
-
-        if bar.StatusBar.Background then
-            bar.StatusBar.Background:ClearAllPoints()
-            bar.StatusBar.Background:SetAllPoints(bar.StatusBar)
-        end
-    end
-
-    if bar.OverlayFrame then
-        bar.OverlayFrame:ClearAllPoints()
-        bar.OverlayFrame:SetAllPoints(bar)
-    end
-
-    if bar.ExhaustionLevelFillBar then
-        bar.ExhaustionLevelFillBar:SetHeight(defaults.statusBarHeight)
-    end
-end
-
-local function StyleStatusContainer(container, y)
-    if not container then
-        return
-    end
-
-    local width = UIParent:GetWidth()
-
-    container:ClearAllPoints()
-    container:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", 0, y)
-    container:SetPoint("BOTTOMRIGHT", UIParent, "BOTTOMRIGHT", 0, y)
-    container:SetHeight(defaults.statusBarHeight)
-
-    HideTexture(container.BarFrameTexture)
-
-    for _, bar in pairs(container.bars or {}) do
-        StyleStatusBar(bar, width)
-    end
-end
-
-local function StyleStatusTrackingBars()
-    if not StatusTrackingBarManager then
-        return
-    end
-
-    StatusTrackingBarManager:ClearAllPoints()
-    StatusTrackingBarManager:SetPoint(
-        "BOTTOMLEFT",
-        UIParent,
-        "BOTTOMLEFT",
-        0,
-        0
-    )
-    StatusTrackingBarManager:SetPoint(
-        "BOTTOMRIGHT",
-        UIParent,
-        "BOTTOMRIGHT",
-        0,
-        0
-    )
-    StatusTrackingBarManager:SetHeight(defaults.statusBarHeight * 2)
-
-    StyleStatusContainer(
-        StatusTrackingBarManager.MainStatusTrackingBarContainer,
-        0
-    )
-    StyleStatusContainer(
-        StatusTrackingBarManager.SecondaryStatusTrackingBarContainer,
-        defaults.statusBarHeight
-    )
-
-    if StatusTrackingBarManager.UpdateBarTicks then
-        StatusTrackingBarManager:UpdateBarTicks()
-    end
-
-    if not StatusTrackingBarManager.KamiVisualHooked
-        and StatusTrackingBarManager.UpdateBarVisuals
-    then
-        StatusTrackingBarManager.KamiVisualHooked = true
-
-        hooksecurefunc(
-            StatusTrackingBarManager,
-            "UpdateBarVisuals",
-            function()
-                C_Timer.After(0, function()
-                    if not InCombatLockdown or not InCombatLockdown() then
-                        StyleStatusTrackingBars()
-                    else
-                        Module.layoutPending = true
-                    end
-                end)
-            end
-        )
-    end
-end
-
-local function NormalizeBarScale(bar)
-    if bar then
-        bar:SetScale(1)
-    end
-end
-
-local function NormalizeManagedScales()
-    for _, config in ipairs(barConfigs) do
-        NormalizeBarScale(GetBarFrame(config))
-    end
-
-    NormalizeBarScale(MultiBarLeft)
-    NormalizeBarScale(MultiBar5)
-    NormalizeBarScale(StanceBar)
-    NormalizeBarScale(PetActionBar)
-end
-
 local function LayoutBars()
-    NormalizeManagedScales()
-
     for index, config in ipairs(barConfigs) do
         LayoutBarButtons(config, index)
     end
@@ -755,94 +546,16 @@ function Module:Apply()
 
     HideBlizzardMenuAndBags()
     HideMainActionBarArt()
-    StyleStatusTrackingBars()
-
-    NormalizeManagedScales()
     LayoutBars()
     LayoutUpperBars()
-    StylePetBar()
+    LayoutPetButtons()
 end
 
 function Module:Initialize()
     self:Apply()
 
-    if StanceBar and StanceBar.UpdateState and not StanceBar.KamiUpdateHooked then
-        StanceBar.KamiUpdateHooked = true
-
-        hooksecurefunc(StanceBar, "UpdateState", function()
-            C_Timer.After(0, function()
-                if not InCombatLockdown or not InCombatLockdown() then
-                    LayoutStanceBar()
-                end
-            end)
-        end)
-    end
-
-    hooksecurefunc("ActionButton_Update", function(button)
-        RefreshButtonVisuals(button)
-    end)
-
-    if MainActionBar and MainActionBar.UpdateEndCaps then
-        hooksecurefunc(MainActionBar, "UpdateEndCaps", function()
-            C_Timer.After(0, function()
-                if not InCombatLockdown or not InCombatLockdown() then
-                    HideMainActionBarArt()
-                else
-                    Module.layoutPending = true
-                end
-            end)
-        end)
-    end
-
-    if MainActionBar and MainActionBar.UpdateDividers then
-        hooksecurefunc(MainActionBar, "UpdateDividers", function()
-            C_Timer.After(0, function()
-                if not InCombatLockdown or not InCombatLockdown() then
-                    HideMainActionBarDividers()
-                else
-                    Module.layoutPending = true
-                end
-            end)
-        end)
-    end
-
-    local function InstallScaleHook(bar)
-        if not bar
-            or bar.KamiScaleHooked
-            or not bar.UpdateSystemSettingIconSize
-        then
-            return
-        end
-
-        bar.KamiScaleHooked = true
-
-        hooksecurefunc(bar, "UpdateSystemSettingIconSize", function()
-            C_Timer.After(0, function()
-                if not InCombatLockdown or not InCombatLockdown() then
-                    Module:Apply()
-                else
-                    Module.layoutPending = true
-                end
-            end)
-        end)
-    end
-
-    local function InstallScaleHooks()
-        for _, config in ipairs(barConfigs) do
-            InstallScaleHook(GetBarFrame(config))
-        end
-
-        InstallScaleHook(MultiBarLeft)
-        InstallScaleHook(MultiBar5)
-        InstallScaleHook(StanceBar)
-        InstallScaleHook(PetActionBar)
-    end
-
-    InstallScaleHooks()
-
     UI:RegisterEvent("PLAYER_ENTERING_WORLD", function()
         C_Timer.After(0, function()
-            InstallScaleHooks()
             Module:Apply()
         end)
     end)
@@ -850,35 +563,34 @@ function Module:Initialize()
     UI:RegisterEvent("ADDON_LOADED", function(_, addonName)
         if addonName == "Blizzard_ActionBar"
             or addonName == "Blizzard_EditMode"
-        then
-            C_Timer.After(0, function()
-                InstallScaleHooks()
-                Module:Apply()
-            end)
-        elseif addonName == "Blizzard_MicroMenu"
+            or addonName == "Blizzard_MicroMenu"
             or addonName == "Blizzard_MainMenuBarBagButtons"
         then
-            C_Timer.After(0, HideBlizzardMenuAndBags)
+            C_Timer.After(0, function()
+                Module:Apply()
+            end)
         end
     end)
 
     UI:RegisterEvent("UPDATE_SHAPESHIFT_FORMS", function()
+        if InCombatLockdown and InCombatLockdown() then
+            Module.layoutPending = true
+            return
+        end
+
         C_Timer.After(0, function()
-            if not InCombatLockdown or not InCombatLockdown() then
-                LayoutUpperBars()
-            else
-                Module.layoutPending = true
-            end
+            LayoutUpperBars()
         end)
     end)
 
     UI:RegisterEvent("UPDATE_SHAPESHIFT_FORM", function()
+        if InCombatLockdown and InCombatLockdown() then
+            Module.layoutPending = true
+            return
+        end
+
         C_Timer.After(0, function()
-            if not InCombatLockdown or not InCombatLockdown() then
-                LayoutUpperBars()
-            else
-                Module.layoutPending = true
-            end
+            LayoutUpperBars()
         end)
     end)
 
