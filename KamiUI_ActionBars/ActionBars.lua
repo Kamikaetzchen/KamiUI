@@ -9,7 +9,7 @@ local defaults = {
     buttonSize = 40,
     buttonSpacing = 0,
     iconZoom = 0.08,
-    petButtonSize = 40,
+    petButtonSize = 30,
     statusBarHeight = 10,
     alpha = 1,
     offsetX = -400,
@@ -220,9 +220,23 @@ local function StylePetAutoCastOverlay(button)
     overlay:SetSize(defaults.petButtonSize, defaults.petButtonSize)
 
     if overlay.Shine then
+        local overflow = defaults.petButtonSize * 0.175
+
         overlay.Shine:ClearAllPoints()
-        overlay.Shine:SetPoint("TOPLEFT", overlay, "TOPLEFT", -7, 7)
-        overlay.Shine:SetPoint("BOTTOMRIGHT", overlay, "BOTTOMRIGHT", 7, -7)
+        overlay.Shine:SetPoint(
+            "TOPLEFT",
+            overlay,
+            "TOPLEFT",
+            -overflow,
+            overflow
+        )
+        overlay.Shine:SetPoint(
+            "BOTTOMRIGHT",
+            overlay,
+            "BOTTOMRIGHT",
+            overflow,
+            -overflow
+        )
     end
 
     if overlay.Mask then
@@ -289,14 +303,14 @@ local function LayoutPetButtons()
                     0
                 )
             elseif KamiUIPlayerFrame then
-                -- 10 * 40 = 400px, centered inside the 404px
-                -- player + target span with a 2px inset on each side.
+                -- 10 * 30 = 300px. Player + target span 402px with
+                -- the 2px center gap, so 51px inset centers the pet bar.
                 container:SetPoint(
                     "TOPLEFT",
                     KamiUIPlayerFrame,
                     "BOTTOMLEFT",
-                    2,
-                    0
+                    51,
+                    -2
                 )
             else
                 container:SetPoint(
