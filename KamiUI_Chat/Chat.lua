@@ -8,8 +8,8 @@ Module.version = "0.1.0"
 local SETUP_VERSION = 1
 
 local defaults = {
-    width = 500,
-    height = 200,
+    width = 800,
+    height = 250,
     inputHeight = 24,
     tabAreaHeight = 32,
     fontSize = 14,
@@ -415,30 +415,19 @@ local function UpdateTabStyles()
     end
 end
 
-local positioningPrimaryFrame = false
-
-local function PositionPrimaryFrame()
-    if not ChatFrame1 or not Module.chatPanel or positioningPrimaryFrame then
+local function DetachPrimaryFrame()
+    if not ChatFrame1 then
         return
     end
 
-    positioningPrimaryFrame = true
-
-    -- ChatFrame1 is an Edit Mode system frame. Its stock layout keeps restoring
-    -- the default 32 px left offset, even though the surrounding Blizzard buttons
-    -- are hidden. Detach it from the frame manager and let our panel own the
-    -- position and size instead.
+    -- ChatFrame1 is the only Edit Mode managed chat frame. Detach it once and
+    -- let PositionMessageFrames own the geometry for every docked tab equally.
     if ChatFrame1.BreakFromFrameManager then
         ChatFrame1:BreakFromFrameManager()
     end
 
     ChatFrame1.ignoreFramePositionManager = true
     ChatFrame1:SetUserPlaced(true)
-    ChatFrame1:ClearAllPoints()
-    ChatFrame1:SetPoint("TOPLEFT", Module.chatPanel, "TOPLEFT", 0, 0)
-    ChatFrame1:SetPoint("BOTTOMRIGHT", Module.chatPanel, "BOTTOMRIGHT", 0, 0)
-
-    positioningPrimaryFrame = false
 end
 
 local positioningMessageFrames = false
@@ -656,7 +645,7 @@ end
 function Module:ApplyLayout()
     EnsurePanels()
     PositionPanels()
-    PositionPrimaryFrame()
+    DetachPrimaryFrame()
     PositionDock()
     PositionCombatLogBar()
     HideGlobalButtons()
@@ -774,7 +763,7 @@ function Module:Initialize()
     if FCF_RestorePositionAndDimensions then
         hooksecurefunc("FCF_RestorePositionAndDimensions", function(frame)
             if frame == ChatFrame1 then
-                PositionPrimaryFrame()
+                DetachPrimaryFrame()
                 PositionDock()
                 PositionMessageFrames()
             end
@@ -789,7 +778,7 @@ function Module:Initialize()
 
     if ChatFrame1.ApplySystemAnchor then
         hooksecurefunc(ChatFrame1, "ApplySystemAnchor", function()
-            PositionPrimaryFrame()
+            DetachPrimaryFrame()
             PositionDock()
             PositionMessageFrames()
         end)
@@ -797,7 +786,7 @@ function Module:Initialize()
 
     if EditModeManagerFrame and EditModeManagerFrame.UpdateLayoutInfo then
         hooksecurefunc(EditModeManagerFrame, "UpdateLayoutInfo", function()
-            PositionPrimaryFrame()
+            DetachPrimaryFrame()
             PositionDock()
             PositionMessageFrames()
         end)
@@ -805,7 +794,7 @@ function Module:Initialize()
 
     UI:RegisterEvent("UI_SCALE_CHANGED", function()
         C_Timer.After(0, function()
-            PositionPrimaryFrame()
+            DetachPrimaryFrame()
             PositionDock()
             PositionMessageFrames()
         end)
