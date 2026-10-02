@@ -172,9 +172,17 @@ local function StyleCooldown(cooldown, button)
     cooldown:SetAllPoints(button)
 end
 
+local function FitStateTexture(texture, button)
+    if not texture then
+        return
+    end
+
+    texture:ClearAllPoints()
+    texture:SetAllPoints(button)
+end
+
 local function StyleButton(button, size)
     button:SetSize(size, size)
-    button:SetAlpha(defaults.alpha)
 
     CreateButtonChrome(button)
 
@@ -186,6 +194,19 @@ local function StyleButton(button, size)
     HideTexture(button.NewActionTexture)
     HideTexture(button.SpellHighlightTexture)
 
+    FitStateTexture(
+        button.HighlightTexture or button:GetHighlightTexture(),
+        button
+    )
+    FitStateTexture(
+        button.PushedTexture or button:GetPushedTexture(),
+        button
+    )
+    FitStateTexture(
+        button.CheckedTexture or button:GetCheckedTexture(),
+        button
+    )
+
     StyleIcon(button)
     StyleCooldown(button.cooldown, button)
     StyleCooldown(button.lossOfControlCooldown, button)
@@ -194,7 +215,7 @@ end
 
 local function NewLABConfig(binding)
     return {
-        showGrid = true,
+        showGrid = false,
         tooltip = "enabled",
         flyoutDirection = "UP",
         actionButtonUI = false,
@@ -303,13 +324,18 @@ local function CreateActionBar(def)
             )
         end
 
-        button:SetAttribute("buttonlock", true)
+        button:SetAttribute("buttonlock", false)
+        button:SetAttribute("unlockedpreventdrag", true)
+
         StyleButton(
             button,
             def.layout == "primary"
                 and defaults.buttonSize
                 or defaults.secondaryButtonSize
         )
+
+        -- StyleButton must not force empty LAB buttons visible.
+        button:UpdateAction(true)
 
         bar.buttons[index] = button
     end
@@ -477,12 +503,35 @@ local function CreatePetBar()
             button.AutoCastOverlay:Hide()
         end
 
-        local autoCast = button:CreateTexture(nil, "OVERLAY")
-        autoCast:SetColorTexture(0.35, 0.65, 1, 0.65)
+        local autoCast = CreateFrame("Frame", nil, button)
         autoCast:SetPoint("TOPLEFT", button, "TOPLEFT", -1, 1)
         autoCast:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", 2, -2)
+        autoCast:SetFrameLevel(button:GetFrameLevel() + 5)
         autoCast:Hide()
+
+        local function CreateAutoCastEdge(pointA, pointB, width, height)
+            local edge = autoCast:CreateTexture(nil, "OVERLAY")
+            edge:SetColorTexture(0.20, 0.55, 1.00, 0.9)
+            edge:SetPoint(pointA, autoCast, pointA)
+            edge:SetPoint(pointB, autoCast, pointB)
+
+            if width then
+                edge:SetWidth(width)
+            end
+
+            if height then
+                edge:SetHeight(height)
+            end
+        end
+
+        CreateAutoCastEdge("TOPLEFT", "TOPRIGHT", nil, 1)
+        CreateAutoCastEdge("BOTTOMLEFT", "BOTTOMRIGHT", nil, 1)
+        CreateAutoCastEdge("TOPLEFT", "BOTTOMLEFT", 1, nil)
+        CreateAutoCastEdge("TOPRIGHT", "BOTTOMRIGHT", 1, nil)
+
         button.KamiAutoCast = autoCast
+
+        StyleButton(button, defaults.secondaryButtonSize)
 
         local checked = button.CheckedTexture or button:GetCheckedTexture()
         if checked then
@@ -490,8 +539,6 @@ local function CreatePetBar()
             checked:SetPoint("TOPLEFT", button, "TOPLEFT", -1, 1)
             checked:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", 2, -2)
         end
-
-        StyleButton(button, defaults.secondaryButtonSize)
 
         if index == 1 then
             button:SetPoint("LEFT", frame, "LEFT", 0, 0)
