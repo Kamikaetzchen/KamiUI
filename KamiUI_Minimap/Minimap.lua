@@ -59,6 +59,7 @@ local function HideBlizzardChrome()
 
     if MinimapCluster then
         HideObject(MinimapCluster.BorderTop)
+        HideObject(MinimapCluster.DielFrame)
     end
 
     HideObject(TimeManagerClockButton)
@@ -80,6 +81,17 @@ local function HideBlizzardChrome()
     end
 end
 
+local function PositionTrackingButton()
+    local tracking = MinimapCluster and MinimapCluster.Tracking
+
+    if not tracking then
+        return
+    end
+
+    tracking:ClearAllPoints()
+    tracking:SetPoint("TOPLEFT", Minimap, "TOPLEFT", 2, -2)
+end
+
 local function StyleMinimap()
     Minimap:SetSize(defaults.size, defaults.size)
 
@@ -96,6 +108,7 @@ local function StyleMinimap()
     Minimap:SetMaskTexture("Interface\\Buttons\\WHITE8X8")
 
     HideBlizzardChrome()
+    PositionTrackingButton()
     CreateBorder()
 end
 
@@ -124,7 +137,10 @@ function Module:Initialize()
         if addonName == "Blizzard_Minimap"
             or addonName == "Blizzard_TimeManager"
         then
-            C_Timer.After(0, HideBlizzardChrome)
+            C_Timer.After(0, function()
+                HideBlizzardChrome()
+                PositionTrackingButton()
+            end)
         end
     end)
 end
