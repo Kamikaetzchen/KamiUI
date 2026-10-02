@@ -20,6 +20,7 @@ Module.bottomInset = UI:GetBottomInset()
 Module.bars = {}
 Module.layoutPending = false
 Module.bindingsPending = false
+Module.blizzardHiddenFrames = setmetatable({}, { __mode = "k" })
 
 local BAR_DEFS = {
     {
@@ -610,6 +611,11 @@ local function UpdateStanceBar()
         return
     end
 
+    if InCombatLockdown and InCombatLockdown() then
+        Module.layoutPending = true
+        return
+    end
+
     local count = GetNumShapeshiftForms and GetNumShapeshiftForms() or 0
     local previous
 
@@ -689,7 +695,7 @@ local function PurgeSecureKey(frame, key)
 end
 
 local function HideBlizzardFrame(frame, clearEvents)
-    if not frame then
+    if not frame or Module.blizzardHiddenFrames[frame] then
         return
     end
 
@@ -708,6 +714,7 @@ local function HideBlizzardFrame(frame, clearEvents)
     end
 
     frame:SetParent(Module.blizzardHider)
+    Module.blizzardHiddenFrames[frame] = true
 end
 
 local function HideBlizzardBars()
