@@ -770,12 +770,6 @@ function Module:Initialize()
         end)
     end
 
-    hooksecurefunc(ChatFrame1, "SetPoint", function()
-        PositionPrimaryFrame()
-        PositionDock()
-        PositionMessageFrames()
-    end)
-
     if ChatFrame1.ApplySystemAnchor then
         hooksecurefunc(ChatFrame1, "ApplySystemAnchor", function()
             DetachPrimaryFrame()
