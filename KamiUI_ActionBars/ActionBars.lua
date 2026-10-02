@@ -61,6 +61,15 @@ local function HideBlizzardMenuAndBags()
     HideObject(BagsBar)
 end
 
+local function HideMainActionBarArt()
+    if not MainActionBar then
+        return
+    end
+
+    HideTexture(MainActionBar.BorderArt)
+    HideObject(MainActionBar.EndCaps)
+end
+
 local function HideTexture(texture)
     if texture then
         texture:SetAlpha(0)
@@ -700,6 +709,7 @@ end
 
 function Module:Apply()
     HideBlizzardMenuAndBags()
+    HideMainActionBarArt()
     StyleStatusTrackingBars()
 
     if InCombatLockdown and InCombatLockdown() then
@@ -733,6 +743,12 @@ function Module:Initialize()
     hooksecurefunc("ActionButton_Update", function(button)
         StyleButton(button)
     end)
+
+    if MainActionBar and MainActionBar.UpdateEndCaps then
+        hooksecurefunc(MainActionBar, "UpdateEndCaps", function()
+            C_Timer.After(0, HideMainActionBarArt)
+        end)
+    end
 
     local function InstallScaleHook(bar)
         if not bar
@@ -787,6 +803,8 @@ function Module:Initialize()
             or addonName == "Blizzard_MainMenuBarBagButtons"
         then
             C_Timer.After(0, HideBlizzardMenuAndBags)
+        elseif addonName == "Blizzard_ActionBar" then
+            C_Timer.After(0, HideMainActionBarArt)
         end
     end)
 
