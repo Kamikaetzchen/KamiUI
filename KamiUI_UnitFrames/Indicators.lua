@@ -13,7 +13,6 @@ local HEAL_PREDICTION_UNITS = {
     pet = true,
 }
 
-local periodicHealTicks = {}
 
 local RAID_MARKER_COORDS = {
     [1] = { 0.00, 0.25, 0.00, 0.25 },
@@ -412,31 +411,6 @@ local function CreateHealPrediction(frame)
     }
 end
 
-local function GetPlayerPeriodicHealPrediction()
-    if not AuraUtil or not AuraUtil.ForEachAura then
-        return 0
-    end
-
-    local incoming = 0
-
-    AuraUtil.ForEachAura(
-        "player",
-        "HELPFUL",
-        nil,
-        function(auraData)
-            if auraData.sourceUnit == "player"
-                and auraData.spellId
-                and periodicHealTicks[auraData.spellId]
-            then
-                incoming = incoming + periodicHealTicks[auraData.spellId]
-            end
-        end,
-        true
-    )
-
-    return incoming
-end
-
 local function UpdateHealPrediction(frame)
     local prediction = frame.healPrediction
     if not prediction or not UnitExists(frame.unit) then
@@ -450,10 +424,6 @@ local function UpdateHealPrediction(frame)
     local maximum = calculator:GetMaximumHealth()
     local incoming = calculator:GetIncomingHeals()
     local absorbs = calculator:GetDamageAbsorbs()
-
-    if frame.unit == "player" then
-        incoming = incoming + GetPlayerPeriodicHealPrediction()
-    end
 
     prediction.incoming:SetMinMaxValues(0, maximum)
     prediction.incoming:SetValue(incoming)
@@ -582,30 +552,9 @@ UI:RegisterEvent("UNIT_CONNECTION", UpdateUnit)
 UI:RegisterEvent("UNIT_NAME_UPDATE", UpdateUnit)
 UI:RegisterEvent("UNIT_HEAL_PREDICTION", UpdateUnit)
 UI:RegisterEvent("UNIT_ABSORB_AMOUNT_CHANGED", UpdateUnit)
-UI:RegisterEvent("UNIT_AURA", UpdateUnit)
 UI:RegisterEvent("UNIT_POWER_UPDATE", UpdateUnit)
 UI:RegisterEvent("UNIT_COMBO_POINTS", UpdateAll)
 UI:RegisterEvent("PLAYER_TARGET_CHANGED", UpdateAll)
-
-UI:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED", function()
-    local _, subEvent, _, sourceGUID, _, _, _, destGUID, _, _, _,
-        spellID, _, _, amount = CombatLogGetCurrentEventInfo()
-
-    if subEvent ~= "SPELL_PERIODIC_HEAL"
-        or sourceGUID ~= UnitGUID("player")
-        or destGUID ~= UnitGUID("player")
-        or not spellID
-        or not amount
-    then
-        return
-    end
-
-    periodicHealTicks[spellID] = amount
-
-    if UF.playerFrame then
-        UpdateHealPrediction(UF.playerFrame)
-    end
-end)
 
 local rangeElapsed = 0
 local rangeUpdater = CreateFrame("Frame")
