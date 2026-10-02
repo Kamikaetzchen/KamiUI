@@ -18,7 +18,7 @@ local defaults = {
 
 local barConfigs = {
     {
-        frameName = "MainMenuBar",
+        frameName = "MainActionBar",
         prefix = "ActionButton",
     },
     {
@@ -162,35 +162,40 @@ local function GetBarFrame(config)
     return _G[config.frameName]
 end
 
-local function LayoutBarButtons(config)
-    local bar = GetBarFrame(config)
-
-    if not bar then
+local function LayoutBarButtons(config, rowIndex)
+    if not GetBarFrame(config) then
         return
     end
 
-    local previous
+    local nextButton
+    local y = defaults.offsetY + ((rowIndex - 1) * defaults.buttonSize)
 
-    for index = 1, 12 do
+    for index = 12, 1, -1 do
         local button = _G[config.prefix .. index]
 
         if button then
             StyleButton(button)
             button:ClearAllPoints()
 
-            if previous then
+            if nextButton then
                 button:SetPoint(
-                    "LEFT",
-                    previous,
                     "RIGHT",
-                    defaults.buttonSpacing,
+                    nextButton,
+                    "LEFT",
+                    -defaults.buttonSpacing,
                     0
                 )
             else
-                button:SetPoint("BOTTOMLEFT", bar, "BOTTOMLEFT", 0, 0)
+                button:SetPoint(
+                    "BOTTOMRIGHT",
+                    UIParent,
+                    "BOTTOMRIGHT",
+                    defaults.offsetX,
+                    y
+                )
             end
 
-            previous = button
+            nextButton = button
         end
     end
 end
@@ -389,17 +394,9 @@ local function LayoutBars()
 
         if bar then
             bar:SetScale(1)
-            bar:ClearAllPoints()
-            bar:SetPoint(
-                "BOTTOMRIGHT",
-                UIParent,
-                "BOTTOMRIGHT",
-                defaults.offsetX,
-                defaults.offsetY + ((index - 1) * defaults.buttonSize)
-            )
         end
 
-        LayoutBarButtons(config)
+        LayoutBarButtons(config, index)
     end
 end
 
