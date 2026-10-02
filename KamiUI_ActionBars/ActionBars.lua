@@ -185,8 +185,8 @@ local function StyleCooldown(cooldown, button)
     if cooldown.SetCountdownFont then
         cooldown:SetCountdownFont(
             button:GetWidth() <= defaults.secondaryButtonSize
-                and cooldownFontSmall
-                or cooldownFont
+                and "KamiUIActionBarCooldownFontSmall"
+                or "KamiUIActionBarCooldownFont"
         )
     end
 end
