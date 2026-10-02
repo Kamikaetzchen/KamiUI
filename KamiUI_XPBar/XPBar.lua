@@ -16,6 +16,18 @@ local hookedNativeBars = setmetatable({}, { __mode = "k" })
 local hookedContainers = setmetatable({}, { __mode = "k" })
 local managerHooksInstalled = false
 
+local function HideNativeDividers(container)
+    local pool = container and container.HorizontalDividersPool
+
+    if not pool or not pool.EnumerateActive then
+        return
+    end
+
+    for divider in pool:EnumerateActive() do
+        divider:SetAlpha(0)
+    end
+end
+
 local function HideNativeXPBar()
     if not StatusTrackingBarManager then
         return
@@ -31,6 +43,10 @@ local function HideNativeXPBar()
 
         if container.BarFrameTexture then
             container.BarFrameTexture:SetAlpha(showingXP and 0 or 1)
+        end
+
+        if showingXP then
+            HideNativeDividers(container)
         end
 
         for _, bar in pairs(container.bars or {}) do
@@ -72,6 +88,18 @@ local function HideNativeXPBar()
                     "UpdateShownState",
                     HideNativeXPBar
                 )
+            end
+
+            if container.UpdateDividers then
+                hooksecurefunc(container, "UpdateDividers", function(self)
+                    local shownBar = self.GetShownBar
+                        and self:GetShownBar()
+                        or nil
+
+                    if shownBar and shownBar.isExpBar then
+                        HideNativeDividers(self)
+                    end
+                end)
             end
         end
     end
