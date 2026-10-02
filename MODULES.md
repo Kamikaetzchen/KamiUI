@@ -12,6 +12,7 @@ KamiUI is split into a small core and independent feature addons.
 | KamiUI_ThreatMeter | Threat display and threat meter |
 | KamiUI_DamageMeter | Blizzard damage meter styling and layout |
 | KamiUI_SwingTimer | Native Forever swing timer styling and layout |
+| KamiUI_XPBar | Custom experience bar and max-level visibility |
 | KamiUI_Bags | Unified inventory and bank, Bagnon-style |
 | KamiUI_Characters | Account-wide alt data, Altoholic-style |
 | KamiUI_Auras | Player/target buffs and debuffs |
