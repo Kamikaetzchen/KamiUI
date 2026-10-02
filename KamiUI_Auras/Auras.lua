@@ -494,17 +494,27 @@ local function LayoutRows(helpful, harmful)
 end
 
 function Module:Refresh()
-    HideBlizzardAuras()
-
     local helpful, harmful = CollectAuras()
     LayoutRows(helpful, harmful)
 end
 
 local elapsedSinceUpdate = 0
+local elapsedSinceCombatRefresh = 0
 
 local updater = CreateFrame("Frame")
 updater:SetScript("OnUpdate", function(_, elapsed)
     elapsedSinceUpdate = elapsedSinceUpdate + elapsed
+    elapsedSinceCombatRefresh = elapsedSinceCombatRefresh + elapsed
+
+    if InCombatLockdown
+        and InCombatLockdown()
+        and elapsedSinceCombatRefresh >= 0.20
+    then
+        elapsedSinceCombatRefresh = 0
+        Module:Refresh()
+    elseif elapsedSinceCombatRefresh >= 0.20 then
+        elapsedSinceCombatRefresh = 0
+    end
 
     if elapsedSinceUpdate < defaults.updateInterval then
         return
@@ -529,10 +539,12 @@ updater:SetScript("OnUpdate", function(_, elapsed)
 end)
 
 function Module:Initialize()
+    HideBlizzardAuras()
     self:Refresh()
 
     UI:RegisterEvent("PLAYER_ENTERING_WORLD", function()
         C_Timer.After(0, function()
+            HideBlizzardAuras()
             Module:Refresh()
         end)
     end)
@@ -550,6 +562,7 @@ function Module:Initialize()
     UI:RegisterEvent("ADDON_LOADED", function(_, addonName)
         if addonName == "Blizzard_BuffFrame" then
             C_Timer.After(0, function()
+                HideBlizzardAuras()
                 Module:Refresh()
             end)
         end
