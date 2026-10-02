@@ -8,14 +8,14 @@ Module.version = "0.1.0"
 local SETUP_VERSION = 1
 
 local defaults = {
-    width = 420,
-    height = 180,
+    width = 500,
+    height = 200,
     inputHeight = 24,
     tabAreaHeight = 32,
     fontSize = 14,
     position = {
         x = 0,
-        y = 22,
+        y = 0,
     },
     background = { 0, 0, 0, 0.85 },
     border = { 0.2, 0.2, 0.2, 1 },
@@ -121,6 +121,7 @@ local function PositionPanels()
     local y = GetPositionY()
 
     if Module.chatPanel then
+        Module.chatPanel:SetSize(defaults.width, defaults.height)
         Module.chatPanel:ClearAllPoints()
         Module.chatPanel:SetPoint(
             "BOTTOMLEFT",
@@ -132,6 +133,7 @@ local function PositionPanels()
     end
 
     if Module.inputPanel then
+        Module.inputPanel:SetSize(defaults.width, defaults.inputHeight)
         Module.inputPanel:ClearAllPoints()
         Module.inputPanel:SetPoint(
             "BOTTOMLEFT",
@@ -471,6 +473,22 @@ local function PositionDock()
     positioningDock = false
 end
 
+local positioningCombatLogBar = false
+
+local function PositionCombatLogBar()
+    local bar = _G.CombatLogQuickButtonFrame_Custom
+
+    if not bar or not Module.chatPanel or positioningCombatLogBar then
+        return
+    end
+
+    positioningCombatLogBar = true
+    bar:ClearAllPoints()
+    bar:SetPoint("TOPLEFT", Module.chatPanel, "TOPLEFT", 0, 0)
+    bar:SetPoint("TOPRIGHT", Module.chatPanel, "TOPRIGHT", 0, 0)
+    positioningCombatLogBar = false
+end
+
 local function HideGlobalButtons()
     HideObject(ChatFrameMenuButton)
     HideObject(ChatFrameChannelButton)
@@ -604,6 +622,7 @@ function Module:ApplyLayout()
     PositionPanels()
     PositionPrimaryFrame()
     PositionDock()
+    PositionCombatLogBar()
     HideGlobalButtons()
 
     for index = 1, NUM_CHAT_WINDOWS do
@@ -678,6 +697,28 @@ function Module:Initialize()
             Module:ApplyLayout()
         end)
     end)
+
+    UI:RegisterEvent("ADDON_LOADED", function(_, addonName)
+        if addonName == "Blizzard_CombatLog" then
+            C_Timer.After(0, function()
+                PositionCombatLogBar()
+
+                local bar = _G.CombatLogQuickButtonFrame_Custom
+
+                if bar and not bar.KamiUIPositionHooked then
+                    bar.KamiUIPositionHooked = true
+                    hooksecurefunc(bar, "SetPoint", PositionCombatLogBar)
+                end
+            end)
+        end
+    end)
+
+    local combatLogBar = _G.CombatLogQuickButtonFrame_Custom
+
+    if combatLogBar and not combatLogBar.KamiUIPositionHooked then
+        combatLogBar.KamiUIPositionHooked = true
+        hooksecurefunc(combatLogBar, "SetPoint", PositionCombatLogBar)
+    end
 
     -- Blizzard restores ChatFrame1 from several different paths. Reassert our
     -- anchors after every known restore path, and also after direct SetPoint
