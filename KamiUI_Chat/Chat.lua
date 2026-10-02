@@ -672,6 +672,26 @@ UI:RegisterCommand(
     "Reset chat configuration"
 )
 
+local function StartChatUI()
+    if Module.starting then
+        return
+    end
+
+    Module.starting = true
+
+    -- Creating/undocking chat windows while Blizzard is still constructing the
+    -- stock chat UI is fragile and can abort the module before any KamiUI frame
+    -- is created. Do all invasive chat work after PLAYER_ENTERING_WORLD.
+    Module:SetupWindows()
+    Module:ApplyLayout()
+
+    KamiUIDB.chat.initialized = true
+    KamiUIDB.chat.setupVersion = SETUP_VERSION
+
+    Module.starting = false
+    Module.started = true
+end
+
 function Module:Initialize()
     self.tabs = {}
     self.leftFrames = {}
@@ -680,45 +700,42 @@ function Module:Initialize()
     KamiUIDB = KamiUIDB or {}
     KamiUIDB.chat = KamiUIDB.chat or {}
 
-    self:SetupWindows()
-    self:ApplyLayout()
-
-    KamiUIDB.chat.initialized = true
-    KamiUIDB.chat.setupVersion = SETUP_VERSION
-
     UI:RegisterEvent("PLAYER_ENTERING_WORLD", function()
-        C_Timer.After(0, function()
-            Module:SetupWindows()
-            Module:ApplyLayout()
-        end)
+        C_Timer.After(0, StartChatUI)
     end)
 
     UI:RegisterBottomInsetCallback(function()
-        PositionPanels()
+        if Module.started then
+            PositionPanels()
+        end
     end)
 
     UI:RegisterEvent("CHANNEL_UI_UPDATE", function()
-        C_Timer.After(0, SyncGeneralWindow)
+        if Module.started then
+            C_Timer.After(0, SyncGeneralWindow)
+        end
     end)
 
     UI:RegisterEvent("UPDATE_CHAT_WINDOWS", function()
-        C_Timer.After(0, function()
-            SyncGeneralWindow()
-            Module:ApplyLayout()
-        end)
+        if Module.started and not Module.starting then
+            C_Timer.After(0, function()
+                SyncGeneralWindow()
+                Module:ApplyLayout()
+            end)
+        end
     end)
 
     UI:RegisterEvent("UPDATE_FLOATING_CHAT_WINDOWS", function()
-        C_Timer.After(0, function()
-            Module:ApplyLayout()
-        end)
+        if Module.started and not Module.starting then
+            C_Timer.After(0, function()
+                Module:ApplyLayout()
+            end)
+        end
     end)
 
     UI:RegisterEvent("ADDON_LOADED", function(_, addonName)
-        if addonName == "Blizzard_CombatLog" then
-            C_Timer.After(0, function()
-                StyleCombatFrame()
-            end)
+        if addonName == "Blizzard_CombatLog" and Module.started then
+            C_Timer.After(0, StyleCombatFrame)
         end
     end)
 end
