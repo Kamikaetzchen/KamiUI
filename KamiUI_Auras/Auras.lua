@@ -159,6 +159,7 @@ local function CreateAuraContainer()
     )
 
     auraContainer:SetUnit("player")
+    auraContainer:SetEnabled(true)
     auraContainer:SetFlowLayoutAxis(AnchorUtil.FlowLayoutAxis.Vertical)
     auraContainer:SetFlowLayoutAnchorPoint("BOTTOMRIGHT")
     auraContainer:SetFlowLayoutGrowthDirection(
