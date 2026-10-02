@@ -26,11 +26,15 @@ local cooldownFont = CreateFont("KamiUIActionBarCooldownFont")
 local cooldownFontSmall = CreateFont("KamiUIActionBarCooldownFontSmall")
 local cooldownFontPath, _, cooldownFontFlags = GameFontNormalLarge:GetFont()
 
-cooldownFont:SetFont(cooldownFontPath, 16, cooldownFontFlags)
+cooldownFont:SetFont(cooldownFontPath, 18, cooldownFontFlags)
 cooldownFont:SetTextColor(1.00, 0.12, 0.12, 1)
+cooldownFont:SetShadowColor(1, 1, 1, 0.85)
+cooldownFont:SetShadowOffset(1, -1)
 
-cooldownFontSmall:SetFont(cooldownFontPath, 13, cooldownFontFlags)
+cooldownFontSmall:SetFont(cooldownFontPath, 15, cooldownFontFlags)
 cooldownFontSmall:SetTextColor(1.00, 0.12, 0.12, 1)
+cooldownFontSmall:SetShadowColor(1, 1, 1, 0.85)
+cooldownFontSmall:SetShadowOffset(1, -1)
 
 local BAR_DEFS = {
     {
