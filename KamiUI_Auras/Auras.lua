@@ -11,7 +11,7 @@ local defaults = {
     iconSize = 20,
     groupGap = 4,
     x = -20,
-    y = 320,
+    y = 310,
     fontSize = 11,
     updateInterval = 0.05,
     barAlpha = 0.60,
@@ -336,13 +336,15 @@ end
 local function LayoutRows(helpful, harmful)
     wipe(activeRows)
 
+    local baseY = defaults.y + UI:GetBottomInset()
+
     local nextRow = LayoutAuraGroup(
         helpful,
         1,
-        defaults.y
+        baseY
     )
 
-    local harmfulY = defaults.y + (#helpful * defaults.height)
+    local harmfulY = baseY + (#helpful * defaults.height)
 
     if #helpful > 0 and #harmful > 0 then
         harmfulY = harmfulY + defaults.groupGap
@@ -404,6 +406,10 @@ function Module:Initialize()
         C_Timer.After(0, function()
             Module:Refresh()
         end)
+    end)
+
+    UI:RegisterBottomInsetCallback(function()
+        Module:Refresh()
     end)
 
     UI:RegisterEvent("UNIT_AURA", function(_, unit)
