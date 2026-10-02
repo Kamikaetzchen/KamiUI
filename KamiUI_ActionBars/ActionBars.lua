@@ -63,18 +63,23 @@ local function HideTexture(texture)
     end
 end
 
+local function HideDividerPool(pool)
+    if not pool or not pool.EnumerateActive then
+        return
+    end
+
+    for divider in pool:EnumerateActive() do
+        divider:SetAlpha(0)
+    end
+end
+
 local function HideMainActionBarDividers()
     if not MainActionBar then
         return
     end
 
-    if MainActionBar.HorizontalDividersPool then
-        MainActionBar.HorizontalDividersPool:ReleaseAll()
-    end
-
-    if MainActionBar.VerticalDividersPool then
-        MainActionBar.VerticalDividersPool:ReleaseAll()
-    end
+    HideDividerPool(MainActionBar.HorizontalDividersPool)
+    HideDividerPool(MainActionBar.VerticalDividersPool)
 end
 
 local function HideMainActionBarArt()
@@ -708,15 +713,49 @@ local function StyleStatusTrackingBars()
             StatusTrackingBarManager,
             "UpdateBarVisuals",
             function()
-                C_Timer.After(0, function()
-                    if not InCombatLockdown or not InCombatLockdown() then
-                        StyleStatusTrackingBars()
-                    else
-                        Module.layoutPending = true
-                    end
-                end)
+                if not InCombatLockdown or not InCombatLockdown() then
+                    StyleStatusTrackingBars()
+                else
+                    Module.layoutPending = true
+                end
             end
         )
+    end
+
+    if not StatusTrackingBarManager.KamiBarsShownHooked
+        and StatusTrackingBarManager.UpdateBarsShown
+    then
+        StatusTrackingBarManager.KamiBarsShownHooked = true
+
+        hooksecurefunc(
+            StatusTrackingBarManager,
+            "UpdateBarsShown",
+            function()
+                if not InCombatLockdown or not InCombatLockdown() then
+                    StyleStatusTrackingBars()
+                else
+                    Module.layoutPending = true
+                end
+            end
+        )
+    end
+
+    for _, container in ipairs(
+        StatusTrackingBarManager.barContainers or {}
+    ) do
+        if container.UpdateShownState
+            and not container.KamiShownStateHooked
+        then
+            container.KamiShownStateHooked = true
+
+            hooksecurefunc(container, "UpdateShownState", function()
+                if not InCombatLockdown or not InCombatLockdown() then
+                    StyleStatusTrackingBars()
+                else
+                    Module.layoutPending = true
+                end
+            end)
+        end
     end
 end
 
