@@ -85,13 +85,19 @@ local function PositionHeaderIndicators()
     local tracking = MinimapCluster and MinimapCluster.Tracking
 
     if tracking then
+        tracking.ignoreInLayout = true
         tracking:ClearAllPoints()
         tracking:SetPoint("TOPLEFT", Minimap, "TOPLEFT", -8, 8)
     end
 
-    local mail = MinimapCluster
+    local indicatorFrame = MinimapCluster
         and MinimapCluster.IndicatorFrame
-        and MinimapCluster.IndicatorFrame.MailFrame
+
+    if indicatorFrame then
+        indicatorFrame.ignoreInLayout = true
+    end
+
+    local mail = indicatorFrame and indicatorFrame.MailFrame
 
     if mail then
         mail.ignoreInLayout = true
