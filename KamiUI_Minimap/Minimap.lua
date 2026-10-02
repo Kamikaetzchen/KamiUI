@@ -57,6 +57,13 @@ local function HideBlizzardChrome()
     -- Forever re-shows this texture when Rotate Minimap changes.
     HideObject(MinimapCompassTextureUnderlay)
 
+    if MinimapCluster then
+        HideObject(MinimapCluster.BorderTop)
+    end
+
+    HideObject(TimeManagerClockButton)
+    HideObject(GameTimeFrame)
+
     HideObject(MinimapZoneTextButton)
     HideObject(MinimapZoneText)
 
@@ -110,6 +117,14 @@ function Module:Initialize()
     UI:RegisterEvent("CVAR_UPDATE", function(_, cvar)
         if cvar == "rotateMinimap" then
             HideBlizzardChrome()
+        end
+    end)
+
+    UI:RegisterEvent("ADDON_LOADED", function(_, addonName)
+        if addonName == "Blizzard_Minimap"
+            or addonName == "Blizzard_TimeManager"
+        then
+            C_Timer.After(0, HideBlizzardChrome)
         end
     end)
 end
