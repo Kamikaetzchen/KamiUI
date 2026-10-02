@@ -734,33 +734,53 @@ function Module:Initialize()
         StyleButton(button)
     end)
 
-    if EditModeActionBarSystemMixin
-        and EditModeActionBarSystemMixin.UpdateSystemSettingIconSize
-    then
-        hooksecurefunc(
-            EditModeActionBarSystemMixin,
-            "UpdateSystemSettingIconSize",
-            function(bar)
-                C_Timer.After(0, function()
-                    if not InCombatLockdown or not InCombatLockdown() then
-                        Module:Apply()
-                    else
-                        Module.layoutPending = true
-                    end
-                end)
-            end
-        )
+    local function InstallScaleHook(bar)
+        if not bar
+            or bar.KamiScaleHooked
+            or not bar.UpdateSystemSettingIconSize
+        then
+            return
+        end
+
+        bar.KamiScaleHooked = true
+
+        hooksecurefunc(bar, "UpdateSystemSettingIconSize", function()
+            C_Timer.After(0, function()
+                if not InCombatLockdown or not InCombatLockdown() then
+                    Module:Apply()
+                else
+                    Module.layoutPending = true
+                end
+            end)
+        end)
     end
+
+    local function InstallScaleHooks()
+        for _, config in ipairs(barConfigs) do
+            InstallScaleHook(GetBarFrame(config))
+        end
+
+        InstallScaleHook(MultiBarLeft)
+        InstallScaleHook(MultiBar5)
+        InstallScaleHook(StanceBar)
+        InstallScaleHook(PetActionBar)
+    end
+
+    InstallScaleHooks()
 
     UI:RegisterEvent("PLAYER_ENTERING_WORLD", function()
         C_Timer.After(0, function()
+            InstallScaleHooks()
             Module:Apply()
         end)
     end)
 
     UI:RegisterEvent("ADDON_LOADED", function(_, addonName)
-        if addonName == "Blizzard_ActionBar" then
+        if addonName == "Blizzard_ActionBar"
+            or addonName == "Blizzard_EditMode"
+        then
             C_Timer.After(0, function()
+                InstallScaleHooks()
                 Module:Apply()
             end)
         elseif addonName == "Blizzard_MicroMenu"
