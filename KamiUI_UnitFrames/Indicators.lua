@@ -230,21 +230,30 @@ local function CreatePortraitIndicators(frame)
         return
     end
 
-    local leader = frame:CreateTexture(nil, "OVERLAY")
+    local overlay = CreateFrame("Frame", nil, frame)
+    overlay:SetAllPoints(frame.portrait)
+    overlay:SetFrameLevel(math.max(
+        frame:GetFrameLevel(),
+        frame.portrait:GetFrameLevel()
+    ) + 20)
+    overlay:EnableMouse(false)
+
+    local leader = overlay:CreateTexture(nil, "OVERLAY")
     leader:SetSize(10, 10)
-    leader:SetPoint("TOPLEFT", frame.portrait, "TOPLEFT", 1, -1)
+    leader:SetPoint("CENTER", frame.portrait, "TOPLEFT", 5, 0)
     leader:Hide()
 
-    local role = frame:CreateTexture(nil, "OVERLAY")
+    local role = overlay:CreateTexture(nil, "OVERLAY")
     role:SetSize(10, 10)
-    role:SetPoint("TOPRIGHT", frame.portrait, "TOPRIGHT", -1, -1)
+    role:SetPoint("CENTER", frame.portrait, "TOPRIGHT", -5, 0)
     role:Hide()
 
-    local loot = frame:CreateTexture(nil, "OVERLAY")
+    local loot = overlay:CreateTexture(nil, "OVERLAY")
     loot:SetSize(10, 10)
-    loot:SetPoint("TOP", frame.portrait, "TOP", 0, -1)
+    loot:SetPoint("CENTER", frame.portrait, "TOP", 0, 0)
     loot:Hide()
 
+    frame.portraitIndicatorOverlay = overlay
     frame.leaderIndicator = leader
     frame.roleIndicator = role
     frame.lootIndicator = loot
