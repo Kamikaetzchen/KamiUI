@@ -223,6 +223,58 @@ local function RestylePetButtons()
     end
 end
 
+local function LayoutPetButtons()
+    if InCombatLockdown and InCombatLockdown() then
+        Module.layoutPending = true
+        return
+    end
+
+    local previousContainer
+
+    for index = 1, 10 do
+        local button = _G["PetActionButton" .. index]
+        local container = button and button.container
+
+        if container then
+            container:ClearAllPoints()
+            container:SetSize(
+                defaults.petButtonSize,
+                defaults.petButtonSize
+            )
+
+            if previousContainer then
+                container:SetPoint(
+                    "LEFT",
+                    previousContainer,
+                    "RIGHT",
+                    0,
+                    0
+                )
+            elseif KamiUIPlayerFrame then
+                -- 10 * 40 = 400px, centered inside the 404px
+                -- player + target span with a 2px inset on each side.
+                container:SetPoint(
+                    "TOPLEFT",
+                    KamiUIPlayerFrame,
+                    "BOTTOMLEFT",
+                    2,
+                    0
+                )
+            else
+                container:SetPoint(
+                    "TOP",
+                    UIParent,
+                    "CENTER",
+                    -(defaults.petButtonSize * 4.5),
+                    -260
+                )
+            end
+
+            previousContainer = container
+        end
+    end
+end
+
 local function StylePetBar()
     if not PetActionBar then
         return
@@ -270,16 +322,16 @@ local function StylePetBar()
         PetActionBar:UpdateGridLayout()
     end
 
-    PetActionBar:ClearAllPoints()
-    PetActionBar:SetPoint(
-        "TOP",
-        UIParent,
-        "CENTER",
-        0,
-        -260
-    )
-
+    LayoutPetButtons()
     RestylePetButtons()
+
+    if not PetActionBar.KamiGridHooked and PetActionBar.UpdateGridLayout then
+        PetActionBar.KamiGridHooked = true
+
+        hooksecurefunc(PetActionBar, "UpdateGridLayout", function()
+            C_Timer.After(0, LayoutPetButtons)
+        end)
+    end
 
     if not PetActionBar.KamiUpdateHooked and PetActionBar.Update then
         PetActionBar.KamiUpdateHooked = true
