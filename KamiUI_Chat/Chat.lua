@@ -441,6 +441,42 @@ local function PositionPrimaryFrame()
     positioningPrimaryFrame = false
 end
 
+local positioningMessageFrames = false
+
+local function PositionMessageFrames()
+    if not GeneralDockManager or not Module.chatPanel or positioningMessageFrames then
+        return
+    end
+
+    positioningMessageFrames = true
+
+    for _, frame in ipairs(FCFDock_GetChatFrames(GENERAL_CHAT_DOCK)) do
+        local topInset = 4
+
+        if frame == ChatFrame2 and _G.CombatLogQuickButtonFrame_Custom then
+            topInset = _G.CombatLogQuickButtonFrame_Custom:GetHeight() + 4
+        end
+
+        frame:ClearAllPoints()
+        frame:SetPoint(
+            "TOPLEFT",
+            Module.chatPanel,
+            "TOPLEFT",
+            4,
+            -topInset
+        )
+        frame:SetPoint(
+            "BOTTOMRIGHT",
+            Module.chatPanel,
+            "BOTTOMRIGHT",
+            -4,
+            4
+        )
+    end
+
+    positioningMessageFrames = false
+end
+
 local positioningDock = false
 
 local function PositionDock()
@@ -632,6 +668,7 @@ function Module:ApplyLayout()
         StyleTab(frame)
     end
 
+    PositionMessageFrames()
     UpdateTabStyles()
 end
 
@@ -702,12 +739,18 @@ function Module:Initialize()
         if addonName == "Blizzard_CombatLog" then
             C_Timer.After(0, function()
                 PositionCombatLogBar()
+                PositionMessageFrames()
 
                 local bar = _G.CombatLogQuickButtonFrame_Custom
 
                 if bar and not bar.KamiUIPositionHooked then
                     bar.KamiUIPositionHooked = true
                     hooksecurefunc(bar, "SetPoint", PositionCombatLogBar)
+                end
+
+                if ChatFrame2 and not ChatFrame2.KamiUIPositionHooked then
+                    ChatFrame2.KamiUIPositionHooked = true
+                    hooksecurefunc(ChatFrame2, "SetPoint", PositionMessageFrames)
                 end
             end)
         end
@@ -720,6 +763,11 @@ function Module:Initialize()
         hooksecurefunc(combatLogBar, "SetPoint", PositionCombatLogBar)
     end
 
+    if ChatFrame2 and not ChatFrame2.KamiUIPositionHooked then
+        ChatFrame2.KamiUIPositionHooked = true
+        hooksecurefunc(ChatFrame2, "SetPoint", PositionMessageFrames)
+    end
+
     -- Blizzard restores ChatFrame1 from several different paths. Reassert our
     -- anchors after every known restore path, and also after direct SetPoint
     -- calls. The positioning guards keep our own anchors from recursing.
@@ -728,6 +776,7 @@ function Module:Initialize()
             if frame == ChatFrame1 then
                 PositionPrimaryFrame()
                 PositionDock()
+                PositionMessageFrames()
             end
         end)
     end
@@ -735,12 +784,14 @@ function Module:Initialize()
     hooksecurefunc(ChatFrame1, "SetPoint", function()
         PositionPrimaryFrame()
         PositionDock()
+        PositionMessageFrames()
     end)
 
     if ChatFrame1.ApplySystemAnchor then
         hooksecurefunc(ChatFrame1, "ApplySystemAnchor", function()
             PositionPrimaryFrame()
             PositionDock()
+            PositionMessageFrames()
         end)
     end
 
@@ -748,6 +799,7 @@ function Module:Initialize()
         hooksecurefunc(EditModeManagerFrame, "UpdateLayoutInfo", function()
             PositionPrimaryFrame()
             PositionDock()
+            PositionMessageFrames()
         end)
     end
 
@@ -755,6 +807,7 @@ function Module:Initialize()
         C_Timer.After(0, function()
             PositionPrimaryFrame()
             PositionDock()
+            PositionMessageFrames()
         end)
     end)
 
@@ -770,6 +823,7 @@ function Module:Initialize()
         hooksecurefunc("FCFDock_UpdateTabs", function(dock)
             if dock == GENERAL_CHAT_DOCK then
                 PositionDock()
+                PositionMessageFrames()
             end
         end)
     end
@@ -783,7 +837,10 @@ function Module:Initialize()
     if FCFDock_SelectWindow then
         hooksecurefunc("FCFDock_SelectWindow", function(dock)
             if dock == GENERAL_CHAT_DOCK then
-                C_Timer.After(0, UpdateTabStyles)
+                C_Timer.After(0, function()
+                    PositionMessageFrames()
+                    UpdateTabStyles()
+                end)
             end
         end)
     end
