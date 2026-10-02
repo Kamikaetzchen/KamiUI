@@ -68,13 +68,10 @@ local function HideDividerPool(pool)
     end
 
     for divider in pool:EnumerateActive() do
-        divider:SetAlpha(0)
-
-        if not divider.KamiHideHooked then
-            divider.KamiHideHooked = true
-            divider:HookScript("OnShow", function(self)
-                self:SetAlpha(0)
-            end)
+        if NineSliceUtil and NineSliceUtil.HideLayout then
+            NineSliceUtil.HideLayout(divider)
+        else
+            divider:SetAlpha(0)
         end
     end
 end
