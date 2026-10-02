@@ -208,17 +208,55 @@ local function StyleExtraButtons()
     end
 end
 
+local function StylePetAutoCastOverlay(button)
+    local overlay = button.AutoCastOverlay
+
+    if not overlay then
+        return
+    end
+
+    overlay:ClearAllPoints()
+    overlay:SetAllPoints(button)
+    overlay:SetSize(defaults.petButtonSize, defaults.petButtonSize)
+
+    if overlay.Shine then
+        overlay.Shine:ClearAllPoints()
+        overlay.Shine:SetPoint("TOPLEFT", overlay, "TOPLEFT", -7, 7)
+        overlay.Shine:SetPoint("BOTTOMRIGHT", overlay, "BOTTOMRIGHT", 7, -7)
+    end
+
+    if overlay.Mask then
+        overlay.Mask:ClearAllPoints()
+        overlay.Mask:SetPoint("TOPLEFT", overlay, "TOPLEFT", 1, -1)
+        overlay.Mask:SetPoint("BOTTOMRIGHT", overlay, "BOTTOMRIGHT", -1, 1)
+    end
+
+    if overlay.Corners then
+        overlay.Corners:ClearAllPoints()
+        overlay.Corners:SetAllPoints(overlay)
+    end
+end
+
+local function StylePetCheckedState(button)
+    local checked = button.CheckedTexture or button:GetCheckedTexture()
+
+    if not checked then
+        return
+    end
+
+    checked:ClearAllPoints()
+    checked:SetAllPoints(button)
+    checked:SetAlpha(button:GetChecked() and 1 or 0)
+end
+
 local function RestylePetButtons()
     for index = 1, 10 do
         local button = _G["PetActionButton" .. index]
 
         if button then
             StripButtonArt(button)
-
-            if button.AutoCastOverlay then
-                button.AutoCastOverlay:ClearAllPoints()
-                button.AutoCastOverlay:SetAllPoints(button)
-            end
+            StylePetAutoCastOverlay(button)
+            StylePetCheckedState(button)
         end
     end
 end
@@ -301,14 +339,8 @@ local function StylePetBar()
                 )
             end
 
-            if button.AutoCastOverlay then
-                button.AutoCastOverlay:ClearAllPoints()
-                button.AutoCastOverlay:SetAllPoints(button)
-                button.AutoCastOverlay:SetSize(
-                    defaults.petButtonSize,
-                    defaults.petButtonSize
-                )
-            end
+            StylePetAutoCastOverlay(button)
+            StylePetCheckedState(button)
         end
     end
 
