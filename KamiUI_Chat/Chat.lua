@@ -435,6 +435,30 @@ local function CopyHistory(backend, display)
     end
 end
 
+local function InstallMessageMirror()
+    if Module.messageMirrorInstalled or not ScrollingMessageFrameSecureMixin then
+        return
+    end
+
+    Module.messageMirrorInstalled = true
+
+    -- ChatFrameMixin:AddMessage() always forwards through this secure mixin.
+    -- Hooking it once is much safer than trying to hook methods on individual
+    -- frame userdata while Blizzard is still constructing chat windows.
+    hooksecurefunc(
+        ScrollingMessageFrameSecureMixin,
+        "AddMessage",
+        function(frame, ...)
+            local key = Module.backendKeys[frame]
+            local target = key and Module.displays[key]
+
+            if target then
+                target:AddMessage(...)
+            end
+        end
+    )
+end
+
 local function AttachBackend(key, backend)
     local display = Module.displays[key]
 
@@ -442,19 +466,7 @@ local function AttachBackend(key, backend)
         return
     end
 
-    backend.KamiUIMirrorKeys = backend.KamiUIMirrorKeys or {}
-
-    if not backend.KamiUIMirrorKeys[key] then
-        backend.KamiUIMirrorKeys[key] = true
-
-        hooksecurefunc(backend, "AddMessage", function(_, ...)
-            local target = Module.displays[key]
-
-            if target then
-                target:AddMessage(...)
-            end
-        end)
-    end
+    Module.backendKeys[backend] = key
 
     if display.KamiUIBackend ~= backend then
         display.KamiUIBackend = backend
@@ -707,6 +719,14 @@ local function StartChatUI()
     EnsurePanels()
     EnsureDisplays()
     EnsureTabs()
+    PositionPanels()
+    PositionTabs()
+
+    -- Put the stock chat UI out of sight before opening/configuring any
+    -- backend windows. If Blizzard fires layout events during setup, the user
+    -- never sees the intermediate docked-window state.
+    HideStockChatUI()
+    InstallMessageMirror()
 
     Module:SetupBackends()
     Module:ApplyLayout()
@@ -722,6 +742,7 @@ function Module:Initialize()
     self.tabs = {}
     self.displays = {}
     self.backends = {}
+    self.backendKeys = setmetatable({}, { __mode = "k" })
     self.selectedTab = "general"
 
     KamiUIDB = KamiUIDB or {}
@@ -738,7 +759,12 @@ function Module:Initialize()
     end)
 
     UI:RegisterEvent("UPDATE_CHAT_WINDOWS", function()
-        if Module.started and not Module.starting then
+        if Module.starting then
+            HideStockChatUI()
+            return
+        end
+
+        if Module.started then
             C_Timer.After(0, function()
                 HideStockChatUI()
                 PositionCombatBar()
@@ -763,7 +789,9 @@ function Module:Initialize()
 
     UI:RegisterEvent("UI_SCALE_CHANGED", function()
         if Module.started then
-            C_Timer.After(0, Module.ApplyLayout)
+            C_Timer.After(0, function()
+                Module:ApplyLayout()
+            end)
         end
     end)
 end
