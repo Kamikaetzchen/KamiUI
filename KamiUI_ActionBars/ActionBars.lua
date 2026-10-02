@@ -9,8 +9,8 @@ local defaults = {
     buttonSize = 36,
     buttonSpacing = 0,
     iconZoom = 0.08,
-    petBarWidth = 400,
-    petButtonSize = 40,
+    petBarWidth = 404,
+    petButtonSize = 40.4,
     alpha = 1,
     offsetX = -20,
     offsetY = 20,
@@ -248,27 +248,19 @@ local function StylePetBar()
     end
 
     PetActionBar:ClearAllPoints()
-    PetActionBar:SetHeight(defaults.petButtonSize)
 
     if KamiUIPlayerFrame and KamiUITargetFrame then
-        -- The unit frames are 200px each with a 4px center gap. Inset the
-        -- outer edges by 2px so the requested pet bar is exactly 400px.
+        -- PetActionBar inherits ResizeLayoutFrame, so its width is calculated
+        -- from the ten button containers. 10 * 40.4 = 404, matching the full
+        -- outer span of the two 200px unit frames plus their 4px center gap.
         PetActionBar:SetPoint(
             "TOPLEFT",
             KamiUIPlayerFrame,
             "BOTTOMLEFT",
-            2,
-            0
-        )
-        PetActionBar:SetPoint(
-            "TOPRIGHT",
-            KamiUITargetFrame,
-            "BOTTOMRIGHT",
-            -2,
+            0,
             0
         )
     else
-        PetActionBar:SetWidth(defaults.petBarWidth)
         PetActionBar:SetPoint(
             "TOP",
             UIParent,
