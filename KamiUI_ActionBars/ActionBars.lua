@@ -10,6 +10,7 @@ local defaults = {
     buttonSpacing = 0,
     iconZoom = 0.08,
     petButtonSize = 30,
+    secondaryButtonSize = 30,
     statusBarHeight = 10,
     alpha = 1,
     offsetX = -400,
@@ -33,10 +34,6 @@ local barConfigs = {
         frameName = "MultiBarRight",
         prefix = "MultiBarRightButton",
     },
-}
-
-local extraButtonPrefixes = {
-    "MultiBarLeftButton",
 }
 
 local hiddenObjects = setmetatable({}, { __mode = "k" })
@@ -200,11 +197,176 @@ local function LayoutBarButtons(config, rowIndex)
     end
 end
 
-local function StyleExtraButtons()
-    for _, prefix in ipairs(extraButtonPrefixes) do
-        for index = 1, 12 do
-            StyleButton(_G[prefix .. index])
+local function GetBar4Edges()
+    return _G["MultiBarRightButton1"], _G["MultiBarRightButton12"]
+end
+
+local function SetBarButtonCount(bar, count)
+    if not bar then
+        return
+    end
+
+    bar.numButtonsShowable = count
+
+    if bar.UpdateShownButtons then
+        bar:UpdateShownButtons()
+    end
+end
+
+local function LayoutActionBar5()
+    local bar = MultiBarLeft
+    local bar4Left, bar4Right = GetBar4Edges()
+
+    if not bar or not bar4Left or not bar4Right then
+        return
+    end
+
+    bar:SetScale(1)
+    SetBarButtonCount(bar, 12)
+
+    for row = 1, 2 do
+        local rightIndex = row * 6
+        local nextButton
+
+        for index = rightIndex, rightIndex - 5, -1 do
+            local button = _G["MultiBarLeftButton" .. index]
+
+            if button then
+                StyleButton(button, defaults.secondaryButtonSize)
+                button:ClearAllPoints()
+
+                if nextButton then
+                    button:SetPoint(
+                        "RIGHT",
+                        nextButton,
+                        "LEFT",
+                        0,
+                        0
+                    )
+                elseif row == 1 then
+                    button:SetPoint(
+                        "BOTTOMRIGHT",
+                        bar4Right,
+                        "TOPRIGHT",
+                        0,
+                        0
+                    )
+                else
+                    button:SetPoint(
+                        "BOTTOMRIGHT",
+                        _G["MultiBarLeftButton6"],
+                        "TOPRIGHT",
+                        0,
+                        0
+                    )
+                end
+
+                nextButton = button
+            end
         end
+    end
+end
+
+local function LayoutActionBar6()
+    local bar = MultiBar5
+    local bar4Left = _G["MultiBarRightButton1"]
+
+    if not bar or not bar4Left then
+        return
+    end
+
+    bar:SetScale(1)
+    SetBarButtonCount(bar, 8)
+
+    local previous
+
+    for index = 1, 8 do
+        local button = _G["MultiBar5Button" .. index]
+
+        if button then
+            StyleButton(button, defaults.secondaryButtonSize)
+            button:ClearAllPoints()
+
+            if previous then
+                button:SetPoint(
+                    "LEFT",
+                    previous,
+                    "RIGHT",
+                    0,
+                    0
+                )
+            else
+                button:SetPoint(
+                    "BOTTOMLEFT",
+                    bar4Left,
+                    "TOPLEFT",
+                    0,
+                    0
+                )
+            end
+
+            previous = button
+        end
+    end
+end
+
+local function LayoutStanceBar()
+    local bar4Left = _G["MultiBarRightButton1"]
+
+    if not StanceBar or not bar4Left then
+        return
+    end
+
+    StanceBar:SetScale(1)
+    StanceBar.minButtonPadding = 0
+    StanceBar.buttonPadding = 0
+
+    local previous
+
+    for index = 1, 10 do
+        local button = _G["StanceButton" .. index]
+
+        if button then
+            StyleButton(button, defaults.secondaryButtonSize)
+            StyleCheckedState(button)
+            button:ClearAllPoints()
+
+            if previous then
+                button:SetPoint(
+                    "LEFT",
+                    previous,
+                    "RIGHT",
+                    0,
+                    0
+                )
+            else
+                button:SetPoint(
+                    "BOTTOMLEFT",
+                    bar4Left,
+                    "TOPLEFT",
+                    0,
+                    0
+                )
+            end
+
+            previous = button
+        end
+    end
+end
+
+local function HasStanceBar()
+    return GetNumShapeshiftForms
+        and GetNumShapeshiftForms() > 0
+end
+
+local function LayoutUpperBars()
+    LayoutActionBar5()
+
+    if HasStanceBar() then
+        SetBarButtonCount(MultiBar5, 0)
+        LayoutStanceBar()
+    else
+        LayoutActionBar6()
     end
 end
 
@@ -251,7 +413,7 @@ local function StylePetAutoCastOverlay(button)
     end
 end
 
-local function StylePetCheckedState(button)
+local function StyleCheckedState(button)
     local checked = button.CheckedTexture or button:GetCheckedTexture()
 
     if not checked then
@@ -271,7 +433,7 @@ local function RestylePetButtons()
         if button then
             StripButtonArt(button)
             StylePetAutoCastOverlay(button)
-            StylePetCheckedState(button)
+            StyleCheckedState(button)
         end
     end
 end
@@ -355,7 +517,7 @@ local function StylePetBar()
             end
 
             StylePetAutoCastOverlay(button)
-            StylePetCheckedState(button)
+            StyleCheckedState(button)
         end
     end
 
@@ -511,12 +673,24 @@ function Module:Apply()
     self.layoutPending = false
 
     LayoutBars()
-    StyleExtraButtons()
+    LayoutUpperBars()
     StylePetBar()
 end
 
 function Module:Initialize()
     self:Apply()
+
+    if StanceBar and StanceBar.UpdateState and not StanceBar.KamiUpdateHooked then
+        StanceBar.KamiUpdateHooked = true
+
+        hooksecurefunc(StanceBar, "UpdateState", function()
+            C_Timer.After(0, function()
+                if not InCombatLockdown or not InCombatLockdown() then
+                    LayoutStanceBar()
+                end
+            end)
+        end)
+    end
 
     hooksecurefunc("ActionButton_Update", function(button)
         StyleButton(button)
@@ -538,6 +712,26 @@ function Module:Initialize()
         then
             C_Timer.After(0, HideBlizzardMenuAndBags)
         end
+    end)
+
+    UI:RegisterEvent("UPDATE_SHAPESHIFT_FORMS", function()
+        C_Timer.After(0, function()
+            if not InCombatLockdown or not InCombatLockdown() then
+                LayoutUpperBars()
+            else
+                Module.layoutPending = true
+            end
+        end)
+    end)
+
+    UI:RegisterEvent("UPDATE_SHAPESHIFT_FORM", function()
+        C_Timer.After(0, function()
+            if not InCombatLockdown or not InCombatLockdown() then
+                LayoutUpperBars()
+            else
+                Module.layoutPending = true
+            end
+        end)
     end)
 
     UI:RegisterEvent("PLAYER_REGEN_ENABLED", function()
