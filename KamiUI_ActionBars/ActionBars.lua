@@ -11,7 +11,6 @@ local defaults = {
     iconZoom = 0.08,
     petButtonSize = 30,
     secondaryButtonSize = 30,
-    statusBarHeight = UI.defaults.layout.xpBarHeight,
     alpha = 1,
     offsetX = -400,
     offsetY = 0,
@@ -70,6 +69,13 @@ local function HideDividerPool(pool)
 
     for divider in pool:EnumerateActive() do
         divider:SetAlpha(0)
+
+        if not divider.KamiHideHooked then
+            divider.KamiHideHooked = true
+            divider:HookScript("OnShow", function(self)
+                self:SetAlpha(0)
+            end)
+        end
     end
 end
 
@@ -80,9 +86,6 @@ local function HideMainActionBarDividers()
 
     HideDividerPool(MainActionBar.HorizontalDividersPool)
     HideDividerPool(MainActionBar.VerticalDividersPool)
-
-    -- Test the aggressive path: prevent Blizzard from recreating them.
-    MainActionBar.enableDividers = false
 end
 
 local function HideMainActionBarArt()
@@ -624,144 +627,6 @@ local function StylePetBar()
     end
 end
 
-local function StyleStatusBar(bar, width)
-    if not bar then
-        return
-    end
-
-    bar:ClearAllPoints()
-    bar:SetPoint("BOTTOMLEFT", bar:GetParent(), "BOTTOMLEFT", 0, 0)
-    bar:SetSize(width, defaults.statusBarHeight)
-
-    if bar.StatusBar then
-        bar.StatusBar:ClearAllPoints()
-        bar.StatusBar:SetAllPoints(bar)
-
-        if bar.StatusBar.Background then
-            bar.StatusBar.Background:ClearAllPoints()
-            bar.StatusBar.Background:SetAllPoints(bar.StatusBar)
-        end
-    end
-
-    if bar.OverlayFrame then
-        bar.OverlayFrame:ClearAllPoints()
-        bar.OverlayFrame:SetAllPoints(bar)
-    end
-
-    if bar.ExhaustionLevelFillBar then
-        bar.ExhaustionLevelFillBar:SetHeight(defaults.statusBarHeight)
-    end
-end
-
-local function StyleStatusContainer(container, y)
-    if not container then
-        return
-    end
-
-    local width = UIParent:GetWidth()
-
-    container:ClearAllPoints()
-    container:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", 0, y)
-    container:SetPoint("BOTTOMRIGHT", UIParent, "BOTTOMRIGHT", 0, y)
-    container:SetHeight(defaults.statusBarHeight)
-
-    HideTexture(container.BarFrameTexture)
-
-    for _, bar in pairs(container.bars or {}) do
-        StyleStatusBar(bar, width)
-    end
-end
-
-local function StyleStatusTrackingBars()
-    if not StatusTrackingBarManager then
-        return
-    end
-
-    StatusTrackingBarManager:ClearAllPoints()
-    StatusTrackingBarManager:SetPoint(
-        "BOTTOMLEFT",
-        UIParent,
-        "BOTTOMLEFT",
-        0,
-        0
-    )
-    StatusTrackingBarManager:SetPoint(
-        "BOTTOMRIGHT",
-        UIParent,
-        "BOTTOMRIGHT",
-        0,
-        0
-    )
-    StatusTrackingBarManager:SetHeight(defaults.statusBarHeight * 2)
-
-    StyleStatusContainer(
-        StatusTrackingBarManager.MainStatusTrackingBarContainer,
-        0
-    )
-    StyleStatusContainer(
-        StatusTrackingBarManager.SecondaryStatusTrackingBarContainer,
-        defaults.statusBarHeight
-    )
-
-    if StatusTrackingBarManager.UpdateBarTicks then
-        StatusTrackingBarManager:UpdateBarTicks()
-    end
-
-    if not StatusTrackingBarManager.KamiVisualHooked
-        and StatusTrackingBarManager.UpdateBarVisuals
-    then
-        StatusTrackingBarManager.KamiVisualHooked = true
-
-        hooksecurefunc(
-            StatusTrackingBarManager,
-            "UpdateBarVisuals",
-            function()
-                if not InCombatLockdown or not InCombatLockdown() then
-                    StyleStatusTrackingBars()
-                else
-                    Module.layoutPending = true
-                end
-            end
-        )
-    end
-
-    if not StatusTrackingBarManager.KamiBarsShownHooked
-        and StatusTrackingBarManager.UpdateBarsShown
-    then
-        StatusTrackingBarManager.KamiBarsShownHooked = true
-
-        hooksecurefunc(
-            StatusTrackingBarManager,
-            "UpdateBarsShown",
-            function()
-                if not InCombatLockdown or not InCombatLockdown() then
-                    StyleStatusTrackingBars()
-                else
-                    Module.layoutPending = true
-                end
-            end
-        )
-    end
-
-    for _, container in ipairs(
-        StatusTrackingBarManager.barContainers or {}
-    ) do
-        if container.UpdateShownState
-            and not container.KamiShownStateHooked
-        then
-            container.KamiShownStateHooked = true
-
-            hooksecurefunc(container, "UpdateShownState", function()
-                if not InCombatLockdown or not InCombatLockdown() then
-                    StyleStatusTrackingBars()
-                else
-                    Module.layoutPending = true
-                end
-            end)
-        end
-    end
-end
-
 local function NormalizeBarScale(bar)
     if bar then
         bar:SetScale(1)
@@ -797,7 +662,6 @@ function Module:Apply()
 
     HideBlizzardMenuAndBags()
     HideMainActionBarArt()
-    StyleStatusTrackingBars()
 
     NormalizeManagedScales()
     LayoutBars()
@@ -838,33 +702,8 @@ function Module:Initialize()
 
     if MainActionBar and MainActionBar.UpdateDividers then
         hooksecurefunc(MainActionBar, "UpdateDividers", function()
-            C_Timer.After(0, function()
-                if not InCombatLockdown or not InCombatLockdown() then
-                    HideMainActionBarDividers()
-                else
-                    Module.layoutPending = true
-                end
-            end)
+            HideMainActionBarDividers()
         end)
-    end
-
-    if EditModeManagerFrame
-        and EditModeManagerFrame.UpdateBottomActionBarPositions
-        and not EditModeManagerFrame.KamiBottomBarHooked
-    then
-        EditModeManagerFrame.KamiBottomBarHooked = true
-
-        hooksecurefunc(
-            EditModeManagerFrame,
-            "UpdateBottomActionBarPositions",
-            function()
-                if not InCombatLockdown or not InCombatLockdown() then
-                    StyleStatusTrackingBars()
-                else
-                    Module.layoutPending = true
-                end
-            end
-        )
     end
 
     local function InstallScaleHook(bar)
