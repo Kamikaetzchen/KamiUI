@@ -155,10 +155,19 @@ local function CreateAuraRow(index)
             return
         end
 
-        if self.aura
-            and self.aura.isHelpful
-            and self.aura.index
+        if not self.aura or not self.aura.isHelpful then
+            return
+        end
+
+        if C_UnitAuras
+            and C_UnitAuras.CancelAuraByInstanceID
+            and self.aura.auraInstanceID
         then
+            C_UnitAuras.CancelAuraByInstanceID(
+                "player",
+                self.aura.auraInstanceID
+            )
+        elseif self.aura.index then
             CancelUnitBuff(
                 "player",
                 self.aura.index,
@@ -221,6 +230,7 @@ local function CollectAurasForFilter(auras, filter, isHelpful)
             isHarmful = not isHelpful,
             index = auraIndex,
             filter = filter,
+            auraInstanceID = auraData.auraInstanceID,
         })
     end
 
