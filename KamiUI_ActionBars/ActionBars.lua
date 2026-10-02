@@ -37,16 +37,31 @@ local barConfigs = {
     },
 }
 
+local function DisableMouseTree(frame)
+    if not frame then
+        return
+    end
+
+    if frame.EnableMouse then
+        frame:EnableMouse(false)
+    end
+
+    if frame.GetChildren then
+        local children = { frame:GetChildren() }
+
+        for _, child in ipairs(children) do
+            DisableMouseTree(child)
+        end
+    end
+end
+
 local function HideObject(object)
     if not object then
         return
     end
 
     object:SetAlpha(0)
-
-    if object.EnableMouse then
-        object:EnableMouse(false)
-    end
+    DisableMouseTree(object)
 end
 
 local function HideBlizzardMenuAndBags()
