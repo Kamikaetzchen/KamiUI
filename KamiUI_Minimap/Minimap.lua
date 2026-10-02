@@ -81,15 +81,23 @@ local function HideBlizzardChrome()
     end
 end
 
-local function PositionTrackingButton()
+local function PositionHeaderIndicators()
     local tracking = MinimapCluster and MinimapCluster.Tracking
 
-    if not tracking then
-        return
+    if tracking then
+        tracking:ClearAllPoints()
+        tracking:SetPoint("TOPLEFT", Minimap, "TOPLEFT", -8, 8)
     end
 
-    tracking:ClearAllPoints()
-    tracking:SetPoint("TOPLEFT", Minimap, "TOPLEFT", 2, -2)
+    local mail = MinimapCluster
+        and MinimapCluster.IndicatorFrame
+        and MinimapCluster.IndicatorFrame.MailFrame
+
+    if mail then
+        mail.ignoreInLayout = true
+        mail:ClearAllPoints()
+        mail:SetPoint("TOPRIGHT", Minimap, "TOPRIGHT", 8, 8)
+    end
 end
 
 local function StyleMinimap()
@@ -108,7 +116,7 @@ local function StyleMinimap()
     Minimap:SetMaskTexture("Interface\\Buttons\\WHITE8X8")
 
     HideBlizzardChrome()
-    PositionTrackingButton()
+    PositionHeaderIndicators()
     CreateBorder()
 end
 
@@ -139,7 +147,7 @@ function Module:Initialize()
         then
             C_Timer.After(0, function()
                 HideBlizzardChrome()
-                PositionTrackingButton()
+                PositionHeaderIndicators()
             end)
         end
     end)
