@@ -9,6 +9,8 @@ local defaults = {
     buttonSize = 36,
     buttonSpacing = 0,
     iconZoom = 0.08,
+    petBarWidth = 400,
+    petButtonSize = 40,
     alpha = 1,
     offsetX = -20,
     offsetY = 20,
@@ -134,13 +136,19 @@ local function StyleCooldown(cooldown, button)
     cooldown:SetAllPoints(button)
 end
 
-local function StyleButton(button)
+local function StyleButton(button, size)
     if not button then
         return
     end
 
+    size = size or defaults.buttonSize
+
+    if button.KamiButtonSize ~= size then
+        button:SetSize(size, size)
+        button.KamiButtonSize = size
+    end
+
     if not button.KamiStyled then
-        button:SetSize(defaults.buttonSize, defaults.buttonSize)
         button:SetAlpha(defaults.alpha)
 
         StyleCooldown(button.cooldown, button)
@@ -192,6 +200,85 @@ local function StyleExtraButtons()
     end
 end
 
+local function StylePetBar()
+    if not PetActionBar then
+        return
+    end
+
+    PetActionBar:SetScale(1)
+    PetActionBar.minButtonPadding = 0
+    PetActionBar.buttonPadding = 0
+    PetActionBar.numRows = 1
+    PetActionBar.isHorizontal = true
+    PetActionBar.addButtonsToRight = true
+    PetActionBar.addButtonsToTop = true
+
+    for index = 1, 10 do
+        local button = _G["PetActionButton" .. index]
+
+        if button then
+            StyleButton(button, defaults.petButtonSize)
+
+            if button.container then
+                button.container:SetSize(
+                    defaults.petButtonSize,
+                    defaults.petButtonSize
+                )
+            end
+
+            if button.AutoCastOverlay then
+                button.AutoCastOverlay:ClearAllPoints()
+                button.AutoCastOverlay:SetAllPoints(button)
+                button.AutoCastOverlay:SetSize(
+                    defaults.petButtonSize,
+                    defaults.petButtonSize
+                )
+            end
+        end
+    end
+
+    PetActionBar.oldGridSettings = nil
+
+    if PetActionBar.UpdateShownButtons then
+        PetActionBar:UpdateShownButtons()
+    end
+
+    if PetActionBar.UpdateGridLayout then
+        PetActionBar:UpdateGridLayout()
+    end
+
+    PetActionBar:ClearAllPoints()
+    PetActionBar:SetHeight(defaults.petButtonSize)
+
+    if KamiUIPlayerFrame and KamiUITargetFrame then
+        -- The unit frames are 200px each with a 4px center gap. Inset the
+        -- outer edges by 2px so the requested pet bar is exactly 400px.
+        PetActionBar:SetPoint(
+            "TOPLEFT",
+            KamiUIPlayerFrame,
+            "BOTTOMLEFT",
+            2,
+            0
+        )
+        PetActionBar:SetPoint(
+            "TOPRIGHT",
+            KamiUITargetFrame,
+            "BOTTOMRIGHT",
+            -2,
+            0
+        )
+    else
+        PetActionBar:SetWidth(defaults.petBarWidth)
+        PetActionBar:SetPoint(
+            "TOP",
+            UIParent,
+            "CENTER",
+            0,
+            -260
+        )
+    end
+end
+
 local function LayoutBars()
     for index, config in ipairs(barConfigs) do
         local bar = config.frame
@@ -224,6 +311,7 @@ function Module:Apply()
 
     LayoutBars()
     StyleExtraButtons()
+    StylePetBar()
 end
 
 function Module:Initialize()
