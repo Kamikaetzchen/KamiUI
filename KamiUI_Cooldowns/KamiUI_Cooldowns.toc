@@ -1,0 +1,9 @@
+## Interface: 16001
+## Title: KamiUI - Cooldowns
+## Notes: Cooldown viewer integration for KamiUI
+## Author: Kami Katze
+## Version: 0.1.0
+## RequiredDeps: KamiUI
+## OptionalDeps: Blizzard_CooldownViewer
+
+Cooldowns.lua
