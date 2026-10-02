@@ -553,7 +553,6 @@ UI:RegisterEvent("UNIT_NAME_UPDATE", UpdateUnit)
 UI:RegisterEvent("UNIT_HEAL_PREDICTION", UpdateUnit)
 UI:RegisterEvent("UNIT_ABSORB_AMOUNT_CHANGED", UpdateUnit)
 UI:RegisterEvent("UNIT_POWER_UPDATE", UpdateUnit)
-UI:RegisterEvent("UNIT_COMBO_POINTS", UpdateAll)
 UI:RegisterEvent("PLAYER_TARGET_CHANGED", UpdateAll)
 
 local rangeElapsed = 0
