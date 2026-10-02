@@ -3,9 +3,9 @@ local UI = KamiUI
 local Module = UI:NewModule("Chat")
 
 Module.name = "KamiUI_Chat"
-Module.version = "0.2.0"
+Module.version = "0.3.0"
 
-local SETUP_VERSION = 2
+local SETUP_VERSION = 3
 
 local defaults = {
     leftWidth = 500,
@@ -31,13 +31,6 @@ local leftTabs = {
 }
 
 local managedWindows = {
-    guild = {
-        name = "Guild",
-        groups = {
-            "GUILD",
-            "OFFICER",
-        },
-    },
     party = {
         name = "Party",
         groups = {
@@ -50,6 +43,13 @@ local managedWindows = {
             "INSTANCE_CHAT_LEADER",
             "BATTLEGROUND",
             "BATTLEGROUND_LEADER",
+        },
+    },
+    guild = {
+        name = "Guild",
+        groups = {
+            "GUILD",
+            "OFFICER",
         },
     },
     whisper = {
@@ -92,8 +92,8 @@ end
 
 local function CreatePanel(name, width, height)
     local panel = CreateFrame("Frame", name, UIParent, "BackdropTemplate")
+    panel:SetFrameStrata("LOW")
     panel:SetSize(width, height)
-    panel:SetFrameStrata("BACKGROUND")
     panel:SetBackdrop({
         bgFile = "Interface\\Buttons\\WHITE8X8",
         edgeFile = "Interface\\Buttons\\WHITE8X8",
@@ -129,6 +129,7 @@ local function EnsurePanels()
             defaults.leftWidth,
             defaults.inputHeight
         )
+        Module.inputPanel:SetFrameStrata("DIALOG")
         Module.inputPanel:Hide()
     end
 end
@@ -148,32 +149,140 @@ local function PositionPanels()
     Module.combatPanel:ClearAllPoints()
     Module.combatPanel:SetPoint(
         "BOTTOMLEFT",
-        UIParent,
-        "BOTTOMLEFT",
-        defaults.x + defaults.leftWidth,
-        bottom
+        Module.leftPanel,
+        "BOTTOMRIGHT",
+        0,
+        0
     )
 
     Module.inputPanel:ClearAllPoints()
     Module.inputPanel:SetPoint(
         "BOTTOMLEFT",
-        UIParent,
-        "BOTTOMLEFT",
-        defaults.x,
-        bottom + defaults.height + defaults.tabHeight
+        Module.leftPanel,
+        "TOPLEFT",
+        0,
+        defaults.tabHeight
     )
+end
+
+local function CreateDisplay(name, parent)
+    local frame = CreateFrame("ScrollingMessageFrame", name, parent)
+    frame:SetPoint(
+        "TOPLEFT",
+        parent,
+        "TOPLEFT",
+        defaults.padding,
+        -defaults.padding
+    )
+    frame:SetPoint(
+        "BOTTOMRIGHT",
+        parent,
+        "BOTTOMRIGHT",
+        -defaults.padding,
+        defaults.padding
+    )
+
+    frame:SetFontObject(ChatFontNormal)
+
+    local font, _, flags = frame:GetFont()
+    if font then
+        frame:SetFont(font, defaults.fontSize, flags)
+    end
+
+    frame:SetFading(false)
+    frame:SetMaxLines(500)
+    frame:SetJustifyH("LEFT")
+    frame:SetIndentedWordWrap(false)
+    frame:SetHyperlinksEnabled(true)
+    frame:EnableMouse(true)
+    frame:EnableMouseWheel(true)
+
+    frame:SetScript("OnMouseWheel", function(self, delta)
+        if delta > 0 then
+            self:ScrollUp()
+        else
+            self:ScrollDown()
+        end
+    end)
+
+    frame:SetScript("OnHyperlinkClick", function(self, link, text, button)
+        SetItemRef(link, text, button, self)
+    end)
+
+    frame:SetScript(
+        "OnHyperlinkEnter",
+        function(self, link, text, region, left, bottom, width, height)
+            if EventRegistry then
+                EventRegistry:TriggerEvent(
+                    "ChatFrame.OnHyperlinkEnter",
+                    self,
+                    link,
+                    text,
+                    region,
+                    left,
+                    bottom,
+                    width,
+                    height
+                )
+            end
+        end
+    )
+
+    frame:SetScript("OnHyperlinkLeave", function(self)
+        if EventRegistry then
+            EventRegistry:TriggerEvent("ChatFrame.OnHyperlinkLeave", self)
+        end
+    end)
+
+    return frame
+end
+
+local function EnsureDisplays()
+    if not Module.displays.general then
+        Module.displays.general = CreateDisplay(
+            "KamiUIChatDisplayGeneral",
+            Module.leftPanel
+        )
+    end
+
+    if not Module.displays.party then
+        Module.displays.party = CreateDisplay(
+            "KamiUIChatDisplayParty",
+            Module.leftPanel
+        )
+    end
+
+    if not Module.displays.guild then
+        Module.displays.guild = CreateDisplay(
+            "KamiUIChatDisplayGuild",
+            Module.leftPanel
+        )
+    end
+
+    if not Module.displays.whisper then
+        Module.displays.whisper = CreateDisplay(
+            "KamiUIChatDisplayWhisper",
+            Module.leftPanel
+        )
+    end
+
+    if not Module.displays.combat then
+        Module.displays.combat = CreateDisplay(
+            "KamiUICombatLogDisplay",
+            Module.combatPanel
+        )
+    end
 end
 
 local function CreateTab(index, config)
     local button = CreateFrame(
         "Button",
         "KamiUIChatTab" .. index,
-        UIParent,
+        Module.leftPanel,
         "BackdropTemplate"
     )
 
-    local width = defaults.leftWidth / #leftTabs
-    button:SetSize(width, defaults.tabHeight)
+    button:SetSize(defaults.leftWidth / #leftTabs, defaults.tabHeight)
     button:SetBackdrop({
         bgFile = "Interface\\Buttons\\WHITE8X8",
         edgeFile = "Interface\\Buttons\\WHITE8X8",
@@ -184,7 +293,6 @@ local function CreateTab(index, config)
     local text = button:CreateFontString(nil, "OVERLAY")
     text:SetPoint("CENTER")
     text:SetText(config.label)
-    text:SetTextColor(0.72, 0.72, 0.72)
 
     local font, _, flags = GameFontNormal:GetFont()
     if font then
@@ -193,13 +301,11 @@ local function CreateTab(index, config)
 
     button.text = text
     button.key = config.key
-
     button:SetScript("OnClick", function(self)
         Module:SelectTab(self.key)
     end)
 
     Module.tabs[config.key] = button
-    return button
 end
 
 local function EnsureTabs()
@@ -222,7 +328,13 @@ local function PositionTabs()
         if previous then
             tab:SetPoint("BOTTOMLEFT", previous, "BOTTOMRIGHT", 0, 0)
         else
-            tab:SetPoint("BOTTOMLEFT", Module.leftPanel, "TOPLEFT", 0, 0)
+            tab:SetPoint(
+                "BOTTOMLEFT",
+                Module.leftPanel,
+                "TOPLEFT",
+                0,
+                0
+            )
         end
 
         previous = tab
@@ -232,9 +344,8 @@ end
 local function UpdateTabStyles()
     for _, config in ipairs(leftTabs) do
         local tab = Module.tabs[config.key]
-        local selected = config.key == Module.selectedTab
 
-        if selected then
+        if config.key == Module.selectedTab then
             tab:SetBackdropColor(unpack(defaults.tabSelectedBackground))
             tab.text:SetTextColor(1, 1, 1)
         else
@@ -242,155 +353,6 @@ local function UpdateTabStyles()
             tab.text:SetTextColor(0.72, 0.72, 0.72)
         end
     end
-end
-
-local function HideFrameChrome(frame)
-    if not frame then
-        return
-    end
-
-    HideObject(frame.Background)
-    HideObject(frame.ScrollBar)
-    HideObject(frame.ScrollToBottomButton)
-    HideObject(frame.ResizeButton)
-
-    local name = frame:GetName()
-
-    if not name then
-        return
-    end
-
-    HideObject(_G[name .. "ButtonFrame"])
-    HideObject(_G[name .. "Tab"])
-
-    for _, suffix in ipairs(CHAT_FRAME_TEXTURES or {}) do
-        HideObject(_G[name .. suffix])
-    end
-end
-
-local function StyleFont(frame)
-    local font, _, flags = frame:GetFont()
-
-    if font then
-        frame:SetFont(font, defaults.fontSize, flags)
-    end
-
-    frame:SetFading(false)
-end
-
-local function StyleEditBox(frame)
-    local editBox = frame and frame.editBox
-
-    if not editBox then
-        return
-    end
-
-    editBox:ClearAllPoints()
-    editBox:SetPoint("TOPLEFT", Module.inputPanel, "TOPLEFT", 0, 0)
-    editBox:SetPoint("BOTTOMRIGHT", Module.inputPanel, "BOTTOMRIGHT", 0, 0)
-
-    local name = editBox:GetName()
-
-    if name then
-        for _, suffix in ipairs({
-            "Left",
-            "Right",
-            "Mid",
-            "FocusLeft",
-            "FocusRight",
-            "FocusMid",
-        }) do
-            HideObject(_G[name .. suffix])
-        end
-    end
-
-    local font, _, flags = editBox:GetFont()
-
-    if font then
-        editBox:SetFont(font, defaults.fontSize, flags)
-    end
-
-    if not editBox.KamiUIInputHooked then
-        editBox.KamiUIInputHooked = true
-
-        editBox:HookScript("OnEditFocusGained", function()
-            Module.inputPanel:Show()
-        end)
-
-        editBox:HookScript("OnEditFocusLost", function()
-            C_Timer.After(0, function()
-                for _, backend in pairs(Module.leftFrames) do
-                    local other = backend and backend.editBox
-
-                    if other and other.HasFocus and other:HasFocus() then
-                        return
-                    end
-                end
-
-                Module.inputPanel:Hide()
-            end)
-        end)
-    end
-end
-
-local function PositionLeftFrame(frame)
-    frame:SetClampedToScreen(false)
-    frame:ClearAllPoints()
-    frame:SetPoint(
-        "TOPLEFT",
-        Module.leftPanel,
-        "TOPLEFT",
-        defaults.padding,
-        -defaults.padding
-    )
-    frame:SetPoint(
-        "BOTTOMRIGHT",
-        Module.leftPanel,
-        "BOTTOMRIGHT",
-        -defaults.padding,
-        defaults.padding
-    )
-end
-
-local function PositionCombatFrame()
-    if not ChatFrame2 then
-        return
-    end
-
-    local quickBar = _G.CombatLogQuickButtonFrame_Custom
-    local topInset = defaults.padding
-
-    if quickBar then
-        topInset = quickBar:GetHeight() + defaults.padding
-
-        quickBar:SetParent(Module.combatPanel)
-        quickBar:ClearAllPoints()
-        quickBar:SetPoint("TOPLEFT", Module.combatPanel, "TOPLEFT", 0, 0)
-        quickBar:SetPoint("TOPRIGHT", Module.combatPanel, "TOPRIGHT", 0, 0)
-        quickBar:Show()
-
-        local background = _G.CombatLogQuickButtonFrame_CustomTexture
-        if background then
-            background:SetAlpha(0)
-        end
-    end
-
-    ChatFrame2:SetClampedToScreen(false)
-    ChatFrame2:ClearAllPoints()
-    ChatFrame2:SetPoint(
-        "TOPLEFT",
-        Module.combatPanel,
-        "TOPLEFT",
-        defaults.padding,
-        -topInset
-    )
-    ChatFrame2:SetPoint(
-        "BOTTOMRIGHT",
-        Module.combatPanel,
-        "BOTTOMRIGHT",
-        -defaults.padding,
-        defaults.padding
-    )
 end
 
 local function FindChatWindow(name)
@@ -445,10 +407,6 @@ local function ConfigureWindow(frame, config)
         ChatFrame_ReceiveAllPrivateMessages(frame)
     end
 
-    if frame.isDocked then
-        FCF_UnDockFrame(frame)
-    end
-
     FCF_SetLocked(frame, true)
     frame:Show()
 
@@ -469,54 +427,175 @@ local function EnsureWindow(config)
     return ConfigureWindow(frame, config)
 end
 
-local function SyncGeneralWindow()
-    local frame = Module.leftFrames.general
+local function CopyHistory(backend, display)
+    display:Clear()
 
-    if not frame or not ChatFrame1 then
-        return
-    end
-
-    RemoveAllMessageGroups(frame)
-    RemoveAllChannels(frame)
-
-    for _, group in pairs(ChatFrame1.messageTypeList or {}) do
-        AddMessageGroup(frame, group)
-    end
-
-    for _, channel in pairs(ChatFrame1.channelList or {}) do
-        if frame.AddChannel then
-            frame:AddChannel(channel)
-        else
-            ChatFrame_AddChannel(frame, channel)
-        end
-    end
-
-    if frame.ReceiveAllPrivateMessages then
-        frame:ReceiveAllPrivateMessages()
-    elseif ChatFrame_ReceiveAllPrivateMessages then
-        ChatFrame_ReceiveAllPrivateMessages(frame)
+    for index = 1, backend:GetNumMessages() do
+        display:AddMessage(backend:GetMessageInfo(index))
     end
 end
 
-local function EnsureGeneralWindow()
-    local frame = FindChatWindow("Kami General")
+local function AttachBackend(key, backend)
+    local display = Module.displays[key]
 
-    if not frame then
-        frame = FCF_OpenNewWindow("Kami General", true)
+    if not backend or not display then
+        return
     end
 
+    backend.KamiUIMirrorKeys = backend.KamiUIMirrorKeys or {}
+
+    if not backend.KamiUIMirrorKeys[key] then
+        backend.KamiUIMirrorKeys[key] = true
+
+        hooksecurefunc(backend, "AddMessage", function(_, ...)
+            local target = Module.displays[key]
+
+            if target then
+                target:AddMessage(...)
+            end
+        end)
+    end
+
+    if display.KamiUIBackend ~= backend then
+        display.KamiUIBackend = backend
+        CopyHistory(backend, display)
+    end
+end
+
+local function StyleEditBox(frame)
+    local editBox = frame and frame.editBox
+
+    if not editBox then
+        return
+    end
+
+    if editBox.SetIgnoreParentAlpha then
+        editBox:SetIgnoreParentAlpha(true)
+    end
+
+    editBox:ClearAllPoints()
+    editBox:SetPoint("TOPLEFT", Module.inputPanel, "TOPLEFT", 0, 0)
+    editBox:SetPoint("BOTTOMRIGHT", Module.inputPanel, "BOTTOMRIGHT", 0, 0)
+
+    local name = editBox:GetName()
+
+    if name then
+        for _, suffix in ipairs({
+            "Left",
+            "Right",
+            "Mid",
+            "FocusLeft",
+            "FocusRight",
+            "FocusMid",
+        }) do
+            local texture = _G[name .. suffix]
+
+            if texture then
+                texture:SetAlpha(0)
+            end
+        end
+    end
+
+    local font, _, flags = editBox:GetFont()
+
+    if font then
+        editBox:SetFont(font, defaults.fontSize, flags)
+    end
+
+    if not editBox.KamiUIInputHooked then
+        editBox.KamiUIInputHooked = true
+
+        editBox:HookScript("OnEditFocusGained", function()
+            Module.inputPanel:Show()
+        end)
+
+        editBox:HookScript("OnEditFocusLost", function()
+            C_Timer.After(0, function()
+                for _, backend in pairs(Module.backends) do
+                    local other = backend and backend.editBox
+
+                    if other and other.HasFocus and other:HasFocus() then
+                        return
+                    end
+                end
+
+                Module.inputPanel:Hide()
+            end)
+        end)
+    end
+end
+
+local function HideBackendFrame(frame)
     if not frame then
         return
     end
 
-    if frame.isDocked then
-        FCF_UnDockFrame(frame)
+    frame:SetAlpha(0)
+    frame:SetFading(false)
+    frame:EnableMouse(false)
+
+    HideObject(frame.Background)
+    HideObject(frame.ScrollBar)
+    HideObject(frame.ScrollToBottomButton)
+    HideObject(frame.ResizeButton)
+
+    local name = frame:GetName()
+
+    if name then
+        HideObject(_G[name .. "ButtonFrame"])
+        HideObject(_G[name .. "Tab"])
+
+        for _, suffix in ipairs(CHAT_FRAME_TEXTURES or {}) do
+            HideObject(_G[name .. suffix])
+        end
+    end
+end
+
+local positioningCombatBar = false
+
+local function PositionCombatBar()
+    local bar = _G.CombatLogQuickButtonFrame_Custom
+
+    if not bar or not Module.combatPanel or positioningCombatBar then
+        return
     end
 
-    FCF_SetLocked(frame, true)
-    frame:Show()
+    positioningCombatBar = true
 
-    return frame
+    bar:SetParent(Module.combatPanel)
+    bar:SetAlpha(1)
+    bar:EnableMouse(true)
+    bar:ClearAllPoints()
+    bar:SetPoint("TOPLEFT", Module.combatPanel, "TOPLEFT", 0, 0)
+    bar:SetPoint("TOPRIGHT", Module.combatPanel, "TOPRIGHT", 0, 0)
+    bar:Show()
+
+    local background = _G.CombatLogQuickButtonFrame_CustomTexture
+    if background then
+        background:SetAlpha(0)
+    end
+
+    local display = Module.displays.combat
+
+    if display then
+        display:ClearAllPoints()
+        display:SetPoint(
+            "TOPLEFT",
+            Module.combatPanel,
+            "TOPLEFT",
+            defaults.padding,
+            -(bar:GetHeight() + defaults.padding)
+        )
+        display:SetPoint(
+            "BOTTOMRIGHT",
+            Module.combatPanel,
+            "BOTTOMRIGHT",
+            -defaults.padding,
+            defaults.padding
+        )
+    end
+
+    positioningCombatBar = false
 end
 
 local function SetupCombatLog()
@@ -524,45 +603,15 @@ local function SetupCombatLog()
         C_AddOns.LoadAddOn("Blizzard_CombatLog")
     end
 
-    if ChatFrame2 and ChatFrame2.isDocked then
-        FCF_UnDockFrame(ChatFrame2)
-    end
+    Module.backends.combat = ChatFrame2
 
     if ChatFrame2 then
-        FCF_SetLocked(ChatFrame2, true)
         ChatFrame2:Show()
+        FCF_SetLocked(ChatFrame2, true)
     end
 end
 
-local function ParkDefaultChatFrame()
-    if not ChatFrame1 then
-        return
-    end
-
-    if ChatFrame1.BreakFromFrameManager then
-        ChatFrame1:BreakFromFrameManager()
-    end
-
-    ChatFrame1.ignoreFramePositionManager = true
-    ChatFrame1:SetClampedToScreen(false)
-    ChatFrame1:SetAlpha(0)
-    ChatFrame1:EnableMouse(false)
-
-    if ChatFrame1.ClearAllPointsBase and ChatFrame1.SetPointBase then
-        ChatFrame1:ClearAllPointsBase()
-        ChatFrame1:SetPointBase(
-            "TOPLEFT",
-            UIParent,
-            "BOTTOMLEFT",
-            -1000,
-            -1000
-        )
-    end
-
-    ChatFrame1:Show()
-end
-
-local function HideBlizzardChatUI()
+local function HideStockChatUI()
     HideObject(GeneralDockManager)
     HideObject(ChatFrameMenuButton)
     HideObject(ChatFrameChannelButton)
@@ -570,82 +619,58 @@ local function HideBlizzardChatUI()
     HideObject(QuickJoinToastButton)
 
     for index = 1, NUM_CHAT_WINDOWS do
-        HideObject(_G["ChatFrame" .. index .. "Tab"])
-    end
-end
-
-local function StyleLeftFrames()
-    for _, frame in pairs(Module.leftFrames) do
-        if frame then
-            HideFrameChrome(frame)
-            StyleFont(frame)
-            StyleEditBox(frame)
-            PositionLeftFrame(frame)
-        end
-    end
-end
-
-local function StyleCombatFrame()
-    if not ChatFrame2 then
-        return
+        HideBackendFrame(_G["ChatFrame" .. index])
     end
 
-    HideFrameChrome(ChatFrame2)
-    StyleFont(ChatFrame2)
-    HideObject(ChatFrame2.editBox)
-    PositionCombatFrame()
+    for _, backend in pairs(Module.backends) do
+        StyleEditBox(backend)
+    end
 end
 
 function Module:SelectTab(key)
-    local selected = self.leftFrames[key]
+    local display = self.displays[key]
+    local backend = self.backends[key]
 
-    if not selected then
+    if not display or not backend then
         return
     end
 
     self.selectedTab = key
 
-    for frameKey, frame in pairs(self.leftFrames) do
-        if frame then
-            local active = frameKey == key
-            frame:SetAlpha(active and 1 or 0)
-            frame:EnableMouse(active)
-
-            if frame.editBox and frame.editBox.EnableMouse then
-                frame.editBox:EnableMouse(active)
-            end
-        end
+    for _, config in ipairs(leftTabs) do
+        self.displays[config.key]:SetShown(config.key == key)
     end
 
-    SELECTED_CHAT_FRAME = selected
+    SELECTED_CHAT_FRAME = backend
 
     if ChatFrameUtil and ChatFrameUtil.SetLastActiveWindow then
-        ChatFrameUtil.SetLastActiveWindow(selected.editBox)
+        ChatFrameUtil.SetLastActiveWindow(backend.editBox)
     end
 
     UpdateTabStyles()
 end
 
-function Module:SetupWindows()
-    self.leftFrames.general = EnsureGeneralWindow()
-    self.leftFrames.party = EnsureWindow(managedWindows.party)
-    self.leftFrames.guild = EnsureWindow(managedWindows.guild)
-    self.leftFrames.whisper = EnsureWindow(managedWindows.whisper)
+function Module:SetupBackends()
+    self.backends.general = ChatFrame1
+    self.backends.party = EnsureWindow(managedWindows.party)
+    self.backends.guild = EnsureWindow(managedWindows.guild)
+    self.backends.whisper = EnsureWindow(managedWindows.whisper)
 
-    SyncGeneralWindow()
     SetupCombatLog()
+
+    for key, backend in pairs(self.backends) do
+        AttachBackend(key, backend)
+    end
 end
 
 function Module:ApplyLayout()
     EnsurePanels()
+    EnsureDisplays()
     EnsureTabs()
     PositionPanels()
     PositionTabs()
-    ParkDefaultChatFrame()
-    HideBlizzardChatUI()
-    StyleLeftFrames()
-    StyleCombatFrame()
-
+    HideStockChatUI()
+    PositionCombatBar()
     self:SelectTab(self.selectedTab or "general")
 end
 
@@ -653,8 +678,8 @@ function Module:Reset()
     KamiUIDB = KamiUIDB or {}
     KamiUIDB.chat = {}
 
-    self:SetupWindows()
     self.selectedTab = "general"
+    self:SetupBackends()
     self:ApplyLayout()
 
     KamiUIDB.chat.initialized = true
@@ -679,10 +704,11 @@ local function StartChatUI()
 
     Module.starting = true
 
-    -- Creating/undocking chat windows while Blizzard is still constructing the
-    -- stock chat UI is fragile and can abort the module before any KamiUI frame
-    -- is created. Do all invasive chat work after PLAYER_ENTERING_WORLD.
-    Module:SetupWindows()
+    EnsurePanels()
+    EnsureDisplays()
+    EnsureTabs()
+
+    Module:SetupBackends()
     Module:ApplyLayout()
 
     KamiUIDB.chat.initialized = true
@@ -694,7 +720,8 @@ end
 
 function Module:Initialize()
     self.tabs = {}
-    self.leftFrames = {}
+    self.displays = {}
+    self.backends = {}
     self.selectedTab = "general"
 
     KamiUIDB = KamiUIDB or {}
@@ -710,32 +737,33 @@ function Module:Initialize()
         end
     end)
 
-    UI:RegisterEvent("CHANNEL_UI_UPDATE", function()
-        if Module.started then
-            C_Timer.After(0, SyncGeneralWindow)
-        end
-    end)
-
     UI:RegisterEvent("UPDATE_CHAT_WINDOWS", function()
         if Module.started and not Module.starting then
             C_Timer.After(0, function()
-                SyncGeneralWindow()
-                Module:ApplyLayout()
+                HideStockChatUI()
+                PositionCombatBar()
             end)
         end
     end)
 
     UI:RegisterEvent("UPDATE_FLOATING_CHAT_WINDOWS", function()
         if Module.started and not Module.starting then
-            C_Timer.After(0, function()
-                Module:ApplyLayout()
-            end)
+            C_Timer.After(0, HideStockChatUI)
         end
     end)
 
     UI:RegisterEvent("ADDON_LOADED", function(_, addonName)
         if addonName == "Blizzard_CombatLog" and Module.started then
-            C_Timer.After(0, StyleCombatFrame)
+            C_Timer.After(0, function()
+                HideStockChatUI()
+                PositionCombatBar()
+            end)
+        end
+    end)
+
+    UI:RegisterEvent("UI_SCALE_CHANGED", function()
+        if Module.started then
+            C_Timer.After(0, Module.ApplyLayout)
         end
     end)
 end
