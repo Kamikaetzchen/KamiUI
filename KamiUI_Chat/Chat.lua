@@ -123,6 +123,17 @@ local function EnsurePanels()
         )
     end
 
+    if not Module.tabPanel then
+        Module.tabPanel = CreateFrame(
+            "Frame",
+            "KamiUIChatTabPanel",
+            UIParent
+        )
+        Module.tabPanel:SetSize(defaults.leftWidth, defaults.tabHeight)
+        Module.tabPanel:SetFrameStrata("DIALOG")
+        Module.tabPanel:SetFrameLevel(100)
+    end
+
     if not Module.inputPanel then
         Module.inputPanel = CreatePanel(
             "KamiUIChatInputPanel",
@@ -151,6 +162,15 @@ local function PositionPanels()
         "BOTTOMLEFT",
         Module.leftPanel,
         "BOTTOMRIGHT",
+        0,
+        0
+    )
+
+    Module.tabPanel:ClearAllPoints()
+    Module.tabPanel:SetPoint(
+        "BOTTOMLEFT",
+        Module.leftPanel,
+        "TOPLEFT",
         0,
         0
     )
@@ -191,6 +211,7 @@ local function CreateDisplay(name, parent)
 
     frame:SetFading(false)
     frame:SetMaxLines(500)
+    frame:SetScrollAllowed(true)
     frame:SetJustifyH("LEFT")
     frame:SetIndentedWordWrap(false)
     frame:SetHyperlinksEnabled(true)
@@ -198,7 +219,9 @@ local function CreateDisplay(name, parent)
     frame:EnableMouseWheel(true)
 
     frame:SetScript("OnMouseWheel", function(self, delta)
-        if delta > 0 then
+        if IsShiftKeyDown() and delta < 0 then
+            self:ScrollToBottom()
+        elseif delta > 0 then
             self:ScrollUp()
         else
             self:ScrollDown()
@@ -278,10 +301,12 @@ local function CreateTab(index, config)
     local button = CreateFrame(
         "Button",
         "KamiUIChatTab" .. index,
-        Module.leftPanel,
+        Module.tabPanel,
         "BackdropTemplate"
     )
 
+    button:SetFrameStrata("DIALOG")
+    button:SetFrameLevel(Module.tabPanel:GetFrameLevel() + 1)
     button:SetSize(defaults.leftWidth / #leftTabs, defaults.tabHeight)
     button:SetBackdrop({
         bgFile = "Interface\\Buttons\\WHITE8X8",
@@ -335,8 +360,8 @@ local function PositionTabs()
         else
             tab:SetPoint(
                 "BOTTOMLEFT",
-                Module.leftPanel,
-                "TOPLEFT",
+                Module.tabPanel,
+                "BOTTOMLEFT",
                 0,
                 0
             )
