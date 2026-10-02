@@ -13,11 +13,15 @@ local defaults = {
     fontSize = 14,
     position = {
         x = 0,
-        y = 32,
+        y = 22,
     },
     background = { 0, 0, 0, 0.85 },
     border = { 0.2, 0.2, 0.2, 1 },
 }
+
+local function GetPositionY()
+    return defaults.position.y + UI:GetBottomInset()
+end
 
 local managedWindows = {
     {
@@ -97,7 +101,7 @@ local function EnsurePanels()
         Module.chatPanel = CreatePanel(
             "KamiUIChatPanel",
             defaults.height,
-            defaults.position.y
+            GetPositionY()
         )
     end
 
@@ -105,9 +109,35 @@ local function EnsurePanels()
         Module.inputPanel = CreatePanel(
             "KamiUIChatInputPanel",
             defaults.inputHeight,
-            defaults.position.y + defaults.height + defaults.tabAreaHeight
+            GetPositionY() + defaults.height + defaults.tabAreaHeight
         )
         Module.inputPanel:Hide()
+    end
+end
+
+local function PositionPanels()
+    local y = GetPositionY()
+
+    if Module.chatPanel then
+        Module.chatPanel:ClearAllPoints()
+        Module.chatPanel:SetPoint(
+            "BOTTOMLEFT",
+            UIParent,
+            "BOTTOMLEFT",
+            defaults.position.x,
+            y
+        )
+    end
+
+    if Module.inputPanel then
+        Module.inputPanel:ClearAllPoints()
+        Module.inputPanel:SetPoint(
+            "BOTTOMLEFT",
+            UIParent,
+            "BOTTOMLEFT",
+            defaults.position.x,
+            y + defaults.height + defaults.tabAreaHeight
+        )
     end
 end
 
@@ -179,14 +209,14 @@ local function StyleEditBox(frame)
         UIParent,
         "BOTTOMLEFT",
         defaults.position.x,
-        defaults.position.y + defaults.height + defaults.tabAreaHeight
+        GetPositionY() + defaults.height + defaults.tabAreaHeight
     )
     editBox:SetPoint(
         "BOTTOMRIGHT",
         UIParent,
         "BOTTOMLEFT",
         defaults.position.x + defaults.width,
-        defaults.position.y + defaults.height + defaults.tabAreaHeight
+        GetPositionY() + defaults.height + defaults.tabAreaHeight
     )
     editBox:SetHeight(defaults.inputHeight)
 
@@ -281,7 +311,7 @@ local function PositionPrimaryFrame()
         UIParent,
         "BOTTOMLEFT",
         defaults.position.x,
-        defaults.position.y
+        GetPositionY()
     )
     ChatFrame1:SetSize(defaults.width, defaults.height)
 end
@@ -413,6 +443,7 @@ end
 
 function Module:ApplyLayout()
     EnsurePanels()
+    PositionPanels()
     PositionPrimaryFrame()
     PositionDock()
     HideGlobalButtons()
@@ -459,6 +490,10 @@ function Module:Initialize()
         C_Timer.After(0, function()
             Module:Apply()
         end)
+    end)
+
+    UI:RegisterBottomInsetCallback(function()
+        Module:ApplyLayout()
     end)
 
     UI:RegisterEvent("UPDATE_CHAT_WINDOWS", function()
