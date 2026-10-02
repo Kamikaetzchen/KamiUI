@@ -6,11 +6,11 @@ Module.name = "KamiUI_ActionBars"
 Module.version = "0.1.0"
 
 local defaults = {
-    buttonSize = 36,
+    buttonSize = 40,
     buttonSpacing = 0,
     iconZoom = 0.08,
-    petBarWidth = 404,
-    petButtonSize = 40.4,
+    petButtonSize = 36,
+    statusBarHeight = 10,
     alpha = 1,
     offsetX = -20,
     offsetY = 20,
@@ -18,19 +18,19 @@ local defaults = {
 
 local barConfigs = {
     {
-        frame = MainMenuBar,
+        frameName = "MainMenuBar",
         prefix = "ActionButton",
     },
     {
-        frame = MultiBarBottomLeft,
+        frameName = "MultiBarBottomLeft",
         prefix = "MultiBarBottomLeftButton",
     },
     {
-        frame = MultiBarBottomRight,
+        frameName = "MultiBarBottomRight",
         prefix = "MultiBarBottomRightButton",
     },
     {
-        frame = MultiBarRight,
+        frameName = "MultiBarRight",
         prefix = "MultiBarRightButton",
     },
 }
@@ -119,6 +119,7 @@ local function StripButtonArt(button)
     HideTexture(button.IconBorder)
     HideTexture(button.NewActionTexture)
     HideTexture(button.SpellHighlightTexture)
+    HideTexture(button.Flash)
 
     HideTexture(button.PushedTexture or button:GetPushedTexture())
     HideTexture(button.HighlightTexture or button:GetHighlightTexture())
@@ -161,8 +162,14 @@ local function StyleButton(button, size)
     StripButtonArt(button)
 end
 
+local function GetBarFrame(config)
+    return _G[config.frameName]
+end
+
 local function LayoutBarButtons(config)
-    if not config.frame then
+    local bar = GetBarFrame(config)
+
+    if not bar then
         return
     end
 
@@ -184,7 +191,7 @@ local function LayoutBarButtons(config)
                     0
                 )
             else
-                button:SetPoint("BOTTOMLEFT", config.frame, "BOTTOMLEFT", 0, 0)
+                button:SetPoint("BOTTOMLEFT", bar, "BOTTOMLEFT", 0, 0)
             end
 
             previous = button
@@ -196,6 +203,21 @@ local function StyleExtraButtons()
     for _, prefix in ipairs(extraButtonPrefixes) do
         for index = 1, 12 do
             StyleButton(_G[prefix .. index])
+        end
+    end
+end
+
+local function RestylePetButtons()
+    for index = 1, 10 do
+        local button = _G["PetActionButton" .. index]
+
+        if button then
+            StripButtonArt(button)
+
+            if button.AutoCastOverlay then
+                button.AutoCastOverlay:ClearAllPoints()
+                button.AutoCastOverlay:SetAllPoints(button)
+            end
         end
     end
 end
@@ -248,32 +270,126 @@ local function StylePetBar()
     end
 
     PetActionBar:ClearAllPoints()
+    PetActionBar:SetPoint(
+        "TOP",
+        UIParent,
+        "CENTER",
+        0,
+        -260
+    )
 
-    if KamiUIPlayerFrame and KamiUITargetFrame then
-        -- PetActionBar inherits ResizeLayoutFrame, so its width is calculated
-        -- from the ten button containers. 10 * 40.4 = 404, matching the full
-        -- outer span of the two 200px unit frames plus their 4px center gap.
-        PetActionBar:SetPoint(
-            "TOPLEFT",
-            KamiUIPlayerFrame,
-            "BOTTOMLEFT",
-            0,
-            0
-        )
-    else
-        PetActionBar:SetPoint(
-            "TOP",
-            UIParent,
-            "CENTER",
-            0,
-            -260
+    RestylePetButtons()
+
+    if not PetActionBar.KamiUpdateHooked and PetActionBar.Update then
+        PetActionBar.KamiUpdateHooked = true
+
+        hooksecurefunc(PetActionBar, "Update", function()
+            RestylePetButtons()
+        end)
+    end
+end
+
+local function StyleStatusBar(bar, width)
+    if not bar then
+        return
+    end
+
+    bar:ClearAllPoints()
+    bar:SetPoint("BOTTOMLEFT", bar:GetParent(), "BOTTOMLEFT", 0, 0)
+    bar:SetSize(width, defaults.statusBarHeight)
+
+    if bar.StatusBar then
+        bar.StatusBar:ClearAllPoints()
+        bar.StatusBar:SetAllPoints(bar)
+
+        if bar.StatusBar.Background then
+            bar.StatusBar.Background:ClearAllPoints()
+            bar.StatusBar.Background:SetAllPoints(bar.StatusBar)
+        end
+    end
+
+    if bar.OverlayFrame then
+        bar.OverlayFrame:ClearAllPoints()
+        bar.OverlayFrame:SetAllPoints(bar)
+    end
+
+    if bar.ExhaustionLevelFillBar then
+        bar.ExhaustionLevelFillBar:SetHeight(defaults.statusBarHeight)
+    end
+end
+
+local function StyleStatusContainer(container, y)
+    if not container then
+        return
+    end
+
+    local width = UIParent:GetWidth()
+
+    container:ClearAllPoints()
+    container:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", 0, y)
+    container:SetPoint("BOTTOMRIGHT", UIParent, "BOTTOMRIGHT", 0, y)
+    container:SetHeight(defaults.statusBarHeight)
+
+    HideTexture(container.BarFrameTexture)
+
+    for _, bar in pairs(container.bars or {}) do
+        StyleStatusBar(bar, width)
+    end
+end
+
+local function StyleStatusTrackingBars()
+    if not StatusTrackingBarManager then
+        return
+    end
+
+    StatusTrackingBarManager:ClearAllPoints()
+    StatusTrackingBarManager:SetPoint(
+        "BOTTOMLEFT",
+        UIParent,
+        "BOTTOMLEFT",
+        0,
+        0
+    )
+    StatusTrackingBarManager:SetPoint(
+        "BOTTOMRIGHT",
+        UIParent,
+        "BOTTOMRIGHT",
+        0,
+        0
+    )
+    StatusTrackingBarManager:SetHeight(defaults.statusBarHeight * 2)
+
+    StyleStatusContainer(
+        StatusTrackingBarManager.MainStatusTrackingBarContainer,
+        0
+    )
+    StyleStatusContainer(
+        StatusTrackingBarManager.SecondaryStatusTrackingBarContainer,
+        defaults.statusBarHeight
+    )
+
+    if StatusTrackingBarManager.UpdateBarTicks then
+        StatusTrackingBarManager:UpdateBarTicks()
+    end
+
+    if not StatusTrackingBarManager.KamiVisualHooked
+        and StatusTrackingBarManager.UpdateBarVisuals
+    then
+        StatusTrackingBarManager.KamiVisualHooked = true
+
+        hooksecurefunc(
+            StatusTrackingBarManager,
+            "UpdateBarVisuals",
+            function()
+                C_Timer.After(0, StyleStatusTrackingBars)
+            end
         )
     end
 end
 
 local function LayoutBars()
     for index, config in ipairs(barConfigs) do
-        local bar = config.frame
+        local bar = GetBarFrame(config)
 
         if bar then
             bar:SetScale(1)
@@ -293,6 +409,7 @@ end
 
 function Module:Apply()
     HideBlizzardMenuAndBags()
+    StyleStatusTrackingBars()
 
     if InCombatLockdown and InCombatLockdown() then
         self.layoutPending = true
@@ -320,7 +437,11 @@ function Module:Initialize()
     end)
 
     UI:RegisterEvent("ADDON_LOADED", function(_, addonName)
-        if addonName == "Blizzard_MicroMenu"
+        if addonName == "Blizzard_ActionBar" then
+            C_Timer.After(0, function()
+                Module:Apply()
+            end)
+        elseif addonName == "Blizzard_MicroMenu"
             or addonName == "Blizzard_MainMenuBarBagButtons"
         then
             C_Timer.After(0, HideBlizzardMenuAndBags)
