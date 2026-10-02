@@ -23,7 +23,7 @@ local frame = CreateFrame(
     "SecureUnitButtonTemplate"
 )
 frame:SetSize(FRAME_WIDTH, FRAME_HEIGHT)
-frame:SetPoint("RIGHT", UIParent, "CENTER", -2, -240)
+frame:SetPoint("RIGHT", UIParent, "CENTER", -1, -240)
 UF:ConfigureUnitButton(frame, "player")
 
 local background = frame:CreateTexture(nil, "BACKGROUND")
