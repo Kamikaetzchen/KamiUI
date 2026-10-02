@@ -80,23 +80,17 @@ end
 local function InitializeAuraButton(button, color)
     button:SetSize(defaults.width, defaults.height)
     button:EnableMouse(true)
-    button:SetCancelAuraButtons("RightButtonUp")
 
     local icon = button:CreateTexture(nil, "ARTWORK")
     icon:SetSize(defaults.iconSize, defaults.iconSize)
     icon:SetPoint("LEFT")
     icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-    button:SetIcon(icon)
 
     local bar = CreateFrame("StatusBar", nil, button)
     bar:SetSize(defaults.width - defaults.iconSize, defaults.height)
     bar:SetPoint("LEFT", icon, "RIGHT", 0, 0)
     bar:SetStatusBarTexture("Interface\\Buttons\\WHITE8X8")
     bar:SetStatusBarColor(color[1], color[2], color[3], defaults.barAlpha)
-    button:SetDurationBar(bar, {
-        direction = Enum.StatusBarTimerDirection.RemainingTime,
-        interpolation = Enum.StatusBarInterpolation.Immediate,
-    })
 
     local background = bar:CreateTexture(nil, "BACKGROUND")
     background:SetAllPoints()
@@ -107,31 +101,36 @@ local function InitializeAuraButton(button, color)
         defaults.backgroundAlpha
     )
 
-    local nameText = bar:CreateFontString(nil, "OVERLAY")
-    nameText:SetPoint("LEFT", 4, 0)
+    -- Keep text regions outside the duration StatusBar. Once a region is
+    -- registered with the AuraContainer API it receives secret/forbidden
+    -- aspects, so all visual children must exist before those bindings.
+    local overlay = CreateFrame("Frame", nil, button)
+    overlay:SetAllPoints()
+    overlay:SetFrameLevel(bar:GetFrameLevel() + 10)
+    overlay:EnableMouse(false)
+
+    local nameText = overlay:CreateFontString(nil, "OVERLAY")
+    nameText:SetPoint("LEFT", bar, "LEFT", 4, 0)
     nameText:SetPoint("RIGHT", bar, "RIGHT", -42, 0)
     nameText:SetJustifyH("LEFT")
     nameText:SetWordWrap(false)
     nameText:SetTextColor(1, 1, 1)
     nameText:SetShadowColor(0, 0, 0, 1)
     nameText:SetShadowOffset(1, -1)
-    button:SetSpellName(nameText)
 
-    local timeText = bar:CreateFontString(nil, "OVERLAY")
-    timeText:SetPoint("RIGHT", -4, 0)
+    local timeText = overlay:CreateFontString(nil, "OVERLAY")
+    timeText:SetPoint("RIGHT", bar, "RIGHT", -4, 0)
     timeText:SetJustifyH("RIGHT")
     timeText:SetTextColor(1, 1, 1)
     timeText:SetShadowColor(0, 0, 0, 1)
     timeText:SetShadowOffset(1, -1)
-    button:SetDurationText(timeText)
 
-    local stackText = button:CreateFontString(nil, "OVERLAY")
+    local stackText = overlay:CreateFontString(nil, "OVERLAY")
     stackText:SetPoint("BOTTOMRIGHT", icon, "BOTTOMRIGHT", -2, 2)
     stackText:SetJustifyH("RIGHT")
     stackText:SetTextColor(1, 1, 1)
     stackText:SetShadowColor(0, 0, 0, 1)
     stackText:SetShadowOffset(1, -1)
-    button:SetApplicationCount(stackText)
 
     local fontPath, _, fontFlags = GameFontNormalSmall:GetFont()
     nameText:SetFont(fontPath, defaults.fontSize, fontFlags)
@@ -139,7 +138,19 @@ local function InitializeAuraButton(button, color)
     stackText:SetFont(fontPath, defaults.fontSize, "OUTLINE")
 
     -- Shared 1 px separator between stacked rows.
-    CreateBorder(button, false, true, false, false)
+    CreateBorder(overlay, false, true, false, false)
+
+    -- Bind only after the complete visual tree exists. Blizzard applies
+    -- access restrictions to these objects as part of the binding calls.
+    button:SetIcon(icon)
+    button:SetDurationBar(bar, {
+        direction = Enum.StatusBarTimerDirection.RemainingTime,
+        interpolation = Enum.StatusBarInterpolation.Immediate,
+    })
+    button:SetSpellName(nameText)
+    button:SetDurationText(timeText)
+    button:SetApplicationCount(stackText)
+    button:SetCancelAuraButtons("RightButtonUp")
 end
 
 local function CreateAuraContainer()
@@ -147,7 +158,7 @@ local function CreateAuraContainer()
         "AuraContainer",
         "KamiUIAuraContainer",
         UIParent,
-        "CustomAuraContainerTemplate"
+        "CustomAuraContainerTemplate, DisableUntrustedLayoutScriptsTemplate"
     )
 
     auraContainer:SetPoint(
@@ -158,8 +169,6 @@ local function CreateAuraContainer()
         defaults.y + UI:GetBottomInset()
     )
 
-    auraContainer:SetUnit("player")
-    auraContainer:SetEnabled(true)
     auraContainer:SetFlowLayoutAxis(AnchorUtil.FlowLayoutAxis.Vertical)
     auraContainer:SetFlowLayoutAnchorPoint("BOTTOMRIGHT")
     auraContainer:SetFlowLayoutGrowthDirection(
@@ -200,6 +209,12 @@ local function CreateAuraContainer()
             layoutIndex = 2,
         },
     })
+
+    -- Match the initialization order used by working 12.1 AuraContainer
+    -- implementations: configure groups first, then enable and assign unit.
+    auraContainer:SetEnabled(true)
+    auraContainer:SetUnit("player")
+    auraContainer:UpdateAllAuras()
 
     return auraContainer
 end
