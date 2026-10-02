@@ -7,9 +7,12 @@ Module.version = "0.1.0"
 
 local defaults = {
     height = UI.defaults.layout.xpBarHeight,
+    segments = 20,
     background = { 0.005, 0.008, 0.015, 1 },
-    restedColor = { 0.035, 0.18, 0.42, 1 },
-    xpColor = { 0.025, 0.09, 0.24, 1 },
+    restedColor = { 0.025, 0.09, 0.24, 1 },
+    xpColor = { 0.075, 0.27, 0.72, 1 },
+    borderColor = { 0, 0, 0, 1 },
+    dividerColor = { 0, 0, 0, 0.9 },
 }
 
 local hookedNativeBars = setmetatable({}, { __mode = "k" })
@@ -92,11 +95,11 @@ local function HideNativeXPBar()
 
             if container.UpdateDividers then
                 hooksecurefunc(container, "UpdateDividers", function(self)
-                    local shownBar = self.GetShownBar
+                    local currentBar = self.GetShownBar
                         and self:GetShownBar()
                         or nil
 
-                    if shownBar and shownBar.isExpBar then
+                    if currentBar and currentBar.isExpBar then
                         HideNativeDividers(self)
                     end
                 end)
@@ -125,39 +128,171 @@ local function HideNativeXPBar()
     end
 end
 
+local function FormatNumber(value)
+    if BreakUpLargeNumbers then
+        return BreakUpLargeNumbers(value)
+    end
+
+    return tostring(value)
+end
+
+local function CreateEdge(frame, pointA, pointB, width, height)
+    local texture = frame:CreateTexture(nil, "OVERLAY")
+    texture:SetColorTexture(unpack(defaults.borderColor))
+    texture:SetPoint(pointA, frame, pointA)
+    texture:SetPoint(pointB, frame, pointB)
+
+    if width then
+        texture:SetWidth(width)
+    end
+
+    if height then
+        texture:SetHeight(height)
+    end
+
+    return texture
+end
+
+local function CreateBorder(frame)
+    frame.borderTop = CreateEdge(
+        frame,
+        "TOPLEFT",
+        "TOPRIGHT",
+        nil,
+        1
+    )
+    frame.borderBottom = CreateEdge(
+        frame,
+        "BOTTOMLEFT",
+        "BOTTOMRIGHT",
+        nil,
+        1
+    )
+    frame.borderLeft = CreateEdge(
+        frame,
+        "TOPLEFT",
+        "BOTTOMLEFT",
+        1,
+        nil
+    )
+    frame.borderRight = CreateEdge(
+        frame,
+        "TOPRIGHT",
+        "BOTTOMRIGHT",
+        1,
+        nil
+    )
+end
+
+local function UpdateDividers(frame)
+    if not frame.dividers then
+        frame.dividers = {}
+
+        for index = 1, defaults.segments - 1 do
+            local divider = frame:CreateTexture(nil, "OVERLAY")
+            divider:SetColorTexture(unpack(defaults.dividerColor))
+            divider:SetWidth(1)
+            frame.dividers[index] = divider
+        end
+    end
+
+    local width = frame:GetWidth()
+
+    if width <= 2 then
+        return
+    end
+
+    local innerWidth = width - 2
+    local segmentWidth = innerWidth / defaults.segments
+
+    for index = 1, defaults.segments - 1 do
+        local divider = frame.dividers[index]
+        local x = 1 + math.floor(index * segmentWidth + 0.5)
+
+        divider:ClearAllPoints()
+        divider:SetPoint("TOPLEFT", frame, "TOPLEFT", x, -1)
+        divider:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", x, 1)
+    end
+end
+
+local function ShowTooltip(frame)
+    local currentXP = UnitXP("player") or 0
+    local maxXP = UnitXPMax("player") or 0
+    local restedXP = GetXPExhaustion and GetXPExhaustion() or 0
+    restedXP = restedXP or 0
+
+    GameTooltip:SetOwner(frame, "ANCHOR_TOP")
+    GameTooltip:ClearLines()
+    GameTooltip:AddLine("Experience", 1, 0.82, 0)
+
+    local text = string.format(
+        "%s/%s",
+        FormatNumber(currentXP),
+        FormatNumber(maxXP)
+    )
+
+    if maxXP > 0 and restedXP > 0 then
+        local restedPercent = restedXP / maxXP * 100
+        text = string.format(
+            "%s (+%.1f%% rested)",
+            text,
+            restedPercent
+        )
+    end
+
+    GameTooltip:AddLine(text, 1, 1, 1)
+    GameTooltip:Show()
+end
+
 local function CreateBar()
     if Module.frame then
         return
     end
 
-    local frame = CreateFrame(
-        "Frame",
-        "KamiUIXPBar",
-        UIParent,
-        "BackdropTemplate"
-    )
+    local frame = CreateFrame("Frame", "KamiUIXPBar", UIParent)
     frame:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", 0, 0)
     frame:SetPoint("BOTTOMRIGHT", UIParent, "BOTTOMRIGHT", 0, 0)
     frame:SetHeight(defaults.height)
     frame:SetFrameStrata("MEDIUM")
-    frame:SetBackdrop({
-        bgFile = "Interface\\Buttons\\WHITE8X8",
-    })
-    frame:SetBackdropColor(unpack(defaults.background))
+    frame:EnableMouse(true)
+
+    local background = frame:CreateTexture(nil, "BACKGROUND")
+    background:SetColorTexture(unpack(defaults.background))
+    background:SetPoint("TOPLEFT", frame, "TOPLEFT", 1, -1)
+    background:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -1, 1)
+    frame.background = background
 
     local restedBar = CreateFrame("StatusBar", nil, frame)
-    restedBar:SetAllPoints(frame)
+    restedBar:SetPoint("TOPLEFT", frame, "TOPLEFT", 1, -1)
+    restedBar:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -1, 1)
     restedBar:SetStatusBarTexture("Interface\\Buttons\\WHITE8X8")
     restedBar:SetStatusBarColor(unpack(defaults.restedColor))
 
     local xpBar = CreateFrame("StatusBar", nil, frame)
-    xpBar:SetAllPoints(frame)
+    xpBar:SetPoint("TOPLEFT", frame, "TOPLEFT", 1, -1)
+    xpBar:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -1, 1)
     xpBar:SetStatusBarTexture("Interface\\Buttons\\WHITE8X8")
     xpBar:SetStatusBarColor(unpack(defaults.xpColor))
     xpBar:SetFrameLevel(restedBar:GetFrameLevel() + 1)
 
     frame.restedBar = restedBar
     frame.xpBar = xpBar
+
+    CreateBorder(frame)
+    UpdateDividers(frame)
+
+    frame:SetScript("OnSizeChanged", function(self)
+        UpdateDividers(self)
+    end)
+
+    frame:SetScript("OnEnter", function(self)
+        ShowTooltip(self)
+    end)
+
+    frame:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
+
     Module.frame = frame
 end
 
@@ -187,6 +322,7 @@ function Module:Refresh()
     self.frame.xpBar:SetMinMaxValues(0, maxXP)
     self.frame.xpBar:SetValue(currentXP)
 
+    UpdateDividers(self.frame)
     self.frame:Show()
 end
 
