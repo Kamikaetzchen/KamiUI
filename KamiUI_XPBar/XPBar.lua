@@ -7,10 +7,14 @@ Module.version = "0.1.0"
 
 local defaults = {
     height = UI.defaults.layout.xpBarHeight,
-    background = { 0.02, 0.02, 0.02, 0.95 },
-    restedColor = { 0.10, 0.55, 0.95, 1 },
-    xpColor = { 0.12, 0.32, 0.85, 1 },
+    background = { 0.005, 0.008, 0.015, 1 },
+    restedColor = { 0.035, 0.18, 0.42, 1 },
+    xpColor = { 0.025, 0.09, 0.24, 1 },
 }
+
+local hookedNativeBars = setmetatable({}, { __mode = "k" })
+local hookedContainers = setmetatable({}, { __mode = "k" })
+local managerHooksInstalled = false
 
 local function HideNativeXPBar()
     if not StatusTrackingBarManager then
@@ -20,6 +24,15 @@ local function HideNativeXPBar()
     for _, container in ipairs(
         StatusTrackingBarManager.barContainers or {}
     ) do
+        local shownBar = container.GetShownBar
+            and container:GetShownBar()
+            or nil
+        local showingXP = shownBar and shownBar.isExpBar
+
+        if container.BarFrameTexture then
+            container.BarFrameTexture:SetAlpha(showingXP and 0 or 1)
+        end
+
         for _, bar in pairs(container.bars or {}) do
             if bar.isExpBar then
                 bar:SetAlpha(0)
@@ -28,8 +41,8 @@ local function HideNativeXPBar()
                     bar:EnableMouse(false)
                 end
 
-                if not bar.KamiXPBarHiddenHooked then
-                    bar.KamiXPBarHiddenHooked = true
+                if not hookedNativeBars[bar] then
+                    hookedNativeBars[bar] = true
 
                     bar:HookScript("OnShow", function(self)
                         self:SetAlpha(0)
@@ -40,6 +53,46 @@ local function HideNativeXPBar()
                     end)
                 end
             end
+        end
+
+        if not hookedContainers[container] then
+            hookedContainers[container] = true
+
+            if container.ApplyPendingBarToShow then
+                hooksecurefunc(
+                    container,
+                    "ApplyPendingBarToShow",
+                    HideNativeXPBar
+                )
+            end
+
+            if container.UpdateShownState then
+                hooksecurefunc(
+                    container,
+                    "UpdateShownState",
+                    HideNativeXPBar
+                )
+            end
+        end
+    end
+
+    if not managerHooksInstalled then
+        managerHooksInstalled = true
+
+        if StatusTrackingBarManager.UpdateBarsShown then
+            hooksecurefunc(
+                StatusTrackingBarManager,
+                "UpdateBarsShown",
+                HideNativeXPBar
+            )
+        end
+
+        if StatusTrackingBarManager.UpdateBarVisuals then
+            hooksecurefunc(
+                StatusTrackingBarManager,
+                "UpdateBarVisuals",
+                HideNativeXPBar
+            )
         end
     end
 end
