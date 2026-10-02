@@ -43,7 +43,7 @@ local function HideObject(object)
         return
     end
 
-    object:Hide()
+    object:SetAlpha(0)
 
     if object.EnableMouse then
         object:EnableMouse(false)
