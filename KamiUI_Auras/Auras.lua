@@ -164,6 +164,13 @@ local function CreateAuraRow(index)
     icon:SetPoint("LEFT")
     icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
 
+    local stackText = row:CreateFontString(nil, "OVERLAY")
+    stackText:SetPoint("BOTTOMRIGHT", icon, "BOTTOMRIGHT", -2, 2)
+    stackText:SetJustifyH("RIGHT")
+    stackText:SetTextColor(1, 1, 1)
+    stackText:SetShadowColor(0, 0, 0, 1)
+    stackText:SetShadowOffset(1, -1)
+
     local bar = CreateFrame("StatusBar", nil, row)
     bar:SetSize(defaults.width - defaults.iconSize, defaults.height)
     bar:SetPoint("LEFT", icon, "RIGHT", 0, 0)
@@ -206,6 +213,7 @@ local function CreateAuraRow(index)
     local fontPath, _, fontFlags = GameFontNormalSmall:GetFont()
     nameText:SetFont(fontPath, defaults.fontSize, fontFlags)
     timeText:SetFont(fontPath, defaults.fontSize, fontFlags)
+    stackText:SetFont(fontPath, defaults.fontSize, "OUTLINE")
 
     row:SetScript("OnClick", function(self, button)
         if button ~= "RightButton" then
@@ -256,6 +264,7 @@ local function CreateAuraRow(index)
     end)
 
     row.icon = icon
+    row.stackText = stackText
     row.bar = bar
     row.separator = separator
     row.background = background
@@ -358,6 +367,11 @@ local function UpdateRow(row, aura)
     row.aura = aura
     row.icon:SetTexture(aura.icon)
     row.nameText:SetText(aura.name or "")
+    row.stackText:SetText(
+        aura.applications and aura.applications > 1
+            and aura.applications
+            or ""
+    )
 
     local r, g, b = GetAuraColor(aura)
     row.bar:SetStatusBarColor(r, g, b, defaults.barAlpha)
