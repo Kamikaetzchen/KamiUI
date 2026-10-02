@@ -290,14 +290,19 @@ local function CreateTab(index, config)
     })
     button:SetBackdropBorderColor(unpack(defaults.border))
 
-    local text = button:CreateFontString(nil, "OVERLAY")
+    local text = button:CreateFontString(
+        nil,
+        "OVERLAY",
+        "GameFontNormal"
+    )
     text:SetPoint("CENTER")
-    text:SetText(config.label)
 
     local font, _, flags = GameFontNormal:GetFont()
     if font then
         text:SetFont(font, defaults.fontSize, flags)
     end
+
+    text:SetText(config.label)
 
     button.text = text
     button.key = config.key
