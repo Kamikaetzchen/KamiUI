@@ -9,6 +9,7 @@ local defaults = {
     barWidth = 200,
     height = 20,
     iconSize = 20,
+    groupGap = 4,
     x = -20,
     y = 320,
     fontSize = 11,
@@ -250,12 +251,7 @@ local function CollectAurasForFilter(auras, filter, isHelpful)
     end
 end
 
-local function CollectAuras()
-    local auras = {}
-
-    CollectAurasForFilter(auras, "HELPFUL", true)
-    CollectAurasForFilter(auras, "HARMFUL", false)
-
+local function SortAuras(auras)
     table.sort(auras, function(a, b)
         local aPermanent = not a.duration or a.duration <= 0
         local bPermanent = not b.duration or b.duration <= 0
@@ -274,8 +270,19 @@ local function CollectAuras()
 
         return a.expirationTime > b.expirationTime
     end)
+end
 
-    return auras
+local function CollectAuras()
+    local helpful = {}
+    local harmful = {}
+
+    CollectAurasForFilter(helpful, "HELPFUL", true)
+    CollectAurasForFilter(harmful, "HARMFUL", false)
+
+    SortAuras(helpful)
+    SortAuras(harmful)
+
+    return helpful, harmful
 end
 
 local function UpdateRow(row, aura)
@@ -304,11 +311,10 @@ local function UpdateRow(row, aura)
     row:Show()
 end
 
-local function LayoutRows(auras)
-    wipe(activeRows)
-
+local function LayoutAuraGroup(auras, startRow, baseY)
     for index, aura in ipairs(auras) do
-        local row = GetAuraRow(index)
+        local rowIndex = startRow + index - 1
+        local row = GetAuraRow(rowIndex)
 
         row:ClearAllPoints()
         row:SetPoint(
@@ -316,14 +322,38 @@ local function LayoutRows(auras)
             UIParent,
             "BOTTOMRIGHT",
             defaults.x,
-            defaults.y + ((index - 1) * defaults.height)
+            baseY + ((index - 1) * defaults.height)
         )
 
         UpdateRow(row, aura)
         table.insert(activeRows, row)
     end
 
-    for index = #auras + 1, #auraRows do
+    return startRow + #auras
+end
+
+local function LayoutRows(helpful, harmful)
+    wipe(activeRows)
+
+    local nextRow = LayoutAuraGroup(
+        helpful,
+        1,
+        defaults.y
+    )
+
+    local harmfulY = defaults.y + (#helpful * defaults.height)
+
+    if #helpful > 0 and #harmful > 0 then
+        harmfulY = harmfulY + defaults.groupGap
+    end
+
+    nextRow = LayoutAuraGroup(
+        harmful,
+        nextRow,
+        harmfulY
+    )
+
+    for index = nextRow, #auraRows do
         local row = auraRows[index]
 
         row.aura = nil
@@ -333,7 +363,9 @@ end
 
 function Module:Refresh()
     HideBlizzardAuras()
-    LayoutRows(CollectAuras())
+
+    local helpful, harmful = CollectAuras()
+    LayoutRows(helpful, harmful)
 end
 
 local elapsedSinceUpdate = 0
