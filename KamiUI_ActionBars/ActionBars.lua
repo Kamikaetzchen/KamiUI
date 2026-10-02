@@ -149,15 +149,11 @@ local function StyleButton(button, size)
         button.KamiButtonSize = size
     end
 
-    if not button.KamiStyled then
-        button:SetAlpha(defaults.alpha)
+    button:SetAlpha(defaults.alpha)
 
-        StyleCooldown(button.cooldown, button)
-        StyleCooldown(button.lossOfControlCooldown, button)
-        StyleCooldown(button.chargeCooldown, button)
-
-        button.KamiStyled = true
-    end
+    StyleCooldown(button.cooldown, button)
+    StyleCooldown(button.lossOfControlCooldown, button)
+    StyleCooldown(button.chargeCooldown, button)
 
     StripButtonArt(button)
 end
