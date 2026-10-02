@@ -432,6 +432,50 @@ end
 
 local positioningMessageFrames = false
 
+local function SetFrameAnchors(frame, topInset)
+    if frame == ChatFrame1
+        and frame.ClearAllPointsBase
+        and frame.SetPointBase
+    then
+        -- ChatFrame1 replaces SetPoint/ClearAllPoints with Edit Mode wrappers.
+        -- Calling the wrappers reports every anchor change back to Edit Mode,
+        -- which can immediately restore its saved position. Use Blizzard's
+        -- original methods for the primary frame so our geometry actually sticks.
+        frame:ClearAllPointsBase()
+        frame:SetPointBase(
+            "TOPLEFT",
+            Module.chatPanel,
+            "TOPLEFT",
+            4,
+            -topInset
+        )
+        frame:SetPointBase(
+            "BOTTOMRIGHT",
+            Module.chatPanel,
+            "BOTTOMRIGHT",
+            -4,
+            4
+        )
+        return
+    end
+
+    frame:ClearAllPoints()
+    frame:SetPoint(
+        "TOPLEFT",
+        Module.chatPanel,
+        "TOPLEFT",
+        4,
+        -topInset
+    )
+    frame:SetPoint(
+        "BOTTOMRIGHT",
+        Module.chatPanel,
+        "BOTTOMRIGHT",
+        -4,
+        4
+    )
+end
+
 local function PositionMessageFrames()
     if not GeneralDockManager or not Module.chatPanel or positioningMessageFrames then
         return
@@ -446,21 +490,7 @@ local function PositionMessageFrames()
             topInset = _G.CombatLogQuickButtonFrame_Custom:GetHeight() + 4
         end
 
-        frame:ClearAllPoints()
-        frame:SetPoint(
-            "TOPLEFT",
-            Module.chatPanel,
-            "TOPLEFT",
-            4,
-            -topInset
-        )
-        frame:SetPoint(
-            "BOTTOMRIGHT",
-            Module.chatPanel,
-            "BOTTOMRIGHT",
-            -4,
-            4
-        )
+        SetFrameAnchors(frame, topInset)
     end
 
     positioningMessageFrames = false
