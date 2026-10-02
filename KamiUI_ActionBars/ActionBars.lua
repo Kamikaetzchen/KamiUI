@@ -178,7 +178,8 @@ local function FitStateTexture(texture, button)
     end
 
     texture:ClearAllPoints()
-    texture:SetAllPoints(button)
+    texture:SetPoint("TOPLEFT", button, "TOPLEFT", -1, 1)
+    texture:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", 2, -2)
 end
 
 local function StyleButton(button, size)
@@ -504,8 +505,8 @@ local function CreatePetBar()
         end
 
         local autoCast = CreateFrame("Frame", nil, button)
-        autoCast:SetPoint("TOPLEFT", button, "TOPLEFT", -1, 1)
-        autoCast:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", 2, -2)
+        autoCast:SetPoint("TOPLEFT", button, "TOPLEFT", 1, -1)
+        autoCast:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", -1, 1)
         autoCast:SetFrameLevel(button:GetFrameLevel() + 5)
         autoCast:Hide()
 
