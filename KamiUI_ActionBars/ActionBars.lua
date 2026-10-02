@@ -667,12 +667,8 @@ local function CreateStanceBar()
         button.index = index
         button:SetSize(defaults.secondaryButtonSize, defaults.secondaryButtonSize)
 
-        button:SetScript("OnClick", function(self)
-            if not KeybindFrames_InQuickKeybindMode() then
-                CastShapeshiftForm(self:GetID())
-            end
-        end)
-
+        -- Keep Blizzard's inherited StanceButtonTemplate click handler.
+        -- Replacing it with addon Lua taints CastShapeshiftForm.
         StyleButton(button, defaults.secondaryButtonSize)
 
         frame.buttons[index] = button
