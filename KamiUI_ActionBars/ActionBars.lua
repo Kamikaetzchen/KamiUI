@@ -26,7 +26,7 @@ local cooldownFont = CreateFont("KamiUIActionBarCooldownFont")
 local cooldownFontSmall = CreateFont("KamiUIActionBarCooldownFontSmall")
 local cooldownFontPath, _, cooldownFontFlags = GameFontNormalLarge:GetFont()
 
-cooldownFont:SetFont(cooldownFontPath, 18, "THICKOUTLINE")
+cooldownFont:SetFont(cooldownFontPath, 17, "THICKOUTLINE")
 cooldownFont:SetTextColor(1.00, 0.12, 0.12, 1)
 cooldownFont:SetShadowColor(1, 1, 1, 0.85)
 cooldownFont:SetShadowOffset(1, -1)
