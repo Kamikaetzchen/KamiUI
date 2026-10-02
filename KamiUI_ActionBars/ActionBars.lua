@@ -31,7 +31,7 @@ cooldownFont:SetTextColor(1.00, 0.12, 0.12, 1)
 cooldownFont:SetShadowColor(1, 1, 1, 0.85)
 cooldownFont:SetShadowOffset(1, -1)
 
-cooldownFontSmall:SetFont(cooldownFontPath, 17, "THICKOUTLINE")
+cooldownFontSmall:SetFont(cooldownFontPath, 15, "THICKOUTLINE")
 cooldownFontSmall:SetTextColor(1.00, 0.12, 0.12, 1)
 cooldownFontSmall:SetShadowColor(1, 1, 1, 0.85)
 cooldownFontSmall:SetShadowOffset(1, -1)
