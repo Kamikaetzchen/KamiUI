@@ -11,10 +11,10 @@ local defaults = {
     iconZoom = 0.08,
     petButtonSize = 30,
     secondaryButtonSize = 30,
-    statusBarHeight = 10,
+    statusBarHeight = UI.defaults.layout.xpBarHeight,
     alpha = 1,
     offsetX = -400,
-    offsetY = 10,
+    offsetY = 0,
 }
 
 local barConfigs = {
@@ -207,7 +207,9 @@ local function LayoutBarButtons(config, rowIndex)
     end
 
     local nextButton
-    local y = defaults.offsetY + ((rowIndex - 1) * defaults.buttonSize)
+    local y = defaults.offsetY
+        + UI:GetBottomInset()
+        + ((rowIndex - 1) * defaults.buttonSize)
 
     for index = 12, 1, -1 do
         local button = _G[config.prefix .. index]
@@ -835,6 +837,10 @@ function Module:Initialize()
                 Module.layoutPending = true
             end
         end)
+    end)
+
+    UI:RegisterBottomInsetCallback(function()
+        Module:Apply()
     end)
 
     UI:RegisterEvent("PLAYER_REGEN_ENABLED", function()
