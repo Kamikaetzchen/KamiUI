@@ -700,23 +700,41 @@ function Module:Initialize()
         RefreshButtonVisuals(button)
     end)
 
-    if MainActionBar and MainActionBar.UpdateEndCaps then
-        hooksecurefunc(MainActionBar, "UpdateEndCaps", function()
-            C_Timer.After(0, function()
-                if not InCombatLockdown or not InCombatLockdown() then
-                    HideMainActionBarArt()
-                else
-                    Module.layoutPending = true
-                end
+    local function InstallMainActionBarHooks()
+        if not MainActionBar then
+            return
+        end
+
+        if MainActionBar.UpdateEndCaps
+            and not MainActionBar.KamiEndCapsHooked
+        then
+            MainActionBar.KamiEndCapsHooked = true
+
+            hooksecurefunc(MainActionBar, "UpdateEndCaps", function()
+                C_Timer.After(0, function()
+                    if not InCombatLockdown
+                        or not InCombatLockdown()
+                    then
+                        HideMainActionBarArt()
+                    else
+                        Module.layoutPending = true
+                    end
+                end)
             end)
-        end)
+        end
+
+        if MainActionBar.UpdateDividers
+            and not MainActionBar.KamiDividersHooked
+        then
+            MainActionBar.KamiDividersHooked = true
+
+            hooksecurefunc(MainActionBar, "UpdateDividers", function()
+                HideMainActionBarDividers()
+            end)
+        end
     end
 
-    if MainActionBar and MainActionBar.UpdateDividers then
-        hooksecurefunc(MainActionBar, "UpdateDividers", function()
-            HideMainActionBarDividers()
-        end)
-    end
+    InstallMainActionBarHooks()
 
     local function InstallScaleHook(bar)
         if not bar
@@ -754,6 +772,7 @@ function Module:Initialize()
 
     UI:RegisterEvent("PLAYER_ENTERING_WORLD", function()
         C_Timer.After(0, function()
+            InstallMainActionBarHooks()
             InstallScaleHooks()
             Module:Apply()
         end)
@@ -764,6 +783,7 @@ function Module:Initialize()
             or addonName == "Blizzard_EditMode"
         then
             C_Timer.After(0, function()
+                InstallMainActionBarHooks()
                 InstallScaleHooks()
                 Module:Apply()
             end)
