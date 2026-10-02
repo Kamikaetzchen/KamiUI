@@ -17,6 +17,10 @@ local defaults = {
 }
 
 local function CreateBorder()
+    if Minimap.KamiBorder then
+        return Minimap.KamiBorder
+    end
+
     local border = CreateFrame("Frame", nil, Minimap, "BackdropTemplate")
     border:SetFrameLevel(Minimap:GetFrameLevel() + 1)
     border:SetAllPoints()
@@ -26,23 +30,38 @@ local function CreateBorder()
     })
     border:SetBackdropBorderColor(unpack(defaults.border))
 
+    Minimap.KamiBorder = border
+
     return border
 end
 
-local function StyleMinimap()
-    Minimap:SetSize(defaults.size, defaults.size)
-    Minimap:SetPoint(
-        defaults.position.point,
-        UIParent,
-        defaults.position.relativePoint,
-        defaults.position.x,
-        defaults.position.y
-    )
+local function HideObject(object)
+    if not object then
+        return
+    end
 
-    Minimap:SetMaskTexture("Interface\\Buttons\\WHITE8X8")
+    object:Hide()
 
-    if MinimapBorder then
-        MinimapBorder:Hide()
+    if object.SetAlpha then
+        object:SetAlpha(0)
+    end
+end
+
+local function HideBlizzardChrome()
+    HideObject(MinimapBorder)
+    HideObject(MinimapBorderTop)
+    HideObject(MinimapBackdrop)
+    HideObject(MinimapNorthTag)
+    HideObject(MinimapCompassTexture)
+
+    -- Forever re-shows this texture when Rotate Minimap changes.
+    HideObject(MinimapCompassTextureUnderlay)
+
+    HideObject(MinimapZoneTextButton)
+    HideObject(MinimapZoneText)
+
+    if MinimapCluster and MinimapCluster.ZoneTextButton then
+        HideObject(MinimapCluster.ZoneTextButton)
     end
 
     if MinimapZoomIn then
@@ -52,12 +71,43 @@ local function StyleMinimap()
     if MinimapZoomOut then
         MinimapZoomOut:Hide()
     end
+end
 
-    Minimap.KamiBorder = CreateBorder()
+local function StyleMinimap()
+    Minimap:SetSize(defaults.size, defaults.size)
+
+    Minimap:ClearAllPoints()
+    Minimap:SetPoint(
+        defaults.position.point,
+        UIParent,
+        defaults.position.relativePoint,
+        defaults.position.x,
+        defaults.position.y
+    )
+
+    -- Keep the map square. The Blizzard ring/chrome is hidden separately.
+    Minimap:SetMaskTexture("Interface\\Buttons\\WHITE8X8")
+
+    HideBlizzardChrome()
+    CreateBorder()
+end
+
+function Module:Apply()
+    StyleMinimap()
 end
 
 function Module:Initialize()
-    StyleMinimap()
+    self:Apply()
+
+    UI:RegisterEvent("PLAYER_ENTERING_WORLD", function()
+        Module:Apply()
+    end)
+
+    UI:RegisterEvent("CVAR_UPDATE", function(_, cvar)
+        if cvar == "rotateMinimap" then
+            HideBlizzardChrome()
+        end
+    end)
 end
 
 Module:Initialize()
