@@ -83,18 +83,10 @@ local function HideDividerPool(pool)
     end
 
     for divider in pool:EnumerateActive() do
-        divider:SetAlpha(0)
-
         if NineSliceUtil and NineSliceUtil.HideLayout then
             NineSliceUtil.HideLayout(divider)
-        end
-
-        if divider.GetRegions then
-            for _, region in ipairs({ divider:GetRegions() }) do
-                if region.SetAlpha then
-                    region:SetAlpha(0)
-                end
-            end
+        else
+            divider:SetAlpha(0)
         end
     end
 end
@@ -117,12 +109,6 @@ local function HideMainActionBarArt()
     HideObject(MainActionBar.EndCaps)
     HideObject(MainActionBar.ActionBarPageNumber)
     HideMainActionBarDividers()
-end
-
-local function QueueMainActionBarCleanup()
-    for _, delay in ipairs({ 0, 0.05, 0.2, 0.5, 1 }) do
-        C_Timer.After(delay, HideMainActionBarArt)
-    end
 end
 
 local function GetButtonIcon(button)
@@ -714,42 +700,23 @@ function Module:Initialize()
         RefreshButtonVisuals(button)
     end)
 
-    local function InstallMainActionBarHooks()
-        if not MainActionBar then
-            return
-        end
-
-        if MainActionBar.UpdateEndCaps
-            and not MainActionBar.KamiEndCapsHooked
-        then
-            MainActionBar.KamiEndCapsHooked = true
-
-            hooksecurefunc(MainActionBar, "UpdateEndCaps", function()
-                C_Timer.After(0, function()
-                    if not InCombatLockdown
-                        or not InCombatLockdown()
-                    then
-                        HideMainActionBarArt()
-                    else
-                        Module.layoutPending = true
-                    end
-                end)
+    if MainActionBar and MainActionBar.UpdateEndCaps then
+        hooksecurefunc(MainActionBar, "UpdateEndCaps", function()
+            C_Timer.After(0, function()
+                if not InCombatLockdown or not InCombatLockdown() then
+                    HideMainActionBarArt()
+                else
+                    Module.layoutPending = true
+                end
             end)
-        end
-
-        if MainActionBar.UpdateDividers
-            and not MainActionBar.KamiDividersHooked
-        then
-            MainActionBar.KamiDividersHooked = true
-
-            hooksecurefunc(MainActionBar, "UpdateDividers", function()
-                HideMainActionBarDividers()
-            end)
-        end
+        end)
     end
 
-    InstallMainActionBarHooks()
-    QueueMainActionBarCleanup()
+    if MainActionBar and MainActionBar.UpdateDividers then
+        hooksecurefunc(MainActionBar, "UpdateDividers", function()
+            HideMainActionBarDividers()
+        end)
+    end
 
     local function InstallScaleHook(bar)
         if not bar
@@ -787,10 +754,8 @@ function Module:Initialize()
 
     UI:RegisterEvent("PLAYER_ENTERING_WORLD", function()
         C_Timer.After(0, function()
-            InstallMainActionBarHooks()
             InstallScaleHooks()
             Module:Apply()
-            QueueMainActionBarCleanup()
         end)
     end)
 
@@ -799,10 +764,8 @@ function Module:Initialize()
             or addonName == "Blizzard_EditMode"
         then
             C_Timer.After(0, function()
-                InstallMainActionBarHooks()
                 InstallScaleHooks()
                 Module:Apply()
-                QueueMainActionBarCleanup()
             end)
         elseif addonName == "Blizzard_MicroMenu"
             or addonName == "Blizzard_MainMenuBarBagButtons"
