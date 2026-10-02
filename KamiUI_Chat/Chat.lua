@@ -5,6 +5,8 @@ local Module = UI:NewModule("Chat")
 Module.name = "KamiUI_Chat"
 Module.version = "0.1.0"
 
+local SETUP_VERSION = 1
+
 local defaults = {
     width = 420,
     height = 180,
@@ -223,21 +225,33 @@ local function StyleEditBox(frame)
     if not editBox.KamiInputPanelHooked then
         editBox.KamiInputPanelHooked = true
 
-        editBox:HookScript("OnShow", function()
+        editBox:HookScript("OnEditFocusGained", function()
             if Module.inputPanel then
                 Module.inputPanel:Show()
             end
         end)
 
-        editBox:HookScript("OnHide", function()
-            if Module.inputPanel then
-                Module.inputPanel:Hide()
-            end
-        end)
-    end
+        editBox:HookScript("OnEditFocusLost", function()
+            C_Timer.After(0, function()
+                if not Module.inputPanel then
+                    return
+                end
 
-    if editBox:IsShown() and Module.inputPanel then
-        Module.inputPanel:Show()
+                for index = 1, NUM_CHAT_WINDOWS do
+                    local chatFrame = _G["ChatFrame" .. index]
+                    local otherEditBox = chatFrame and chatFrame.editBox
+
+                    if otherEditBox
+                        and otherEditBox.HasFocus
+                        and otherEditBox:HasFocus()
+                    then
+                        return
+                    end
+                end
+
+                Module.inputPanel:Hide()
+            end)
+        end)
     end
 
     local editName = editBox:GetName()
@@ -298,6 +312,105 @@ local function StyleFrame(frame)
     HideFrameButtons(frame)
     StyleFont(frame)
     StyleEditBox(frame)
+end
+
+local function StyleTab(frame)
+    if not frame then
+        return
+    end
+
+    local tab = _G[frame:GetName() .. "Tab"]
+
+    if not tab then
+        return
+    end
+
+    if not tab.KamiUIStyled then
+        tab.KamiUIStyled = true
+
+        for _, key in ipairs({
+            "Left",
+            "Middle",
+            "Right",
+            "ActiveLeft",
+            "ActiveMiddle",
+            "ActiveRight",
+            "HighlightLeft",
+            "HighlightMiddle",
+            "HighlightRight",
+            "glow",
+        }) do
+            local texture = tab[key]
+
+            if texture then
+                texture:SetAlpha(0)
+            end
+        end
+
+        local flash = _G[tab:GetName() .. "Flash"]
+
+        if flash then
+            flash:SetAlpha(0)
+        end
+
+        local background = tab:CreateTexture(nil, "BACKGROUND")
+        background:SetPoint("TOPLEFT", tab, "TOPLEFT", 2, -6)
+        background:SetPoint("BOTTOMRIGHT", tab, "BOTTOMRIGHT", -2, 4)
+        tab.KamiUIBackground = background
+
+        local function CreateEdge(pointA, pointB, width, height)
+            local edge = tab:CreateTexture(nil, "BORDER")
+            edge:SetColorTexture(unpack(defaults.border))
+            edge:SetPoint(pointA, background, pointA)
+            edge:SetPoint(pointB, background, pointB)
+
+            if width then
+                edge:SetWidth(width)
+            end
+
+            if height then
+                edge:SetHeight(height)
+            end
+        end
+
+        CreateEdge("TOPLEFT", "TOPRIGHT", nil, 1)
+        CreateEdge("BOTTOMLEFT", "BOTTOMRIGHT", nil, 1)
+        CreateEdge("TOPLEFT", "BOTTOMLEFT", 1, nil)
+        CreateEdge("TOPRIGHT", "BOTTOMRIGHT", 1, nil)
+
+        local font, _, flags = tab.Text:GetFont()
+
+        if font then
+            tab.Text:SetFont(font, defaults.fontSize - 2, flags)
+        end
+    end
+
+    tab:SetAlpha(1)
+end
+
+local function UpdateTabStyles()
+    local selected
+
+    if GeneralDockManager then
+        selected = FCFDock_GetSelectedWindow(GENERAL_CHAT_DOCK)
+    end
+
+    for index = 1, NUM_CHAT_WINDOWS do
+        local frame = _G["ChatFrame" .. index]
+        local tab = frame and _G[frame:GetName() .. "Tab"]
+
+        if tab and tab.KamiUIBackground then
+            if frame == selected then
+                tab.KamiUIBackground:SetColorTexture(0.08, 0.08, 0.08, 0.95)
+                tab.Text:SetTextColor(1, 1, 1)
+            else
+                tab.KamiUIBackground:SetColorTexture(0.02, 0.02, 0.02, 0.80)
+                tab.Text:SetTextColor(0.72, 0.72, 0.72)
+            end
+
+            tab:SetAlpha(1)
+        end
+    end
 end
 
 local function PositionPrimaryFrame()
@@ -431,10 +544,40 @@ local function EnsureWindow(config)
     return frame
 end
 
+local function EnsureCombatWindow()
+    if not ChatFrame2 then
+        return
+    end
+
+    FCF_SetWindowName(ChatFrame2, "Combat")
+
+    if not ChatFrame2.isDocked then
+        FCF_DockFrame(ChatFrame2, 2, false)
+    end
+
+    FCF_SetLocked(ChatFrame2, true)
+
+    local tab = _G[ChatFrame2:GetName() .. "Tab"]
+
+    if tab then
+        tab:Show()
+    end
+
+    return ChatFrame2
+end
+
 function Module:SetupTabs()
+    self.combatFrame = EnsureCombatWindow()
     self.guildFrame = EnsureWindow(managedWindows[1])
     self.partyFrame = EnsureWindow(managedWindows[2])
     self.whisperFrame = EnsureWindow(managedWindows[3])
+end
+
+function Module:FindTabs()
+    self.combatFrame = ChatFrame2
+    self.guildFrame = FindChatWindow(managedWindows[1].name)
+    self.partyFrame = FindChatWindow(managedWindows[2].name)
+    self.whisperFrame = FindChatWindow(managedWindows[3].name)
 end
 
 function Module:ApplyLayout()
@@ -445,12 +588,17 @@ function Module:ApplyLayout()
     HideGlobalButtons()
 
     for index = 1, NUM_CHAT_WINDOWS do
-        StyleFrame(_G["ChatFrame" .. index])
+        local frame = _G["ChatFrame" .. index]
+
+        StyleFrame(frame)
+        StyleTab(frame)
     end
+
+    UpdateTabStyles()
 end
 
 function Module:Apply()
-    self:SetupTabs()
+    self:FindTabs()
     self:ApplyLayout()
 end
 
@@ -458,9 +606,11 @@ function Module:Reset()
     KamiUIDB = KamiUIDB or {}
     KamiUIDB.chat = {}
 
-    self:Apply()
+    self:SetupTabs()
+    self:ApplyLayout()
 
     KamiUIDB.chat.initialized = true
+    KamiUIDB.chat.setupVersion = SETUP_VERSION
 
     UI:Print("Chat reset")
 end
@@ -478,9 +628,15 @@ function Module:Initialize()
     KamiUIDB = KamiUIDB or {}
     KamiUIDB.chat = KamiUIDB.chat or {}
 
-    self:Apply()
+    if (KamiUIDB.chat.setupVersion or 0) < SETUP_VERSION then
+        self:SetupTabs()
+        KamiUIDB.chat.initialized = true
+        KamiUIDB.chat.setupVersion = SETUP_VERSION
+    else
+        self:FindTabs()
+    end
 
-    KamiUIDB.chat.initialized = true
+    self:ApplyLayout()
 
     UI:RegisterEvent("PLAYER_ENTERING_WORLD", function()
         C_Timer.After(0, function()
@@ -502,6 +658,20 @@ function Module:Initialize()
         hooksecurefunc("FCFDock_SetPrimary", function(dock, frame)
             if dock == GENERAL_CHAT_DOCK and frame == ChatFrame1 then
                 C_Timer.After(0, PositionDock)
+            end
+        end)
+    end
+
+    if FCFTab_UpdateAlpha then
+        hooksecurefunc("FCFTab_UpdateAlpha", function()
+            C_Timer.After(0, UpdateTabStyles)
+        end)
+    end
+
+    if FCFDock_SelectWindow then
+        hooksecurefunc("FCFDock_SelectWindow", function(dock)
+            if dock == GENERAL_CHAT_DOCK then
+                C_Timer.After(0, UpdateTabStyles)
             end
         end)
     end
