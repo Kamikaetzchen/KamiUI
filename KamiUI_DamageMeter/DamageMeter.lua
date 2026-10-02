@@ -8,6 +8,7 @@ Module.version = "0.1.0"
 local defaults = {
     x = 0,
     y = 0,
+    height = 240,
 }
 
 local layoutQueued = false
@@ -31,6 +32,12 @@ end
 function Module:Apply()
     if not DamageMeter then
         return false
+    end
+
+    DamageMeter:SetHeight(defaults.height)
+
+    if DamageMeter.RefreshLayout then
+        DamageMeter:RefreshLayout()
     end
 
     ClearPoints(DamageMeter)
