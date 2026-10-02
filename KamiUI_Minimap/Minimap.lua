@@ -11,7 +11,7 @@ local defaults = {
         point = "BOTTOM",
         relativePoint = "BOTTOM",
         x = 0,
-        y = 10,
+        y = 0,
     },
     border = { 0.2, 0.2, 0.2, 1 },
 }
@@ -82,7 +82,7 @@ local function StyleMinimap()
         UIParent,
         defaults.position.relativePoint,
         defaults.position.x,
-        defaults.position.y
+        defaults.position.y + UI:GetBottomInset()
     )
 
     -- Keep the map square. The Blizzard ring/chrome is hidden separately.
@@ -100,6 +100,10 @@ function Module:Initialize()
     self:Apply()
 
     UI:RegisterEvent("PLAYER_ENTERING_WORLD", function()
+        Module:Apply()
+    end)
+
+    UI:RegisterBottomInsetCallback(function()
         Module:Apply()
     end)
 
