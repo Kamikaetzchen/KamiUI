@@ -14,6 +14,7 @@ local defaults = {
     y = 320,
     fontSize = 11,
     updateInterval = 0.05,
+    barAlpha = 0.60,
     helpfulColor = { 0.20, 0.55, 0.90 },
 }
 
@@ -291,7 +292,7 @@ local function UpdateRow(row, aura)
     row.nameText:SetText(aura.name or "")
 
     local r, g, b = GetAuraColor(aura)
-    row.bar:SetStatusBarColor(r, g, b)
+    row.bar:SetStatusBarColor(r, g, b, defaults.barAlpha)
 
     if aura.duration and aura.duration > 0 then
         local remaining = math.max(
