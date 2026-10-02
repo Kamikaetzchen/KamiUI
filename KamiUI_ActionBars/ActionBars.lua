@@ -9,11 +9,11 @@ local defaults = {
     buttonSize = 40,
     buttonSpacing = 0,
     iconZoom = 0.08,
-    petButtonSize = 36,
+    petButtonSize = 40,
     statusBarHeight = 10,
     alpha = 1,
-    offsetX = -20,
-    offsetY = 20,
+    offsetX = -400,
+    offsetY = 10,
 }
 
 local barConfigs = {
