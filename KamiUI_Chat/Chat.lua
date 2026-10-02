@@ -439,27 +439,36 @@ local function PositionPrimaryFrame()
     positioningPrimaryFrame = false
 end
 
+local positioningDock = false
+
 local function PositionDock()
-    if not GeneralDockManager or not ChatFrame1 then
+    if not GeneralDockManager or not Module.chatPanel or positioningDock then
         return
     end
 
+    positioningDock = true
+
+    -- Anchor the dock to our panel instead of ChatFrame1. Blizzard's default
+    -- ChatFrame1 position carries a 32 px left offset, which otherwise also
+    -- drags the two static tabs (General and Combat Log) to the right.
     GeneralDockManager:ClearAllPoints()
     GeneralDockManager:SetHeight(defaults.tabAreaHeight)
     GeneralDockManager:SetPoint(
         "BOTTOMLEFT",
-        ChatFrame1,
+        Module.chatPanel,
         "TOPLEFT",
         0,
         0
     )
     GeneralDockManager:SetPoint(
         "BOTTOMRIGHT",
-        ChatFrame1,
+        Module.chatPanel,
         "TOPRIGHT",
         0,
         0
     )
+
+    positioningDock = false
 end
 
 local function HideGlobalButtons()
@@ -670,28 +679,56 @@ function Module:Initialize()
         end)
     end)
 
-    if ChatFrame1.ApplySystemAnchor then
-        hooksecurefunc(ChatFrame1, "ApplySystemAnchor", function()
-            C_Timer.After(0, function()
+    -- Blizzard restores ChatFrame1 from several different paths. Reassert our
+    -- anchors after every known restore path, and also after direct SetPoint
+    -- calls. The positioning guards keep our own anchors from recursing.
+    if FCF_RestorePositionAndDimensions then
+        hooksecurefunc("FCF_RestorePositionAndDimensions", function(frame)
+            if frame == ChatFrame1 then
                 PositionPrimaryFrame()
                 PositionDock()
-            end)
+            end
+        end)
+    end
+
+    hooksecurefunc(ChatFrame1, "SetPoint", function()
+        PositionPrimaryFrame()
+        PositionDock()
+    end)
+
+    if ChatFrame1.ApplySystemAnchor then
+        hooksecurefunc(ChatFrame1, "ApplySystemAnchor", function()
+            PositionPrimaryFrame()
+            PositionDock()
         end)
     end
 
     if EditModeManagerFrame and EditModeManagerFrame.UpdateLayoutInfo then
         hooksecurefunc(EditModeManagerFrame, "UpdateLayoutInfo", function()
-            C_Timer.After(0, function()
-                PositionPrimaryFrame()
-                PositionDock()
-            end)
+            PositionPrimaryFrame()
+            PositionDock()
         end)
     end
+
+    UI:RegisterEvent("UI_SCALE_CHANGED", function()
+        C_Timer.After(0, function()
+            PositionPrimaryFrame()
+            PositionDock()
+        end)
+    end)
 
     if FCFDock_SetPrimary then
         hooksecurefunc("FCFDock_SetPrimary", function(dock, frame)
             if dock == GENERAL_CHAT_DOCK and frame == ChatFrame1 then
                 C_Timer.After(0, PositionDock)
+            end
+        end)
+    end
+
+    if FCFDock_UpdateTabs then
+        hooksecurefunc("FCFDock_UpdateTabs", function(dock)
+            if dock == GENERAL_CHAT_DOCK then
+                PositionDock()
             end
         end)
     end
