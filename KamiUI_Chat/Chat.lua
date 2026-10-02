@@ -413,20 +413,30 @@ local function UpdateTabStyles()
     end
 end
 
+local positioningPrimaryFrame = false
+
 local function PositionPrimaryFrame()
-    if not ChatFrame1 then
+    if not ChatFrame1 or not Module.chatPanel or positioningPrimaryFrame then
         return
     end
 
+    positioningPrimaryFrame = true
+
+    -- ChatFrame1 is an Edit Mode system frame. Its stock layout keeps restoring
+    -- the default 32 px left offset, even though the surrounding Blizzard buttons
+    -- are hidden. Detach it from the frame manager and let our panel own the
+    -- position and size instead.
+    if ChatFrame1.BreakFromFrameManager then
+        ChatFrame1:BreakFromFrameManager()
+    end
+
+    ChatFrame1.ignoreFramePositionManager = true
+    ChatFrame1:SetUserPlaced(true)
     ChatFrame1:ClearAllPoints()
-    ChatFrame1:SetPoint(
-        "BOTTOMLEFT",
-        UIParent,
-        "BOTTOMLEFT",
-        defaults.position.x,
-        GetPositionY()
-    )
-    ChatFrame1:SetSize(defaults.width, defaults.height)
+    ChatFrame1:SetPoint("TOPLEFT", Module.chatPanel, "TOPLEFT", 0, 0)
+    ChatFrame1:SetPoint("BOTTOMRIGHT", Module.chatPanel, "BOTTOMRIGHT", 0, 0)
+
+    positioningPrimaryFrame = false
 end
 
 local function PositionDock()
@@ -653,6 +663,30 @@ function Module:Initialize()
             Module:ApplyLayout()
         end)
     end)
+
+    UI:RegisterEvent("UPDATE_FLOATING_CHAT_WINDOWS", function()
+        C_Timer.After(0, function()
+            Module:ApplyLayout()
+        end)
+    end)
+
+    if ChatFrame1.ApplySystemAnchor then
+        hooksecurefunc(ChatFrame1, "ApplySystemAnchor", function()
+            C_Timer.After(0, function()
+                PositionPrimaryFrame()
+                PositionDock()
+            end)
+        end)
+    end
+
+    if EditModeManagerFrame and EditModeManagerFrame.UpdateLayoutInfo then
+        hooksecurefunc(EditModeManagerFrame, "UpdateLayoutInfo", function()
+            C_Timer.After(0, function()
+                PositionPrimaryFrame()
+                PositionDock()
+            end)
+        end)
+    end
 
     if FCFDock_SetPrimary then
         hooksecurefunc("FCFDock_SetPrimary", function(dock, frame)
