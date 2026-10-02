@@ -436,12 +436,21 @@ local function CreateComboPoints()
         return
     end
 
+    local overlay = CreateFrame("Frame", nil, frame)
+    overlay:SetAllPoints(frame.portrait)
+    overlay:SetFrameLevel(math.max(
+        frame:GetFrameLevel(),
+        frame.portrait:GetFrameLevel()
+    ) + 20)
+    overlay:EnableMouse(false)
+    frame.comboPointOverlay = overlay
+
     for i = 1, 5 do
-        local bar = frame:CreateTexture(nil, "OVERLAY")
+        local bar = overlay:CreateTexture(nil, "OVERLAY")
         bar:SetSize(6, 3)
         bar:SetPoint(
             "BOTTOMLEFT",
-            frame.portrait,
+            overlay,
             "BOTTOMLEFT",
             2 + (i - 1) * 7,
             2
