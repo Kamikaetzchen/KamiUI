@@ -61,7 +61,7 @@ local function GetColorComponents(color, fallback)
     return unpack(fallback)
 end
 
-local function CreateBorder(parent)
+local function CreateBorder(parent, top, bottom, left, right)
     local function CreateEdge(pointA, pointB, width, height)
         local edge = parent:CreateTexture(nil, "OVERLAY")
         edge:SetColorTexture(0, 0, 0, 1)
@@ -77,10 +77,21 @@ local function CreateBorder(parent)
         end
     end
 
-    CreateEdge("TOPLEFT", "TOPRIGHT", nil, 1)
-    CreateEdge("BOTTOMLEFT", "BOTTOMRIGHT", nil, 1)
-    CreateEdge("TOPLEFT", "BOTTOMLEFT", 1, nil)
-    CreateEdge("TOPRIGHT", "BOTTOMRIGHT", 1, nil)
+    if top then
+        CreateEdge("TOPLEFT", "TOPRIGHT", nil, 1)
+    end
+
+    if bottom then
+        CreateEdge("BOTTOMLEFT", "BOTTOMRIGHT", nil, 1)
+    end
+
+    if left then
+        CreateEdge("TOPLEFT", "BOTTOMLEFT", 1, nil)
+    end
+
+    if right then
+        CreateEdge("TOPRIGHT", "BOTTOMRIGHT", 1, nil)
+    end
 end
 
 local function GetAuraColor(aura)
@@ -145,7 +156,11 @@ local function CreateAuraRow(index)
         UIParent
     )
     row:SetSize(defaults.width, defaults.height)
-    CreateBorder(row)
+
+    -- Rows only draw their bottom separator. The group frame provides the
+    -- shared outer border, so adjacent rows never stack two 1px borders.
+    CreateBorder(row, false, true, false, false)
+
     row:RegisterForClicks("RightButtonUp")
 
     local icon = row:CreateTexture(nil, "ARTWORK")
@@ -378,7 +393,7 @@ local function GetGroupFrame(key)
     group:SetWidth(defaults.width)
     group:SetFrameLevel(50)
     group:EnableMouse(false)
-    CreateBorder(group)
+    CreateBorder(group, true, true, true, true)
     group:Hide()
 
     groupFrames[key] = group
