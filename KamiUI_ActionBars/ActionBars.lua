@@ -736,8 +736,13 @@ local function HideBlizzardBars()
     HideBlizzardFrame(MultiBar5, true)
     HideBlizzardFrame(MultiBar6, true)
     HideBlizzardFrame(MultiBar7, true)
-    HideBlizzardFrame(StanceBar, true)
-    HideBlizzardFrame(PetActionBar, true)
+    if Module.stanceBar then
+        HideBlizzardFrame(StanceBar, true)
+    end
+
+    if Module.petBar then
+        HideBlizzardFrame(PetActionBar, true)
+    end
 
     HideBlizzardFrame(MicroButtonAndBagsBar, false)
     HideBlizzardFrame(MicroMenuContainer, true)
@@ -808,12 +813,10 @@ function Module:ReassignBindings()
 end
 
 local function CreateBars()
-    if next(Module.bars) then
-        return
-    end
-
-    for _, def in ipairs(BAR_DEFS) do
-        CreateActionBar(def)
+    if not next(Module.bars) then
+        for _, def in ipairs(BAR_DEFS) do
+            CreateActionBar(def)
+        end
     end
 
     CreatePetBar()
