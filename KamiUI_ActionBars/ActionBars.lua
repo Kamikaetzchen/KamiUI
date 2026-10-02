@@ -803,8 +803,6 @@ function Module:Initialize()
             or addonName == "Blizzard_MainMenuBarBagButtons"
         then
             C_Timer.After(0, HideBlizzardMenuAndBags)
-        elseif addonName == "Blizzard_ActionBar" then
-            C_Timer.After(0, HideMainActionBarArt)
         end
     end)
 
