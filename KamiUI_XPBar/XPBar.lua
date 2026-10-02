@@ -254,7 +254,6 @@ local function CreateBar()
     frame:SetPoint("BOTTOMRIGHT", UIParent, "BOTTOMRIGHT", 0, 0)
     frame:SetHeight(defaults.height)
     frame:SetFrameStrata("MEDIUM")
-    frame:EnableMouse(true)
 
     local background = frame:CreateTexture(nil, "BACKGROUND")
     background:SetColorTexture(unpack(defaults.background))
@@ -267,6 +266,7 @@ local function CreateBar()
     restedBar:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -1, 1)
     restedBar:SetStatusBarTexture("Interface\\Buttons\\WHITE8X8")
     restedBar:SetStatusBarColor(unpack(defaults.restedColor))
+    restedBar:EnableMouse(false)
 
     local xpBar = CreateFrame("StatusBar", nil, frame)
     xpBar:SetPoint("TOPLEFT", frame, "TOPLEFT", 1, -1)
@@ -274,22 +274,29 @@ local function CreateBar()
     xpBar:SetStatusBarTexture("Interface\\Buttons\\WHITE8X8")
     xpBar:SetStatusBarColor(unpack(defaults.xpColor))
     xpBar:SetFrameLevel(restedBar:GetFrameLevel() + 1)
+    xpBar:EnableMouse(false)
+
+    local overlay = CreateFrame("Frame", nil, frame)
+    overlay:SetAllPoints(frame)
+    overlay:SetFrameLevel(xpBar:GetFrameLevel() + 1)
+    overlay:EnableMouse(true)
 
     frame.restedBar = restedBar
     frame.xpBar = xpBar
+    frame.overlay = overlay
 
-    CreateBorder(frame)
-    UpdateDividers(frame)
+    CreateBorder(overlay)
+    UpdateDividers(overlay)
 
     frame:SetScript("OnSizeChanged", function(self)
-        UpdateDividers(self)
+        UpdateDividers(self.overlay)
     end)
 
-    frame:SetScript("OnEnter", function(self)
-        ShowTooltip(self)
+    overlay:SetScript("OnEnter", function()
+        ShowTooltip(frame)
     end)
 
-    frame:SetScript("OnLeave", function()
+    overlay:SetScript("OnLeave", function()
         GameTooltip:Hide()
     end)
 
@@ -322,7 +329,7 @@ function Module:Refresh()
     self.frame.xpBar:SetMinMaxValues(0, maxXP)
     self.frame.xpBar:SetValue(currentXP)
 
-    UpdateDividers(self.frame)
+    UpdateDividers(self.frame.overlay)
     self.frame:Show()
 end
 
