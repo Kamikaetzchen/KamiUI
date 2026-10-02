@@ -83,10 +83,18 @@ local function HideDividerPool(pool)
     end
 
     for divider in pool:EnumerateActive() do
+        divider:SetAlpha(0)
+
         if NineSliceUtil and NineSliceUtil.HideLayout then
             NineSliceUtil.HideLayout(divider)
-        else
-            divider:SetAlpha(0)
+        end
+
+        if divider.GetRegions then
+            for _, region in ipairs({ divider:GetRegions() }) do
+                if region.SetAlpha then
+                    region:SetAlpha(0)
+                end
+            end
         end
     end
 end
@@ -109,6 +117,12 @@ local function HideMainActionBarArt()
     HideObject(MainActionBar.EndCaps)
     HideObject(MainActionBar.ActionBarPageNumber)
     HideMainActionBarDividers()
+end
+
+local function QueueMainActionBarCleanup()
+    for _, delay in ipairs({ 0, 0.05, 0.2, 0.5, 1 }) do
+        C_Timer.After(delay, HideMainActionBarArt)
+    end
 end
 
 local function GetButtonIcon(button)
@@ -735,6 +749,7 @@ function Module:Initialize()
     end
 
     InstallMainActionBarHooks()
+    QueueMainActionBarCleanup()
 
     local function InstallScaleHook(bar)
         if not bar
@@ -775,6 +790,7 @@ function Module:Initialize()
             InstallMainActionBarHooks()
             InstallScaleHooks()
             Module:Apply()
+            QueueMainActionBarCleanup()
         end)
     end)
 
@@ -786,6 +802,7 @@ function Module:Initialize()
                 InstallMainActionBarHooks()
                 InstallScaleHooks()
                 Module:Apply()
+                QueueMainActionBarCleanup()
             end)
         elseif addonName == "Blizzard_MicroMenu"
             or addonName == "Blizzard_MainMenuBarBagButtons"
