@@ -61,6 +61,12 @@ local function HideBlizzardMenuAndBags()
     HideObject(BagsBar)
 end
 
+local function HideTexture(texture)
+    if texture then
+        texture:SetAlpha(0)
+    end
+end
+
 local function HideMainActionBarArt()
     if not MainActionBar then
         return
@@ -68,12 +74,6 @@ local function HideMainActionBarArt()
 
     HideTexture(MainActionBar.BorderArt)
     HideObject(MainActionBar.EndCaps)
-end
-
-local function HideTexture(texture)
-    if texture then
-        texture:SetAlpha(0)
-    end
 end
 
 local function GetButtonIcon(button)
