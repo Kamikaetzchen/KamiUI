@@ -8,7 +8,7 @@ Module.version = "0.1.0"
 local defaults = {
     width = 200,
     height = 15,
-    offsetY = 2,
+    offsetY = 4,
     spacing = 0,
 }
 
