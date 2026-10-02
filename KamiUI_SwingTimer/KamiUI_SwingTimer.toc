@@ -1,0 +1,9 @@
+## Interface: 16001
+## Title: KamiUI - SwingTimer
+## Notes: Swing timer layout module for KamiUI
+## Author: Kami Katze
+## Version: 0.1.0
+## RequiredDeps: KamiUI
+## OptionalDeps: Blizzard_SwingTimer
+
+SwingTimer.lua
