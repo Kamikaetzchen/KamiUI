@@ -253,7 +253,7 @@ local function CreateBar()
     frame:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", 0, 0)
     frame:SetPoint("BOTTOMRIGHT", UIParent, "BOTTOMRIGHT", 0, 0)
     frame:SetHeight(defaults.height)
-    frame:SetFrameStrata("MEDIUM")
+    frame:SetFrameStrata("HIGH")
 
     local background = frame:CreateTexture(nil, "BACKGROUND")
     background:SetColorTexture(unpack(defaults.background))
@@ -278,7 +278,7 @@ local function CreateBar()
 
     local overlay = CreateFrame("Frame", nil, frame)
     overlay:SetAllPoints(frame)
-    overlay:SetFrameLevel(xpBar:GetFrameLevel() + 1)
+    overlay:SetFrameLevel(xpBar:GetFrameLevel() + 100)
     overlay:EnableMouse(true)
 
     frame.restedBar = restedBar
