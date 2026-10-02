@@ -11,6 +11,7 @@ local defaults = {
     iconZoom = 0.08,
     petButtonSize = 30,
     secondaryButtonSize = 30,
+    statusBarHeight = UI.defaults.layout.xpBarHeight,
     alpha = 1,
     offsetX = -400,
     offsetY = 0,
@@ -37,31 +38,16 @@ local barConfigs = {
     },
 }
 
-local function DisableMouseTree(frame)
-    if not frame then
-        return
-    end
-
-    if frame.EnableMouse then
-        frame:EnableMouse(false)
-    end
-
-    if frame.GetChildren then
-        local children = { frame:GetChildren() }
-
-        for _, child in ipairs(children) do
-            DisableMouseTree(child)
-        end
-    end
-end
-
 local function HideObject(object)
     if not object then
         return
     end
 
     object:SetAlpha(0)
-    DisableMouseTree(object)
+
+    if object.EnableMouse then
+        object:EnableMouse(false)
+    end
 end
 
 local function HideBlizzardMenuAndBags()
@@ -77,27 +63,18 @@ local function HideTexture(texture)
     end
 end
 
-local function HideDividerPool(pool)
-    if not pool or not pool.EnumerateActive then
-        return
-    end
-
-    for divider in pool:EnumerateActive() do
-        if NineSliceUtil and NineSliceUtil.HideLayout then
-            NineSliceUtil.HideLayout(divider)
-        else
-            divider:SetAlpha(0)
-        end
-    end
-end
-
 local function HideMainActionBarDividers()
     if not MainActionBar then
         return
     end
 
-    HideDividerPool(MainActionBar.HorizontalDividersPool)
-    HideDividerPool(MainActionBar.VerticalDividersPool)
+    if MainActionBar.HorizontalDividersPool then
+        MainActionBar.HorizontalDividersPool:ReleaseAll()
+    end
+
+    if MainActionBar.VerticalDividersPool then
+        MainActionBar.VerticalDividersPool:ReleaseAll()
+    end
 end
 
 local function HideMainActionBarArt()
@@ -639,6 +616,110 @@ local function StylePetBar()
     end
 end
 
+local function StyleStatusBar(bar, width)
+    if not bar then
+        return
+    end
+
+    bar:ClearAllPoints()
+    bar:SetPoint("BOTTOMLEFT", bar:GetParent(), "BOTTOMLEFT", 0, 0)
+    bar:SetSize(width, defaults.statusBarHeight)
+
+    if bar.StatusBar then
+        bar.StatusBar:ClearAllPoints()
+        bar.StatusBar:SetAllPoints(bar)
+
+        if bar.StatusBar.Background then
+            bar.StatusBar.Background:ClearAllPoints()
+            bar.StatusBar.Background:SetAllPoints(bar.StatusBar)
+        end
+    end
+
+    if bar.OverlayFrame then
+        bar.OverlayFrame:ClearAllPoints()
+        bar.OverlayFrame:SetAllPoints(bar)
+    end
+
+    if bar.ExhaustionLevelFillBar then
+        bar.ExhaustionLevelFillBar:SetHeight(defaults.statusBarHeight)
+    end
+end
+
+local function StyleStatusContainer(container, y)
+    if not container then
+        return
+    end
+
+    local width = UIParent:GetWidth()
+
+    container:ClearAllPoints()
+    container:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", 0, y)
+    container:SetPoint("BOTTOMRIGHT", UIParent, "BOTTOMRIGHT", 0, y)
+    container:SetHeight(defaults.statusBarHeight)
+
+    HideTexture(container.BarFrameTexture)
+
+    for _, bar in pairs(container.bars or {}) do
+        StyleStatusBar(bar, width)
+    end
+end
+
+local function StyleStatusTrackingBars()
+    if not StatusTrackingBarManager then
+        return
+    end
+
+    StatusTrackingBarManager:ClearAllPoints()
+    StatusTrackingBarManager:SetPoint(
+        "BOTTOMLEFT",
+        UIParent,
+        "BOTTOMLEFT",
+        0,
+        0
+    )
+    StatusTrackingBarManager:SetPoint(
+        "BOTTOMRIGHT",
+        UIParent,
+        "BOTTOMRIGHT",
+        0,
+        0
+    )
+    StatusTrackingBarManager:SetHeight(defaults.statusBarHeight * 2)
+
+    StyleStatusContainer(
+        StatusTrackingBarManager.MainStatusTrackingBarContainer,
+        0
+    )
+    StyleStatusContainer(
+        StatusTrackingBarManager.SecondaryStatusTrackingBarContainer,
+        defaults.statusBarHeight
+    )
+
+    if StatusTrackingBarManager.UpdateBarTicks then
+        StatusTrackingBarManager:UpdateBarTicks()
+    end
+
+    if not StatusTrackingBarManager.KamiVisualHooked
+        and StatusTrackingBarManager.UpdateBarVisuals
+    then
+        StatusTrackingBarManager.KamiVisualHooked = true
+
+        hooksecurefunc(
+            StatusTrackingBarManager,
+            "UpdateBarVisuals",
+            function()
+                C_Timer.After(0, function()
+                    if not InCombatLockdown or not InCombatLockdown() then
+                        StyleStatusTrackingBars()
+                    else
+                        Module.layoutPending = true
+                    end
+                end)
+            end
+        )
+    end
+end
+
 local function NormalizeBarScale(bar)
     if bar then
         bar:SetScale(1)
@@ -674,6 +755,7 @@ function Module:Apply()
 
     HideBlizzardMenuAndBags()
     HideMainActionBarArt()
+    StyleStatusTrackingBars()
 
     NormalizeManagedScales()
     LayoutBars()
@@ -714,7 +796,13 @@ function Module:Initialize()
 
     if MainActionBar and MainActionBar.UpdateDividers then
         hooksecurefunc(MainActionBar, "UpdateDividers", function()
-            HideMainActionBarDividers()
+            C_Timer.After(0, function()
+                if not InCombatLockdown or not InCombatLockdown() then
+                    HideMainActionBarDividers()
+                else
+                    Module.layoutPending = true
+                end
+            end)
         end)
     end
 
