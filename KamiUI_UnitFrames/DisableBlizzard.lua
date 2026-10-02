@@ -19,7 +19,16 @@ local function DisableBlizzardFrame(frameName)
         return
     end
 
+    if UnregisterUnitWatch then
+        pcall(UnregisterUnitWatch, frame)
+    end
+
     frame:UnregisterAllEvents()
+
+    if frame.EnableMouse then
+        frame:EnableMouse(false)
+    end
+
     frame:Hide()
 end
 
@@ -30,3 +39,7 @@ local function DisableBlizzardUnitFrames()
 end
 
 UI:RegisterEvent("PLAYER_LOGIN", DisableBlizzardUnitFrames)
+
+UI:RegisterEvent("PLAYER_ENTERING_WORLD", function()
+    C_Timer.After(0, DisableBlizzardUnitFrames)
+end)
