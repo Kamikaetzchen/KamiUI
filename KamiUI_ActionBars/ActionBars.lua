@@ -80,6 +80,9 @@ local function HideMainActionBarDividers()
 
     HideDividerPool(MainActionBar.HorizontalDividersPool)
     HideDividerPool(MainActionBar.VerticalDividersPool)
+
+    -- Test the aggressive path: prevent Blizzard from recreating them.
+    MainActionBar.enableDividers = false
 end
 
 local function HideMainActionBarArt()
@@ -843,6 +846,25 @@ function Module:Initialize()
                 end
             end)
         end)
+    end
+
+    if EditModeManagerFrame
+        and EditModeManagerFrame.UpdateBottomActionBarPositions
+        and not EditModeManagerFrame.KamiBottomBarHooked
+    then
+        EditModeManagerFrame.KamiBottomBarHooked = true
+
+        hooksecurefunc(
+            EditModeManagerFrame,
+            "UpdateBottomActionBarPositions",
+            function()
+                if not InCombatLockdown or not InCombatLockdown() then
+                    StyleStatusTrackingBars()
+                else
+                    Module.layoutPending = true
+                end
+            end
+        )
     end
 
     local function InstallScaleHook(bar)
