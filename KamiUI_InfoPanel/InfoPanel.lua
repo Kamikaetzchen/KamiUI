@@ -284,14 +284,23 @@ function Module:Refresh()
     local latency = GetLatency()
     local xpPerHour = GetXPPerHour()
 
-    self.texts.location:SetText(GetLocation())
-    self.texts.speed:SetText(string.format("Speed %d%%", movement))
-    self.texts.xp:SetText(string.format("XP/h %s", FormatNumber(xpPerHour)))
+    self.texts.location:SetText(string.format(
+        "|A:Waypoint-MapPin-Untracked:14:14:0:0|a %s",
+        GetLocation()
+    ))
+    self.texts.speed:SetText(string.format(
+        "|TInterface\\Icons\\Ability_Rogue_Sprint:13:13:0:0:64:64:4:60:4:60|t %d%%",
+        movement
+    ))
+    self.texts.xp:SetText(string.format(
+        "|TInterface\\Icons\\xp_icon:13:13:0:0:64:64:4:60:4:60|t %s/h",
+        FormatNumber(xpPerHour)
+    ))
     local bagIcon = GetLinenBagIcon()
         or "Interface\\Icons\\INV_Misc_Bag_07"
 
     self.texts.bags:SetText(string.format(
-        "|T%s:13:13:0:0|t %d/%d",
+        "|T%s:13:13:0:0:64:64:4:60:4:60|t %d/%d",
         bagIcon,
         used,
         total
@@ -306,7 +315,7 @@ function Module:Refresh()
         latency
     ))
     self.texts.clock:SetText(string.format(
-        "|TInterface\\Icons\\INV_Misc_PocketWatch_01:13:13:0:0|t %s",
+        "|TInterface\\Icons\\INV_Misc_PocketWatch_01:13:13:0:0:64:64:4:60:4:60|t %s",
         date("%H:%M")
     ))
 end
