@@ -651,11 +651,20 @@ local function UpdatePlayerInfo(frame)
     end
 
     frame.name:SetText(name)
+
+    local classLabel = className
+
+    if not classLabel or classLabel == "" then
+        classLabel = classFile or ""
+    end
+
+    local levelLabel = level and level > 0 and tostring(level) or "?"
+
     frame.details:SetText(
         string.format(
-            "Level %d %s",
-            level,
-            className or classFile or ""
+            "Level %s %s",
+            levelLabel,
+            classLabel
         )
     )
 
