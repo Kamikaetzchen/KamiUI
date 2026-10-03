@@ -229,10 +229,11 @@ local function CreateAuraContainer(
 end
 
 local function RebindContainer(container)
-    -- Dynamic unit tokens such as targettarget/targettargettarget can keep the
-    -- previous resolved unit cached inside AuraContainer. Re-assigning the
-    -- same token forces Blizzard's container to resolve the chain again.
+    -- SetUnit() is a no-op when the token string is unchanged. Dynamic chains
+    -- such as targettargettarget can therefore keep the previous resolved
+    -- unit. Clear the cached token first so SetUnit() actually re-registers.
     if container.SetUnit and container.unit then
+        container.unitToken = nil
         container:SetUnit(container.unit)
     end
 end
