@@ -5,8 +5,8 @@ local Module = UI:NewModule("Characters")
 Module.name = "KamiUI_Characters"
 Module.version = "0.2.0"
 
-local FRAME_WIDTH = 390
-local FRAME_HEIGHT = 440
+local FRAME_WIDTH = 360
+local FRAME_HEIGHT = 420
 local SLOT_SIZE = 36
 local SLOT_GAP = 3
 
@@ -82,7 +82,7 @@ local SLOT_LAYOUT = {
     { key = "MainHandSlot",      label = "Main Hand", side = "BOTTOM", column = 1 },
     { key = "SecondaryHandSlot", label = "Off Hand",  side = "BOTTOM", column = 2 },
     { key = "RangedSlot",        label = "Ranged",    side = "BOTTOM", column = 3 },
-    { key = "AmmoSlot",          label = "Ammo",      side = "BOTTOM", column = 4 },
+    { key = "AmmoSlot",          label = "Ammo",      side = "BOTTOM", column = 4, size = 24 },
 }
 
 local function SetBorderColor(button, color)
@@ -193,7 +193,7 @@ local function GetKnownTitles()
 end
 
 local function GetTitledPlayerName()
-    local name = GetTitledPlayerName()
+    local name = GetFullPlayerName()
     local current = GetCurrentTitle and GetCurrentTitle() or -1
 
     if current and current > 0 and GetTitleName then
@@ -213,7 +213,9 @@ end
 
 local function CreateEquipmentSlot(parent, definition)
     local button = CreateFrame("Button", nil, parent)
-    button:SetSize(SLOT_SIZE, SLOT_SIZE)
+    local slotSize = definition.size or SLOT_SIZE
+
+    button:SetSize(slotSize, slotSize)
     button:RegisterForClicks("LeftButtonUp", "RightButtonUp")
     button:RegisterForDrag("LeftButton")
 
@@ -239,7 +241,7 @@ local function CreateEquipmentSlot(parent, definition)
 
     local rarityGlow = button:CreateTexture(nil, "OVERLAY", nil, 1)
     rarityGlow:SetPoint("CENTER", button, "CENTER", 1, 0)
-    rarityGlow:SetSize(SLOT_SIZE + 26, SLOT_SIZE + 26)
+    rarityGlow:SetSize(slotSize + 26, slotSize + 26)
     rarityGlow:SetTexture("Interface\\Buttons\\UI-ActionButton-Border")
     rarityGlow:SetBlendMode("ADD")
     rarityGlow:SetAlpha(0.45)
@@ -295,8 +297,15 @@ local function CreateEquipmentSlot(parent, definition)
     return button
 end
 
+local BOTTOM_SLOT_X = {
+    MainHandSlot = -60,
+    SecondaryHandSlot = -21,
+    RangedSlot = 18,
+    AmmoSlot = 61,
+}
+
 local function LayoutEquipmentSlot(button, definition, frame)
-    local top = -62
+    local top = -58
 
     button:ClearAllPoints()
 
@@ -305,7 +314,7 @@ local function LayoutEquipmentSlot(button, definition, frame)
             "TOPLEFT",
             frame,
             "TOPLEFT",
-            14,
+            12,
             top - (definition.row - 1) * (SLOT_SIZE + SLOT_GAP)
         )
     elseif definition.side == "RIGHT" then
@@ -313,20 +322,16 @@ local function LayoutEquipmentSlot(button, definition, frame)
             "TOPRIGHT",
             frame,
             "TOPRIGHT",
-            -14,
+            -12,
             top - (definition.row - 1) * (SLOT_SIZE + SLOT_GAP)
         )
     else
-        local totalWidth = SLOT_SIZE * 4 + SLOT_GAP * 3
-        local startX = -totalWidth / 2 + SLOT_SIZE / 2
-        local x = startX + (definition.column - 1) * (SLOT_SIZE + SLOT_GAP)
-
         button:SetPoint(
             "BOTTOM",
             frame,
             "BOTTOM",
-            x,
-            22
+            BOTTOM_SLOT_X[definition.key] or 0,
+            14
         )
     end
 end
@@ -367,13 +372,14 @@ local function UpdateEquipmentSlot(button)
 
     local texture = GetInventoryItemTexture("player", slotID)
     local link = GetInventoryItemLink("player", slotID)
-    local quality
+    local quality = GetInventoryItemQuality
+        and GetInventoryItemQuality("player", slotID)
 
     button.icon:SetTexture(texture)
     button.label:SetShown(not texture)
     SetBorderColor(button, colors.emptyBorder)
 
-    if link and GetItemInfo then
+    if quality == nil and link and GetItemInfo then
         _, _, quality = GetItemInfo(link)
     end
 
@@ -381,7 +387,7 @@ local function UpdateEquipmentSlot(button)
 end
 
 local function UpdatePlayerInfo(frame)
-    local name = GetFullPlayerName()
+    local name = GetTitledPlayerName()
     local level = UnitLevel("player") or 0
     local className, classFile = UnitClass("player")
     local classColor = classFile
@@ -619,7 +625,25 @@ local function CreateFrameUI()
         RebuildTitleMenu()
     end)
 
-    titleButton:SetScript("OnClick", function()
+    titleButton:RegisterForDrag("LeftButton")
+    titleButton:SetScript("OnDragStart", function(self)
+        self.dragging = true
+        titleMenu:Hide()
+        frame:StartMoving()
+    end)
+    titleButton:SetScript("OnDragStop", function(self)
+        frame:StopMovingOrSizing()
+        SavePosition(frame)
+
+        C_Timer.After(0, function()
+            self.dragging = false
+        end)
+    end)
+    titleButton:SetScript("OnClick", function(self)
+        if self.dragging then
+            return
+        end
+
         if titleMenu:IsShown() then
             titleMenu:Hide()
             return
@@ -641,8 +665,8 @@ local function CreateFrameUI()
     end)
 
     local modelPanel = CreateFrame("Frame", nil, frame, "BackdropTemplate")
-    modelPanel:SetPoint("TOPLEFT", 55, -58)
-    modelPanel:SetPoint("BOTTOMRIGHT", -55, 70)
+    modelPanel:SetPoint("TOPLEFT", 51, -54)
+    modelPanel:SetPoint("BOTTOMRIGHT", -51, 58)
     modelPanel:SetBackdrop({
         bgFile = "Interface\\Buttons\\WHITE8X8",
         edgeFile = "Interface\\Buttons\\WHITE8X8",
@@ -667,12 +691,29 @@ local function CreateFrameUI()
     frame.model = model
 
     frame.equipmentSlots = {}
+    frame.equipmentByKey = {}
 
     for _, definition in ipairs(SLOT_LAYOUT) do
         local button = CreateEquipmentSlot(frame, definition)
         LayoutEquipmentSlot(button, definition, frame)
         frame.equipmentSlots[#frame.equipmentSlots + 1] = button
+        frame.equipmentByKey[definition.key] = button
     end
+
+    local ammoArrow = frame:CreateTexture(nil, "OVERLAY")
+    ammoArrow:SetSize(12, 12)
+    ammoArrow:SetPoint(
+        "LEFT",
+        frame.equipmentByKey.RangedSlot,
+        "RIGHT",
+        3,
+        0
+    )
+    ammoArrow:SetTexture(
+        "Interface\\Buttons\\UI-SpellbookIcon-PrevPage-Up"
+    )
+    ammoArrow:SetVertexColor(0.65, 0.65, 0.68, 0.90)
+    frame.ammoArrow = ammoArrow
 
     local tabs = {
         { label = "Character", enabled = true },
