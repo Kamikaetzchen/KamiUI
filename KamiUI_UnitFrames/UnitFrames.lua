@@ -61,23 +61,29 @@ function UF:GetUnitColor(unit)
 
     if UnitIsPlayer(unit) then
         local _, class = UnitClass(unit)
-        local color = RAID_CLASS_COLORS and RAID_CLASS_COLORS[class]
 
-        if color then
-            return self:DarkenColor(color.r, color.g, color.b)
-        end
+        if class and self:CanAccessValue(class) then
+            local color = RAID_CLASS_COLORS and RAID_CLASS_COLORS[class]
 
-        color = FALLBACK_CLASS_COLORS[class]
-        if color then
-            return self:DarkenColor(color[1], color[2], color[3])
+            if color then
+                return self:DarkenColor(color.r, color.g, color.b)
+            end
+
+            color = FALLBACK_CLASS_COLORS[class]
+            if color then
+                return self:DarkenColor(color[1], color[2], color[3])
+            end
         end
     end
 
     local reaction = UnitReaction(unit, "player")
-    local color = reaction and FACTION_BAR_COLORS and FACTION_BAR_COLORS[reaction]
 
-    if color then
-        return self:DarkenColor(color.r, color.g, color.b)
+    if reaction and self:CanAccessValue(reaction) and FACTION_BAR_COLORS then
+        local color = FACTION_BAR_COLORS[reaction]
+
+        if color then
+            return self:DarkenColor(color.r, color.g, color.b)
+        end
     end
 
     return self:DarkenColor(0.2, 0.8, 0.2)
