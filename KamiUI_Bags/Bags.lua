@@ -432,11 +432,17 @@ local function UpdateItemButton(button, bagID, slotID)
             )
         end
 
-        button:SetAlpha(filtered and 0.20 or 1.00)
+        local alpha = filtered and 0.20 or 1.00
+
+        button:SetAlpha(alpha)
 
         if icon then
             icon:SetTexture(info.iconFileID)
-            icon:SetAlpha(1)
+            icon:SetAlpha(alpha)
+        end
+
+        if button.Count then
+            button.Count:SetAlpha(alpha)
         end
 
         if button.Count then
@@ -1259,6 +1265,11 @@ local function CreateFrameUI()
     search:SetHeight(22)
     search:SetAutoFocus(false)
     search:SetTextInsets(6, 6, 0, 0)
+
+    if search.SetPropagateKeyboardInput then
+        search:SetPropagateKeyboardInput(false)
+    end
+
     search:Hide()
     frame.search = search
 
@@ -1521,6 +1532,32 @@ local function CreateFrameUI()
 
     frame:SetScript("OnHide", function()
         GameTooltip:Hide()
+    end)
+
+    frame:EnableKeyboard(true)
+
+    if frame.SetPropagateKeyboardInput then
+        frame:SetPropagateKeyboardInput(true)
+    end
+
+    frame:SetScript("OnKeyDown", function(self, key)
+        if key ~= "ESCAPE" then
+            if self.SetPropagateKeyboardInput then
+                self:SetPropagateKeyboardInput(true)
+            end
+
+            return
+        end
+
+        if self.SetPropagateKeyboardInput then
+            self:SetPropagateKeyboardInput(false)
+        end
+
+        if search:IsShown() then
+            CloseSearch(true)
+        else
+            Module:Hide()
+        end
     end)
 
     ApplySavedPosition(frame)
