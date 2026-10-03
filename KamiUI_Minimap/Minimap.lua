@@ -70,6 +70,10 @@ local function HideBlizzardChrome()
     HideObject(GuildInstanceDifficulty)
     HideObject(MiniMapChallengeMode)
 
+    if MinimapCluster then
+        HideObject(MinimapCluster.InstanceDifficulty)
+    end
+
     HideObject(MinimapZoneTextButton)
     HideObject(MinimapZoneText)
 
