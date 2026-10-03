@@ -177,30 +177,40 @@ local function HideNativePlateArt(unitFrame)
     end
 end
 
-local function CreateAuraButton(parent)
-    local button = CreateFrame("Frame", nil, parent)
+local function InitializeAuraButton(button)
     button:SetSize(AURA_SIZE, AURA_SIZE)
+    button:EnableMouse(false)
 
     local background = button:CreateTexture(nil, "BACKGROUND")
     background:SetAllPoints()
     background:SetColorTexture(0, 0, 0, 1)
 
     local icon = button:CreateTexture(nil, "ARTWORK")
-    icon:SetPoint("TOPLEFT", 1, -1)
-    icon:SetPoint("BOTTOMRIGHT", -1, 1)
+    icon:SetPoint("TOPLEFT", button, "TOPLEFT", 1, -1)
+    icon:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", -1, 1)
     icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
-    button.icon = icon
 
-    local count = button:CreateFontString(nil, "OVERLAY")
+    local overlay = CreateFrame("Frame", nil, button)
+    overlay:SetAllPoints()
+    overlay:SetFrameLevel(button:GetFrameLevel() + 2)
+    overlay:EnableMouse(false)
+
+    local duration = overlay:CreateFontString(nil, "OVERLAY")
+    duration:SetPoint("BOTTOM", button, "BOTTOM", 0, 1)
+    duration:SetFont(fontPath, 7, "OUTLINE")
+    duration:SetTextColor(1, 1, 1)
+
+    local count = overlay:CreateFontString(nil, "OVERLAY")
+    count:SetPoint("TOPRIGHT", button, "TOPRIGHT", -1, -1)
     count:SetFont(fontPath, 8, "OUTLINE")
-    count:SetPoint("BOTTOMRIGHT", -1, 1)
     count:SetTextColor(1, 1, 1)
-    button.count = count
 
-    button.border = CreateBorder(button)
-    button:Hide()
+    CreateBorder(button)
 
-    return button
+    button:SetIcon(icon)
+    button:SetDurationText(duration)
+    button:SetApplicationCount(count)
+    button:SetMouseMotionEnabled(false)
 end
 
 local function EnsureAuras(data)
@@ -208,115 +218,79 @@ local function EnsureAuras(data)
         return
     end
 
-    local container = CreateFrame("Frame", nil, data.root)
-    container:SetSize(
-        MAX_AURAS * AURA_SIZE + (MAX_AURAS - 1) * AURA_SPACING,
-        AURA_SIZE
+    local width = MAX_AURAS * AURA_SIZE
+        + (MAX_AURAS - 1) * AURA_SPACING
+
+    local container = CreateFrame(
+        "AuraContainer",
+        nil,
+        data.root,
+        "CustomAuraContainerTemplate, DisableUntrustedLayoutScriptsTemplate"
     )
+
+    container:SetSize(width, AURA_SIZE)
+    container:SetFlowLayoutAxis(AnchorUtil.FlowLayoutAxis.Horizontal)
+    container:SetFlowLayoutAnchorPoint("LEFT")
+    container:SetFlowLayoutGrowthDirection(
+        AnchorUtil.FlowDirection.Right,
+        AnchorUtil.FlowDirection.Down
+    )
+    container:SetFlowLayoutMaximumLineSize(width)
+
+    local layout = {
+        elementWidth = AURA_SIZE,
+        elementHeight = AURA_SIZE,
+        elementSpacing = AURA_SPACING,
+        lineSpacing = AURA_SPACING,
+        groupSpacing = AURA_SPACING,
+        groupLineSpacing = AURA_SPACING,
+        forceNewLine = false,
+        layoutIndex = 1,
+    }
+
+    container:AddAuraGroup("helpful", "HELPFUL|PLAYER", {
+        maxFrameCount = MAX_AURAS,
+        sortMethod = AuraContainerSortMethod.Expiration,
+        sortDirection = AuraContainerSortDirection.Reverse,
+        initializeFrame = InitializeAuraButton,
+        layout = layout,
+    })
+
+    container:AddAuraGroup("harmful", "HARMFUL|PLAYER", {
+        maxFrameCount = MAX_AURAS,
+        sortMethod = AuraContainerSortMethod.Expiration,
+        sortDirection = AuraContainerSortDirection.Reverse,
+        initializeFrame = InitializeAuraButton,
+        layout = {
+            elementWidth = AURA_SIZE,
+            elementHeight = AURA_SIZE,
+            elementSpacing = AURA_SPACING,
+            lineSpacing = AURA_SPACING,
+            groupSpacing = AURA_SPACING,
+            groupLineSpacing = AURA_SPACING,
+            forceNewLine = false,
+            layoutIndex = 2,
+        },
+    })
+
+    container:SetEnabled(true)
     container:SetPoint("TOP", data.cast, "BOTTOM", 0, -2)
+
     data.auras = container
-    data.auraButtons = {}
-
-    for index = 1, MAX_AURAS do
-        local button = CreateAuraButton(container)
-
-        if index == 1 then
-            button:SetPoint("LEFT", container, "LEFT")
-        else
-            button:SetPoint(
-                "LEFT",
-                data.auraButtons[index - 1],
-                "RIGHT",
-                AURA_SPACING,
-                0
-            )
-        end
-
-        data.auraButtons[index] = button
-    end
-end
-
-local function AuraFromPlayer(aura)
-    if not aura then
-        return false
-    end
-
-    local source = aura.sourceUnit
-
-    if source and CanAccessValue(source) then
-        return source == "player"
-    end
-
-    local fromPlayer = aura.isFromPlayerOrPlayerPet
-
-    return CanAccessValue(fromPlayer) and fromPlayer == true
 end
 
 local function UpdateAuras(data)
     EnsureAuras(data)
 
-    local unit = data.unit
-    local friendly = UnitIsFriend("player", unit)
-
-    if not CanAccessValue(friendly) then
-        friendly = false
+    if not data.unit then
+        return
     end
 
-    local filter = friendly and "HELPFUL" or "HARMFUL"
-    local shown = 0
-
-    if C_UnitAuras and C_UnitAuras.GetAuraDataByIndex then
-        for index = 1, 40 do
-            local aura = C_UnitAuras.GetAuraDataByIndex(unit, index, filter)
-
-            if not aura then
-                break
-            end
-
-            if AuraFromPlayer(aura) then
-                shown = shown + 1
-
-                local button = data.auraButtons[shown]
-                button.icon:SetTexture(aura.icon)
-                button.count:SetText(
-                    aura.applications
-                        and CanAccessValue(aura.applications)
-                        and aura.applications > 1
-                        and aura.applications
-                        or ""
-                )
-
-                local r, g, b = 0, 0, 0
-
-                if not friendly then
-                    local dispel = aura.dispelName
-                    local color = dispel
-                        and CanAccessValue(dispel)
-                        and DebuffTypeColor
-                        and DebuffTypeColor[dispel]
-
-                    if color then
-                        r, g, b = color.r, color.g, color.b
-                    else
-                        r, g, b = 0.80, 0.20, 0.20
-                    end
-                end
-
-                for _, edge in ipairs(button.border) do
-                    edge:SetColorTexture(r, g, b, 1)
-                end
-
-                button:Show()
-
-                if shown >= MAX_AURAS then
-                    break
-                end
-            end
-        end
-    end
-
-    for index = shown + 1, MAX_AURAS do
-        data.auraButtons[index]:Hide()
+    if data.auraUnit ~= data.unit then
+        data.auras:SetUnit(data.unit)
+        data.auraUnit = data.unit
+    else
+        data.auras:UpdateAllAuras()
     end
 end
 
@@ -493,6 +467,11 @@ local function StylePlate(namePlate, unit)
     end
 
     data.unit = unit
+
+    if data.auras then
+        data.auras:Show()
+    end
+
     UpdatePlate(data)
 end
 
@@ -542,8 +521,9 @@ function Module:Initialize()
             data.castEnd = nil
             data.cast:Hide()
 
-            for _, button in ipairs(data.auraButtons or {}) do
-                button:Hide()
+            if data.auras then
+                data.auras:Hide()
+                data.auraUnit = nil
             end
         end
     end)
