@@ -27,7 +27,146 @@ local function EnsureDatabase()
     KamiUIDB = KamiUIDB or {}
     KamiUIDB.characters = KamiUIDB.characters or {}
 
-    return KamiUIDB.characters
+    local db = KamiUIDB.characters
+    db.data = db.data or {}
+
+    return db
+end
+
+local function GetCurrentCharacterNames()
+    local first, surname = UnitName("player")
+
+    first = first or "Player"
+
+    if surname and surname ~= "" then
+        return first, surname, first .. " " .. surname
+    end
+
+    return first, nil, first
+end
+
+local function GetCurrentCharacterKey()
+    local _, _, fullName = GetCurrentCharacterNames()
+    local realm = GetRealmName and GetRealmName() or ""
+
+    return realm .. "::" .. fullName
+end
+
+local function ImportLegacyBagCharacters()
+    local bagCharacters = KamiUIDB
+        and KamiUIDB.bags
+        and KamiUIDB.bags.characters
+
+    if type(bagCharacters) ~= "table" then
+        return
+    end
+
+    local characters = EnsureDatabase().data
+
+    for key, legacy in pairs(bagCharacters) do
+        if type(legacy) == "table" then
+            local character = characters[key] or {}
+
+            if character.name == nil then
+                character.name = legacy.name
+            end
+
+            if character.firstName == nil then
+                character.firstName = legacy.firstName
+            end
+
+            if character.surname == nil then
+                character.surname = legacy.surname
+            end
+
+            if character.classFile == nil then
+                character.classFile = legacy.classFile
+            end
+
+            if character.realm == nil then
+                character.realm = legacy.realm
+            end
+
+            if character.money == nil then
+                character.money = legacy.money
+            end
+
+            if character.updated == nil then
+                character.updated = legacy.updated
+            end
+
+            if character.name then
+                characters[key] = character
+            end
+        end
+    end
+end
+
+local function UpdateCurrentCharacter()
+    local db = EnsureDatabase()
+    local key = GetCurrentCharacterKey()
+    local firstName, surname, fullName = GetCurrentCharacterNames()
+    local _, classFile = UnitClass("player")
+    local character = db.data[key] or {}
+
+    character.name = fullName
+    character.firstName = firstName
+    character.surname = surname
+    character.classFile = classFile
+    character.realm = GetRealmName and GetRealmName() or ""
+    character.money = GetMoney and GetMoney() or character.money or 0
+    character.updated = time and time() or 0
+
+    db.data[key] = character
+
+    return key, character
+end
+
+function Module:GetCurrentCharacterKey()
+    return GetCurrentCharacterKey()
+end
+
+function Module:GetCurrentCharacter()
+    local key = GetCurrentCharacterKey()
+
+    return key, EnsureDatabase().data[key]
+end
+
+function Module:GetCharacter(key)
+    return key and EnsureDatabase().data[key] or nil
+end
+
+function Module:GetCharacters()
+    return EnsureDatabase().data
+end
+
+function Module:GetSortedCharacters()
+    local characters = {}
+
+    for key, character in pairs(EnsureDatabase().data) do
+        characters[#characters + 1] = {
+            key = key,
+            character = character,
+        }
+    end
+
+    table.sort(characters, function(left, right)
+        local leftRealm = left.character.realm or ""
+        local rightRealm = right.character.realm or ""
+
+        if leftRealm == rightRealm then
+            return (left.character.name or "")
+                < (right.character.name or "")
+        end
+
+        return leftRealm < rightRealm
+    end)
+
+    return characters
+end
+
+function Module:UpdateCurrentCharacter()
+    return UpdateCurrentCharacter()
 end
 
 local function SavePosition(frame)
@@ -131,14 +270,9 @@ local function CreateBorder(parent, color)
 end
 
 local function GetFullPlayerName()
-    local first, surname = UnitName("player")
-    first = first or "Player"
+    local _, _, fullName = GetCurrentCharacterNames()
 
-    if surname and surname ~= "" then
-        return first .. " " .. surname
-    end
-
-    return first
+    return fullName
 end
 
 local function GetSlotID(slotKey)
@@ -2936,6 +3070,8 @@ end
 
 function Module:Initialize()
     EnsureDatabase()
+    ImportLegacyBagCharacters()
+    UpdateCurrentCharacter()
     self.frame = CreateFrameUI()
     self:Refresh()
 
@@ -2962,7 +3098,12 @@ function Module:Initialize()
     end
 
     UI:RegisterEvent("PLAYER_ENTERING_WORLD", function()
+        UpdateCurrentCharacter()
         Module:Refresh()
+    end)
+
+    UI:RegisterEvent("PLAYER_MONEY", function()
+        UpdateCurrentCharacter()
     end)
 
     UI:RegisterEvent("PLAYER_EQUIPMENT_CHANGED", function()
