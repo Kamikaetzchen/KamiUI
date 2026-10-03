@@ -14,7 +14,7 @@ local FOOTER_HEIGHT = 24
 local BAG_BAR_HEIGHT = 42
 
 local defaults = {
-    background = { 0x58 / 255, 0x00 / 255, 0x72 / 255, 0.40 },
+    background = { 0.345, 0.000, 0.447, 0.25 },
     slotBackground = { 0.02, 0.02, 0.02, 0.55 },
     slotBorder = { 0.30, 0.24, 0.32, 0.90 },
     border = { 0.20, 0.16, 0.24, 1.00 },
@@ -330,6 +330,13 @@ local function GetBagButtonTexture(bagID)
         return "Interface\\Buttons\\Button-Backpack-Up"
     end
 
+    local keyring = KEYRING_CONTAINER
+        or (Enum and Enum.BagIndex and Enum.BagIndex.Keyring)
+
+    if bagID == keyring then
+        return "Interface\\ContainerFrame\\KeyRing-Bag-Icon"
+    end
+
     local inventoryID = GetBagInventoryID(bagID)
 
     if inventoryID then
@@ -475,8 +482,28 @@ local function FormatMoney(copper)
     local gold = math.floor(copper / 10000)
     local silver = math.floor((copper % 10000) / 100)
     local bronze = copper % 100
+    local parts = {}
 
-    return string.format("%dg %ds %dc", gold, silver, bronze)
+    if gold > 0 then
+        parts[#parts + 1] = string.format(
+            "%d |TInterface\\MoneyFrame\\UI-GoldIcon:14:14:0:0|t",
+            gold
+        )
+    end
+
+    if silver > 0 or gold > 0 then
+        parts[#parts + 1] = string.format(
+            "%d |TInterface\\MoneyFrame\\UI-SilverIcon:14:14:0:0|t",
+            silver
+        )
+    end
+
+    parts[#parts + 1] = string.format(
+        "%d |TInterface\\MoneyFrame\\UI-CopperIcon:14:14:0:0|t",
+        bronze
+    )
+
+    return table.concat(parts, " ")
 end
 
 function Module:UpdateBagBar()
@@ -498,6 +525,16 @@ function Module:UpdateBagBar()
 
         button.bagID = bagID
         button.icon:SetTexture(GetBagButtonTexture(bagID))
+
+        local keyring = KEYRING_CONTAINER
+            or (Enum and Enum.BagIndex and Enum.BagIndex.Keyring)
+
+        if bagID == keyring then
+            button.icon:SetTexCoord(0, 0.9, 0.1, 1)
+        else
+            button.icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
+        end
+
         button.count:SetText(CountFreeSlots(bagID))
 
         local hidden = EnsureDatabase().hiddenBags[bagID] == true
