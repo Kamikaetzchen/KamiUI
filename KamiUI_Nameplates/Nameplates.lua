@@ -123,26 +123,6 @@ local function GetDisplayName(unit)
         return ""
     end
 
-    local level = UnitLevel(unit)
-    local classification = UnitClassification(unit)
-
-    local levelText = ""
-    local suffix = ""
-
-    if level and CanAccessValue(level) and level > 0 then
-        levelText = tostring(level)
-    elseif level and CanAccessValue(level) then
-        levelText = "??"
-    end
-
-    if classification and CanAccessValue(classification) then
-        suffix = CLASSIFICATION_SUFFIX[classification] or ""
-    end
-
-    if levelText ~= "" then
-        return levelText .. suffix .. " " .. name
-    end
-
     return name
 end
 
@@ -156,38 +136,6 @@ local function GetNativeName(unitFrame)
     return unitFrame.name
         or unitFrame.Name
         or unitFrame.nameText
-end
-
-local function HideLevelFrame(unitFrame)
-    local candidates = {
-        unitFrame and unitFrame.LevelFrame,
-        unitFrame
-            and unitFrame.HealthBarsContainer
-            and unitFrame.HealthBarsContainer.LevelFrame,
-        unitFrame
-            and unitFrame.healthBar
-            and unitFrame.healthBar.LevelFrame,
-    }
-
-    for _, levelFrame in ipairs(candidates) do
-        if levelFrame then
-            levelFrame:Hide()
-
-            if levelFrame.SetAlpha then
-                levelFrame:SetAlpha(0)
-            end
-
-            if levelFrame.LevelText and levelFrame.LevelText.SetAlpha then
-                levelFrame.LevelText:SetAlpha(0)
-            end
-
-            if levelFrame.HighLevelTexture
-                and levelFrame.HighLevelTexture.SetAlpha
-            then
-                levelFrame.HighLevelTexture:SetAlpha(0)
-            end
-        end
-    end
 end
 
 local function HideNativePlateArt(unitFrame)
@@ -208,8 +156,6 @@ local function HideNativePlateArt(unitFrame)
             object:Hide()
         end
     end
-
-    HideLevelFrame(unitFrame)
 end
 
 local function InitializeAuraButton(button)
@@ -389,8 +335,6 @@ local function UpdatePlate(data)
     -- Blizzard can re-show/reconfigure these when a recycled nameplate gets a
     -- new unit or on mouseover. Keep our replacements authoritative.
     HideNativePlateArt(data.root)
-
-    HideLevelFrame(data.root)
 
     -- Never feed UnitHealth/UnitHealthMax back into Blizzard's native
     -- TextStatusBar. On Forever those values can be secret, and touching the
