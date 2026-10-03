@@ -8,7 +8,7 @@ Module.version = "0.1.0"
 local defaults = {
     height = 20,
     padding = 6,
-    spacing = 12,
+    spacing = 8,
     fontSize = 11,
     background = { 0.005, 0.008, 0.015, 0.80 },
     bottomBorder = { 0.55, 0.42, 0.16, 1 },
@@ -27,14 +27,14 @@ local slotOrder = {
 }
 
 local slotWidths = {
-    location = 220,
-    speed = 100,
-    xp = 120,
-    bags = 90,
-    durability = 90,
-    gold = 130,
-    latency = 80,
-    clock = 70,
+    location = 190,
+    speed = 60,
+    xp = 90,
+    bags = 60,
+    durability = 62,
+    gold = 125,
+    latency = 70,
+    clock = 62,
 }
 
 local function FormatNumber(value)
@@ -180,7 +180,7 @@ local function CreateText(parent, width)
     end
 
     text:SetWidth(width)
-    text:SetJustifyH("CENTER")
+    text:SetJustifyH("LEFT")
     text:SetTextColor(unpack(defaults.text))
 
     if text.SetWordWrap then
@@ -298,11 +298,9 @@ local function CreatePanel()
         previous = text
     end
 
-    texts.latency:SetJustifyH("CENTER")
-
     local signal = CreateFrame("Frame", nil, content)
     signal:SetSize(12, 12)
-    signal:SetPoint("RIGHT", texts.latency, "CENTER", -16, 2)
+    signal:SetPoint("LEFT", texts.latency, "LEFT", 0, 2)
 
     local signalHeights = { 4, 7, 10 }
 
@@ -392,7 +390,7 @@ function Module:Refresh()
         durability
     ))
     self.texts.gold:SetText(FormatMoney(GetMoney and GetMoney() or 0))
-    self.texts.latency:SetText(string.format("      %d ms", latency))
+    self.texts.latency:SetText(string.format("     %d ms", latency))
     self.texts.clock:SetText(string.format(
         "|TInterface\\Icons\\INV_Misc_PocketWatch_01:13:13:0:2:64:64:4:60:4:60|t %s",
         date("%H:%M")
