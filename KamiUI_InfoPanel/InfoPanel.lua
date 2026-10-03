@@ -27,14 +27,14 @@ local slotOrder = {
 }
 
 local slotWidths = {
-    location = 190,
-    speed = 60,
-    xp = 90,
-    bags = 60,
-    durability = 62,
-    gold = 125,
-    latency = 70,
-    clock = 62,
+    location = 165,
+    speed = 52,
+    xp = 78,
+    bags = 52,
+    durability = 52,
+    gold = 112,
+    latency = 58,
+    clock = 58,
 }
 
 local function FormatNumber(value)
