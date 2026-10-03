@@ -62,6 +62,7 @@ local function CreatePetFrame()
     nameText:SetPoint("LEFT", 2, 0)
     nameText:SetWidth(54)
     nameText:SetJustifyH("LEFT")
+    UF:ConfigureNameText(nameText)
     nameText:SetTextColor(1, 1, 1)
     nameText:SetShadowColor(0, 0, 0, 1)
     nameText:SetShadowOffset(1, -1)
@@ -136,6 +137,7 @@ local function CreatePetTargetFrame(petFrame)
     nameText:SetPoint("LEFT", 2, 0)
     nameText:SetPoint("RIGHT", -2, 0)
     nameText:SetJustifyH("LEFT")
+    UF:ConfigureNameText(nameText)
     nameText:SetTextColor(1, 1, 1)
     nameText:SetShadowColor(0, 0, 0, 1)
     nameText:SetShadowOffset(1, -1)
@@ -180,7 +182,7 @@ local function UpdatePet()
     r, g, b = UF:GetPowerColor("pet")
     petFrame.power:SetStatusBarColor(r, g, b)
 
-    petFrame.nameText:SetText(UF:GetUnitDisplayName("pet"))
+    UF:SetUnitDisplayName(petFrame.nameText, "pet")
 end
 
 local function UpdatePetTarget()
@@ -195,7 +197,7 @@ local function UpdatePetTarget()
 
     local r, g, b = UF:GetUnitColor("pettarget")
     petTargetFrame.health:SetStatusBarColor(r, g, b)
-    petTargetFrame.nameText:SetText(UF:GetUnitDisplayName("pettarget"))
+    UF:SetUnitDisplayName(petTargetFrame.nameText, "pettarget")
 end
 
 local function UpdateAll()
