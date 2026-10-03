@@ -22,7 +22,6 @@ local slotOrder = {
     "bags",
     "durability",
     "gold",
-    "fps",
     "latency",
     "clock",
 }
@@ -34,7 +33,6 @@ local slotWidths = {
     bags = 90,
     durability = 90,
     gold = 130,
-    fps = 80,
     latency = 80,
     clock = 70,
 }
@@ -62,6 +60,16 @@ local function FormatMoney(copper)
         silver,
         bronze
     )
+end
+
+local function GetLinenBagIcon()
+    if C_Item and C_Item.GetItemIconByID then
+        return C_Item.GetItemIconByID(4238)
+    elseif GetItemIcon then
+        return GetItemIcon(4238)
+    end
+
+    return "Interface\\Icons\\INV_Misc_Bag_07"
 end
 
 local function GetBagUsage()
@@ -273,22 +281,34 @@ function Module:Refresh()
     local used, total = GetBagUsage()
     local durability = GetDurabilityPercent()
     local movement = GetMovementSpeed()
-    local fps = GetFramerate and math.floor(GetFramerate() + 0.5) or 0
     local latency = GetLatency()
     local xpPerHour = GetXPPerHour()
 
     self.texts.location:SetText(GetLocation())
     self.texts.speed:SetText(string.format("Speed %d%%", movement))
     self.texts.xp:SetText(string.format("XP/h %s", FormatNumber(xpPerHour)))
-    self.texts.bags:SetText(string.format("Bags %d/%d", used, total))
+    local bagIcon = GetLinenBagIcon()
+        or "Interface\\Icons\\INV_Misc_Bag_07"
+
+    self.texts.bags:SetText(string.format(
+        "|T%s:13:13:0:0|t %d/%d",
+        bagIcon,
+        used,
+        total
+    ))
     self.texts.durability:SetText(string.format(
         "|TInterface\\Minimap\\Tracking\\Repair:13:13:0:0|t %d%%",
         durability
     ))
     self.texts.gold:SetText(FormatMoney(GetMoney and GetMoney() or 0))
-    self.texts.fps:SetText(string.format("%d FPS", fps))
-    self.texts.latency:SetText(string.format("%d ms", latency))
-    self.texts.clock:SetText(date("%H:%M"))
+    self.texts.latency:SetText(string.format(
+        "|TInterface\\Icons\\INV_Misc_EngGizmos_19:13:13:0:0|t %d ms",
+        latency
+    ))
+    self.texts.clock:SetText(string.format(
+        "|TInterface\\Icons\\INV_Misc_PocketWatch_01:13:13:0:0|t %s",
+        date("%H:%M")
+    ))
 end
 
 function Module:Initialize()
