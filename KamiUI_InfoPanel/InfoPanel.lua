@@ -53,9 +53,9 @@ local function FormatMoney(copper)
     local bronze = copper % 100
 
     return string.format(
-        "%d |TInterface\\MoneyFrame\\UI-GoldIcon:12:12:0:0|t "
-            .. "%d |TInterface\\MoneyFrame\\UI-SilverIcon:12:12:0:0|t "
-            .. "%d |TInterface\\MoneyFrame\\UI-CopperIcon:12:12:0:0|t",
+        "%d |TInterface\\MoneyFrame\\UI-GoldIcon:12:12:0:2|t "
+            .. "%d |TInterface\\MoneyFrame\\UI-SilverIcon:12:12:0:2|t "
+            .. "%d |TInterface\\MoneyFrame\\UI-CopperIcon:12:12:0:2|t",
         gold,
         silver,
         bronze
@@ -285,37 +285,37 @@ function Module:Refresh()
     local xpPerHour = GetXPPerHour()
 
     self.texts.location:SetText(string.format(
-        "|A:Waypoint-MapPin-Untracked:14:14:0:0|a %s",
+        "|TInterface\\Icons\\icon_treasuremap:13:13:0:2:64:64:4:60:4:60|t %s",
         GetLocation()
     ))
     self.texts.speed:SetText(string.format(
-        "|TInterface\\Icons\\Ability_Rogue_Sprint:13:13:0:0:64:64:4:60:4:60|t %d%%",
+        "|TInterface\\Icons\\Ability_Rogue_Sprint:13:13:0:2:64:64:4:60:4:60|t %d%%",
         movement
     ))
     self.texts.xp:SetText(string.format(
-        "|TInterface\\Icons\\xp_icon:13:13:0:0:64:64:4:60:4:60|t %s/h",
+        "|TInterface\\Icons\\xp_icon:13:13:0:2:64:64:4:60:4:60|t %s/h",
         FormatNumber(xpPerHour)
     ))
     local bagIcon = GetLinenBagIcon()
         or "Interface\\Icons\\INV_Misc_Bag_07"
 
     self.texts.bags:SetText(string.format(
-        "|T%s:13:13:0:0:64:64:4:60:4:60|t %d/%d",
+        "|T%s:13:13:0:2:64:64:4:60:4:60|t %d/%d",
         bagIcon,
         used,
         total
     ))
     self.texts.durability:SetText(string.format(
-        "|TInterface\\Minimap\\Tracking\\Repair:13:13:0:0|t %d%%",
+        "|TInterface\\Minimap\\Tracking\\Repair:13:13:0:2|t %d%%",
         durability
     ))
     self.texts.gold:SetText(FormatMoney(GetMoney and GetMoney() or 0))
     self.texts.latency:SetText(string.format(
-        "|A:ui-mainmenubar-performancebar-screen:14:9:0:0|a %d ms",
+        "|A:ui-mainmenubar-performancebar-screen:14:9:0:2:1:1:1|a %d ms",
         latency
     ))
     self.texts.clock:SetText(string.format(
-        "|TInterface\\Icons\\INV_Misc_PocketWatch_01:13:13:0:0:64:64:4:60:4:60|t %s",
+        "|TInterface\\Icons\\INV_Misc_PocketWatch_01:13:13:0:2:64:64:4:60:4:60|t %s",
         date("%H:%M")
     ))
 end
