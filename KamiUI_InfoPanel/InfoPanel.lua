@@ -195,28 +195,88 @@ local function CreatePanel()
         return
     end
 
-    local frame = CreateFrame("Frame", "KamiUIInfoPanel", UIParent)
-    frame:SetPoint("TOPLEFT", UIParent, "TOPLEFT", 0, 0)
-    frame:SetPoint("TOPRIGHT", UIParent, "TOPRIGHT", 0, 0)
-    frame:SetHeight(defaults.height)
-    frame:SetFrameStrata("HIGH")
-    frame:EnableMouse(false)
-
-    local background = frame:CreateTexture(nil, "BACKGROUND")
-    background:SetAllPoints(frame)
-    background:SetColorTexture(unpack(defaults.background))
-
-    local bottomBorder = frame:CreateTexture(nil, "ARTWORK")
-    bottomBorder:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 0, 0)
-    bottomBorder:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", 0, 0)
-    bottomBorder:SetHeight(2)
-    bottomBorder:SetColorTexture(unpack(defaults.bottomBorder))
-
     local totalWidth = defaults.spacing * (#slotOrder - 1)
 
     for _, key in ipairs(slotOrder) do
         totalWidth = totalWidth + slotWidths[key]
     end
+
+    local edgePadding = 12
+    local sideAngle = 60
+    local sideRun = math.floor(
+        defaults.height / math.tan(math.rad(sideAngle)) + 0.5
+    )
+    local bodyWidth = totalWidth + (edgePadding * 2)
+    local frameWidth = bodyWidth + (sideRun * 2)
+
+    local frame = CreateFrame("Frame", "KamiUIInfoPanel", UIParent)
+    frame:SetSize(frameWidth, defaults.height)
+    frame:SetPoint("TOP", UIParent, "TOP", 0, 0)
+    frame:SetFrameStrata("HIGH")
+    frame:EnableMouse(false)
+
+    local background = frame:CreateTexture(nil, "BACKGROUND")
+    background:SetPoint("TOPLEFT", frame, "TOPLEFT", sideRun, 0)
+    background:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -sideRun, 0)
+    background:SetColorTexture(unpack(defaults.background))
+
+    for index = 1, sideRun do
+        local stripHeight = math.ceil(
+            defaults.height * index / sideRun
+        )
+
+        local leftStrip = frame:CreateTexture(nil, "BACKGROUND")
+        leftStrip:SetSize(1, stripHeight)
+        leftStrip:SetPoint(
+            "TOPLEFT",
+            frame,
+            "TOPLEFT",
+            index - 1,
+            0
+        )
+        leftStrip:SetColorTexture(unpack(defaults.background))
+
+        local rightStrip = frame:CreateTexture(nil, "BACKGROUND")
+        rightStrip:SetSize(1, stripHeight)
+        rightStrip:SetPoint(
+            "TOPRIGHT",
+            frame,
+            "TOPRIGHT",
+            -(index - 1),
+            0
+        )
+        rightStrip:SetColorTexture(unpack(defaults.background))
+    end
+
+    local bottomBorder = frame:CreateTexture(nil, "ARTWORK")
+    bottomBorder:SetPoint(
+        "BOTTOMLEFT",
+        frame,
+        "BOTTOMLEFT",
+        sideRun,
+        0
+    )
+    bottomBorder:SetPoint(
+        "BOTTOMRIGHT",
+        frame,
+        "BOTTOMRIGHT",
+        -sideRun,
+        0
+    )
+    bottomBorder:SetHeight(2)
+    bottomBorder:SetColorTexture(unpack(defaults.bottomBorder))
+
+    local leftBorder = frame:CreateLine(nil, "ARTWORK")
+    leftBorder:SetThickness(2)
+    leftBorder:SetColorTexture(unpack(defaults.bottomBorder))
+    leftBorder:SetStartPoint("TOPLEFT", frame, 0, 0)
+    leftBorder:SetEndPoint("BOTTOMLEFT", frame, sideRun, 0)
+
+    local rightBorder = frame:CreateLine(nil, "ARTWORK")
+    rightBorder:SetThickness(2)
+    rightBorder:SetColorTexture(unpack(defaults.bottomBorder))
+    rightBorder:SetStartPoint("TOPRIGHT", frame, 0, 0)
+    rightBorder:SetEndPoint("BOTTOMRIGHT", frame, -sideRun, 0)
 
     local content = CreateFrame("Frame", nil, frame)
     content:SetSize(totalWidth, defaults.height)
