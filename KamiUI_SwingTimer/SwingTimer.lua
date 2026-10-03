@@ -148,29 +148,34 @@ function Module:Apply()
     local previous
 
     for _, frame in ipairs(frames) do
-        ClearPoints(frame)
+        -- Blizzard already decided which weapon timers are actually valid.
+        -- Only visible frames participate in our stack, so a hidden off-hand
+        -- timer cannot leave an empty 15 px slot between ranged and main hand.
+        if frame:IsShown() then
+            ClearPoints(frame)
 
-        if previous then
-            SetPoint(
-                frame,
-                "BOTTOMLEFT",
-                previous,
-                "TOPLEFT",
-                0,
-                defaults.spacing
-            )
-        else
-            SetPoint(
-                frame,
-                "BOTTOMLEFT",
-                KamiUIPlayerFrame,
-                "TOPLEFT",
-                0,
-                defaults.offsetY
-            )
+            if previous then
+                SetPoint(
+                    frame,
+                    "BOTTOMLEFT",
+                    previous,
+                    "TOPLEFT",
+                    0,
+                    defaults.spacing
+                )
+            else
+                SetPoint(
+                    frame,
+                    "BOTTOMLEFT",
+                    KamiUIPlayerFrame,
+                    "TOPLEFT",
+                    0,
+                    defaults.offsetY
+                )
+            end
+
+            previous = frame
         end
-
-        previous = frame
     end
 
     HideOutOfCombatFrames()
