@@ -349,6 +349,7 @@ local function StyleNativeCastBar(data)
     cast:SetSize(PLATE_WIDTH, CAST_HEIGHT)
     cast:SetPoint("TOP", data.nativeHealth, "BOTTOM", 0, -1)
     cast:SetStatusBarTexture(flatTexture)
+    cast:SetStatusBarColor(0.55, 0.35, 0.08)
 
     if not data.castBackground then
         local background = cast:CreateTexture(nil, "BACKGROUND")
@@ -457,6 +458,10 @@ local function UpdatePlate(data)
     HideNativeVisuals(data.root)
     StyleNativeHealthBar(data)
     StyleNativeCastBar(data)
+
+    if data.nativeCast then
+        data.nativeCast:SetStatusBarColor(0.55, 0.35, 0.08)
+    end
 
     local r, g, b = GetUnitColor(unit)
     data.nativeHealth:SetStatusBarColor(r, g, b)
