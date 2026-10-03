@@ -10,6 +10,7 @@ Player.lua
 Pet.lua
 Target.lua
 SecondaryFrames.lua
+Party.lua
 UnitAuras.lua
 Indicators.lua
 DisableBlizzard.lua
