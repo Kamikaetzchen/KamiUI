@@ -165,6 +165,14 @@ local function EnsureFrame()
 end
 
 local function GetUnitColor(unit)
+    local unitFrames = UI:GetModule("UnitFrames")
+
+    if unitFrames and unitFrames.GetUnitColor then
+        return unitFrames:GetUnitColor(unit)
+    end
+
+    -- Keep the standalone fallback visually close to UnitFrames in case the
+    -- UnitFrames addon is disabled.
     if UnitIsPlayer(unit) then
         local _, class = UnitClass(unit)
 
@@ -172,16 +180,16 @@ local function GetUnitColor(unit)
             local color = RAID_CLASS_COLORS and RAID_CLASS_COLORS[class]
 
             if color then
-                return color.r, color.g, color.b
+                return color.r * 0.60, color.g * 0.60, color.b * 0.60
             end
         end
     end
 
     if string.find(unit, "pet") then
-        return 0.55, 0.28, 0.08
+        return 0.12, 0.48, 0.12
     end
 
-    return 0.40, 0.40, 0.40
+    return 0.24, 0.24, 0.24
 end
 
 local function AddUnitToken(tokens, unit)
