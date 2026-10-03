@@ -152,13 +152,21 @@ local function GetLocation()
 end
 
 local function GetMovementSpeed()
+    if InCombatLockdown and InCombatLockdown() then
+        return Module.lastMovementSpeed or 0
+    end
+
     local speed = GetUnitSpeed and GetUnitSpeed("player") or 0
 
     if speed <= 0 then
+        Module.lastMovementSpeed = 0
         return 0
     end
 
-    return math.floor((speed / 7) * 100 + 0.5)
+    local movement = math.floor((speed / 7) * 100 + 0.5)
+    Module.lastMovementSpeed = movement
+
+    return movement
 end
 
 local function GetLatency()
