@@ -44,8 +44,20 @@ local function EnsureDatabase()
     end
 
     db.hiddenBags = db.hiddenBags or {}
+    db.characters = db.characters or {}
 
     return db
+end
+
+local function GetCurrentCharacterKey()
+    local name = UnitName("player") or "Unknown"
+    local realm = GetRealmName() or ""
+
+    return realm .. "::" .. name
+end
+
+local function GetCurrentCharacterName()
+    return UnitName("player") or "Player"
 end
 
 local function GetContainerNumSlots(bagID)
@@ -88,15 +100,11 @@ local function HasBagFamilyFlag(value, flag)
     return value % (flag * 2) >= flag
 end
 
-local function GetBagFamilyColor(bagID)
-    local keyring = KEYRING_CONTAINER
-        or (Enum and Enum.BagIndex and Enum.BagIndex.Keyring)
-
-    if bagID == keyring then
+local function GetBagFamilyColorFromMask(family, isKeyring)
+    if isKeyring then
         return bagFamilyColors.keyring
     end
 
-    local _, family = GetContainerNumFreeSlots(bagID)
     family = family or 0
 
     local arrows = BAG_FAMILY_MASK_ARROWS or 0x00000001
@@ -121,6 +129,14 @@ local function GetBagFamilyColor(bagID)
     end
 
     return defaults.slotBorder
+end
+
+local function GetBagFamilyColor(bagID)
+    local keyring = KEYRING_CONTAINER
+        or (Enum and Enum.BagIndex and Enum.BagIndex.Keyring)
+    local _, family = GetContainerNumFreeSlots(bagID)
+
+    return GetBagFamilyColorFromMask(family, bagID == keyring)
 end
 
 local function AddUniqueBag(bags, seen, bagID)
@@ -404,6 +420,76 @@ local function CreateItemButton(content, carrier)
     return button
 end
 
+local function CreateCachedItemButton(content)
+    local button = CreateFrame("Button", nil, content)
+    button:SetSize(SLOT_SIZE, SLOT_SIZE)
+
+    local icon = button:CreateTexture(nil, "ARTWORK")
+    icon:SetAllPoints()
+    button.icon = icon
+
+    local count = button:CreateFontString(nil, "OVERLAY")
+    count:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
+    count:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", -2, 2)
+    button.Count = count
+
+    StyleItemButton(button)
+
+    button:SetScript("OnEnter", function(self)
+        if not self.itemLink then
+            return
+        end
+
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetHyperlink(self.itemLink)
+        GameTooltip:Show()
+    end)
+
+    button:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
+
+    return button
+end
+
+local function UpdateCachedItemButton(button, slot, bag)
+    local borderColor = GetBagFamilyColorFromMask(
+        bag.family,
+        bag.isKeyring
+    )
+
+    if button.KamiBorders then
+        for _, border in ipairs(button.KamiBorders) do
+            border:SetColorTexture(unpack(borderColor))
+        end
+    end
+
+    button.itemLink = slot and slot.link or nil
+    button.icon:SetTexture(slot and slot.icon or nil)
+    button.Count:SetText(
+        slot and slot.count and slot.count > 1 and slot.count or ""
+    )
+
+    local search = Module.frame
+        and Module.frame.search
+        and Module.frame.search:GetText()
+        or ""
+
+    if slot and search ~= "" then
+        local haystack = string.lower(
+            slot.name or slot.link or ""
+        )
+
+        button:SetAlpha(
+            string.find(haystack, string.lower(search), 1, true)
+                and 1.00
+                or 0.20
+        )
+    else
+        button:SetAlpha(1)
+    end
+end
+
 local function GetBagButtonTexture(bagID)
     if bagID == (BACKPACK_CONTAINER or 0) then
         return "Interface\\Buttons\\Button-Backpack-Up"
@@ -452,6 +538,100 @@ local function GetBagName(bagID)
     end
 
     return "Bag " .. tostring(bagID)
+end
+
+local function SaveCurrentCharacter()
+    local db = EnsureDatabase()
+    local key = GetCurrentCharacterKey()
+    local name = GetCurrentCharacterName()
+    local realm = GetRealmName() or ""
+    local character = {
+        name = name,
+        realm = realm,
+        money = GetMoney() or 0,
+        items = {},
+        bags = {},
+        updated = time and time() or 0,
+    }
+
+    local keyring = KEYRING_CONTAINER
+        or (Enum and Enum.BagIndex and Enum.BagIndex.Keyring)
+
+    for _, bagID in ipairs(GetInventoryBags()) do
+        local _, family = GetContainerNumFreeSlots(bagID)
+        local bag = {
+            bagID = bagID,
+            name = GetBagName(bagID),
+            icon = GetBagButtonTexture(bagID),
+            family = family or 0,
+            isKeyring = bagID == keyring,
+            slots = {},
+        }
+
+        local slotCount = GetContainerNumSlots(bagID)
+
+        for slotID = 1, slotCount do
+            local info = GetContainerItemInfo(bagID, slotID)
+
+            if info then
+                local itemID = info.itemID
+                local itemName
+
+                if info.hyperlink and GetItemInfo then
+                    itemName = GetItemInfo(info.hyperlink)
+                end
+
+                bag.slots[slotID] = {
+                    itemID = itemID,
+                    link = info.hyperlink,
+                    icon = info.iconFileID,
+                    count = info.stackCount or 1,
+                    quality = info.quality,
+                    name = itemName,
+                }
+
+                if itemID then
+                    character.items[itemID] =
+                        (character.items[itemID] or 0) + (info.stackCount or 1)
+                end
+            end
+        end
+
+        character.bags[#character.bags + 1] = bag
+    end
+
+    db.characters[key] = character
+
+    return key, character
+end
+
+local function GetViewedCharacter()
+    local db = EnsureDatabase()
+    local currentKey = GetCurrentCharacterKey()
+    local key = Module.viewCharacterKey or currentKey
+
+    return key, db.characters[key], key == currentKey
+end
+
+local function GetSortedCharacters()
+    local characters = {}
+
+    for key, character in pairs(EnsureDatabase().characters) do
+        characters[#characters + 1] = {
+            key = key,
+            character = character,
+        }
+    end
+
+    table.sort(characters, function(a, b)
+        if a.character.realm == b.character.realm then
+            return (a.character.name or "") < (b.character.name or "")
+        end
+
+        return (a.character.realm or "") < (b.character.realm or "")
+    end)
+
+    return characters
 end
 
 local function CountFreeSlots(bagID)
@@ -637,9 +817,42 @@ function Module:UpdateBagBar()
 end
 
 function Module:UpdateMoney()
-    if self.frame and self.frame.money then
-        self.frame.money:SetText(FormatMoney(GetMoney()))
+    if not self.frame or not self.frame.money then
+        return
     end
+
+    local _, character, isCurrent = GetViewedCharacter()
+    local money = isCurrent and GetMoney()
+        or (character and character.money)
+        or 0
+
+    self.frame.money:SetText(FormatMoney(money))
+end
+
+function Module:UpdateTitle()
+    if not self.frame or not self.frame.title then
+        return
+    end
+
+    local _, character, isCurrent = GetViewedCharacter()
+    local name = isCurrent
+        and GetCurrentCharacterName()
+        or (character and character.name)
+        or "Unknown"
+
+    self.frame.title:SetText(name .. "'s Inventory")
+end
+
+function Module:SetViewedCharacter(key)
+    local currentKey = GetCurrentCharacterKey()
+
+    self.viewCharacterKey = key == currentKey and nil or key
+
+    if self.frame and self.frame.characterMenu then
+        self.frame.characterMenu:Hide()
+    end
+
+    self:Rebuild()
 end
 
 function Module:UpdateBagBarVisibility()
@@ -664,7 +877,7 @@ function Module:Layout()
         return
     end
 
-    local buttons = frame.itemButtons
+    local buttons = frame.activeButtons or frame.itemButtons
     local buttonCount = #buttons
     local rows = math.max(1, math.ceil(buttonCount / COLUMNS))
     local bagBarOffset = EnsureDatabase().bagBarExpanded
@@ -723,9 +936,63 @@ function Module:Rebuild()
         return
     end
 
+    SaveCurrentCharacter()
+
     for _, button in ipairs(frame.itemButtons) do
         button:Hide()
     end
+
+    for _, button in ipairs(frame.cachedButtons or {}) do
+        button:Hide()
+    end
+
+    local _, character, isCurrent = GetViewedCharacter()
+
+    if not isCurrent and character then
+        local activeButtons = {}
+        local index = 0
+
+        for _, bag in ipairs(character.bags or {}) do
+            if not EnsureDatabase().hiddenBags[bag.bagID] then
+                for slotID = 1, #(bag.slots or {}) do
+                    local slot = bag.slots[slotID]
+                    local showSlot = not bag.isKeyring or slot ~= nil
+
+                    if showSlot then
+                        index = index + 1
+
+                        local button = frame.cachedButtons[index]
+
+                        if not button then
+                            button = CreateCachedItemButton(frame.content)
+                            frame.cachedButtons[index] = button
+                        end
+
+                        UpdateCachedItemButton(button, slot, bag)
+                        button:Show()
+                        activeButtons[#activeButtons + 1] = button
+                    end
+                end
+            end
+        end
+
+        for i = index + 1, #frame.cachedButtons do
+            frame.cachedButtons[i]:Hide()
+        end
+
+        frame.activeButtons = activeButtons
+        frame.bagBar:Hide()
+        frame.bagBarToggle:Hide()
+        frame.sort:Hide()
+        self:UpdateMoney()
+        self:UpdateTitle()
+        self:Layout()
+
+        return
+    end
+
+    frame.bagBarToggle:Show()
+    frame.sort:Show()
 
     local activeIndex = 0
     local bags = GetInventoryBags()
@@ -774,9 +1041,18 @@ function Module:Rebuild()
         frame.itemButtons[#frame.itemButtons] = nil
     end
 
+    local activeButtons = {}
+
+    for index = 1, activeIndex do
+        activeButtons[index] = frame.itemButtons[index]
+    end
+
+    frame.activeButtons = activeButtons
+
     self:UpdateBagBar()
     self:UpdateMoney()
-    self:Layout()
+    self:UpdateTitle()
+    self:UpdateBagBarVisibility()
 end
 
 function Module:Refresh()
@@ -854,7 +1130,7 @@ local function CreateFrameUI()
 
     local title = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     title:SetPoint("TOP", frame, "TOP", 0, -7)
-    title:SetText((UnitName("player") or "Player") .. "'s Inventory")
+    title:SetText(GetCurrentCharacterName() .. "'s Inventory")
     title:SetTextColor(0.92, 0.88, 1)
     frame.title = title
 
@@ -900,11 +1176,14 @@ local function CreateFrameUI()
 
     search:SetScript("OnTextChanged", function(self)
         local text = self:GetText() or ""
+        local _, _, isCurrent = GetViewedCharacter()
 
-        if C_Container and C_Container.SetItemSearch then
-            C_Container.SetItemSearch(text)
-        elseif SetItemSearch then
-            SetItemSearch(text)
+        if isCurrent then
+            if C_Container and C_Container.SetItemSearch then
+                C_Container.SetItemSearch(text)
+            elseif SetItemSearch then
+                SetItemSearch(text)
+            end
         end
 
         Module:Refresh()
@@ -929,9 +1208,137 @@ local function CreateFrameUI()
     end)
     frame.close = close
 
+    local characterButton = CreateFrame("Button", nil, frame)
+    characterButton:SetSize(20, 20)
+    characterButton:SetPoint("TOPLEFT", frame, "TOPLEFT", 6, -4)
+
+    local characterIcon = characterButton:CreateTexture(nil, "ARTWORK")
+    characterIcon:SetAllPoints()
+    characterIcon:SetTexture("Interface\\Icons\\INV_Misc_GroupLooking")
+    characterButton.icon = characterIcon
+    frame.characterButton = characterButton
+
+    local characterMenu = CreateFrame(
+        "Frame",
+        nil,
+        frame,
+        "BackdropTemplate"
+    )
+    characterMenu:SetPoint(
+        "TOPLEFT",
+        characterButton,
+        "BOTTOMLEFT",
+        0,
+        -2
+    )
+    characterMenu:SetWidth(170)
+    characterMenu:SetFrameLevel(frame:GetFrameLevel() + 20)
+    characterMenu:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8X8",
+        edgeFile = "Interface\\Buttons\\WHITE8X8",
+        edgeSize = 1,
+    })
+    characterMenu:SetBackdropColor(0.04, 0.02, 0.06, 0.95)
+    characterMenu:SetBackdropBorderColor(unpack(defaults.border))
+    characterMenu.buttons = {}
+    characterMenu:Hide()
+    frame.characterMenu = characterMenu
+
+    local function RebuildCharacterMenu()
+        local characters = GetSortedCharacters()
+        local height = 6
+
+        for index, entry in ipairs(characters) do
+            local button = characterMenu.buttons[index]
+
+            if not button then
+                button = CreateFrame("Button", nil, characterMenu)
+                button:SetHeight(20)
+                button:SetPoint(
+                    "TOPLEFT",
+                    characterMenu,
+                    "TOPLEFT",
+                    4,
+                    -(4 + (index - 1) * 20)
+                )
+                button:SetPoint(
+                    "TOPRIGHT",
+                    characterMenu,
+                    "TOPRIGHT",
+                    -4,
+                    -(4 + (index - 1) * 20)
+                )
+
+                local text = button:CreateFontString(
+                    nil,
+                    "OVERLAY",
+                    "GameFontNormalSmall"
+                )
+                text:SetPoint("LEFT", 3, 0)
+                button.text = text
+
+                local highlight = button:CreateTexture(nil, "HIGHLIGHT")
+                highlight:SetAllPoints()
+                highlight:SetColorTexture(1, 1, 1, 0.08)
+
+                characterMenu.buttons[index] = button
+            end
+
+            local character = entry.character
+            local label = character.name or "Unknown"
+
+            if character.realm
+                and character.realm ~= ""
+                and character.realm ~= GetRealmName()
+            then
+                label = label .. " - " .. character.realm
+            end
+
+            button.text:SetText(label)
+            button.characterKey = entry.key
+            button:SetScript("OnClick", function(self)
+                Module:SetViewedCharacter(self.characterKey)
+            end)
+            button:Show()
+
+            height = height + 20
+        end
+
+        for index = #characters + 1, #characterMenu.buttons do
+            characterMenu.buttons[index]:Hide()
+        end
+
+        characterMenu:SetHeight(math.max(26, height))
+    end
+
+    characterButton:SetScript("OnClick", function()
+        if characterMenu:IsShown() then
+            characterMenu:Hide()
+        else
+            RebuildCharacterMenu()
+            characterMenu:Show()
+        end
+    end)
+
+    characterButton:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText("Characters")
+        GameTooltip:Show()
+    end)
+
+    characterButton:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
+
     local bagBarToggle = CreateFrame("Button", nil, frame)
     bagBarToggle:SetSize(52, 20)
-    bagBarToggle:SetPoint("TOPLEFT", frame, "TOPLEFT", 6, -4)
+    bagBarToggle:SetPoint(
+        "LEFT",
+        characterButton,
+        "RIGHT",
+        4,
+        0
+    )
     bagBarToggle:SetNormalFontObject("GameFontNormalSmall")
     bagBarToggle:SetHighlightFontObject("GameFontHighlightSmall")
     bagBarToggle:SetScript("OnClick", function()
@@ -951,6 +1358,8 @@ local function CreateFrameUI()
     local content = CreateFrame("Frame", nil, frame)
     frame.content = content
     frame.itemButtons = {}
+    frame.cachedButtons = {}
+    frame.activeButtons = frame.itemButtons
     frame.bagCarriers = {}
 
     local sort = CreateFrame("Button", nil, frame)
@@ -1031,8 +1440,88 @@ UI:RegisterCommand(
     "Reset bag position"
 )
 
+local function AddCharacterCountsToTooltip(tooltip)
+    local _, link = tooltip:GetItem()
+
+    if not link then
+        return
+    end
+
+    local itemID = tonumber(string.match(link, "item:(%d+)"))
+
+    if not itemID or tooltip.KamiCountItemID == itemID then
+        return
+    end
+
+    tooltip.KamiCountItemID = itemID
+
+    local lines = {}
+
+    for _, entry in ipairs(GetSortedCharacters()) do
+        local count = entry.character.items
+            and entry.character.items[itemID]
+            or 0
+
+        if count > 0 then
+            lines[#lines + 1] = {
+                name = entry.character.name or "Unknown",
+                count = count,
+            }
+        end
+    end
+
+    if #lines == 0 then
+        return
+    end
+
+    tooltip:AddLine(" ")
+
+    for _, line in ipairs(lines) do
+        tooltip:AddDoubleLine(
+            line.name,
+            tostring(line.count),
+            0.75,
+            0.65,
+            0.90,
+            1,
+            1,
+            1
+        )
+    end
+
+    tooltip:Show()
+end
+
+local function InstallTooltipHook()
+    if Module.tooltipHookInstalled then
+        return
+    end
+
+    Module.tooltipHookInstalled = true
+
+    if TooltipDataProcessor
+        and TooltipDataProcessor.AddTooltipPostCall
+        and Enum
+        and Enum.TooltipDataType
+        and Enum.TooltipDataType.Item
+    then
+        TooltipDataProcessor.AddTooltipPostCall(
+            Enum.TooltipDataType.Item,
+            AddCharacterCountsToTooltip
+        )
+    elseif GameTooltip and GameTooltip.HookScript then
+        GameTooltip:HookScript("OnTooltipSetItem", function(self)
+            AddCharacterCountsToTooltip(self)
+        end)
+        GameTooltip:HookScript("OnTooltipCleared", function(self)
+            self.KamiCountItemID = nil
+        end)
+    end
+end
+
 function Module:Initialize()
     EnsureDatabase()
+    SaveCurrentCharacter()
 
     self.frame = CreateFrameUI()
 
@@ -1040,8 +1529,10 @@ function Module:Initialize()
     self:Rebuild()
 
     InstallBagHooks()
+    InstallTooltipHook()
 
     UI:RegisterEvent("BAG_UPDATE_DELAYED", function()
+        SaveCurrentCharacter()
         Module:Refresh()
     end)
 
@@ -1054,6 +1545,7 @@ function Module:Initialize()
     end)
 
     UI:RegisterEvent("PLAYER_MONEY", function()
+        SaveCurrentCharacter()
         Module:UpdateMoney()
     end)
 
