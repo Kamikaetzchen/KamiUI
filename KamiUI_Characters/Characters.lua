@@ -607,7 +607,7 @@ end
 
 local function CreateSidebarHeader(parent, y, text)
     local header = CreateFrame("Button", nil, parent)
-    header:SetPoint("TOPLEFT", parent, "TOPLEFT", 6, y)
+    header:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, y)
     header:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -6, y)
     header:SetHeight(17)
 
@@ -2461,7 +2461,7 @@ local function CreateSidebar(frame)
                     "TOPLEFT",
                     statsContent,
                     "TOPLEFT",
-                    6,
+                    0,
                     y
                 )
                 widget:SetPoint(
