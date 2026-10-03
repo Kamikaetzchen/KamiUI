@@ -109,42 +109,18 @@ local function ConfigureFrame(frame)
     StyleFrame(frame)
 end
 
-local function HasAppropriateWeapon(frame)
-    if not frame then
-        return false
+local function HideOutOfCombatFrames()
+    if UnitAffectingCombat("player") then
+        return
     end
 
-    if frame.HasAppropriateWeapon then
-        return frame:HasAppropriateWeapon()
-    end
-
-    return true
-end
-
-local function ShouldShowFrame(frame)
-    if not frame or not UnitAffectingCombat("player") then
-        return false
-    end
-
-    if frame == SwingTimerRangedFrame and not ShouldShowRangedTimer() then
-        return false
-    end
-
-    if GetCVarBool and not GetCVarBool("showSwingTimer") then
-        return false
-    end
-
-    return HasAppropriateWeapon(frame)
-end
-
-local function UpdateVisibility()
     for _, frame in ipairs({
         SwingTimerMainHandFrame,
         SwingTimerOffHandFrame,
         SwingTimerRangedFrame,
     }) do
         if frame then
-            frame:SetShown(ShouldShowFrame(frame))
+            frame:Hide()
         end
     end
 end
@@ -172,34 +148,32 @@ function Module:Apply()
     local previous
 
     for _, frame in ipairs(frames) do
-        if HasAppropriateWeapon(frame) then
-            ClearPoints(frame)
+        ClearPoints(frame)
 
-            if previous then
-                SetPoint(
-                    frame,
-                    "BOTTOMLEFT",
-                    previous,
-                    "TOPLEFT",
-                    0,
-                    defaults.spacing
-                )
-            else
-                SetPoint(
-                    frame,
-                    "BOTTOMLEFT",
-                    KamiUIPlayerFrame,
-                    "TOPLEFT",
-                    0,
-                    defaults.offsetY
-                )
-            end
-
-            previous = frame
+        if previous then
+            SetPoint(
+                frame,
+                "BOTTOMLEFT",
+                previous,
+                "TOPLEFT",
+                0,
+                defaults.spacing
+            )
+        else
+            SetPoint(
+                frame,
+                "BOTTOMLEFT",
+                KamiUIPlayerFrame,
+                "TOPLEFT",
+                0,
+                defaults.offsetY
+            )
         end
+
+        previous = frame
     end
 
-    UpdateVisibility()
+    HideOutOfCombatFrames()
 
     return SwingTimerMainHandFrame ~= nil
 end
@@ -225,7 +199,17 @@ local function HookFrame(frame)
     frame.KamiLayoutHooked = true
 
     frame:HookScript("OnShow", function(self)
-        if not ShouldShowFrame(self) then
+        -- Never call Blizzard's HasAppropriateWeapon()/ShouldBeShown() here:
+        -- weapon speeds are secret values in combat and doing so from addon
+        -- execution taints the comparison. Blizzard already decides whether
+        -- the timer should show; we only suppress ranged for non-hunters and
+        -- hide all timers outside combat.
+        if self == SwingTimerRangedFrame and not ShouldShowRangedTimer() then
+            self:Hide()
+            return
+        end
+
+        if not UnitAffectingCombat("player") then
             self:Hide()
             return
         end
@@ -273,14 +257,8 @@ function Module:Initialize()
         end
     end)
 
-    UI:RegisterEvent("PLAYER_REGEN_DISABLED", function()
-        C_Timer.After(0, function()
-            Module:Apply()
-        end)
-    end)
-
     UI:RegisterEvent("PLAYER_REGEN_ENABLED", function()
-        UpdateVisibility()
+        HideOutOfCombatFrames()
     end)
 
     UI:RegisterEvent("ADDON_LOADED", function(_, addonName)
