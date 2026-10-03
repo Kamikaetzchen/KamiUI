@@ -25,6 +25,7 @@ local bagFamilyColors = {
     bullets = { 0.55, 0.58, 0.62, 1.00 },
     soul = { 0.55, 0.20, 0.75, 1.00 },
     leather = { 0.58, 0.36, 0.18, 1.00 },
+    skinning = { 0.72, 0.48, 0.22, 1.00 },
     herbs = { 0.18, 0.68, 0.24, 1.00 },
     mining = { 0.38, 0.55, 0.68, 1.00 },
     keyring = { 0.90, 0.70, 0.15, 1.00 },
@@ -124,6 +125,7 @@ local function GetBagFamilyColorFromMask(family, isKeyring)
     local leather = BAG_FAMILY_MASK_LEATHERWORKING_SUPP or 0x00000008
     local herbs = BAG_FAMILY_MASK_HERBS or 0x00000020
     local mining = BAG_FAMILY_MASK_MINING_SUPP or 0x00000400
+    local skinning = BAG_FAMILY_MASK_SKINNING or 0x02000000
 
     if HasBagFamilyFlag(family, arrows) then
         return bagFamilyColors.arrows
@@ -135,6 +137,8 @@ local function GetBagFamilyColorFromMask(family, isKeyring)
         return bagFamilyColors.herbs
     elseif HasBagFamilyFlag(family, leather) then
         return bagFamilyColors.leather
+    elseif HasBagFamilyFlag(family, skinning) then
+        return bagFamilyColors.skinning
     elseif HasBagFamilyFlag(family, mining) then
         return bagFamilyColors.mining
     end
