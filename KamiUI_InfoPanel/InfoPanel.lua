@@ -302,7 +302,7 @@ function Module:Refresh()
     ))
     self.texts.gold:SetText(FormatMoney(GetMoney and GetMoney() or 0))
     self.texts.latency:SetText(string.format(
-        "|TInterface\\Icons\\INV_Misc_EngGizmos_19:13:13:0:0|t %d ms",
+        "|A:ui-mainmenubar-performancebar-screen:14:9:0:0|a %d ms",
         latency
     ))
     self.texts.clock:SetText(string.format(
