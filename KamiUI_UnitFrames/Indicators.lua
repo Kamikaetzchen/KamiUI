@@ -70,8 +70,8 @@ local function CreateCenterIndicators(frame)
 
     row:SetFrameLevel(level + 20)
 
-    if frame.portrait and frame.health then
-        row:SetPoint("CENTER", frame.health, "BOTTOM", 0, -2)
+    if frame.health then
+        row:SetPoint("CENTER", frame.health, "CENTER", 0, 0)
     else
         row:SetPoint("CENTER", frame, "CENTER", 0, 0)
     end
@@ -130,10 +130,16 @@ local function UpdateRaidMarker(frame)
     local icon = frame.centerIndicators.icons.raid
     local index = GetRaidTargetIndex and GetRaidTargetIndex(frame.unit)
 
-    if UF:CanAccessValue(index) and index and RAID_MARKER_COORDS[index] then
-        icon:SetTexture("Interface\\TargetingFrame\\UI-RaidTargetingIcons")
-        icon:SetTexCoord(unpack(RAID_MARKER_COORDS[index]))
-        icon:Show()
+    icon:SetTexture("Interface\\TargetingFrame\\UI-RaidTargetingIcons")
+
+    if index ~= nil and SetRaidTargetIconTexture then
+        SetRaidTargetIconTexture(icon, index)
+    end
+
+    if secretwrap then
+        icon:SetShown(secretwrap(index ~= nil))
+    elseif UF:CanAccessValue(index) then
+        icon:SetShown(index ~= nil)
     else
         icon:Hide()
     end
