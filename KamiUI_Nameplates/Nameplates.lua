@@ -120,6 +120,14 @@ local function GetDisplayIdentity(unit)
                 levelR = color.r or levelR
                 levelG = color.g or levelG
                 levelB = color.b or levelB
+
+                local isGray =
+                    math.abs(levelR - levelG) < 0.04
+                    and math.abs(levelG - levelB) < 0.04
+
+                if isGray and levelR < 0.72 then
+                    levelR, levelG, levelB = 0.72, 0.72, 0.72
+                end
             end
         end
     end
@@ -341,7 +349,7 @@ local function CreateCustomPlate(namePlate)
     local level = health:CreateFontString(nil, "OVERLAY")
     level:SetPoint("LEFT", health, "LEFT", 3, 0)
     level:SetJustifyH("LEFT")
-    level:SetFont(fontPath, 8, "THICKOUTLINE")
+    level:SetFont(fontPath, 9, "OUTLINE")
     level:SetShadowColor(0, 0, 0, 1)
     level:SetShadowOffset(1, -1)
     ConfigureSingleLine(level)
