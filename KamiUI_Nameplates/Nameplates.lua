@@ -92,6 +92,12 @@ local function SetSingleLine(fontString, text)
 end
 
 local function GetUnitColor(unit)
+    local tapDenied = UnitIsTapDenied and UnitIsTapDenied(unit)
+
+    if CanAccessValue(tapDenied) and tapDenied then
+        return 0.35, 0.35, 0.35
+    end
+
     local isPlayer = UnitIsPlayer(unit)
 
     if CanAccessValue(isPlayer) and isPlayer then
@@ -565,6 +571,7 @@ end
 function Module:Initialize()
     if SetCVar then
         SetCVar("nameplateShowEnemies", 1)
+        SetCVar("nameplateShowOnlyNameForFriendlyPlayerUnits", 0)
     end
 
     if CVarCallbackRegistry
