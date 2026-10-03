@@ -3,11 +3,11 @@ local UI = KamiUI
 local Module = UI:NewModule("Nameplates")
 
 Module.name = "KamiUI_Nameplates"
-Module.version = "0.1.0"
+Module.version = "0.2.0"
 
-local PLATE_WIDTH = 140
-local HEALTH_HEIGHT = 14
-local CAST_HEIGHT = 8
+local PLATE_WIDTH = 200
+local HEALTH_HEIGHT = 10
+local CAST_HEIGHT = 10
 local BORDER_SIZE = 1
 
 local AURA_SIZE = 20
@@ -72,6 +72,22 @@ local function CreateBorder(parent)
     return edges
 end
 
+local function SetSingleLine(fontString, text)
+    if not fontString then
+        return
+    end
+
+    if fontString.SetWordWrap then
+        fontString:SetWordWrap(false)
+    end
+
+    if fontString.SetMaxLines then
+        fontString:SetMaxLines(1)
+    end
+
+    fontString:SetText(text or "")
+end
+
 local function GetUnitColor(unit)
     local isPlayer = UnitIsPlayer(unit)
 
@@ -100,27 +116,29 @@ local function GetUnitColor(unit)
     return 0.20, 0.65, 0.20
 end
 
-local function SetSingleLine(fontString, text)
-    if not fontString then
-        return
-    end
-
-    if fontString.SetWordWrap then
-        fontString:SetWordWrap(false)
-    end
-
-    if fontString.SetMaxLines then
-        fontString:SetMaxLines(1)
-    end
-
-    fontString:SetText(text or "")
-end
-
 local function GetDisplayName(unit)
     local name = GetUnitName and GetUnitName(unit) or UnitName(unit)
 
     if not name or not CanAccessValue(name) then
         return ""
+    end
+
+    local level = UnitLevel(unit)
+    local classification = UnitClassification(unit)
+
+    local levelText = ""
+    local suffix = ""
+
+    if level and CanAccessValue(level) then
+        levelText = level > 0 and tostring(level) or "??"
+    end
+
+    if classification and CanAccessValue(classification) then
+        suffix = CLASSIFICATION_SUFFIX[classification] or ""
+    end
+
+    if levelText ~= "" then
+        return levelText .. suffix .. " " .. name
     end
 
     return name
@@ -132,28 +150,43 @@ local function GetNativeHealthBar(unitFrame)
         or unitFrame.healthbar
 end
 
-local function GetNativeName(unitFrame)
-    return unitFrame.name
-        or unitFrame.Name
-        or unitFrame.nameText
+local function GetNativeCastBar(unitFrame)
+    return unitFrame.SpellCastBar
+        or unitFrame.castBar
+        or unitFrame.CastBar
+        or (
+            unitFrame.CastBarsContainer
+            and unitFrame.CastBarsContainer.castBar
+        )
 end
 
-local function HideNativePlateArt(unitFrame)
+local function HideNativeVisuals(unitFrame)
     for _, key in ipairs({
+        "name",
+        "Name",
+        "nameText",
+        "LevelFrame",
+        "AurasFrame",
+        "ClassificationFrame",
+        "classificationIndicator",
         "Border",
         "border",
         "Highlight",
         "highlight",
         "SelectionHighlight",
+        "selectionHighlight",
         "aggroHighlight",
-        "classificationIndicator",
-        "ClassificationFrame",
-        "AurasFrame",
     }) do
         local object = unitFrame[key]
 
-        if object and object.Hide then
-            object:Hide()
+        if object then
+            if object.SetAlpha then
+                object:SetAlpha(0)
+            end
+
+            if object.Hide then
+                object:Hide()
+            end
         end
     end
 end
@@ -167,8 +200,8 @@ local function InitializeAuraButton(button)
     background:SetColorTexture(0, 0, 0, 1)
 
     local icon = button:CreateTexture(nil, "ARTWORK")
-    icon:SetPoint("TOPLEFT", button, "TOPLEFT", 1, -1)
-    icon:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", -1, 1)
+    icon:SetPoint("TOPLEFT", 1, -1)
+    icon:SetPoint("BOTTOMRIGHT", -1, 1)
     icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
 
     local overlay = CreateFrame("Frame", nil, button)
@@ -177,12 +210,12 @@ local function InitializeAuraButton(button)
     overlay:EnableMouse(false)
 
     local duration = overlay:CreateFontString(nil, "OVERLAY")
-    duration:SetPoint("BOTTOM", button, "BOTTOM", 0, 1)
+    duration:SetPoint("BOTTOM", 0, 1)
     duration:SetFont(fontPath, 7, "OUTLINE")
     duration:SetTextColor(1, 1, 1)
 
     local count = overlay:CreateFontString(nil, "OVERLAY")
-    count:SetPoint("TOPRIGHT", button, "TOPRIGHT", -1, -1)
+    count:SetPoint("TOPRIGHT", -1, -1)
     count:SetFont(fontPath, 8, "OUTLINE")
     count:SetTextColor(1, 1, 1)
 
@@ -194,11 +227,7 @@ local function InitializeAuraButton(button)
     button:SetMouseMotionEnabled(false)
 end
 
-local function EnsureAuras(data)
-    if data.auras then
-        return
-    end
-
+local function CreateAuraContainer(data)
     local width = MAX_AURAS * AURA_SIZE
         + (MAX_AURAS - 1) * AURA_SPACING
 
@@ -218,41 +247,27 @@ local function EnsureAuras(data)
     )
     container:SetFlowLayoutMaximumLineSize(width)
 
-    local layout = {
-        elementWidth = AURA_SIZE,
-        elementHeight = AURA_SIZE,
-        elementSpacing = AURA_SPACING,
-        lineSpacing = AURA_SPACING,
-        groupSpacing = AURA_SPACING,
-        groupLineSpacing = AURA_SPACING,
-        forceNewLine = false,
-        layoutIndex = 1,
-    }
+    local function AddGroup(key, filter, layoutIndex)
+        container:AddAuraGroup(key, filter, {
+            maxFrameCount = MAX_AURAS,
+            sortMethod = AuraContainerSortMethod.Expiration,
+            sortDirection = AuraContainerSortDirection.Reverse,
+            initializeFrame = InitializeAuraButton,
+            layout = {
+                elementWidth = AURA_SIZE,
+                elementHeight = AURA_SIZE,
+                elementSpacing = AURA_SPACING,
+                lineSpacing = AURA_SPACING,
+                groupSpacing = AURA_SPACING,
+                groupLineSpacing = AURA_SPACING,
+                forceNewLine = false,
+                layoutIndex = layoutIndex,
+            },
+        })
+    end
 
-    container:AddAuraGroup("helpful", "HELPFUL|PLAYER", {
-        maxFrameCount = MAX_AURAS,
-        sortMethod = AuraContainerSortMethod.Expiration,
-        sortDirection = AuraContainerSortDirection.Reverse,
-        initializeFrame = InitializeAuraButton,
-        layout = layout,
-    })
-
-    container:AddAuraGroup("harmful", "HARMFUL|PLAYER", {
-        maxFrameCount = MAX_AURAS,
-        sortMethod = AuraContainerSortMethod.Expiration,
-        sortDirection = AuraContainerSortDirection.Reverse,
-        initializeFrame = InitializeAuraButton,
-        layout = {
-            elementWidth = AURA_SIZE,
-            elementHeight = AURA_SIZE,
-            elementSpacing = AURA_SPACING,
-            lineSpacing = AURA_SPACING,
-            groupSpacing = AURA_SPACING,
-            groupLineSpacing = AURA_SPACING,
-            forceNewLine = false,
-            layoutIndex = 2,
-        },
-    })
+    AddGroup("helpful", "HELPFUL|PLAYER", 1)
+    AddGroup("harmful", "HARMFUL|PLAYER", 2)
 
     container:SetEnabled(true)
     container:SetPoint("BOTTOMLEFT", data.health, "TOPLEFT", 0, 2)
@@ -261,7 +276,9 @@ local function EnsureAuras(data)
 end
 
 local function UpdateAuras(data)
-    EnsureAuras(data)
+    if not data.auras then
+        CreateAuraContainer(data)
+    end
 
     if not data.unit then
         return
@@ -275,7 +292,103 @@ local function UpdateAuras(data)
     end
 end
 
-local function GetCastInfo(unit)
+local function StyleNativeHealthBar(data)
+    local health = data.nativeHealth
+
+    health:ClearAllPoints()
+    health:SetSize(PLATE_WIDTH, HEALTH_HEIGHT)
+    health:SetPoint("CENTER", data.plate, "CENTER", 0, 0)
+    health:SetStatusBarTexture(flatTexture)
+
+    if not data.healthBackground then
+        local background = health:CreateTexture(nil, "BACKGROUND")
+        background:SetAllPoints()
+        background:SetColorTexture(0.05, 0.05, 0.05, 0.90)
+        data.healthBackground = background
+        data.healthBorder = CreateBorder(health)
+    end
+
+    if health.Text then
+        health.Text:ClearAllPoints()
+        health.Text:SetPoint("RIGHT", health, "RIGHT", -3, 0)
+        health.Text:SetJustifyH("RIGHT")
+        health.Text:SetFont(fontPath, 8, fontFlags)
+        health.Text:SetTextColor(1, 1, 1)
+        health.Text:SetShadowColor(0, 0, 0, 1)
+        health.Text:SetShadowOffset(1, -1)
+        data.healthPercent = health.Text
+    end
+end
+
+local function StyleNativeCastBar(data)
+    local cast = data.nativeCast
+
+    if not cast then
+        return
+    end
+
+    cast:ClearAllPoints()
+    cast:SetSize(PLATE_WIDTH, CAST_HEIGHT)
+    cast:SetPoint("TOP", data.nativeHealth, "BOTTOM", 0, -1)
+    cast:SetStatusBarTexture(flatTexture)
+
+    if not data.castBackground then
+        local background = cast:CreateTexture(nil, "BACKGROUND")
+        background:SetAllPoints()
+        background:SetColorTexture(0.05, 0.05, 0.05, 0.90)
+        data.castBackground = background
+        data.castBorder = CreateBorder(cast)
+
+        local name = cast:CreateFontString(nil, "OVERLAY")
+        name:SetPoint("LEFT", 2, 0)
+        name:SetWidth(150)
+        name:SetJustifyH("LEFT")
+        name:SetFont(fontPath, 8, fontFlags)
+        name:SetTextColor(1, 1, 1)
+        name:SetShadowColor(0, 0, 0, 1)
+        name:SetShadowOffset(1, -1)
+        SetSingleLine(name, "")
+        data.castName = name
+
+        local timeText = cast:CreateFontString(nil, "OVERLAY")
+        timeText:SetPoint("RIGHT", -2, 0)
+        timeText:SetJustifyH("RIGHT")
+        timeText:SetFont(fontPath, 8, fontFlags)
+        timeText:SetTextColor(1, 1, 1)
+        timeText:SetShadowColor(0, 0, 0, 1)
+        timeText:SetShadowOffset(1, -1)
+        data.castTime = timeText
+    end
+
+    if cast.Text then
+        cast.Text:SetAlpha(0)
+    end
+
+    if cast.Icon then
+        cast.Icon:SetAlpha(0)
+    end
+
+    if cast.Border then
+        cast.Border:SetAlpha(0)
+    end
+end
+
+local function UpdateCastTexts(data)
+    local cast = data.nativeCast
+
+    if not cast or not cast:IsShown() then
+        if data.castName then
+            data.castName:SetText("")
+        end
+
+        if data.castTime then
+            data.castTime:SetText("")
+        end
+
+        return
+    end
+
+    local unit = data.unit
     local name, _, _, fourth, fifth, sixth = UnitCastingInfo(unit)
     local startTime = fourth
     local endTime = fifth
@@ -298,31 +411,22 @@ local function GetCastInfo(unit)
         end
     end
 
-    return name, startTime, endTime
-end
-
-local function UpdateCast(data)
-    local spellName, startTime, endTime = GetCastInfo(data.unit)
-
-    if not spellName or not startTime or not endTime
-        or not CanAccessValue(spellName)
-        or not CanAccessValue(startTime)
-        or not CanAccessValue(endTime)
-    then
-        data.castStart = nil
-        data.castEnd = nil
-        data.cast:Hide()
-        return
+    if name and CanAccessValue(name) then
+        SetSingleLine(data.castName, name)
+    else
+        data.castName:SetText("")
     end
 
-    data.castStart = startTime / 1000
-    data.castEnd = endTime / 1000
-
-    local duration = math.max(data.castEnd - data.castStart, 0.001)
-
-    data.cast:SetMinMaxValues(0, duration)
-    data.castName:SetText(spellName)
-    data.cast:Show()
+    if startTime
+        and endTime
+        and CanAccessValue(startTime)
+        and CanAccessValue(endTime)
+    then
+        local remaining = math.max(endTime / 1000 - GetTime(), 0)
+        data.castTime:SetFormattedText("%.1f", remaining)
+    else
+        data.castTime:SetText("")
+    end
 end
 
 local function UpdatePlate(data)
@@ -332,48 +436,28 @@ local function UpdatePlate(data)
         return
     end
 
-    -- Blizzard can re-show/reconfigure these when a recycled nameplate gets a
-    -- new unit or on mouseover. Keep our replacements authoritative.
-    HideNativePlateArt(data.root)
+    HideNativeVisuals(data.root)
+    StyleNativeHealthBar(data)
+    StyleNativeCastBar(data)
 
-    -- Never feed UnitHealth/UnitHealthMax back into Blizzard's native
-    -- TextStatusBar. On Forever those values can be secret, and touching the
-    -- native bar from addon code taints Blizzard_TextStatusBar's comparisons.
-    -- Blizzard already owns and updates the actual bar value; we only style it.
     local r, g, b = GetUnitColor(unit)
-    data.health:SetStatusBarColor(r, g, b)
-
-    if data.nativeName then
-        data.nativeName:Show()
-
-        if data.nativeName.SetAlpha then
-            data.nativeName:SetAlpha(0)
-        end
-    end
-
-    if data.healthPercent then
-        data.healthPercent:ClearAllPoints()
-        data.healthPercent:SetPoint("RIGHT", data.health, "RIGHT", -3, 0)
-        data.healthPercent:SetJustifyH("RIGHT")
-        data.healthPercent:SetFont(fontPath, 8, fontFlags)
-        data.healthPercent:SetTextColor(1, 1, 1)
-    end
+    data.nativeHealth:SetStatusBarColor(r, g, b)
 
     SetSingleLine(data.name, GetDisplayName(unit))
     UpdateAuras(data)
-    UpdateCast(data)
+    UpdateCastTexts(data)
 end
 
-local function StylePlate(namePlate, unit)
+local function CreatePlate(namePlate, unit)
     local unitFrame = namePlate and namePlate.UnitFrame
 
     if not unitFrame then
         return
     end
 
-    local health = GetNativeHealthBar(unitFrame)
+    local nativeHealth = GetNativeHealthBar(unitFrame)
 
-    if not health then
+    if not nativeHealth then
         return
     end
 
@@ -383,112 +467,53 @@ local function StylePlate(namePlate, unit)
         data = {
             plate = namePlate,
             root = unitFrame,
-            health = health,
+            nativeHealth = nativeHealth,
+            nativeCast = GetNativeCastBar(unitFrame),
         }
         styled[namePlate] = data
 
-        HideNativePlateArt(unitFrame)
+        data.health = data.nativeHealth
 
-        health:ClearAllPoints()
-        health:SetSize(PLATE_WIDTH, HEALTH_HEIGHT)
-        health:SetPoint("CENTER", namePlate, "CENTER", 0, 0)
-        health:SetStatusBarTexture(flatTexture)
-
-        local background = health:CreateTexture(nil, "BACKGROUND")
-        background:SetAllPoints()
-        background:SetColorTexture(0.05, 0.05, 0.05, 0.90)
-        data.background = background
-        data.border = CreateBorder(health)
-
-        local nativeName = GetNativeName(unitFrame)
-
-        if nativeName then
-            nativeName:Show()
-
-            if nativeName.SetAlpha then
-                nativeName:SetAlpha(0)
-            end
-
-            data.nativeName = nativeName
-        end
-
-        local healthPercent = health.Text
-
-        if healthPercent then
-            healthPercent:ClearAllPoints()
-            healthPercent:SetPoint("RIGHT", health, "RIGHT", -3, 0)
-            healthPercent:SetJustifyH("RIGHT")
-            healthPercent:SetFont(fontPath, 8, fontFlags)
-            healthPercent:SetTextColor(1, 1, 1)
-            healthPercent:SetShadowColor(0, 0, 0, 1)
-            healthPercent:SetShadowOffset(1, -1)
-            data.healthPercent = healthPercent
-        end
+        HideNativeVisuals(unitFrame)
+        StyleNativeHealthBar(data)
+        StyleNativeCastBar(data)
 
         local name = unitFrame:CreateFontString(nil, "OVERLAY")
-        name:SetPoint("LEFT", health, "LEFT", 3, 0)
+        name:SetPoint("LEFT", data.nativeHealth, "LEFT", 3, 0)
 
-        if healthPercent then
-            name:SetPoint("RIGHT", healthPercent, "LEFT", -3, 0)
+        if data.healthPercent then
+            name:SetPoint("RIGHT", data.healthPercent, "LEFT", -3, 0)
         else
-            name:SetPoint("RIGHT", health, "RIGHT", -3, 0)
+            name:SetPoint("RIGHT", data.nativeHealth, "RIGHT", -3, 0)
         end
 
         name:SetJustifyH("LEFT")
-        name:SetFont(fontPath, 10, fontFlags)
+        name:SetFont(fontPath, 8, fontFlags)
         name:SetTextColor(1, 1, 1)
         name:SetShadowColor(0, 0, 0, 1)
         name:SetShadowOffset(1, -1)
         SetSingleLine(name, "")
         data.name = name
 
-        local cast = CreateFrame("StatusBar", nil, unitFrame)
-        cast:SetSize(PLATE_WIDTH, CAST_HEIGHT)
-        cast:SetPoint("TOP", health, "BOTTOM", 0, -1)
-        cast:SetStatusBarTexture(flatTexture)
-        cast:SetStatusBarColor(0.65, 0.45, 0.10)
+        CreateAuraContainer(data)
 
-        local castBackground = cast:CreateTexture(nil, "BACKGROUND")
-        castBackground:SetAllPoints()
-        castBackground:SetColorTexture(0.05, 0.05, 0.05, 0.90)
-
-        CreateBorder(cast)
-
-        local castName = cast:CreateFontString(nil, "OVERLAY")
-        castName:SetFont(fontPath, 7, "OUTLINE")
-        castName:SetPoint("LEFT", 2, 0)
-        castName:SetPoint("RIGHT", -2, 0)
-        castName:SetJustifyH("LEFT")
-        castName:SetTextColor(1, 1, 1)
-
-        data.cast = cast
-        data.castName = castName
-        cast:Hide()
-
-        EnsureAuras(data)
-
-        cast:SetScript("OnUpdate", function()
-            if not data.castStart or not data.castEnd then
-                return
-            end
-
-            local now = GetTime()
-            local elapsed = math.max(now - data.castStart, 0)
-            local duration = math.max(data.castEnd - data.castStart, 0.001)
-
-            if elapsed >= duration then
-                UpdateCast(data)
-                return
-            end
-
-            data.cast:SetValue(elapsed)
+        local updater = CreateFrame("Frame", nil, unitFrame)
+        updater:Hide()
+        updater:SetScript("OnUpdate", function()
+            UpdateCastTexts(data)
         end)
+        data.castUpdater = updater
     end
 
     data.unit = unit
+    data.nativeCast = GetNativeCastBar(unitFrame) or data.nativeCast
 
     if data.auras then
         data.auras:Show()
+    end
+
+    if data.castUpdater then
+        data.castUpdater:Show()
     end
 
     UpdatePlate(data)
@@ -510,7 +535,7 @@ local function RefreshUnit(unit)
     local plate = C_NamePlate.GetNamePlateForUnit(unit)
 
     if plate then
-        StylePlate(plate, unit)
+        CreatePlate(plate, unit)
     end
 end
 
@@ -553,13 +578,22 @@ function Module:Initialize()
 
         if data then
             data.unit = nil
-            data.castStart = nil
-            data.castEnd = nil
-            data.cast:Hide()
 
             if data.auras then
                 data.auras:Hide()
                 data.auraUnit = nil
+            end
+
+            if data.castUpdater then
+                data.castUpdater:Hide()
+            end
+
+            if data.castName then
+                data.castName:SetText("")
+            end
+
+            if data.castTime then
+                data.castTime:SetText("")
             end
         end
     end)
@@ -584,25 +618,29 @@ function Module:Initialize()
     end
 
     UI:RegisterEvent("PLAYER_TARGET_CHANGED", function()
-        if C_NamePlate and C_NamePlate.GetNamePlates then
-            for _, plate in ipairs(C_NamePlate.GetNamePlates() or {}) do
-                local data = styled[plate]
+        if not C_NamePlate or not C_NamePlate.GetNamePlates then
+            return
+        end
 
-                if data and data.unit then
-                    UpdatePlate(data)
-                end
+        for _, plate in ipairs(C_NamePlate.GetNamePlates() or {}) do
+            local data = styled[plate]
+
+            if data and data.unit then
+                UpdatePlate(data)
             end
         end
     end)
 
     C_Timer.After(0, function()
-        if C_NamePlate and C_NamePlate.GetNamePlates then
-            for _, plate in ipairs(C_NamePlate.GetNamePlates() or {}) do
-                local unit = plate.namePlateUnitToken
+        if not C_NamePlate or not C_NamePlate.GetNamePlates then
+            return
+        end
 
-                if unit then
-                    StylePlate(plate, unit)
-                end
+        for _, plate in ipairs(C_NamePlate.GetNamePlates() or {}) do
+            local unit = plate.namePlateUnitToken
+
+            if unit then
+                CreatePlate(plate, unit)
             end
         end
     end)
