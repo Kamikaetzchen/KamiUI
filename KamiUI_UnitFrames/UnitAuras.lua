@@ -228,6 +228,15 @@ local function CreateAuraContainer(
     return container
 end
 
+local function RebindContainer(container)
+    -- Dynamic unit tokens such as targettarget/targettargettarget can keep the
+    -- previous resolved unit cached inside AuraContainer. Re-assigning the
+    -- same token forces Blizzard's container to resolve the chain again.
+    if container.SetUnit and container.unit then
+        container:SetUnit(container.unit)
+    end
+end
+
 local function BounceContainer(container)
     if InCombatLockdown and InCombatLockdown() then
         pendingBounce[container] = true
@@ -236,6 +245,7 @@ local function BounceContainer(container)
     end
 
     pendingBounce[container] = nil
+    RebindContainer(container)
     container:Hide()
     container:Show()
     container:UpdateAllAuras()
@@ -394,6 +404,7 @@ end)
 UI:RegisterEvent("PLAYER_REGEN_ENABLED", function()
     for container in pairs(pendingBounce) do
         pendingBounce[container] = nil
+        RebindContainer(container)
         container:Hide()
         container:Show()
         container:UpdateAllAuras()
