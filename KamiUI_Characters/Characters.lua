@@ -14,7 +14,7 @@ local SLOT_SIZE = 36
 local SLOT_GAP = 3
 
 local colors = {
-    background = { 0.00, 0.00, 0.00, 0.30 },
+    background = { 0.00, 0.00, 0.00, 0.40 },
     panel = { 0.00, 0.00, 0.00, 0.40 },
     slot = { 0.00, 0.00, 0.00, 0.55 },
     border = { 0.16, 0.16, 0.18, 1.00 },
