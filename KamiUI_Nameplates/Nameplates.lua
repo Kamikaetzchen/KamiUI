@@ -42,6 +42,10 @@ local function CanAccessValue(value)
     return true
 end
 
+local function ToHexChannel(value)
+    return math.floor(math.max(0, math.min(1, value)) * 255 + 0.5)
+end
+
 local function SetBorderColor(border, r, g, b, a)
     if not border then
         return
@@ -108,9 +112,23 @@ local function GetDisplayName(unit)
 
     local levelText = ""
     local suffix = ""
+    local levelColor = "|cffff1919"
 
     if level and CanAccessValue(level) then
         levelText = level > 0 and tostring(level) or "??"
+
+        if level > 0 and GetQuestDifficultyColor then
+            local color = GetQuestDifficultyColor(level)
+
+            if color then
+                levelColor = string.format(
+                    "|cff%02x%02x%02x",
+                    ToHexChannel(color.r),
+                    ToHexChannel(color.g),
+                    ToHexChannel(color.b)
+                )
+            end
+        end
     end
 
     if classification and CanAccessValue(classification) then
@@ -118,7 +136,7 @@ local function GetDisplayName(unit)
     end
 
     if levelText ~= "" then
-        return levelText .. suffix .. " " .. name
+        return levelColor .. levelText .. suffix .. "|r " .. name
     end
 
     return name
