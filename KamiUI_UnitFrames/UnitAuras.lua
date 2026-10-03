@@ -233,7 +233,9 @@ local function RebindContainer(container)
     -- such as targettargettarget can therefore keep the previous resolved
     -- unit. Clear the cached token first so SetUnit() actually re-registers.
     if container.SetUnit and container.unit then
-        container.unitToken = nil
+        -- SetUnit() only refreshes when the token string changes. Bounce
+        -- through an inert token so dynamic chains are resolved again.
+        container:SetUnit("none")
         container:SetUnit(container.unit)
     end
 end
