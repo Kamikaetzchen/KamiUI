@@ -286,8 +286,23 @@ local function UpdateAll()
 end
 
 local function OnPlayerEvent(event, unit)
-    if event == "PLAYER_ENTERING_WORLD" or unit == "player" then
+    if event == "PLAYER_ENTERING_WORLD" then
         UpdateAll()
+    elseif unit == "player" then
+        if event == "UNIT_HEALTH" or event == "UNIT_MAXHEALTH" then
+            UpdateHealth()
+        elseif event == "UNIT_POWER_UPDATE"
+            or event == "UNIT_POWER_FREQUENT"
+            or event == "UNIT_MAXPOWER"
+            or event == "UNIT_DISPLAYPOWER"
+        then
+            UpdatePower()
+        elseif event == "UNIT_NAME_UPDATE"
+            or event == "UNIT_PORTRAIT_UPDATE"
+            or event == "UNIT_MODEL_CHANGED"
+        then
+            UpdateIdentity()
+        end
     end
 end
 
