@@ -10,6 +10,8 @@ local BLIZZARD_FRAMES = {
     "CastingBarFrame",
     "PlayerCastingBarFrame",
     "TargetFrameSpellBar",
+    "PartyFrame",
+    "CompactPartyFrame",
 }
 
 local function DisableBlizzardFrame(frameName)
