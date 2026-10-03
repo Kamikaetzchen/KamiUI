@@ -7,6 +7,7 @@ UF.version = "0.1.0"
 
 UF.flatTexture = "Interface\\Buttons\\WHITE8X8"
 UF.colorMultiplier = 0.60
+UF.powerColorMultiplier = 0.70
 
 local FALLBACK_CLASS_COLORS = {
     DEATHKNIGHT = { 0.77, 0.12, 0.23 },
@@ -93,12 +94,18 @@ function UF:GetPowerColor(unit)
     local _, powerToken = UnitPowerType(unit)
     local color = PowerBarColor and PowerBarColor[powerToken]
 
-    if color then
-        return self:DarkenColor(color.r, color.g, color.b)
+    if not color then
+        color = FALLBACK_POWER_COLORS[powerToken]
+            or { 0.00, 0.45, 1.00 }
     end
 
-    color = FALLBACK_POWER_COLORS[powerToken] or { 0.00, 0.45, 1.00 }
-    return self:DarkenColor(color[1], color[2], color[3])
+    local r = color.r or color[1]
+    local g = color.g or color[2]
+    local b = color.b or color[3]
+
+    return r * self.powerColorMultiplier,
+        g * self.powerColorMultiplier,
+        b * self.powerColorMultiplier
 end
 
 function UF:DarkenColor(r, g, b)
