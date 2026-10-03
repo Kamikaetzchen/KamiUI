@@ -426,7 +426,7 @@ function Module:Refresh()
         UpdateEquipmentSlot(button)
     end
 
-    if self.frame.sidebar and self.frame.sidebar:IsShown() then
+    if self.frame.sidebar then
         SetSidebarMode(
             self.frame,
             self.frame.sidebar.mode or "stats"
@@ -703,10 +703,7 @@ local function SetSidebarMode(frame, mode)
 end
 
 local function LayoutOuterTabs(frame)
-    local offset = frame.sidebar
-        and frame.sidebar:IsShown()
-        and (SIDEBAR_WIDTH + 4)
-        or 0
+    local offset = SIDEBAR_WIDTH + 4
 
     for index, tab in ipairs(frame.tabs or {}) do
         tab:ClearAllPoints()
@@ -731,7 +728,6 @@ local function CreateSidebar(frame)
     })
     sidebar:SetBackdropColor(0, 0, 0, 0.78)
     sidebar:SetBackdropBorderColor(unpack(colors.border))
-    sidebar:Hide()
     frame.sidebar = sidebar
 
     local statsTab = CreateFrame("Button", nil, sidebar)
@@ -844,30 +840,6 @@ local function CreateSidebar(frame)
         end
     end)
     equipmentPane.save = save
-
-    local toggle = CreateFrame("Button", nil, frame, "BackdropTemplate")
-    toggle:SetSize(18, 42)
-    toggle:SetPoint("LEFT", frame, "RIGHT", 0, 70)
-    toggle:SetBackdrop({
-        bgFile = "Interface\\Buttons\\WHITE8X8",
-        edgeFile = "Interface\\Buttons\\WHITE8X8",
-        edgeSize = 1,
-    })
-    toggle:SetBackdropColor(0, 0, 0, 0.78)
-    toggle:SetBackdropBorderColor(unpack(colors.border))
-    toggle:SetNormalFontObject("GameFontNormalSmall")
-    toggle:SetHighlightFontObject("GameFontHighlightSmall")
-    toggle:SetText(">")
-    toggle:SetScript("OnClick", function(self)
-        sidebar:SetShown(not sidebar:IsShown())
-        self:SetText(sidebar:IsShown() and "<" or ">")
-        LayoutOuterTabs(frame)
-
-        if sidebar:IsShown() then
-            SetSidebarMode(frame, sidebar.mode or "stats")
-        end
-    end)
-    frame.sidebarToggle = toggle
 
     SetSidebarMode(frame, "stats")
 end
