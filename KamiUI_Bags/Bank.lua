@@ -423,8 +423,8 @@ local function StyleItemButton(button)
     button.KamiBorders = { top, bottom, left, right }
 
     local rarityGlow = button:CreateTexture(nil, "OVERLAY", nil, 1)
-    rarityGlow:SetPoint("TOPLEFT", button, "TOPLEFT", -2, 2)
-    rarityGlow:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", 2, -2)
+    rarityGlow:SetPoint("CENTER", button, "CENTER", 0, 0)
+    rarityGlow:SetSize(62, 62)
     rarityGlow:SetTexture("Interface\\Buttons\\UI-ActionButton-Border")
     rarityGlow:SetBlendMode("ADD")
     rarityGlow:SetAlpha(0.45)
