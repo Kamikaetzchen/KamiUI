@@ -332,6 +332,16 @@ local function StyleNativeHealthBar(data)
         data.healthBorder = CreateBorder(health)
     end
 
+    if health.selectedBorder then
+        health.selectedBorder:SetAlpha(0)
+        health.selectedBorder:Hide()
+    end
+
+    if health.deselectedOverlay then
+        health.deselectedOverlay:SetAlpha(0)
+        health.deselectedOverlay:Hide()
+    end
+
     if health.Text then
         health.Text:ClearAllPoints()
         health.Text:SetPoint("RIGHT", health, "RIGHT", -3, 0)
@@ -364,7 +374,13 @@ local function StyleNativeCastBar(data)
         data.castBackground = background
         data.castBorder = CreateBorder(cast)
 
-        local name = cast:CreateFontString(nil, "OVERLAY")
+        local overlay = CreateFrame("Frame", nil, cast)
+        overlay:SetAllPoints()
+        overlay:SetFrameLevel(cast:GetFrameLevel() + 5)
+        overlay:EnableMouse(false)
+        data.castOverlay = overlay
+
+        local name = overlay:CreateFontString(nil, "OVERLAY")
         name:SetPoint("LEFT", 2, 0)
         name:SetWidth(150)
         name:SetJustifyH("LEFT")
@@ -375,7 +391,7 @@ local function StyleNativeCastBar(data)
         SetSingleLine(name, "")
         data.castName = name
 
-        local timeText = cast:CreateFontString(nil, "OVERLAY")
+        local timeText = overlay:CreateFontString(nil, "OVERLAY")
         timeText:SetPoint("RIGHT", -2, 0)
         timeText:SetJustifyH("RIGHT")
         timeText:SetFont(fontPath, 8, fontFlags)
@@ -464,6 +480,16 @@ local function UpdatePlate(data)
     HideNativeVisuals(data.root)
     StyleNativeHealthBar(data)
     StyleNativeCastBar(data)
+
+    if data.nativeHealth.selectedBorder then
+        data.nativeHealth.selectedBorder:SetAlpha(0)
+        data.nativeHealth.selectedBorder:Hide()
+    end
+
+    if data.nativeHealth.deselectedOverlay then
+        data.nativeHealth.deselectedOverlay:SetAlpha(0)
+        data.nativeHealth.deselectedOverlay:Hide()
+    end
 
     if data.nativeCast then
         data.nativeCast:SetStatusBarColor(0.55, 0.35, 0.08)
