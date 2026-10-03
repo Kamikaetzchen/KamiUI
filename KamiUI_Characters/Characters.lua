@@ -1434,8 +1434,558 @@ local function CreateReputationPane(frame)
     SetReputationOptionState(pane.watchedOption, false, false)
 end
 
+
+local function GetSkillLineData(index)
+    if C_SkillInfo and C_SkillInfo.GetSkillLineInfo then
+        local data = SafeCall(C_SkillInfo.GetSkillLineInfo, index)
+
+        if type(data) == "table" then
+            return data
+        end
+    end
+
+    if not GetSkillLineInfo then
+        return nil
+    end
+
+    local ok,
+        name,
+        isHeader,
+        isExpanded,
+        rank,
+        tempPoints,
+        modifier,
+        maxRank,
+        isAbandonable,
+        stepCost,
+        rankCost,
+        minLevel,
+        costType,
+        description =
+        pcall(GetSkillLineInfo, index)
+
+    if not ok or not name then
+        return nil
+    end
+
+    return {
+        name = name,
+        isHeader = isHeader and true or false,
+        isCollapsed = isHeader and not isExpanded or false,
+        rank = rank,
+        tempPoints = tempPoints,
+        modifier = modifier,
+        maxRank = maxRank,
+        isAbandonable = isAbandonable and true or false,
+        stepCost = stepCost,
+        rankCost = rankCost,
+        minLevel = minLevel,
+        costType = costType,
+        description = description,
+    }
+end
+
+local function GetNumSkillLinesValue()
+    if C_SkillInfo and C_SkillInfo.GetNumSkillLines then
+        return tonumber(
+            SafeCall(C_SkillInfo.GetNumSkillLines)
+        ) or 0
+    end
+
+    if GetNumSkillLines then
+        return tonumber(SafeCall(GetNumSkillLines)) or 0
+    end
+
+    return 0
+end
+
+local function SetSelectedSkillValue(index)
+    if C_SkillInfo and C_SkillInfo.SetSelectedSkill then
+        SafeCall(C_SkillInfo.SetSelectedSkill, index)
+    elseif SetSelectedSkill then
+        SafeCall(SetSelectedSkill, index)
+    end
+end
+
+local function ExpandSkillHeaderValue(index)
+    if C_SkillInfo and C_SkillInfo.ExpandSkillHeader then
+        SafeCall(C_SkillInfo.ExpandSkillHeader, index)
+    elseif ExpandSkillHeader then
+        SafeCall(ExpandSkillHeader, index)
+    end
+end
+
+local function CollapseSkillHeaderValue(index)
+    if C_SkillInfo and C_SkillInfo.CollapseSkillHeader then
+        SafeCall(C_SkillInfo.CollapseSkillHeader, index)
+    elseif CollapseSkillHeader then
+        SafeCall(CollapseSkillHeader, index)
+    end
+end
+
+local function FormatSkillProgress(data)
+    if not data then
+        return ""
+    end
+
+    local rank = tonumber(data.rank) or 0
+    local maximum = math.max(0, tonumber(data.maxRank) or 0)
+    local bonus =
+        (tonumber(data.tempPoints) or 0)
+        + (tonumber(data.modifier) or 0)
+
+    if bonus > 0 then
+        return string.format(
+            "%d |cff00ff00(+%d)|r / %d",
+            rank,
+            bonus,
+            maximum
+        )
+    elseif bonus < 0 then
+        return string.format(
+            "%d |cffff4040(%d)|r / %d",
+            rank,
+            bonus,
+            maximum
+        )
+    end
+
+    return string.format("%d / %d", rank, maximum)
+end
+
+local function UpdateSkillsDetails(frame, index)
+    local pane = frame.skillsPane
+
+    if not pane then
+        return
+    end
+
+    local data = index and GetSkillLineData(index)
+
+    if not data or data.isHeader then
+        pane.selectedIndex = nil
+        pane.detailName:SetText("Select a skill")
+        pane.detailDescription:SetText("")
+        pane.detailBar:SetMinMaxValues(0, 1)
+        pane.detailBar:SetValue(0)
+        pane.detailValue:SetText("")
+        return
+    end
+
+    pane.selectedIndex = index
+    pane.selectedSkillID = data.skillID
+
+    local rank = math.max(0, tonumber(data.rank) or 0)
+    local maximum = math.max(1, tonumber(data.maxRank) or 1)
+
+    pane.detailName:SetText(data.name or "Skill")
+    pane.detailDescription:SetText(data.description or "")
+    pane.detailBar:SetMinMaxValues(0, maximum)
+    pane.detailBar:SetValue(math.min(maximum, rank))
+    pane.detailBar:SetStatusBarColor(0.07, 0.37, 0.72, 0.90)
+    pane.detailValue:SetText(FormatSkillProgress(data))
+end
+
+local function UpdateSkillsPane(frame)
+    local pane = frame.skillsPane
+
+    if not pane then
+        return
+    end
+
+    local numSkills = GetNumSkillLinesValue()
+    local y = -4
+    local selectedIndex
+
+    for index = 1, math.max(numSkills, #pane.rows) do
+        local row = pane.rows[index]
+
+        if not row and index <= numSkills then
+            row = CreateFrame("Button", nil, pane.listContent)
+
+            local background = row:CreateTexture(nil, "BACKGROUND")
+            background:SetAllPoints()
+            background:SetColorTexture(0, 0, 0, 0)
+            row.background = background
+
+            local name = row:CreateFontString(nil, "OVERLAY")
+            name:SetJustifyH("LEFT")
+            name:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+            row.name = name
+
+            local bar = CreateFrame("StatusBar", nil, row)
+            bar:SetStatusBarTexture("Interface\\Buttons\\WHITE8X8")
+            bar:SetMinMaxValues(0, 1)
+            bar:SetValue(0)
+            row.bar = bar
+
+            local barBackground = bar:CreateTexture(nil, "BACKGROUND")
+            barBackground:SetAllPoints()
+            barBackground:SetColorTexture(0, 0, 0, 0.50)
+
+            local value = bar:CreateFontString(nil, "OVERLAY")
+            value:SetPoint("CENTER", 0, 0)
+            value:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+            value:SetTextColor(0.94, 0.94, 0.96)
+            row.value = value
+
+            local selected = row:CreateTexture(nil, "BORDER")
+            selected:SetAllPoints()
+            selected:SetColorTexture(1, 1, 1, 0.09)
+            selected:Hide()
+            row.selected = selected
+
+            local highlight = row:CreateTexture(nil, "HIGHLIGHT")
+            highlight:SetAllPoints()
+            highlight:SetColorTexture(1, 1, 1, 0.06)
+
+            pane.rows[index] = row
+        end
+
+        if row then
+            local data = index <= numSkills
+                and GetSkillLineData(index)
+
+            if data then
+                row.index = index
+                row.skillID = data.skillID
+                row:ClearAllPoints()
+                row:SetPoint("TOPLEFT", pane.listContent, "TOPLEFT", 4, y)
+                row:SetPoint("TOPRIGHT", pane.listContent, "TOPRIGHT", -4, y)
+
+                if data.isHeader then
+                    row:SetHeight(22)
+                    row.background:SetColorTexture(1, 1, 1, 0.055)
+                    row.name:ClearAllPoints()
+                    row.name:SetPoint("LEFT", 6, 0)
+                    row.name:SetPoint("RIGHT", -6, 0)
+                    row.name:SetTextColor(0.88, 0.72, 0.16)
+                    row.name:SetText(
+                        string.format(
+                            "%s %s",
+                            data.isCollapsed and "+" or "-",
+                            data.name or "Group"
+                        )
+                    )
+                    row.bar:Hide()
+                    row.selected:Hide()
+                    row:SetScript("OnClick", function(self)
+                        local headerData =
+                            GetSkillLineData(self.index)
+
+                        if not headerData then
+                            return
+                        end
+
+                        if headerData.isCollapsed then
+                            ExpandSkillHeaderValue(self.index)
+                        else
+                            CollapseSkillHeaderValue(self.index)
+                        end
+
+                        UpdateSkillsPane(frame)
+                    end)
+
+                    y = y - 24
+                else
+                    local rank = math.max(
+                        0,
+                        tonumber(data.rank) or 0
+                    )
+                    local maximum = math.max(
+                        1,
+                        tonumber(data.maxRank) or 1
+                    )
+
+                    row:SetHeight(30)
+                    row.background:SetColorTexture(0, 0, 0, 0)
+                    row.name:ClearAllPoints()
+                    row.name:SetPoint("TOPLEFT", 8, -3)
+                    row.name:SetPoint("TOPRIGHT", -8, -3)
+                    row.name:SetTextColor(0.92, 0.92, 0.94)
+                    row.name:SetText(data.name or "Skill")
+
+                    row.bar:ClearAllPoints()
+                    row.bar:SetPoint("BOTTOMLEFT", 8, 3)
+                    row.bar:SetPoint("BOTTOMRIGHT", -8, 3)
+                    row.bar:SetHeight(10)
+                    row.bar:SetMinMaxValues(0, maximum)
+                    row.bar:SetValue(math.min(maximum, rank))
+                    row.bar:SetStatusBarColor(
+                        0.07,
+                        0.37,
+                        0.72,
+                        0.86
+                    )
+                    row.bar:Show()
+                    row.value:SetText(FormatSkillProgress(data))
+
+                    local isSelected =
+                        pane.selectedSkillID ~= nil
+                        and data.skillID ~= nil
+                        and pane.selectedSkillID == data.skillID
+
+                    if not pane.selectedSkillID then
+                        isSelected =
+                            pane.selectedIndex == index
+                    end
+
+                    row.selected:SetShown(isSelected)
+
+                    if isSelected then
+                        selectedIndex = index
+                    end
+
+                    row:SetScript("OnClick", function(self)
+                        pane.selectedIndex = self.index
+                        pane.selectedSkillID = self.skillID
+                        SetSelectedSkillValue(self.index)
+                        UpdateSkillsPane(frame)
+                    end)
+
+                    y = y - 32
+                end
+
+                row:Show()
+            else
+                row:Hide()
+            end
+        end
+    end
+
+    pane.listContent:SetHeight(math.max(1, -y + 4))
+    pane.UpdateScrollRange()
+
+    if not selectedIndex then
+        local selectedFromAPI
+
+        if C_SkillInfo and C_SkillInfo.GetSelectedSkill then
+            selectedFromAPI = tonumber(
+                SafeCall(C_SkillInfo.GetSelectedSkill)
+            )
+        elseif GetSelectedSkill then
+            selectedFromAPI = tonumber(
+                SafeCall(GetSelectedSkill)
+            )
+        end
+
+        if selectedFromAPI
+            and selectedFromAPI > 0
+            and selectedFromAPI <= numSkills
+        then
+            local data = GetSkillLineData(selectedFromAPI)
+
+            if data and not data.isHeader then
+                pane.selectedIndex = selectedFromAPI
+                pane.selectedSkillID = data.skillID
+                selectedIndex = selectedFromAPI
+            end
+        end
+    end
+
+    if not selectedIndex then
+        for index = 1, numSkills do
+            local data = GetSkillLineData(index)
+
+            if data and not data.isHeader then
+                pane.selectedIndex = index
+                pane.selectedSkillID = data.skillID
+                selectedIndex = index
+                break
+            end
+        end
+    end
+
+    UpdateSkillsDetails(frame, selectedIndex)
+end
+
+local function CreateSkillsPane(frame)
+    local pane = CreateFrame("Frame", nil, frame)
+    pane:SetPoint("TOPLEFT", frame, "TOPLEFT", 1, -HEADER_HEIGHT)
+    pane:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -1, 1)
+    pane:Hide()
+    pane.rows = {}
+    pane.elapsed = 0
+    frame.skillsPane = pane
+
+    local listPanel = CreateFrame("Frame", nil, pane, "BackdropTemplate")
+    listPanel:SetPoint("TOPLEFT", 0, 0)
+    listPanel:SetPoint("BOTTOMLEFT", 0, 0)
+    listPanel:SetWidth(310)
+    listPanel:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8X8",
+        edgeFile = "Interface\\Buttons\\WHITE8X8",
+        edgeSize = 1,
+    })
+    listPanel:SetBackdropColor(0, 0, 0, 0.24)
+    listPanel:SetBackdropBorderColor(unpack(colors.border))
+
+    local list = CreateFrame("ScrollFrame", nil, listPanel)
+    list:SetPoint("TOPLEFT", 1, -1)
+    list:SetPoint("BOTTOMRIGHT", -1, 1)
+    list:EnableMouseWheel(true)
+    pane.list = list
+
+    local content = CreateFrame("Frame", nil, list)
+    content:SetWidth(296)
+    content:SetHeight(1)
+    list:SetScrollChild(content)
+    pane.listContent = content
+
+    local scrollbar = CreateFrame("Slider", nil, listPanel)
+    scrollbar:SetOrientation("VERTICAL")
+    scrollbar:SetPoint("TOPRIGHT", listPanel, "TOPRIGHT", -3, -4)
+    scrollbar:SetPoint("BOTTOMRIGHT", listPanel, "BOTTOMRIGHT", -3, 4)
+    scrollbar:SetWidth(6)
+    scrollbar:SetMinMaxValues(0, 0)
+    scrollbar:SetValueStep(20)
+    scrollbar:SetThumbTexture("Interface\\Buttons\\WHITE8X8")
+    local thumb = scrollbar:GetThumbTexture()
+
+    if thumb then
+        thumb:SetWidth(6)
+        thumb:SetColorTexture(0.45, 0.45, 0.48, 0.65)
+    end
+
+    scrollbar:SetScript("OnValueChanged", function(_, value)
+        list:SetVerticalScroll(value or 0)
+    end)
+    scrollbar:Hide()
+    pane.scrollbar = scrollbar
+
+    pane.UpdateScrollRange = function()
+        local viewportHeight = list:GetHeight() or 0
+        local contentHeight = content:GetHeight() or 0
+        local maxScroll = math.max(
+            0,
+            contentHeight - viewportHeight
+        )
+
+        scrollbar:SetMinMaxValues(0, maxScroll)
+
+        if maxScroll > 0 then
+            local current = math.min(
+                scrollbar:GetValue() or 0,
+                maxScroll
+            )
+            scrollbar:SetValue(current)
+            list:SetVerticalScroll(current)
+
+            if thumb then
+                local trackHeight = math.max(
+                    1,
+                    scrollbar:GetHeight() or 1
+                )
+                local thumbHeight = math.max(
+                    20,
+                    trackHeight
+                        * viewportHeight
+                        / math.max(contentHeight, 1)
+                )
+                thumb:SetHeight(
+                    math.min(trackHeight, thumbHeight)
+                )
+            end
+
+            scrollbar:Show()
+        else
+            scrollbar:SetValue(0)
+            list:SetVerticalScroll(0)
+            scrollbar:Hide()
+        end
+    end
+
+    list:SetScript("OnMouseWheel", function(_, delta)
+        local _, maxScroll = scrollbar:GetMinMaxValues()
+
+        if not maxScroll or maxScroll <= 0 then
+            return
+        end
+
+        scrollbar:SetValue(
+            math.max(
+                0,
+                math.min(
+                    maxScroll,
+                    (scrollbar:GetValue() or 0) - delta * 32
+                )
+            )
+        )
+    end)
+
+    list:SetScript("OnSizeChanged", function()
+        pane.UpdateScrollRange()
+    end)
+
+    local detail = CreateFrame("Frame", nil, pane, "BackdropTemplate")
+    detail:SetPoint("TOPLEFT", listPanel, "TOPRIGHT", 0, 0)
+    detail:SetPoint("BOTTOMRIGHT", pane, "BOTTOMRIGHT", 0, 0)
+    detail:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8X8",
+        edgeFile = "Interface\\Buttons\\WHITE8X8",
+        edgeSize = 1,
+    })
+    detail:SetBackdropColor(0, 0, 0, 0.30)
+    detail:SetBackdropBorderColor(unpack(colors.border))
+    pane.detail = detail
+
+    local name = detail:CreateFontString(nil, "OVERLAY")
+    name:SetPoint("TOPLEFT", 10, -14)
+    name:SetPoint("TOPRIGHT", -10, -14)
+    name:SetJustifyH("CENTER")
+    name:SetFont("Fonts\\FRIZQT__.TTF", 12, "OUTLINE")
+    name:SetTextColor(0.94, 0.94, 0.96)
+    pane.detailName = name
+
+    local bar = CreateFrame("StatusBar", nil, detail)
+    bar:SetPoint("TOPLEFT", 14, -58)
+    bar:SetPoint("TOPRIGHT", -14, -58)
+    bar:SetHeight(15)
+    bar:SetStatusBarTexture("Interface\\Buttons\\WHITE8X8")
+    bar:SetMinMaxValues(0, 1)
+    bar:SetValue(0)
+    CreateBorder(bar, colors.border)
+    pane.detailBar = bar
+
+    local barBackground = bar:CreateTexture(nil, "BACKGROUND")
+    barBackground:SetAllPoints()
+    barBackground:SetColorTexture(0, 0, 0, 0.60)
+
+    local value = bar:CreateFontString(nil, "OVERLAY")
+    value:SetPoint("CENTER", 0, 0)
+    value:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+    value:SetTextColor(0.95, 0.95, 0.97)
+    pane.detailValue = value
+
+    local description = detail:CreateFontString(nil, "OVERLAY")
+    description:SetPoint("TOPLEFT", 12, -86)
+    description:SetPoint("TOPRIGHT", -12, -86)
+    description:SetJustifyH("LEFT")
+    description:SetJustifyV("TOP")
+    description:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+    description:SetTextColor(0.86, 0.86, 0.88)
+    description:SetWordWrap(true)
+    pane.detailDescription = description
+
+    pane:SetScript("OnShow", function()
+        pane.elapsed = 0
+        UpdateSkillsPane(frame)
+    end)
+
+    pane:SetScript("OnUpdate", function(_, elapsed)
+        pane.elapsed = (pane.elapsed or 0) + elapsed
+
+        if pane.elapsed < 0.5 then
+            return
+        end
+
+        pane.elapsed = 0
+        UpdateSkillsPane(frame)
+    end)
+end
+
 SetOuterPage = function(frame, page)
-    if page ~= "reputation" then
+    if page ~= "reputation" and page ~= "skills" then
         page = "character"
     end
 
@@ -1453,18 +2003,29 @@ SetOuterPage = function(frame, page)
         frame.reputationPane:SetShown(page == "reputation")
     end
 
+    if frame.skillsPane then
+        frame.skillsPane:SetShown(page == "skills")
+    end
+
     if page == "character" then
         UpdatePlayerInfo(frame)
         frame.details:Show()
         frame.titleButton:Show()
         frame.titleArrow:Show()
-    else
+    elseif page == "reputation" then
         frame.name:SetText("Reputation")
         frame.name:SetTextColor(0.88, 0.72, 0.16)
         frame.details:Hide()
         frame.titleButton:Hide()
         frame.titleArrow:Hide()
         UpdateReputationPane(frame)
+    else
+        frame.name:SetText("Skills")
+        frame.name:SetTextColor(0.88, 0.72, 0.16)
+        frame.details:Hide()
+        frame.titleButton:Hide()
+        frame.titleArrow:Hide()
+        UpdateSkillsPane(frame)
     end
 
     for _, tab in ipairs(frame.tabs or {}) do
@@ -2048,7 +2609,7 @@ local function CreateFrameUI()
     local tabs = {
         { label = "Character", page = "character", enabled = true },
         { label = "Reputation", page = "reputation", enabled = true },
-        { label = "Skills", page = "skills", enabled = false },
+        { label = "Skills", page = "skills", enabled = true },
     }
 
     frame.tabs = {}
@@ -2096,6 +2657,7 @@ local function CreateFrameUI()
 
     CreateSidebar(frame)
     CreateReputationPane(frame)
+    CreateSkillsPane(frame)
     SetOuterPage(frame, "character")
     LayoutOuterTabs(frame)
 
@@ -2207,6 +2769,14 @@ function Module:Initialize()
             and Module.frame.page == "reputation"
         then
             UpdateReputationPane(Module.frame)
+        end
+    end)
+
+    UI:RegisterEvent("SKILL_LINES_CHANGED", function()
+        if Module.frame
+            and Module.frame.page == "skills"
+        then
+            UpdateSkillsPane(Module.frame)
         end
     end)
 
