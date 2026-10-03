@@ -42,10 +42,6 @@ local function CanAccessValue(value)
     return true
 end
 
-local function ToHexChannel(value)
-    return math.floor(math.max(0, math.min(1, value)) * 255 + 0.5)
-end
-
 local function SetBorderColor(border, r, g, b, a)
     if not border then
         return
@@ -100,11 +96,11 @@ local function ConfigureSingleLine(fontString)
     end
 end
 
-local function GetDisplayName(unit)
+local function GetDisplayIdentity(unit)
     local name = GetUnitName and GetUnitName(unit) or UnitName(unit)
 
     if not name or not CanAccessValue(name) then
-        return ""
+        return "", "", 1, 0.10, 0.10
     end
 
     local level = UnitLevel(unit)
@@ -112,7 +108,7 @@ local function GetDisplayName(unit)
 
     local levelText = ""
     local suffix = ""
-    local levelColor = "|cffff1919"
+    local levelR, levelG, levelB = 1, 0.10, 0.10
 
     if level and CanAccessValue(level) then
         levelText = level > 0 and tostring(level) or "??"
@@ -121,12 +117,9 @@ local function GetDisplayName(unit)
             local color = GetQuestDifficultyColor(level)
 
             if color then
-                levelColor = string.format(
-                    "|cff%02x%02x%02x",
-                    ToHexChannel(color.r),
-                    ToHexChannel(color.g),
-                    ToHexChannel(color.b)
-                )
+                levelR = color.r or levelR
+                levelG = color.g or levelG
+                levelB = color.b or levelB
             end
         end
     end
@@ -135,11 +128,7 @@ local function GetDisplayName(unit)
         suffix = CLASSIFICATION_SUFFIX[classification] or ""
     end
 
-    if levelText ~= "" then
-        return levelColor .. levelText .. suffix .. "|r " .. name
-    end
-
-    return name
+    return name, levelText .. suffix, levelR, levelG, levelB
 end
 
 local function GetUnitColor(unit)
@@ -349,8 +338,16 @@ local function CreateCustomPlate(namePlate)
     raidMarker:SetTexture("Interface\\TargetingFrame\\UI-RaidTargetingIcons")
     raidMarker:Hide()
 
+    local level = health:CreateFontString(nil, "OVERLAY")
+    level:SetPoint("LEFT", health, "LEFT", 3, 0)
+    level:SetJustifyH("LEFT")
+    level:SetFont(fontPath, 8, "THICKOUTLINE")
+    level:SetShadowColor(0, 0, 0, 1)
+    level:SetShadowOffset(1, -1)
+    ConfigureSingleLine(level)
+
     local name = health:CreateFontString(nil, "OVERLAY")
-    name:SetPoint("LEFT", health, "LEFT", 3, 0)
+    name:SetPoint("LEFT", level, "RIGHT", 3, 0)
     name:SetPoint("RIGHT", health, "RIGHT", -36, 0)
     name:SetJustifyH("LEFT")
     name:SetFont(fontPath, 8, fontFlags)
@@ -405,6 +402,7 @@ local function CreateCustomPlate(namePlate)
         health = health,
         healthBorder = healthBorder,
         raidMarker = raidMarker,
+        level = level,
         name = name,
         percent = percent,
         cast = cast,
@@ -460,7 +458,23 @@ local function UpdateIdentity(data)
         return
     end
 
-    data.name:SetText(GetDisplayName(data.unit))
+    local nameText, levelText, levelR, levelG, levelB =
+        GetDisplayIdentity(data.unit)
+
+    data.level:SetText(levelText)
+    data.level:SetTextColor(levelR, levelG, levelB)
+    data.level:SetShown(levelText ~= "")
+
+    data.name:ClearAllPoints()
+
+    if levelText ~= "" then
+        data.name:SetPoint("LEFT", data.level, "RIGHT", 3, 0)
+    else
+        data.name:SetPoint("LEFT", data.health, "LEFT", 3, 0)
+    end
+
+    data.name:SetPoint("RIGHT", data.health, "RIGHT", -36, 0)
+    data.name:SetText(nameText)
 
     local isTarget = UnitIsUnit and UnitIsUnit(data.unit, "target")
 
