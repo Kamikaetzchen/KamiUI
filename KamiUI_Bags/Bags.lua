@@ -396,6 +396,10 @@ local function StyleItemButton(button)
     button.KamiStyled = true
     button:SetSize(SLOT_SIZE, SLOT_SIZE)
 
+    if button.SetClipsChildren then
+        button:SetClipsChildren(true)
+    end
+
     if button.NormalTexture then
         button.NormalTexture:SetAlpha(0)
     end
@@ -447,32 +451,9 @@ local function StyleItemButton(button)
 
     button.KamiBorders = { top, bottom, left, right }
 
-    local topLeft = button:CreateTexture(nil, "OVERLAY", nil, 2)
-    topLeft:SetSize(1, 1)
-    topLeft:SetPoint("TOPLEFT")
-
-    local topRight = button:CreateTexture(nil, "OVERLAY", nil, 2)
-    topRight:SetSize(1, 1)
-    topRight:SetPoint("TOPRIGHT")
-
-    local bottomLeft = button:CreateTexture(nil, "OVERLAY", nil, 2)
-    bottomLeft:SetSize(1, 1)
-    bottomLeft:SetPoint("BOTTOMLEFT")
-
-    local bottomRight = button:CreateTexture(nil, "OVERLAY", nil, 2)
-    bottomRight:SetSize(1, 1)
-    bottomRight:SetPoint("BOTTOMRIGHT")
-
-    button.KamiBorderCorners = {
-        topLeft,
-        topRight,
-        bottomLeft,
-        bottomRight,
-    }
-
     local rarityGlow = button:CreateTexture(nil, "OVERLAY", nil, 1)
-    rarityGlow:SetPoint("CENTER", button, "CENTER", 1, 0)
-    rarityGlow:SetSize(62, 62)
+    rarityGlow:SetPoint("CENTER", button, "CENTER", 0, 0)
+    rarityGlow:SetSize(58, 58)
     rarityGlow:SetTexture("Interface\\Buttons\\UI-ActionButton-Border")
     rarityGlow:SetBlendMode("ADD")
     rarityGlow:SetAlpha(0.45)
@@ -551,12 +532,6 @@ local function UpdateItemButton(button, bagID, slotID)
     if button.KamiBorders then
         for _, border in ipairs(button.KamiBorders) do
             border:SetColorTexture(unpack(borderColor))
-        end
-    end
-
-    if button.KamiBorderCorners then
-        for _, corner in ipairs(button.KamiBorderCorners) do
-            corner:SetColorTexture(unpack(borderColor))
         end
     end
 
