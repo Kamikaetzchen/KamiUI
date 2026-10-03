@@ -305,24 +305,25 @@ UI:RegisterEvent("PLAYER_REGEN_ENABLED", function()
 end)
 
 UI:RegisterEvent("PLAYER_TARGET_CHANGED", function()
+    RefreshAuras("target")
+    RefreshAuras("targettarget")
+
     C_Timer.After(0, function()
-        RefreshAuras("target")
-        RefreshAuras("targettarget")
         RefreshAuras("targettargettarget")
     end)
 end)
 
 UI:RegisterEvent("PLAYER_FOCUS_CHANGED", function()
-    C_Timer.After(0, function()
-        RefreshAuras("focus")
-        RefreshAuras("focustarget")
-    end)
+    RefreshAuras("focus")
 end)
 
 UI:RegisterEvent("UNIT_TARGET", function(_, unit)
     if unit == "target" then
         RefreshAuras("targettarget")
-        RefreshAuras("targettargettarget")
+
+        C_Timer.After(0, function()
+            RefreshAuras("targettargettarget")
+        end)
     elseif unit == "targettarget" then
         RefreshAuras("targettargettarget")
     elseif unit == "focus" then
