@@ -1049,7 +1049,7 @@ local function UpdateReputationPane(frame)
         if row then
             local data = index <= numFactions and GetFactionData(index)
 
-            if data and ShouldShowSkillLineData(data) then
+            if data then
                 row.index = index
                 row.factionID = data.factionID
                 row:ClearAllPoints()
@@ -1662,7 +1662,7 @@ local function UpdateSkillsPane(frame)
             local data = index <= numSkills
                 and GetSkillLineData(index)
 
-            if data then
+            if data and ShouldShowSkillLineData(data) then
                 row.index = index
                 row.skillID = data.skillID
                 row:ClearAllPoints()
