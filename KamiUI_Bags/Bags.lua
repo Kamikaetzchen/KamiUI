@@ -1859,9 +1859,13 @@ local function AddCharacterCountsToTooltip(tooltip, data)
     local lines = {}
 
     for _, entry in ipairs(GetSortedCharacters()) do
-        local count = entry.character.items
+        local bagCount = entry.character.items
             and entry.character.items[itemID]
             or 0
+        local bankCount = entry.character.bankItems
+            and entry.character.bankItems[itemID]
+            or 0
+        local count = bagCount + bankCount
 
         if count > 0 then
             lines[#lines + 1] = {
