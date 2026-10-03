@@ -804,6 +804,7 @@ local function SaveCurrentCharacter()
     local firstName, surname, name = GetCurrentCharacterNames()
     local realm = GetRealmName() or ""
     local _, classFile = UnitClass("player")
+    local existing = db.characters[key] or {}
     local character = {
         name = name,
         firstName = firstName,
@@ -814,6 +815,8 @@ local function SaveCurrentCharacter()
         items = {},
         bags = {},
         updated = time and time() or 0,
+        bank = existing.bank,
+        bankItems = existing.bankItems,
     }
 
     local keyring = KEYRING_CONTAINER
@@ -1990,6 +1993,8 @@ local function AddCharacterCountsToTooltip(tooltip, data)
                 name = entry.character.name or "Unknown",
                 classFile = entry.character.classFile,
                 count = count,
+                bagCount = bagCount,
+                bankCount = bankCount,
             }
         end
     end
@@ -2010,7 +2015,12 @@ local function AddCharacterCountsToTooltip(tooltip, data)
 
         tooltip:AddDoubleLine(
             line.name,
-            tostring(line.count),
+            string.format(
+                "%d (Bags: %d, Bank: %d)",
+                line.count,
+                line.bagCount,
+                line.bankCount
+            ),
             r,
             g,
             b,
