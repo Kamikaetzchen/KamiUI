@@ -19,6 +19,9 @@ local fontPath, _, fontFlags = GameFontNormalSmall:GetFont()
 
 local styled = {}
 
+local hiddenNativeParent = CreateFrame("Frame")
+hiddenNativeParent:Hide()
+
 local CLASSIFICATION_SUFFIX = {
     elite = "E",
     rare = "R",
@@ -165,7 +168,6 @@ local function HideNativeVisuals(unitFrame)
         "name",
         "Name",
         "nameText",
-        "LevelFrame",
         "AurasFrame",
         "ClassificationFrame",
         "classificationIndicator",
@@ -188,6 +190,22 @@ local function HideNativeVisuals(unitFrame)
                 object:Hide()
             end
         end
+    end
+
+    local levelFrame = unitFrame.LevelFrame
+
+    if levelFrame and levelFrame:GetParent() ~= hiddenNativeParent then
+        levelFrame:SetParent(hiddenNativeParent)
+        levelFrame:Hide()
+    end
+
+    local playerLevelDiffFrame = unitFrame.PlayerLevelDiffFrame
+
+    if playerLevelDiffFrame
+        and playerLevelDiffFrame:GetParent() ~= hiddenNativeParent
+    then
+        playerLevelDiffFrame:SetParent(hiddenNativeParent)
+        playerLevelDiffFrame:Hide()
     end
 end
 
