@@ -14,7 +14,7 @@ local FOOTER_HEIGHT = 24
 local BAG_BAR_HEIGHT = 42
 
 local defaults = {
-    background = { 0.075, 0.025, 0.11, 0.80 },
+    background = { 0.075, 0.025, 0.11, 0.40 },
     slotBackground = { 0.03, 0.03, 0.03, 0.55 },
     border = { 0.20, 0.16, 0.24, 1.00 },
 }
@@ -237,8 +237,43 @@ local function UpdateItemButton(button, bagID, slotID)
     local info = GetContainerItemInfo(bagID, slotID)
     local icon = button.icon or button.Icon
 
-    if not info and icon then
-        icon:SetTexture(nil)
+    if info then
+        if icon then
+            icon:SetTexture(info.iconFileID)
+            icon:SetAlpha(1)
+        end
+
+        if button.Count then
+            local count = info.stackCount or 1
+            button.Count:SetText(count > 1 and count or "")
+            button.Count:Show()
+        end
+
+        if button.Cooldown and C_Container.GetContainerItemCooldown then
+            local start, duration, enable = C_Container.GetContainerItemCooldown(
+                bagID,
+                slotID
+            )
+
+            CooldownFrame_Set(
+                button.Cooldown,
+                start or 0,
+                duration or 0,
+                enable or 0
+            )
+        end
+    else
+        if icon then
+            icon:SetTexture(nil)
+        end
+
+        if button.Count then
+            button.Count:SetText("")
+        end
+
+        if button.Cooldown then
+            button.Cooldown:Clear()
+        end
     end
 end
 
