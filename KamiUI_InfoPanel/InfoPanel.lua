@@ -157,14 +157,22 @@ local function GetMovementSpeed()
     local speed = GetUnitSpeed and GetUnitSpeed("player") or 0
 
     if canaccessvalue and not canaccessvalue(speed) then
-        return nil
+        Module.speedSecretCount = (Module.speedSecretCount or 0) + 1
+
+        if Module.speedSecretCount >= 5 then
+            return nil, true
+        end
+
+        return nil, false
     end
+
+    Module.speedSecretCount = 0
 
     if speed <= 0 then
-        return 0
+        return 0, false
     end
 
-    return math.floor((speed / 7) * 100 + 0.5)
+    return math.floor((speed / 7) * 100 + 0.5), false
 end
 
 local function GetLatency()
@@ -422,7 +430,7 @@ function Module:Refresh()
 
     local used, total = GetBagUsage()
     local durability = GetDurabilityPercent()
-    local movement = GetMovementSpeed()
+    local movement, movementUnavailable = GetMovementSpeed()
     local latency = GetLatency()
     local xpPerHour = GetXPPerHour()
     local timeToLevel = GetTimeToLevel(xpPerHour)
@@ -431,12 +439,12 @@ function Module:Refresh()
         "|TInterface\\Icons\\icon_treasuremap:13:13:0:2:64:64:4:60:4:60|t %s",
         GetLocation()
     ))
-    if movement then
+    if movement ~= nil then
         self.texts.speed:SetText(string.format(
             "|TInterface\\Icons\\Ability_Rogue_Sprint:13:13:0:2:64:64:4:60:4:60|t %d%%",
             movement
         ))
-    else
+    elseif movementUnavailable then
         self.texts.speed:SetText(
             "|TInterface\\Icons\\Ability_Rogue_Sprint:13:13:0:2:64:64:4:60:4:60|t N/A"
         )
