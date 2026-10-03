@@ -26,7 +26,7 @@ local bagFamilyColors = {
     soul = { 0.55, 0.20, 0.75, 1.00 },
     leather = { 0.439, 0.188, 0.063, 1.00 },
     skinning = { 0.439, 0.188, 0.063, 1.00 },
-    herbs = { 0.18, 0.68, 0.24, 1.00 },
+    herbs = { 0.122, 0.420, 0.220, 1.00 },
     mining = { 0.38, 0.55, 0.68, 1.00 },
 }
 
@@ -422,6 +422,37 @@ local function StyleItemButton(button)
 
     button.KamiBorders = { top, bottom, left, right }
 
+    local rarityTop = button:CreateTexture(nil, "BORDER", nil, 1)
+    rarityTop:SetPoint("TOPLEFT", button, "TOPLEFT", 1, -1)
+    rarityTop:SetPoint("TOPRIGHT", button, "TOPRIGHT", -1, -1)
+    rarityTop:SetHeight(1)
+
+    local rarityBottom = button:CreateTexture(nil, "BORDER", nil, 1)
+    rarityBottom:SetPoint("BOTTOMLEFT", button, "BOTTOMLEFT", 1, 1)
+    rarityBottom:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", -1, 1)
+    rarityBottom:SetHeight(1)
+
+    local rarityLeft = button:CreateTexture(nil, "BORDER", nil, 1)
+    rarityLeft:SetPoint("TOPLEFT", button, "TOPLEFT", 1, -1)
+    rarityLeft:SetPoint("BOTTOMLEFT", button, "BOTTOMLEFT", 1, 1)
+    rarityLeft:SetWidth(1)
+
+    local rarityRight = button:CreateTexture(nil, "BORDER", nil, 1)
+    rarityRight:SetPoint("TOPRIGHT", button, "TOPRIGHT", -1, -1)
+    rarityRight:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", -1, 1)
+    rarityRight:SetWidth(1)
+
+    button.KamiRarityBorders = {
+        rarityTop,
+        rarityBottom,
+        rarityLeft,
+        rarityRight,
+    }
+
+    for _, border in ipairs(button.KamiRarityBorders) do
+        border:Hide()
+    end
+
     local icon = button.icon or button.Icon
 
     if icon then
@@ -442,6 +473,39 @@ local function StyleItemButton(button)
         button.Count:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
         button.Count:ClearAllPoints()
         button.Count:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", -2, 2)
+    end
+end
+
+local function UpdateRarityBorder(button, quality)
+    local color = quality ~= nil
+        and ITEM_QUALITY_COLORS
+        and ITEM_QUALITY_COLORS[quality]
+
+    for _, border in ipairs(button.KamiRarityBorders or {}) do
+        if color then
+            border:SetColorTexture(color.r, color.g, color.b, 1)
+            border:Show()
+        else
+            border:Hide()
+        end
+    end
+end
+
+local function SuppressNewItemFlash(button)
+    if button.NewItemTexture then
+        button.NewItemTexture:Hide()
+    end
+
+    if button.BattlepayItemTexture then
+        button.BattlepayItemTexture:Hide()
+    end
+
+    if button.flashAnim and button.flashAnim:IsPlaying() then
+        button.flashAnim:Stop()
+    end
+
+    if button.newitemglowAnim and button.newitemglowAnim:IsPlaying() then
+        button.newitemglowAnim:Stop()
     end
 end
 
@@ -494,6 +558,36 @@ itemDragFrame:SetScript("OnUpdate", function(self)
             end
         end
     end
+
+    local bagFrame = _G.KamiUIBagFrame
+
+    if bagFrame
+        and bagFrame:IsShown()
+        and bagFrame.liveInventory
+    then
+        for _, button in ipairs(bagFrame.activeButtons or {}) do
+            if button:IsShown() and button:GetParent():IsShown() then
+                local scale = button:GetEffectiveScale()
+                local x = cursorX / scale
+                local y = cursorY / scale
+                local left, bottom, width, height = button:GetRect()
+
+                if left
+                    and bottom
+                    and x >= left
+                    and x <= left + width
+                    and y >= bottom
+                    and y <= bottom + height
+                then
+                    local bagID = button:GetParent():GetID()
+                    local slotID = button:GetID()
+
+                    C_Container.PickupContainerItem(bagID, slotID)
+                    return
+                end
+            end
+        end
+    end
 end)
 
 local function CreateCarrier(content, bagID)
@@ -536,10 +630,14 @@ local function UpdateItemButton(button, bagID, slotID, family)
         ContainerFrameItemButton_Update(button)
     end
 
+    SuppressNewItemFlash(button)
+
     local info = GetContainerItemInfo(bagID, slotID)
     local icon = button.icon or button.Icon
 
     if info then
+        UpdateRarityBorder(button, info.quality)
+
         local search = Module.frame
             and Module.frame.search
             and Module.frame.search:GetText()
@@ -577,6 +675,7 @@ local function UpdateItemButton(button, bagID, slotID, family)
             button.Count:Show()
         end
     else
+        UpdateRarityBorder(button, nil)
         button:SetAlpha(1)
 
         if icon then
@@ -629,6 +728,8 @@ local function UpdateCachedItemButton(button, slot, tab)
     for _, border in ipairs(button.KamiBorders or {}) do
         border:SetColorTexture(unpack(color))
     end
+
+    UpdateRarityBorder(button, slot and slot.quality or nil)
 
     button.itemLink = slot and slot.link or nil
     button.icon:SetTexture(slot and slot.icon or nil)
@@ -753,7 +854,7 @@ function Module:UpdateBagBar()
         button.bagID = tab.bagID
         button.tabIndex = tab.index or index
         button.tabName = tab.name
-        button.isCached = not isCurrent
+        button.isCached = not (isCurrent and bankOpen)
         button.icon:SetTexture(tab.icon)
 
         local free
@@ -932,7 +1033,8 @@ function Module:Rebuild()
     local active = {}
     local index = 0
 
-    if not isCurrent then
+    if not isCurrent or not bankOpen then
+        frame.liveBankAccess = false
         local tabs = character
             and character.bank
             and character.bank.tabs
@@ -962,6 +1064,7 @@ function Module:Rebuild()
         end
 
         frame.activeButtons = active
+        frame.liveBankAccess = false
         frame.sort:Hide()
         frame.bagBarToggle:Show()
         self:UpdateBagBar()
@@ -971,9 +1074,7 @@ function Module:Rebuild()
         return
     end
 
-    if not bankOpen then
-        return
-    end
+    frame.liveBankAccess = true
 
     for _, tab in ipairs(GetBankTabs()) do
         if not EnsureDatabase().bankHiddenTabs[tab.bagID] then
@@ -1008,6 +1109,7 @@ function Module:Rebuild()
     end
 
     frame.activeButtons = active
+    frame.liveBankAccess = true
     frame.sort:Show()
     frame.bagBarToggle:Show()
     self:UpdateBagBar()
@@ -1459,6 +1561,18 @@ function Module:Hide()
     end
 end
 
+function Module:Toggle()
+    if not self.frame then
+        return
+    end
+
+    if self.frame:IsShown() then
+        self:Hide()
+    else
+        self:Show()
+    end
+end
+
 function Module:ResetPosition()
     EnsureDatabase().bankPosition = nil
 
@@ -1524,6 +1638,22 @@ end)
 function Module:Initialize()
     EnsureDatabase()
     self.frame = CreateFrameUI()
+
+    local hotkeyButton = CreateFrame("Button", "KamiUIBankHotkeyButton", UIParent)
+    hotkeyButton:SetScript("OnClick", function()
+        Module:Toggle()
+    end)
+    self.hotkeyButton = hotkeyButton
+
+    if SetOverrideBindingClick then
+        SetOverrideBindingClick(
+            hotkeyButton,
+            true,
+            "SHIFT-B",
+            "KamiUIBankHotkeyButton",
+            "LeftButton"
+        )
+    end
 end
 
 Module:Initialize()
