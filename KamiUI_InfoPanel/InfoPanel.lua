@@ -6,7 +6,7 @@ Module.name = "KamiUI_InfoPanel"
 Module.version = "0.1.0"
 
 local defaults = {
-    height = 20,
+    height = 25,
     padding = 6,
     spacing = 12,
     fontSize = 12,
@@ -238,11 +238,11 @@ local function CreatePanel()
         previous = text
     end
 
-    texts.latency:SetJustifyH("RIGHT")
+    texts.latency:SetJustifyH("CENTER")
 
     local signal = CreateFrame("Frame", nil, content)
     signal:SetSize(12, 12)
-    signal:SetPoint("LEFT", texts.latency, "LEFT", 4, 2)
+    signal:SetPoint("RIGHT", texts.latency, "CENTER", -16, 2)
 
     local signalHeights = { 4, 7, 10 }
 
@@ -332,7 +332,7 @@ function Module:Refresh()
         durability
     ))
     self.texts.gold:SetText(FormatMoney(GetMoney and GetMoney() or 0))
-    self.texts.latency:SetText(string.format("%d ms", latency))
+    self.texts.latency:SetText(string.format("      %d ms", latency))
     self.texts.clock:SetText(string.format(
         "|TInterface\\Icons\\INV_Misc_PocketWatch_01:13:13:0:2:64:64:4:60:4:60|t %s",
         date("%H:%M")
