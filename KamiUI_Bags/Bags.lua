@@ -1294,17 +1294,29 @@ function Module:Refresh()
 end
 
 function Module:Show()
-    if not self.frame then
+    if not self.frame or self.frame:IsShown() then
         return
     end
 
     self:Rebuild()
     self.frame:Show()
+
+    if PlaySound then
+        PlaySound(
+            SOUNDKIT and SOUNDKIT.IG_BACKPACK_OPEN or 862
+        )
+    end
 end
 
 function Module:Hide()
-    if self.frame then
+    if self.frame and self.frame:IsShown() then
         self.frame:Hide()
+
+        if PlaySound then
+            PlaySound(
+                SOUNDKIT and SOUNDKIT.IG_BACKPACK_CLOSE or 863
+            )
+        end
     end
 end
 
