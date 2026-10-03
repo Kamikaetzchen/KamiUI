@@ -36,6 +36,12 @@ local frames = {
     UF.petTargetFrame,
 }
 
+for _, group in ipairs(UF.partyFrames or {}) do
+    if group.main then
+        frames[#frames + 1] = group.main
+    end
+end
+
 local function IsTruthy(value)
     return UF:CanAccessValue(value) and value and true or false
 end
