@@ -56,7 +56,6 @@ end
 
 local function CreateCenterIndicators(frame)
     local row = CreateFrame("Frame", nil, frame)
-    row:SetSize(90, STATUS_ICON_SIZE)
 
     local level = frame:GetFrameLevel()
 
@@ -70,10 +69,15 @@ local function CreateCenterIndicators(frame)
 
     row:SetFrameLevel(level + 20)
 
-    if frame.health then
-        row:SetPoint("CENTER", frame.health, "CENTER", 0, 0)
+    -- Anchor the indicator area to the actual bars, not the whole unit frame.
+    -- This automatically excludes portraits on player/target/party frames.
+    if frame.health and frame.power then
+        row:SetPoint("TOPLEFT", frame.health, "TOPLEFT", 0, 0)
+        row:SetPoint("BOTTOMRIGHT", frame.power, "BOTTOMRIGHT", 0, 0)
+    elseif frame.health then
+        row:SetAllPoints(frame.health)
     else
-        row:SetPoint("CENTER", frame, "CENTER", 0, 0)
+        row:SetAllPoints(frame)
     end
 
     row.icons = {
@@ -85,14 +89,13 @@ local function CreateCenterIndicators(frame)
         ghost = CreateIcon(row),
     }
 
-    local raid = row.icons.raid
-    local raidSize = math.floor(frame:GetHeight() * 0.75 + 0.5)
+    local indicatorSize = math.floor(frame:GetHeight() * 0.75 + 0.5)
+    indicatorSize = math.max(12, math.min(30, indicatorSize))
 
-    raidSize = math.max(12, math.min(30, raidSize))
-    raid:SetSize(raidSize, raidSize)
-    raid:SetAlpha(0.80)
-    raid:ClearAllPoints()
-    raid:SetPoint("CENTER", frame, "CENTER", 0, 0)
+    for _, icon in pairs(row.icons) do
+        icon:SetSize(indicatorSize, indicatorSize)
+        icon:SetAlpha(0.60)
+    end
 
     frame.centerIndicators = row
 end
@@ -106,6 +109,7 @@ local function LayoutCenterIndicators(frame)
     local visible = {}
 
     for _, key in ipairs({
+        "raid",
         "ready",
         "resurrect",
         "summon",
@@ -113,24 +117,27 @@ local function LayoutCenterIndicators(frame)
         "ghost",
     }) do
         local icon = row.icons[key]
+
         if icon:IsShown() then
-            table.insert(visible, icon)
+            visible[#visible + 1] = icon
         end
     end
 
     local count = #visible
+
     if count == 0 then
         return
     end
 
-    local totalWidth =
-        count * STATUS_ICON_SIZE + (count - 1) * STATUS_ICON_GAP
-    local x = -totalWidth / 2
+    local iconSize = visible[1]:GetWidth()
+    local gap = 2
+    local totalWidth = count * iconSize + (count - 1) * gap
+    local x = -totalWidth / 2 + iconSize / 2
 
     for _, icon in ipairs(visible) do
         icon:ClearAllPoints()
-        icon:SetPoint("LEFT", row, "CENTER", x, 0)
-        x = x + STATUS_ICON_SIZE + STATUS_ICON_GAP
+        icon:SetPoint("CENTER", row, "CENTER", x, 0)
+        x = x + iconSize + gap
     end
 end
 
