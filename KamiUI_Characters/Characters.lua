@@ -2015,16 +2015,17 @@ local function SetOuterTabBackground(tab, r, g, b, a)
 end
 
 local function CreateOuterTabVisual(tab)
+    local chamfer = 4
     local backgrounds = {}
 
     local upper = tab:CreateTexture(nil, "BACKGROUND")
     upper:SetPoint("TOPLEFT", tab, "TOPLEFT", 0, 0)
     upper:SetPoint("TOPRIGHT", tab, "TOPRIGHT", 0, 0)
-    upper:SetPoint("BOTTOM", tab, "BOTTOM", 0, 3)
+    upper:SetPoint("BOTTOM", tab, "BOTTOM", 0, chamfer)
     backgrounds[#backgrounds + 1] = upper
 
-    for row = 0, 2 do
-        local inset = 3 - row
+    for row = 0, chamfer - 1 do
+        local inset = chamfer - row
         local strip = tab:CreateTexture(nil, "BACKGROUND")
         strip:SetPoint("BOTTOMLEFT", tab, "BOTTOMLEFT", inset, row)
         strip:SetPoint("BOTTOMRIGHT", tab, "BOTTOMRIGHT", -inset, row)
@@ -2044,34 +2045,34 @@ local function CreateOuterTabVisual(tab)
     borders[1] = top
 
     local bottom = tab:CreateTexture(nil, "OVERLAY")
-    bottom:SetPoint("BOTTOMLEFT", tab, "BOTTOMLEFT", 3, 0)
-    bottom:SetPoint("BOTTOMRIGHT", tab, "BOTTOMRIGHT", -3, 0)
+    bottom:SetPoint("BOTTOMLEFT", tab, "BOTTOMLEFT", chamfer, 0)
+    bottom:SetPoint("BOTTOMRIGHT", tab, "BOTTOMRIGHT", -chamfer, 0)
     bottom:SetHeight(1)
     bottom:SetColorTexture(unpack(colors.border))
     borders[2] = bottom
 
     local left = tab:CreateTexture(nil, "OVERLAY")
     left:SetPoint("TOPLEFT")
-    left:SetPoint("BOTTOMLEFT", tab, "BOTTOMLEFT", 0, 3)
+    left:SetPoint("BOTTOMLEFT", tab, "BOTTOMLEFT", 0, chamfer)
     left:SetWidth(1)
     left:SetColorTexture(unpack(colors.border))
     borders[3] = left
 
     local right = tab:CreateTexture(nil, "OVERLAY")
     right:SetPoint("TOPRIGHT")
-    right:SetPoint("BOTTOMRIGHT", tab, "BOTTOMRIGHT", 0, 3)
+    right:SetPoint("BOTTOMRIGHT", tab, "BOTTOMRIGHT", 0, chamfer)
     right:SetWidth(1)
     right:SetColorTexture(unpack(colors.border))
     borders[4] = right
 
-    for step = 1, 3 do
+    for step = 1, chamfer do
         local leftChamfer = tab:CreateTexture(nil, "OVERLAY")
         leftChamfer:SetPoint(
             "BOTTOMLEFT",
             tab,
             "BOTTOMLEFT",
             step - 1,
-            3 - step
+            chamfer - step
         )
         leftChamfer:SetSize(1, 1)
         leftChamfer:SetColorTexture(unpack(colors.border))
@@ -2082,7 +2083,7 @@ local function CreateOuterTabVisual(tab)
             tab,
             "BOTTOMRIGHT",
             -(step - 1),
-            3 - step
+            chamfer - step
         )
         rightChamfer:SetSize(1, 1)
         rightChamfer:SetColorTexture(unpack(colors.border))
@@ -2142,10 +2143,10 @@ SetOuterPage = function(frame, page)
             tab:SetAlpha(1)
             SetOuterTabBackground(
                 tab,
-                active and 0.12 or 0.06,
-                active and 0.12 or 0.06,
-                active and 0.14 or 0.07,
-                0.95
+                active and 0.04 or 0.00,
+                active and 0.04 or 0.00,
+                active and 0.05 or 0.00,
+                active and 0.55 or 0.40
             )
 
             if tab.borders and tab.borders[1] then
@@ -2740,10 +2741,10 @@ local function CreateFrameUI()
         CreateOuterTabVisual(tab)
         SetOuterTabBackground(
             tab,
-            definition.enabled and 0.08 or 0.03,
-            definition.enabled and 0.08 or 0.03,
-            definition.enabled and 0.10 or 0.04,
-            0.95
+            0.00,
+            0.00,
+            0.00,
+            definition.enabled and 0.40 or 0.25
         )
 
         if index > 1 and tab.borders and tab.borders[3] then
