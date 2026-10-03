@@ -132,6 +132,20 @@ local function EnsureDatabase()
     return db
 end
 
+local function GetCharactersModule()
+    if not UI.GetModule then
+        return nil
+    end
+
+    local characters = UI:GetModule("Characters")
+
+    if characters and characters.GetCharacters then
+        return characters
+    end
+
+    return nil
+end
+
 local function GetCurrentCharacterNames()
     local first, surname = UnitName("player")
 
@@ -145,6 +159,12 @@ local function GetCurrentCharacterNames()
 end
 
 local function GetCurrentCharacterKey()
+    local characters = GetCharactersModule()
+
+    if characters and characters.GetCurrentCharacterKey then
+        return characters:GetCurrentCharacterKey()
+    end
+
     local _, _, fullName = GetCurrentCharacterNames()
     local realm = GetRealmName() or ""
 
@@ -152,9 +172,106 @@ local function GetCurrentCharacterKey()
 end
 
 local function GetCurrentCharacterName()
+    local characters = GetCharactersModule()
+
+    if characters and characters.GetCurrentCharacter then
+        local _, character = characters:GetCurrentCharacter()
+
+        if character and character.name then
+            return character.name
+        end
+    end
+
     local _, _, fullName = GetCurrentCharacterNames()
 
     return fullName
+end
+
+local function ParseCharacterKey(key)
+    local realm, name = string.match(key or "", "^(.-)::(.*)$")
+
+    return realm or "", name or "Unknown"
+end
+
+local function GetCharacterProfile(key, legacy)
+    local characters = GetCharactersModule()
+
+    if characters and characters.GetCharacter then
+        local character = characters:GetCharacter(key)
+
+        if character then
+            return character
+        end
+    end
+
+    local realm, name = ParseCharacterKey(key)
+    local profile = {
+        name = legacy and legacy.name or name,
+        firstName = legacy and legacy.firstName,
+        surname = legacy and legacy.surname,
+        classFile = legacy and legacy.classFile,
+        realm = legacy and legacy.realm or realm,
+        money = legacy and legacy.money or 0,
+    }
+
+    if key == GetCurrentCharacterKey() then
+        local firstName, surname, fullName = GetCurrentCharacterNames()
+
+        profile.name = fullName
+        profile.firstName = firstName
+        profile.surname = surname
+        profile.realm = GetRealmName() or ""
+        profile.classFile = select(2, UnitClass("player"))
+        profile.money = GetMoney() or 0
+    end
+
+    return profile
+end
+
+local function GetSortedMoneyCharacters()
+    local characters = GetCharactersModule()
+
+    if characters and characters.GetSortedCharacters then
+        return characters:GetSortedCharacters()
+    end
+
+    local entries = {}
+
+    for key, legacy in pairs(EnsureDatabase().characters) do
+        entries[#entries + 1] = {
+            key = key,
+            character = GetCharacterProfile(key, legacy),
+        }
+    end
+
+    table.sort(entries, function(left, right)
+        local leftRealm = left.character.realm or ""
+        local rightRealm = right.character.realm or ""
+
+        if leftRealm == rightRealm then
+            return (left.character.name or "")
+                < (right.character.name or "")
+        end
+
+        return leftRealm < rightRealm
+    end)
+
+    return entries
+end
+
+local function CleanupLegacyCharacterMetadata()
+    if not GetCharactersModule() then
+        return
+    end
+
+    for _, character in pairs(EnsureDatabase().characters) do
+        character.name = nil
+        character.firstName = nil
+        character.surname = nil
+        character.classFile = nil
+        character.realm = nil
+        character.money = nil
+    end
 end
 
 local function GetContainerNumSlots(bagID)
@@ -801,17 +918,14 @@ end
 local function SaveCurrentCharacter()
     local db = EnsureDatabase()
     local key = GetCurrentCharacterKey()
-    local firstName, surname, name = GetCurrentCharacterNames()
-    local realm = GetRealmName() or ""
-    local _, classFile = UnitClass("player")
+    local characters = GetCharactersModule()
+
+    if characters and characters.UpdateCurrentCharacter then
+        characters:UpdateCurrentCharacter()
+    end
+
     local existing = db.characters[key] or {}
     local character = {
-        name = name,
-        firstName = firstName,
-        surname = surname,
-        classFile = classFile,
-        realm = realm,
-        money = GetMoney() or 0,
         items = {},
         bags = {},
         updated = time and time() or 0,
@@ -885,15 +999,19 @@ local function GetSortedCharacters()
         characters[#characters + 1] = {
             key = key,
             character = character,
+            profile = GetCharacterProfile(key, character),
         }
     end
 
-    table.sort(characters, function(a, b)
-        if a.character.realm == b.character.realm then
-            return (a.character.name or "") < (b.character.name or "")
+    table.sort(characters, function(left, right)
+        local leftRealm = left.profile.realm or ""
+        local rightRealm = right.profile.realm or ""
+
+        if leftRealm == rightRealm then
+            return (left.profile.name or "") < (right.profile.name or "")
         end
 
-        return (a.character.realm or "") < (b.character.realm or "")
+        return leftRealm < rightRealm
     end)
 
     return characters
@@ -1145,9 +1263,10 @@ function Module:UpdateMoney()
         return
     end
 
-    local _, character, isCurrent = GetViewedCharacter()
+    local key, character, isCurrent = GetViewedCharacter()
+    local profile = GetCharacterProfile(key, character)
     local money = isCurrent and GetMoney()
-        or (character and character.money)
+        or profile.money
         or 0
 
     self.frame.money:SetText(FormatMoney(money))
@@ -1158,13 +1277,10 @@ function Module:UpdateTitle()
         return
     end
 
-    local _, character, isCurrent = GetViewedCharacter()
-    local name = isCurrent
-        and GetCurrentCharacterName()
-        or (character and character.name)
-        or "Unknown"
-    local classFile = isCurrent and select(2, UnitClass("player"))
-        or (character and character.classFile)
+    local key, character = GetViewedCharacter()
+    local profile = GetCharacterProfile(key, character)
+    local name = profile.name or "Unknown"
+    local classFile = profile.classFile
     local classColor = classFile
         and RAID_CLASS_COLORS
         and RAID_CLASS_COLORS[classFile]
@@ -1666,7 +1782,7 @@ local function CreateFrameUI()
                 characterMenu.buttons[index] = button
             end
 
-            local character = entry.character
+            local character = entry.profile
             local label = character.name or "Unknown"
             local classColor = character.classFile
                 and RAID_CLASS_COLORS
@@ -1808,7 +1924,7 @@ local function CreateFrameUI()
 
         local total = 0
 
-        for _, entry in ipairs(GetSortedCharacters()) do
+        for _, entry in ipairs(GetSortedMoneyCharacters()) do
             local character = entry.character
             local amount = character.money or 0
             local color = character.classFile
@@ -1989,9 +2105,11 @@ local function AddCharacterCountsToTooltip(tooltip, data)
         local count = bagCount + bankCount
 
         if count > 0 then
+            local profile = entry.profile
+
             lines[#lines + 1] = {
-                name = entry.character.name or "Unknown",
-                classFile = entry.character.classFile,
+                name = profile.name or "Unknown",
+                classFile = profile.classFile,
                 count = count,
                 bagCount = bagCount,
                 bankCount = bankCount,
@@ -2082,6 +2200,7 @@ end
 
 function Module:Initialize()
     EnsureDatabase()
+    CleanupLegacyCharacterMetadata()
     SaveCurrentCharacter()
 
     self.frame = CreateFrameUI()
@@ -2135,7 +2254,12 @@ function Module:Initialize()
     end)
 
     UI:RegisterEvent("PLAYER_MONEY", function()
-        SaveCurrentCharacter()
+        local characters = GetCharactersModule()
+
+        if characters and characters.UpdateCurrentCharacter then
+            characters:UpdateCurrentCharacter()
+        end
+
         Module:UpdateMoney()
     end)
 
