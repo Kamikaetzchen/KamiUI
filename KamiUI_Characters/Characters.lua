@@ -569,7 +569,9 @@ local function UpdateStatsPane(frame)
     rows.power.value:SetText(FormatStatValue(power))
 
     local moveSpeed
-    local speed = GetUnitSpeed and SafeCall(GetUnitSpeed, "player")
+    local currentSpeed, runSpeed = GetUnitSpeed
+        and SafeCall(GetUnitSpeed, "player")
+    local speed = runSpeed or currentSpeed
     local baseSpeed = BASE_MOVEMENT_SPEED or 7
 
     if CanAccessValue(speed)
@@ -832,7 +834,9 @@ local function CreateSidebar(frame)
     statsTab.background = statsTab:CreateTexture(nil, "BACKGROUND")
     statsTab.background:SetAllPoints()
     statsTab.background:SetColorTexture(1, 1, 1, 0.18)
-    CreateBorder(statsTab, colors.border)
+    local statsBorders = CreateBorder(statsTab, colors.border)
+    statsBorders[3]:Hide()
+    statsBorders[4]:Hide()
 
     local statsHighlight = statsTab:CreateTexture(nil, "HIGHLIGHT")
     statsHighlight:SetAllPoints()
@@ -853,7 +857,15 @@ local function CreateSidebar(frame)
     equipmentTab.background = equipmentTab:CreateTexture(nil, "BACKGROUND")
     equipmentTab.background:SetAllPoints()
     equipmentTab.background:SetColorTexture(1, 1, 1, 0.07)
-    CreateBorder(equipmentTab, colors.border)
+    local equipmentBorders = CreateBorder(equipmentTab, colors.border)
+    equipmentBorders[3]:Hide()
+    equipmentBorders[4]:Hide()
+
+    local tabDivider = equipmentTab:CreateTexture(nil, "OVERLAY")
+    tabDivider:SetPoint("TOPLEFT")
+    tabDivider:SetPoint("BOTTOMLEFT")
+    tabDivider:SetWidth(1)
+    tabDivider:SetColorTexture(unpack(colors.border))
 
     local equipmentHighlight = equipmentTab:CreateTexture(nil, "HIGHLIGHT")
     equipmentHighlight:SetAllPoints()
@@ -1490,6 +1502,8 @@ function Module:Initialize()
         "UNIT_MAXHEALTH",
         "UNIT_POWER_UPDATE",
         "UNIT_RESISTANCES",
+        "UNIT_AURA",
+        "UPDATE_SHAPESHIFT_FORM",
         "COMBAT_RATING_UPDATE",
         "PLAYER_DAMAGE_DONE_MODS",
     }) do
