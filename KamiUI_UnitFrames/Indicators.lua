@@ -355,7 +355,7 @@ end
 
 local function UpdateUnitLabel(frame)
     if frame.nameText and UnitExists(frame.unit) then
-        frame.nameText:SetText(UF:GetUnitDisplayName(frame.unit))
+        UF:SetUnitDisplayName(frame.nameText, frame.unit)
     end
 end
 
