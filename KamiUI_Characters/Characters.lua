@@ -5,16 +5,16 @@ local Module = UI:NewModule("Characters")
 Module.name = "KamiUI_Characters"
 Module.version = "0.2.0"
 
-local FRAME_WIDTH = 430
-local FRAME_HEIGHT = 500
-local SLOT_SIZE = 40
-local SLOT_GAP = 4
+local FRAME_WIDTH = 390
+local FRAME_HEIGHT = 440
+local SLOT_SIZE = 36
+local SLOT_GAP = 3
 
 local colors = {
-    background = { 0.345, 0.000, 0.447, 0.25 },
-    panel = { 0.02, 0.02, 0.02, 0.55 },
-    slot = { 0.02, 0.02, 0.02, 0.55 },
-    border = { 0.20, 0.16, 0.24, 1.00 },
+    background = { 0.00, 0.00, 0.00, 0.25 },
+    panel = { 0.00, 0.00, 0.00, 0.40 },
+    slot = { 0.00, 0.00, 0.00, 0.55 },
+    border = { 0.16, 0.16, 0.18, 1.00 },
     emptyBorder = { 0.22, 0.22, 0.24, 1.00 },
 }
 
@@ -82,6 +82,7 @@ local SLOT_LAYOUT = {
     { key = "MainHandSlot",      label = "Main Hand", side = "BOTTOM", column = 1 },
     { key = "SecondaryHandSlot", label = "Off Hand",  side = "BOTTOM", column = 2 },
     { key = "RangedSlot",        label = "Ranged",    side = "BOTTOM", column = 3 },
+    { key = "AmmoSlot",          label = "Ammo",      side = "BOTTOM", column = 4 },
 }
 
 local function SetBorderColor(button, color)
@@ -141,6 +142,73 @@ local function GetSlotID(slotKey)
     end
 
     return GetInventorySlotInfo(slotKey)
+end
+
+local function TrimTitleLabel(title)
+    if not title or title == "" then
+        return "No Title"
+    end
+
+    local label = string.gsub(title, "%%s", "")
+    label = string.gsub(label, "^%s+", "")
+    label = string.gsub(label, "%s+$", "")
+    label = string.gsub(label, "^,%s*", "")
+    label = string.gsub(label, "%s*,%s*$", "")
+
+    return label ~= "" and label or "No Title"
+end
+
+local function GetKnownTitles()
+    local titles = {
+        {
+            id = -1,
+            label = "No Title",
+        },
+    }
+
+    if not GetNumTitles or not IsTitleKnown or not GetTitleName then
+        return titles
+    end
+
+    for id = 1, GetNumTitles() do
+        if IsTitleKnown(id) then
+            titles[#titles + 1] = {
+                id = id,
+                label = TrimTitleLabel(GetTitleName(id)),
+            }
+        end
+    end
+
+    table.sort(titles, function(a, b)
+        if a.id == -1 then
+            return true
+        elseif b.id == -1 then
+            return false
+        end
+
+        return a.label < b.label
+    end)
+
+    return titles
+end
+
+local function GetTitledPlayerName()
+    local name = GetTitledPlayerName()
+    local current = GetCurrentTitle and GetCurrentTitle() or -1
+
+    if current and current > 0 and GetTitleName then
+        local title = GetTitleName(current)
+
+        if title and string.find(title, "%%s") then
+            local ok, formatted = pcall(string.format, title, name)
+
+            if ok and formatted then
+                return formatted
+            end
+        end
+    end
+
+    return name
 end
 
 local function CreateEquipmentSlot(parent, definition)
@@ -228,7 +296,7 @@ local function CreateEquipmentSlot(parent, definition)
 end
 
 local function LayoutEquipmentSlot(button, definition, frame)
-    local top = -82
+    local top = -62
 
     button:ClearAllPoints()
 
@@ -237,7 +305,7 @@ local function LayoutEquipmentSlot(button, definition, frame)
             "TOPLEFT",
             frame,
             "TOPLEFT",
-            18,
+            14,
             top - (definition.row - 1) * (SLOT_SIZE + SLOT_GAP)
         )
     elseif definition.side == "RIGHT" then
@@ -245,11 +313,11 @@ local function LayoutEquipmentSlot(button, definition, frame)
             "TOPRIGHT",
             frame,
             "TOPRIGHT",
-            -18,
+            -14,
             top - (definition.row - 1) * (SLOT_SIZE + SLOT_GAP)
         )
     else
-        local totalWidth = SLOT_SIZE * 3 + SLOT_GAP * 2
+        local totalWidth = SLOT_SIZE * 4 + SLOT_GAP * 3
         local startX = -totalWidth / 2 + SLOT_SIZE / 2
         local x = startX + (definition.column - 1) * (SLOT_SIZE + SLOT_GAP)
 
@@ -258,7 +326,7 @@ local function LayoutEquipmentSlot(button, definition, frame)
             frame,
             "BOTTOM",
             x,
-            42
+            22
         )
     end
 end
@@ -405,7 +473,7 @@ local function CreateFrameUI()
     local header = CreateFrame("Frame", nil, frame)
     header:SetPoint("TOPLEFT", 1, -1)
     header:SetPoint("TOPRIGHT", -1, -1)
-    header:SetHeight(54)
+    header:SetHeight(48)
     header:EnableMouse(true)
     header:RegisterForDrag("LeftButton")
     header:SetScript("OnDragStart", function()
@@ -418,18 +486,149 @@ local function CreateFrameUI()
 
     local headerBackground = header:CreateTexture(nil, "BACKGROUND")
     headerBackground:SetAllPoints()
-    headerBackground:SetColorTexture(0.02, 0.02, 0.03, 0.55)
+    headerBackground:SetColorTexture(0.00, 0.00, 0.00, 0.45)
 
     local name = header:CreateFontString(nil, "OVERLAY")
-    name:SetPoint("TOP", 0, -9)
+    name:SetPoint("TOP", 0, -7)
     name:SetFont("Fonts\\FRIZQT__.TTF", 13, "OUTLINE")
     frame.name = name
 
     local details = header:CreateFontString(nil, "OVERLAY")
-    details:SetPoint("TOP", name, "BOTTOM", 0, -3)
+    details:SetPoint("TOP", name, "BOTTOM", 0, -2)
     details:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
     details:SetTextColor(0.72, 0.72, 0.75)
     frame.details = details
+
+    local titleButton = CreateFrame("Button", nil, header)
+    titleButton:SetPoint("TOPLEFT", header, "TOPLEFT", 70, -2)
+    titleButton:SetPoint("TOPRIGHT", header, "TOPRIGHT", -70, -2)
+    titleButton:SetHeight(22)
+    frame.titleButton = titleButton
+
+    local titleArrow = titleButton:CreateFontString(nil, "OVERLAY")
+    titleArrow:SetPoint("LEFT", name, "RIGHT", 4, 0)
+    titleArrow:SetFont("Fonts\\FRIZQT__.TTF", 8, "OUTLINE")
+    titleArrow:SetTextColor(0.65, 0.65, 0.68)
+    titleArrow:SetText("v")
+    frame.titleArrow = titleArrow
+
+    local titleMenu = CreateFrame(
+        "Frame",
+        nil,
+        frame,
+        "BackdropTemplate"
+    )
+    titleMenu:SetPoint("TOP", header, "BOTTOM", 0, -2)
+    titleMenu:SetWidth(220)
+    titleMenu:SetFrameLevel(frame:GetFrameLevel() + 30)
+    titleMenu:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8X8",
+        edgeFile = "Interface\\Buttons\\WHITE8X8",
+        edgeSize = 1,
+    })
+    titleMenu:SetBackdropColor(0, 0, 0, 0.94)
+    titleMenu:SetBackdropBorderColor(unpack(colors.border))
+    titleMenu:EnableMouse(true)
+    titleMenu:EnableMouseWheel(true)
+    titleMenu.buttons = {}
+    titleMenu.offset = 0
+    titleMenu:Hide()
+    frame.titleMenu = titleMenu
+
+    local function RebuildTitleMenu()
+        local titles = GetKnownTitles()
+        local maxVisible = 12
+        local maxOffset = math.max(0, #titles - maxVisible)
+
+        titleMenu.offset = math.max(
+            0,
+            math.min(titleMenu.offset or 0, maxOffset)
+        )
+
+        local visibleCount = math.min(maxVisible, #titles)
+
+        for row = 1, maxVisible do
+            local button = titleMenu.buttons[row]
+
+            if not button then
+                button = CreateFrame("Button", nil, titleMenu)
+                button:SetHeight(19)
+                button:SetPoint(
+                    "TOPLEFT",
+                    titleMenu,
+                    "TOPLEFT",
+                    4,
+                    -(4 + (row - 1) * 19)
+                )
+                button:SetPoint(
+                    "TOPRIGHT",
+                    titleMenu,
+                    "TOPRIGHT",
+                    -4,
+                    -(4 + (row - 1) * 19)
+                )
+
+                local text = button:CreateFontString(
+                    nil,
+                    "OVERLAY",
+                    "GameFontNormalSmall"
+                )
+                text:SetPoint("LEFT", 3, 0)
+                text:SetPoint("RIGHT", -3, 0)
+                text:SetJustifyH("LEFT")
+                button.text = text
+
+                local highlight = button:CreateTexture(nil, "HIGHLIGHT")
+                highlight:SetAllPoints()
+                highlight:SetColorTexture(1, 1, 1, 0.08)
+
+                titleMenu.buttons[row] = button
+            end
+
+            local entry = titles[(titleMenu.offset or 0) + row]
+
+            if entry then
+                button.titleID = entry.id
+                button.text:SetText(entry.label)
+                button:SetScript("OnClick", function(self)
+                    if SetCurrentTitle then
+                        SetCurrentTitle(self.titleID)
+                    end
+
+                    titleMenu:Hide()
+                    Module:Refresh()
+                end)
+                button:Show()
+            else
+                button:Hide()
+            end
+        end
+
+        titleMenu:SetHeight(math.max(27, visibleCount * 19 + 8))
+    end
+
+    titleMenu:SetScript("OnMouseWheel", function(_, delta)
+        local titles = GetKnownTitles()
+        local maxOffset = math.max(0, #titles - 12)
+
+        titleMenu.offset = math.max(
+            0,
+            math.min((titleMenu.offset or 0) - delta, maxOffset)
+        )
+
+        RebuildTitleMenu()
+    end)
+
+    titleButton:SetScript("OnClick", function()
+        if titleMenu:IsShown() then
+            titleMenu:Hide()
+            return
+        end
+
+        titleMenu.offset = 0
+        RebuildTitleMenu()
+        titleMenu:Show()
+    end)
 
     local close = CreateFrame("Button", nil, frame)
     close:SetSize(22, 22)
@@ -442,8 +641,8 @@ local function CreateFrameUI()
     end)
 
     local modelPanel = CreateFrame("Frame", nil, frame, "BackdropTemplate")
-    modelPanel:SetPoint("TOPLEFT", 66, -70)
-    modelPanel:SetPoint("BOTTOMRIGHT", -66, 92)
+    modelPanel:SetPoint("TOPLEFT", 55, -58)
+    modelPanel:SetPoint("BOTTOMRIGHT", -55, 70)
     modelPanel:SetBackdrop({
         bgFile = "Interface\\Buttons\\WHITE8X8",
         edgeFile = "Interface\\Buttons\\WHITE8X8",
@@ -485,13 +684,13 @@ local function CreateFrameUI()
 
     for index, definition in ipairs(tabs) do
         local tab = CreateFrame("Button", nil, frame)
-        tab:SetSize(76, 22)
+        tab:SetSize(72, 20)
         tab:SetPoint(
             "RIGHT",
             frame,
             "RIGHT",
-            76,
-            110 - (index - 1) * 26
+            72,
+            92 - (index - 1) * 24
         )
         tab:SetNormalFontObject("GameFontNormalSmall")
         tab:SetHighlightFontObject("GameFontHighlightSmall")
@@ -522,6 +721,10 @@ local function CreateFrameUI()
 
     frame:SetScript("OnHide", function()
         GameTooltip:Hide()
+
+        if frame.titleMenu then
+            frame.titleMenu:Hide()
+        end
     end)
 
     frame:EnableKeyboard(true)
@@ -594,6 +797,17 @@ function Module:Initialize()
 
     UI:RegisterEvent("PLAYER_LEVEL_UP", function()
         Module:Refresh()
+    end)
+
+    UI:RegisterEvent("KNOWN_TITLES_UPDATE", function()
+        Module:Refresh()
+
+        if Module.frame
+            and Module.frame.titleMenu
+            and Module.frame.titleMenu:IsShown()
+        then
+            Module.frame.titleMenu:Hide()
+        end
     end)
 end
 
