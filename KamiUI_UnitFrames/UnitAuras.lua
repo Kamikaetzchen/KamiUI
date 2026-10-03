@@ -2,37 +2,87 @@ local UI = KamiUI
 local UF = UI:GetModule("UnitFrames")
 
 local AURAS_PER_ROW = 8
+local AURA_SPACING = 1
 local containers = {}
 
-local function CreateBorder(parent)
-    local top = parent:CreateTexture(nil, "OVERLAY")
-    top:SetColorTexture(0, 0, 0, 1)
-    top:SetPoint("TOPLEFT")
-    top:SetPoint("TOPRIGHT")
-    top:SetHeight(1)
+local DISPEL_TYPES = {
+    "Curse",
+    "Disease",
+    "Magic",
+    "Poison",
+}
 
-    local bottom = parent:CreateTexture(nil, "OVERLAY")
-    bottom:SetColorTexture(0, 0, 0, 1)
-    bottom:SetPoint("BOTTOMLEFT")
-    bottom:SetPoint("BOTTOMRIGHT")
-    bottom:SetHeight(1)
+local function BuildDispelColorMap(defaultColor)
+    local source = DebuffTypeColor or {
+        Magic = { r = 0.20, g = 0.60, b = 1.00 },
+        Disease = { r = 0.60, g = 0.40, b = 0.00 },
+        Poison = { r = 0.00, g = 0.60, b = 0.00 },
+        Curse = { r = 0.60, g = 0.00, b = 1.00 },
+    }
 
-    local left = parent:CreateTexture(nil, "OVERLAY")
-    left:SetColorTexture(0, 0, 0, 1)
-    left:SetPoint("TOPLEFT")
-    left:SetPoint("BOTTOMLEFT")
-    left:SetWidth(1)
+    local map = {}
 
-    local right = parent:CreateTexture(nil, "OVERLAY")
-    right:SetColorTexture(0, 0, 0, 1)
-    right:SetPoint("TOPRIGHT")
-    right:SetPoint("BOTTOMRIGHT")
-    right:SetWidth(1)
+    for _, dispelType in ipairs(DISPEL_TYPES) do
+        local color = source[dispelType]
+
+        if color then
+            map[dispelType] = CreateColor(color.r, color.g, color.b, 1)
+        end
+    end
+
+    map.Bleed = CreateColor(0.80, 0.20, 0.20, 1)
+    map.None = CreateColor(
+        defaultColor[1],
+        defaultColor[2],
+        defaultColor[3],
+        1
+    )
+
+    return map
 end
 
-local function InitializeAuraButton(button, size)
+local BUFF_BORDER_COLORS = BuildDispelColorMap({ 0, 0, 0 })
+local DEBUFF_BORDER_COLORS = BuildDispelColorMap({ 0.80, 0.20, 0.20 })
+
+local function CreateBorderEdge(parent, pointA, pointB, width, height)
+    local edge = parent:CreateTexture(nil, "OVERLAY")
+    edge:SetColorTexture(1, 1, 1, 1)
+    edge:SetPoint(pointA)
+    edge:SetPoint(pointB)
+
+    if width then
+        edge:SetWidth(width)
+    end
+
+    if height then
+        edge:SetHeight(height)
+    end
+
+    return edge
+end
+
+local function CreateDispelBorder(button, colorMap)
+    local edges = {
+        CreateBorderEdge(button, "TOPLEFT", "TOPRIGHT", nil, 1),
+        CreateBorderEdge(button, "BOTTOMLEFT", "BOTTOMRIGHT", nil, 1),
+        CreateBorderEdge(button, "TOPLEFT", "BOTTOMLEFT", 1, nil),
+        CreateBorderEdge(button, "TOPRIGHT", "BOTTOMRIGHT", 1, nil),
+    }
+
+    for _, edge in ipairs(edges) do
+        button:AddDispelTypeTexture(edge, {
+            style = Enum.CustomAuraButtonDispelTypeTextureStyle.PreserveAsset,
+            showWhenHelpful = true,
+            showWhenHarmful = true,
+            showWithoutDispelType = true,
+            customDispelColorMap = colorMap,
+        })
+    end
+end
+
+local function InitializeAuraButton(button, size, harmful)
     button:SetSize(size, size)
-    button:EnableMouse(false)
+    button:EnableMouse(true)
 
     local icon = button:CreateTexture(nil, "ARTWORK")
     icon:SetPoint("TOPLEFT", button, "TOPLEFT", 1, -1)
@@ -42,49 +92,65 @@ local function InitializeAuraButton(button, size)
     local overlay = CreateFrame("Frame", nil, button)
     overlay:SetAllPoints()
     overlay:SetFrameLevel(button:GetFrameLevel() + 2)
+    overlay:EnableMouse(false)
 
     local duration = overlay:CreateFontString(nil, "OVERLAY")
-    duration:SetPoint("BOTTOM", button, "BOTTOM", 0, 2)
+    duration:SetPoint("BOTTOM", button, "BOTTOM", 0, 1)
     duration:SetJustifyH("CENTER")
     duration:SetTextColor(1, 1, 1)
     duration:SetShadowColor(0, 0, 0, 1)
     duration:SetShadowOffset(1, -1)
 
     local stacks = overlay:CreateFontString(nil, "OVERLAY")
-    stacks:SetPoint("TOPRIGHT", button, "TOPRIGHT", -2, -2)
+    stacks:SetPoint("TOPRIGHT", button, "TOPRIGHT", -2, -1)
     stacks:SetJustifyH("RIGHT")
     stacks:SetTextColor(1, 1, 1)
     stacks:SetShadowColor(0, 0, 0, 1)
     stacks:SetShadowOffset(1, -1)
 
     local fontPath = GameFontNormalSmall:GetFont()
-    local fontSize = math.max(7, math.min(10, math.floor(size * 0.42)))
+    local fontSize = math.max(5, math.min(8, math.floor(size * 0.32)))
 
     duration:SetFont(fontPath, fontSize, "OUTLINE")
     stacks:SetFont(fontPath, fontSize, "OUTLINE")
 
-    CreateBorder(button)
+    CreateDispelBorder(
+        button,
+        harmful and DEBUFF_BORDER_COLORS or BUFF_BORDER_COLORS
+    )
 
     button:SetIcon(icon)
     button:SetDurationText(duration)
     button:SetApplicationCount(stacks)
+    button:SetTooltipAnchorPoint("ANCHOR_RIGHT")
+    button:SetMouseMotionEnabled(true)
+    button:SetHideTooltipInCombat(false)
 end
 
-local function AddAuraGroup(container, key, filter, maxCount, size, index, forceNewLine)
+local function AddAuraGroup(
+    container,
+    key,
+    filter,
+    maxCount,
+    size,
+    index,
+    forceNewLine,
+    harmful
+)
     container:AddAuraGroup(key, filter, {
         maxFrameCount = maxCount,
         sortMethod = AuraContainerSortMethod.Expiration,
         sortDirection = AuraContainerSortDirection.Reverse,
         initializeFrame = function(button)
-            InitializeAuraButton(button, size)
+            InitializeAuraButton(button, size, harmful)
         end,
         layout = {
             elementWidth = size,
             elementHeight = size,
-            elementSpacing = 0,
-            lineSpacing = 0,
-            groupSpacing = 0,
-            groupLineSpacing = 0,
+            elementSpacing = AURA_SPACING,
+            lineSpacing = AURA_SPACING,
+            groupSpacing = AURA_SPACING,
+            groupLineSpacing = AURA_SPACING,
             forceNewLine = forceNewLine,
             layoutIndex = index,
         },
@@ -92,7 +158,11 @@ local function AddAuraGroup(container, key, filter, maxCount, size, index, force
 end
 
 local function CreateAuraContainer(parent, unit, buffCount, debuffCount, rows, growUp)
-    local size = parent:GetWidth() / AURAS_PER_ROW
+    local width = parent:GetWidth()
+    local size = (width - (AURAS_PER_ROW - 1) * AURA_SPACING)
+        / AURAS_PER_ROW
+    local height = size * rows + (rows - 1) * AURA_SPACING
+
     local container = CreateFrame(
         "AuraContainer",
         nil,
@@ -100,17 +170,35 @@ local function CreateAuraContainer(parent, unit, buffCount, debuffCount, rows, g
         "CustomAuraContainerTemplate, DisableUntrustedLayoutScriptsTemplate"
     )
 
-    container:SetSize(parent:GetWidth(), size * rows)
+    container:SetSize(width, height)
     container:SetFlowLayoutAxis(AnchorUtil.FlowLayoutAxis.Horizontal)
     container:SetFlowLayoutAnchorPoint(growUp and "BOTTOMLEFT" or "TOPLEFT")
     container:SetFlowLayoutGrowthDirection(
         AnchorUtil.FlowDirection.Right,
         growUp and AnchorUtil.FlowDirection.Up or AnchorUtil.FlowDirection.Down
     )
-    container:SetFlowLayoutMaximumLineSize(parent:GetWidth())
+    container:SetFlowLayoutMaximumLineSize(width)
 
-    AddAuraGroup(container, "buffs", "HELPFUL", buffCount, size, 1, false)
-    AddAuraGroup(container, "debuffs", "HARMFUL", debuffCount, size, 2, true)
+    AddAuraGroup(
+        container,
+        "buffs",
+        "HELPFUL",
+        buffCount,
+        size,
+        1,
+        false,
+        false
+    )
+    AddAuraGroup(
+        container,
+        "debuffs",
+        "HARMFUL",
+        debuffCount,
+        size,
+        2,
+        true,
+        true
+    )
 
     if growUp then
         container:SetPoint("BOTTOMLEFT", parent, "TOPLEFT", 0, 0)
