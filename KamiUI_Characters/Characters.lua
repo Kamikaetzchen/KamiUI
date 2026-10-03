@@ -1195,11 +1195,8 @@ local function CreateReputationPane(frame)
     listPanel:SetWidth(SPLIT_WIDTH)
     listPanel:SetBackdrop({
         bgFile = "Interface\\Buttons\\WHITE8X8",
-        edgeFile = "Interface\\Buttons\\WHITE8X8",
-        edgeSize = 1,
     })
     listPanel:SetBackdropColor(0, 0, 0, 0.24)
-    listPanel:SetBackdropBorderColor(unpack(colors.border))
 
     local list = CreateFrame("ScrollFrame", nil, listPanel)
     list:SetPoint("TOPLEFT", 1, -1)
@@ -1300,12 +1297,33 @@ local function CreateReputationPane(frame)
     detail:SetPoint("BOTTOMRIGHT", pane, "BOTTOMRIGHT", 0, 0)
     detail:SetBackdrop({
         bgFile = "Interface\\Buttons\\WHITE8X8",
-        edgeFile = "Interface\\Buttons\\WHITE8X8",
-        edgeSize = 1,
     })
     detail:SetBackdropColor(0, 0, 0, 0.30)
-    detail:SetBackdropBorderColor(unpack(colors.border))
     pane.detail = detail
+
+    local topDivider = pane:CreateTexture(nil, "OVERLAY")
+    topDivider:SetPoint("TOPLEFT", pane, "TOPLEFT", 0, 0)
+    topDivider:SetPoint("TOPRIGHT", pane, "TOPRIGHT", 0, 0)
+    topDivider:SetHeight(1)
+    topDivider:SetColorTexture(unpack(colors.border))
+
+    local splitDivider = pane:CreateTexture(nil, "OVERLAY")
+    splitDivider:SetPoint(
+        "TOPLEFT",
+        pane,
+        "TOPLEFT",
+        SPLIT_WIDTH,
+        0
+    )
+    splitDivider:SetPoint(
+        "BOTTOMLEFT",
+        pane,
+        "BOTTOMLEFT",
+        SPLIT_WIDTH,
+        0
+    )
+    splitDivider:SetWidth(1)
+    splitDivider:SetColorTexture(unpack(colors.border))
 
     local name = detail:CreateFontString(nil, "OVERLAY")
     name:SetPoint("TOPLEFT", 10, -12)
@@ -1838,11 +1856,8 @@ local function CreateSkillsPane(frame)
     listPanel:SetWidth(SPLIT_WIDTH)
     listPanel:SetBackdrop({
         bgFile = "Interface\\Buttons\\WHITE8X8",
-        edgeFile = "Interface\\Buttons\\WHITE8X8",
-        edgeSize = 1,
     })
     listPanel:SetBackdropColor(0, 0, 0, 0.24)
-    listPanel:SetBackdropBorderColor(unpack(colors.border))
 
     local list = CreateFrame("ScrollFrame", nil, listPanel)
     list:SetPoint("TOPLEFT", 1, -1)
@@ -1946,12 +1961,33 @@ local function CreateSkillsPane(frame)
     detail:SetPoint("BOTTOMRIGHT", pane, "BOTTOMRIGHT", 0, 0)
     detail:SetBackdrop({
         bgFile = "Interface\\Buttons\\WHITE8X8",
-        edgeFile = "Interface\\Buttons\\WHITE8X8",
-        edgeSize = 1,
     })
     detail:SetBackdropColor(0, 0, 0, 0.30)
-    detail:SetBackdropBorderColor(unpack(colors.border))
     pane.detail = detail
+
+    local topDivider = pane:CreateTexture(nil, "OVERLAY")
+    topDivider:SetPoint("TOPLEFT", pane, "TOPLEFT", 0, 0)
+    topDivider:SetPoint("TOPRIGHT", pane, "TOPRIGHT", 0, 0)
+    topDivider:SetHeight(1)
+    topDivider:SetColorTexture(unpack(colors.border))
+
+    local splitDivider = pane:CreateTexture(nil, "OVERLAY")
+    splitDivider:SetPoint(
+        "TOPLEFT",
+        pane,
+        "TOPLEFT",
+        SPLIT_WIDTH,
+        0
+    )
+    splitDivider:SetPoint(
+        "BOTTOMLEFT",
+        pane,
+        "BOTTOMLEFT",
+        SPLIT_WIDTH,
+        0
+    )
+    splitDivider:SetWidth(1)
+    splitDivider:SetColorTexture(unpack(colors.border))
 
     local name = detail:CreateFontString(nil, "OVERLAY")
     name:SetPoint("TOPLEFT", 10, -14)
