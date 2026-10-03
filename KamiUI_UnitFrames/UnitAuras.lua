@@ -1,7 +1,8 @@
 local UI = KamiUI
 local UF = UI:GetModule("UnitFrames")
 
-local AURAS_PER_ROW = 8
+local DEFAULT_AURAS_PER_ROW = 8
+local TARGET_AURAS_PER_ROW = 10
 local AURA_SPACING = 1
 local containers = {}
 
@@ -157,10 +158,20 @@ local function AddAuraGroup(
     })
 end
 
-local function CreateAuraContainer(parent, unit, buffCount, debuffCount, rows, growUp)
+local function CreateAuraContainer(
+    parent,
+    unit,
+    buffCount,
+    debuffCount,
+    rows,
+    growUp,
+    aurasPerRow
+)
     local width = parent:GetWidth()
-    local size = (width - (AURAS_PER_ROW - 1) * AURA_SPACING)
-        / AURAS_PER_ROW
+    aurasPerRow = aurasPerRow or DEFAULT_AURAS_PER_ROW
+
+    local size = (width - (aurasPerRow - 1) * AURA_SPACING)
+        / aurasPerRow
     local height = size * rows + (rows - 1) * AURA_SPACING
 
     local container = CreateFrame(
@@ -219,6 +230,7 @@ end
 local function RefreshAuras(unit)
     for _, container in ipairs(containers) do
         if not unit or container.unit == unit then
+            container:SetUnit(container.unit)
             container:UpdateAllAuras()
         end
     end
@@ -232,7 +244,8 @@ local function AttachAuras()
             16,
             8,
             3,
-            true
+            true,
+            TARGET_AURAS_PER_ROW
         )
     end
 
@@ -248,7 +261,15 @@ local function AttachAuras()
         local frame, unit = unpack(entry)
 
         if frame then
-            frame.auras = CreateAuraContainer(frame, unit, 8, 8, 2, false)
+            frame.auras = CreateAuraContainer(
+                frame,
+                unit,
+                8,
+                8,
+                2,
+                false,
+                DEFAULT_AURAS_PER_ROW
+            )
         end
     end
 end
