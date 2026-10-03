@@ -42,30 +42,48 @@ local function CanAccessValue(value)
     return true
 end
 
+local function SetBorderColor(border, r, g, b, a)
+    if not border then
+        return
+    end
+
+    for _, edge in ipairs(border) do
+        edge:SetColorTexture(r, g, b, a or 1)
+    end
+end
+
 local function CreateBorder(parent)
+    local edges = {}
+
     local top = parent:CreateTexture(nil, "OVERLAY")
     top:SetPoint("TOPLEFT")
     top:SetPoint("TOPRIGHT")
     top:SetHeight(BORDER_SIZE)
     top:SetColorTexture(0, 0, 0, 1)
+    edges[#edges + 1] = top
 
     local bottom = parent:CreateTexture(nil, "OVERLAY")
     bottom:SetPoint("BOTTOMLEFT")
     bottom:SetPoint("BOTTOMRIGHT")
     bottom:SetHeight(BORDER_SIZE)
     bottom:SetColorTexture(0, 0, 0, 1)
+    edges[#edges + 1] = bottom
 
     local left = parent:CreateTexture(nil, "OVERLAY")
     left:SetPoint("TOPLEFT")
     left:SetPoint("BOTTOMLEFT")
     left:SetWidth(BORDER_SIZE)
     left:SetColorTexture(0, 0, 0, 1)
+    edges[#edges + 1] = left
 
     local right = parent:CreateTexture(nil, "OVERLAY")
     right:SetPoint("TOPRIGHT")
     right:SetPoint("BOTTOMRIGHT")
     right:SetWidth(BORDER_SIZE)
     right:SetColorTexture(0, 0, 0, 1)
+    edges[#edges + 1] = right
+
+    return edges
 end
 
 local function ConfigureSingleLine(fontString)
@@ -305,7 +323,13 @@ local function CreateCustomPlate(namePlate)
     healthBackground:SetAllPoints()
     healthBackground:SetColorTexture(0.05, 0.05, 0.05, 0.95)
 
-    CreateBorder(health)
+    local healthBorder = CreateBorder(health)
+
+    local raidMarker = root:CreateTexture(nil, "OVERLAY")
+    raidMarker:SetSize(14, 14)
+    raidMarker:SetPoint("RIGHT", health, "LEFT", -3, 0)
+    raidMarker:SetTexture("Interface\\TargetingFrame\\UI-RaidTargetingIcons")
+    raidMarker:Hide()
 
     local name = health:CreateFontString(nil, "OVERLAY")
     name:SetPoint("LEFT", health, "LEFT", 3, 0)
@@ -361,6 +385,8 @@ local function CreateCustomPlate(namePlate)
         unitFrame = unitFrame,
         root = root,
         health = health,
+        healthBorder = healthBorder,
+        raidMarker = raidMarker,
         name = name,
         percent = percent,
         cast = cast,
@@ -417,6 +443,28 @@ local function UpdateIdentity(data)
     end
 
     data.name:SetText(GetDisplayName(data.unit))
+
+    local isTarget = UnitIsUnit and UnitIsUnit(data.unit, "target")
+
+    if CanAccessValue(isTarget) and isTarget then
+        SetBorderColor(data.healthBorder, 1.0, 0.82, 0.0, 1)
+    else
+        SetBorderColor(data.healthBorder, 0, 0, 0, 1)
+    end
+
+    local index = GetRaidTargetIndex and GetRaidTargetIndex(data.unit)
+
+    if index ~= nil and SetRaidTargetIconTexture then
+        SetRaidTargetIconTexture(data.raidMarker, index)
+    end
+
+    if secretwrap then
+        data.raidMarker:SetShown(secretwrap(index ~= nil))
+    elseif CanAccessValue(index) then
+        data.raidMarker:SetShown(index ~= nil)
+    else
+        data.raidMarker:Hide()
+    end
 end
 
 local function UpdateCast(data)
@@ -610,6 +658,20 @@ function Module:Initialize()
         end)
     end
 
+    UI:RegisterEvent("RAID_TARGET_UPDATE", function()
+        if not C_NamePlate or not C_NamePlate.GetNamePlates then
+            return
+        end
+
+        for _, plate in ipairs(C_NamePlate.GetNamePlates() or {}) do
+            local data = styled[plate]
+
+            if data and data.unit then
+                UpdateIdentity(data)
+            end
+        end
+    end)
+
     UI:RegisterEvent("PLAYER_TARGET_CHANGED", function()
         if not C_NamePlate or not C_NamePlate.GetNamePlates then
             return
@@ -619,6 +681,7 @@ function Module:Initialize()
             local data = styled[plate]
 
             if data and data.unit then
+                UpdateIdentity(data)
                 UpdateHealth(data)
             end
         end
