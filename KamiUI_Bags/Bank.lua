@@ -277,7 +277,7 @@ end
 
 local function GetBankTabs()
     local tabs = {}
-    local tabData
+    local tabData = {}
 
     if C_Bank
         and C_Bank.FetchPurchasedBankTabData
@@ -285,34 +285,52 @@ local function GetBankTabs()
         and Enum.BankType
         and Enum.BankType.Character
     then
-        tabData = C_Bank.FetchPurchasedBankTabData(Enum.BankType.Character)
+        tabData = C_Bank.FetchPurchasedBankTabData(
+            Enum.BankType.Character
+        ) or {}
     end
+
+    local purchasedCount = #tabData
+    local bankBagSlots = Enum
+        and Enum.BagIndex
+        and Enum.BagIndex.Characterbanktab
 
     for _, entry in ipairs(GetCharacterBankBagIDs()) do
         local bagID = entry.bagID
         local slotCount = GetContainerNumSlots(bagID)
+        local data = tabData[entry.index]
+        local info
 
-        if slotCount > 0 then
-            local data = tabData and tabData[entry.index]
-            local info
-            local bankBagSlots = Enum
-                and Enum.BagIndex
-                and Enum.BagIndex.Characterbanktab
+        if bankBagSlots and entry.index > 1 then
+            info = GetContainerItemInfo(bankBagSlots, entry.index)
+        end
 
-            if bankBagSlots and entry.index > 1 then
-                info = GetContainerItemInfo(bankBagSlots, entry.index)
-            end
+        local purchased = entry.index <= purchasedCount
+            or slotCount > 0
+            or info ~= nil
 
+        if purchased then
             local _, family = GetContainerNumFreeSlots(bagID)
+            local emptyBagSlot = entry.index > 1
+                and slotCount == 0
+                and info == nil
+            local icon = emptyBagSlot
+                and "Interface\\PaperDoll\\UI-PaperDoll-Slot-Bag"
+                or GetBankTabIcon(data, info)
 
             tabs[#tabs + 1] = {
                 bagID = bagID,
                 index = entry.index,
-                name = data and data.name
-                    or (entry.index == 1 and "Bank" or "Bank Bag " .. entry.index - 1),
-                icon = GetBankTabIcon(data, info),
+                name = emptyBagSlot
+                    and "Empty Bank Bag Slot"
+                    or (data and data.name)
+                    or (entry.index == 1
+                        and "Bank"
+                        or "Bank Bag " .. entry.index - 1),
+                icon = icon,
                 family = family or 0,
                 slotCount = slotCount,
+                emptyBagSlot = emptyBagSlot,
             }
         end
     end
@@ -942,10 +960,25 @@ local function CreateBankBagButton(parent)
     button:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_TOP")
         GameTooltip:SetText(self.tabName or "Bank")
-        GameTooltip:AddLine("Click: show/hide bank bag", 0.75, 0.75, 0.75)
 
-        if not self.isCached and self.tabIndex and self.tabIndex > 1 then
-            GameTooltip:AddLine("Drag: equip/swap bank bag", 0.75, 0.75, 0.75)
+        if self.emptyBagSlot then
+            GameTooltip:AddLine("Drag a bag here", 0.75, 0.75, 0.75)
+        else
+            GameTooltip:AddLine(
+                "Click: show/hide bank bag",
+                0.75,
+                0.75,
+                0.75
+            )
+
+            if not self.isCached and self.tabIndex and self.tabIndex > 1 then
+                GameTooltip:AddLine(
+                    "Drag: equip/swap bank bag",
+                    0.75,
+                    0.75,
+                    0.75
+                )
+            end
         end
 
         GameTooltip:Show()
@@ -1054,6 +1087,7 @@ function Module:UpdateBagBar()
         button.tabIndex = tab.index or index
         button.tabName = tab.name
         button.isCached = not (isCurrent and bankOpen)
+        button.emptyBagSlot = tab.emptyBagSlot == true
         button.icon:SetTexture(tab.icon)
 
         local free
@@ -1072,7 +1106,7 @@ function Module:UpdateBagBar()
             free = math.max(0, (tab.slotCount or 0) - used)
         end
 
-        button.count:SetText(free)
+        button.count:SetText(tab.emptyBagSlot and "" or free)
 
         local hidden = EnsureDatabase().bankHiddenTabs[tab.bagID] == true
         button.icon:SetAlpha(hidden and 0.30 or 1.00)
