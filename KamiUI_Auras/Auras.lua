@@ -197,7 +197,7 @@ local function CreateAuraContainer()
 
     auraContainer:AddAuraGroup("helpful", "HELPFUL", {
         maxFrameCount = 40,
-        sortMethod = AuraContainerSortMethod.Expiration,
+        sortMethod = AuraContainerSortMethod.ExpirationOnly,
         sortDirection = AuraContainerSortDirection.Reverse,
         initializeFrame = function(button)
             InitializeAuraButton(button, defaults.helpfulColor, false)
