@@ -56,7 +56,7 @@ local function CreatePetFrame()
     local nameText = health:CreateFontString(nil, "OVERLAY")
     nameText:SetFont(
         fontPath,
-        UF:GetBarFontSize(PET_HEALTH_HEIGHT),
+        math.max(1, UF:GetBarFontSize(PET_HEALTH_HEIGHT) - 1),
         fontFlags
     )
     nameText:SetPoint("LEFT", 2, 0)
