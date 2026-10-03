@@ -6,7 +6,7 @@ Module.name = "KamiUI_Nameplates"
 Module.version = "0.3.0"
 
 local PLATE_WIDTH = 200
-local HEALTH_HEIGHT = 10
+local HEALTH_HEIGHT = 12
 local CAST_HEIGHT = 10
 local BORDER_SIZE = 1
 
@@ -349,7 +349,7 @@ local function CreateCustomPlate(namePlate)
     local level = health:CreateFontString(nil, "OVERLAY")
     level:SetPoint("LEFT", health, "LEFT", 3, 0)
     level:SetJustifyH("LEFT")
-    level:SetFont(fontPath, 9, "OUTLINE")
+    level:SetFont(fontPath, 10, "OUTLINE")
     level:SetShadowColor(0, 0, 0, 1)
     level:SetShadowOffset(1, -1)
     ConfigureSingleLine(level)
@@ -358,7 +358,7 @@ local function CreateCustomPlate(namePlate)
     name:SetPoint("LEFT", level, "RIGHT", 3, 0)
     name:SetPoint("RIGHT", health, "RIGHT", -36, 0)
     name:SetJustifyH("LEFT")
-    name:SetFont(fontPath, 8, fontFlags)
+    name:SetFont(fontPath, 9, fontFlags)
     name:SetTextColor(1, 1, 1)
     name:SetShadowColor(0, 0, 0, 1)
     name:SetShadowOffset(1, -1)
@@ -367,7 +367,7 @@ local function CreateCustomPlate(namePlate)
     local percent = health:CreateFontString(nil, "OVERLAY")
     percent:SetPoint("RIGHT", health, "RIGHT", -3, 0)
     percent:SetJustifyH("RIGHT")
-    percent:SetFont(fontPath, 8, fontFlags)
+    percent:SetFont(fontPath, 9, fontFlags)
     percent:SetTextColor(1, 1, 1)
     percent:SetShadowColor(0, 0, 0, 1)
     percent:SetShadowOffset(1, -1)
