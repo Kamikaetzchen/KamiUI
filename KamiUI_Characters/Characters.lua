@@ -391,6 +391,7 @@ local function UpdateEquipmentSlot(button)
 end
 
 local SetSidebarMode
+local SetOuterPage
 
 local function UpdatePlayerInfo(frame)
     local name = GetTitledPlayerName()
@@ -435,6 +436,13 @@ function Module:Refresh()
         SetSidebarMode(
             self.frame,
             self.frame.sidebar.mode or "stats"
+        )
+    end
+
+    if SetOuterPage then
+        SetOuterPage(
+            self.frame,
+            self.frame.page or "character"
         )
     end
 end
@@ -502,6 +510,76 @@ local function SafeCall(func, ...)
     end
 
     return a, b, c, d, e, f, g, h
+end
+
+
+local function GetFactionData(index)
+    if not C_Reputation or not C_Reputation.GetFactionDataByIndex then
+        return nil
+    end
+
+    local data = SafeCall(C_Reputation.GetFactionDataByIndex, index)
+
+    if type(data) ~= "table" then
+        return nil
+    end
+
+    return data
+end
+
+local function GetFactionStandingLabel(reaction)
+    if type(reaction) ~= "number" then
+        return ""
+    end
+
+    local globalLabel = _G["FACTION_STANDING_LABEL" .. reaction]
+
+    if type(globalLabel) == "string" then
+        return globalLabel
+    end
+
+    if GetText then
+        local label = SafeCall(
+            GetText,
+            "FACTION_STANDING_LABEL" .. reaction,
+            UnitSex and UnitSex("player") or 2
+        )
+
+        if type(label) == "string" then
+            return label
+        end
+    end
+
+    return ""
+end
+
+local function GetFactionBarColor(reaction)
+    local color = FACTION_BAR_COLORS
+        and FACTION_BAR_COLORS[reaction or 4]
+
+    if color then
+        return color.r or color[1] or 0.18,
+            color.g or color[2] or 0.55,
+            color.b or color[3] or 0.18
+    end
+
+    return 0.18, 0.55, 0.18
+end
+
+local function SetReputationOptionState(option, checked, enabled)
+    if checked then
+        option.mark:Show()
+    else
+        option.mark:Hide()
+    end
+
+    if enabled then
+        option:Enable()
+        option:SetAlpha(1)
+    else
+        option:Disable()
+        option:SetAlpha(0.45)
+    end
 end
 
 local function CreateSidebarRow(parent, y)
@@ -795,6 +873,614 @@ SetSidebarMode = function(frame, mode)
         UpdateStatsPane(frame)
     else
         UpdateEquipmentPane(frame)
+    end
+end
+
+
+local function CreateReputationOption(parent, labelText, y)
+    local button = CreateFrame("Button", nil, parent)
+    button:SetPoint("TOPLEFT", parent, "TOPLEFT", 12, y)
+    button:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -8, y)
+    button:SetHeight(20)
+
+    local box = CreateFrame("Frame", nil, button)
+    box:SetSize(14, 14)
+    box:SetPoint("LEFT", 0, 0)
+
+    local bg = box:CreateTexture(nil, "BACKGROUND")
+    bg:SetAllPoints()
+    bg:SetColorTexture(0, 0, 0, 0.55)
+    CreateBorder(box, colors.border)
+
+    local mark = box:CreateFontString(nil, "OVERLAY")
+    mark:SetPoint("CENTER", 0, 0)
+    mark:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
+    mark:SetTextColor(0.90, 0.76, 0.18)
+    mark:SetText("x")
+    mark:Hide()
+    button.mark = mark
+
+    local label = button:CreateFontString(nil, "OVERLAY")
+    label:SetPoint("LEFT", box, "RIGHT", 7, 0)
+    label:SetPoint("RIGHT", button, "RIGHT", 0, 0)
+    label:SetJustifyH("LEFT")
+    label:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+    label:SetTextColor(0.90, 0.78, 0.22)
+    label:SetText(labelText)
+    button.label = label
+
+    local highlight = button:CreateTexture(nil, "HIGHLIGHT")
+    highlight:SetPoint("TOPLEFT", box, "TOPLEFT", -2, 2)
+    highlight:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", 0, -2)
+    highlight:SetColorTexture(1, 1, 1, 0.05)
+
+    return button
+end
+
+local function UpdateReputationDetails(frame, index)
+    local pane = frame.reputationPane
+
+    if not pane then
+        return
+    end
+
+    local data = index and GetFactionData(index)
+
+    if not data or (data.isHeader and not data.isHeaderWithRep) then
+        pane.selectedIndex = nil
+        pane.detailName:SetText("Select a faction")
+        pane.detailStanding:SetText("")
+        pane.detailDescription:SetText("")
+        pane.detailBar:SetMinMaxValues(0, 1)
+        pane.detailBar:SetValue(0)
+        pane.detailValue:SetText("")
+        SetReputationOptionState(pane.atWarOption, false, false)
+        SetReputationOptionState(pane.inactiveOption, false, false)
+        SetReputationOptionState(pane.watchedOption, false, false)
+        return
+    end
+
+    pane.selectedIndex = index
+    pane.selectedFactionID = data.factionID
+
+    local reaction = tonumber(data.reaction) or 4
+    local lower = tonumber(data.currentReactionThreshold) or 0
+    local upper = tonumber(data.nextReactionThreshold) or lower
+    local standing = tonumber(data.currentStanding) or lower
+    local current = math.max(0, standing - lower)
+    local maximum = math.max(1, upper - lower)
+    local r, g, b = GetFactionBarColor(reaction)
+
+    pane.detailName:SetText(data.name or "Faction")
+    pane.detailStanding:SetText(GetFactionStandingLabel(reaction))
+    pane.detailDescription:SetText(data.description or "")
+    pane.detailBar:SetMinMaxValues(0, maximum)
+    pane.detailBar:SetValue(math.min(maximum, current))
+    pane.detailBar:SetStatusBarColor(r, g, b, 0.85)
+    pane.detailValue:SetText(
+        string.format("%d / %d", current, maximum)
+    )
+
+    local isActive = true
+
+    if C_Reputation and C_Reputation.IsFactionActive then
+        local active = SafeCall(C_Reputation.IsFactionActive, index)
+
+        if type(active) == "boolean" then
+            isActive = active
+        end
+    end
+
+    SetReputationOptionState(
+        pane.atWarOption,
+        data.atWarWith == true,
+        data.canToggleAtWar == true
+    )
+    SetReputationOptionState(
+        pane.inactiveOption,
+        not isActive,
+        data.canSetInactive == true
+    )
+    SetReputationOptionState(
+        pane.watchedOption,
+        data.isWatched == true,
+        data.factionID ~= nil
+    )
+end
+
+local function UpdateReputationPane(frame)
+    local pane = frame.reputationPane
+
+    if not pane or not C_Reputation or not C_Reputation.GetNumFactions then
+        return
+    end
+
+    local numFactions = tonumber(
+        SafeCall(C_Reputation.GetNumFactions)
+    ) or 0
+    local y = -4
+    local selectedIndex
+
+    for index = 1, math.max(numFactions, #pane.rows) do
+        local row = pane.rows[index]
+
+        if not row and index <= numFactions then
+            row = CreateFrame("Button", nil, pane.listContent)
+
+            local background = row:CreateTexture(nil, "BACKGROUND")
+            background:SetAllPoints()
+            background:SetColorTexture(0, 0, 0, 0)
+            row.background = background
+
+            local name = row:CreateFontString(nil, "OVERLAY")
+            name:SetJustifyH("LEFT")
+            name:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+            row.name = name
+
+            local bar = CreateFrame("StatusBar", nil, row)
+            bar:SetStatusBarTexture("Interface\\Buttons\\WHITE8X8")
+            bar:SetMinMaxValues(0, 1)
+            bar:SetValue(0)
+            row.bar = bar
+
+            local barBackground = bar:CreateTexture(nil, "BACKGROUND")
+            barBackground:SetAllPoints()
+            barBackground:SetColorTexture(0, 0, 0, 0.50)
+
+            local rank = bar:CreateFontString(nil, "OVERLAY")
+            rank:SetPoint("CENTER", 0, 0)
+            rank:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+            rank:SetTextColor(0.92, 0.92, 0.94)
+            row.rank = rank
+
+            local selected = row:CreateTexture(nil, "BORDER")
+            selected:SetAllPoints()
+            selected:SetColorTexture(1, 1, 1, 0.09)
+            selected:Hide()
+            row.selected = selected
+
+            local highlight = row:CreateTexture(nil, "HIGHLIGHT")
+            highlight:SetAllPoints()
+            highlight:SetColorTexture(1, 1, 1, 0.06)
+
+            pane.rows[index] = row
+        end
+
+        if row then
+            local data = index <= numFactions and GetFactionData(index)
+
+            if data then
+                row.index = index
+                row.factionID = data.factionID
+                row:ClearAllPoints()
+                row:SetPoint("TOPLEFT", pane.listContent, "TOPLEFT", 4, y)
+                row:SetPoint("TOPRIGHT", pane.listContent, "TOPRIGHT", -4, y)
+
+                if data.isHeader then
+                    row:SetHeight(22)
+                    row.background:SetColorTexture(1, 1, 1, 0.055)
+                    row.name:ClearAllPoints()
+                    row.name:SetPoint("LEFT", 6, 0)
+                    row.name:SetPoint("RIGHT", -6, 0)
+                    row.name:SetTextColor(0.88, 0.72, 0.16)
+                    row.name:SetText(
+                        string.format(
+                            "%s %s",
+                            data.isCollapsed and "+" or "-",
+                            data.name or "Group"
+                        )
+                    )
+                    row.bar:Hide()
+                    row.selected:Hide()
+                    row:SetScript("OnClick", function(self)
+                        local headerData = GetFactionData(self.index)
+
+                        if not headerData then
+                            return
+                        end
+
+                        if headerData.isCollapsed then
+                            if C_Reputation.ExpandFactionHeader then
+                                SafeCall(
+                                    C_Reputation.ExpandFactionHeader,
+                                    self.index
+                                )
+                            end
+                        elseif C_Reputation.CollapseFactionHeader then
+                            SafeCall(
+                                C_Reputation.CollapseFactionHeader,
+                                self.index
+                            )
+                        end
+
+                        UpdateReputationPane(frame)
+                    end)
+
+                    y = y - 24
+                else
+                    local reaction = tonumber(data.reaction) or 4
+                    local lower = tonumber(data.currentReactionThreshold) or 0
+                    local upper = tonumber(data.nextReactionThreshold) or lower
+                    local standing = tonumber(data.currentStanding) or lower
+                    local current = math.max(0, standing - lower)
+                    local maximum = math.max(1, upper - lower)
+                    local r, g, b = GetFactionBarColor(reaction)
+
+                    row:SetHeight(30)
+                    row.background:SetColorTexture(0, 0, 0, 0)
+                    row.name:ClearAllPoints()
+                    row.name:SetPoint(
+                        "TOPLEFT",
+                        data.isChild and 18 or 8,
+                        -3
+                    )
+                    row.name:SetPoint("TOPRIGHT", -8, -3)
+                    row.name:SetTextColor(0.92, 0.92, 0.94)
+                    row.name:SetText(data.name or "Faction")
+
+                    row.bar:ClearAllPoints()
+                    row.bar:SetPoint("BOTTOMLEFT", 8, 3)
+                    row.bar:SetPoint("BOTTOMRIGHT", -8, 3)
+                    row.bar:SetHeight(10)
+                    row.bar:SetMinMaxValues(0, maximum)
+                    row.bar:SetValue(math.min(maximum, current))
+                    row.bar:SetStatusBarColor(r, g, b, 0.82)
+                    row.bar:Show()
+                    row.rank:SetText(GetFactionStandingLabel(reaction))
+
+                    local isSelected =
+                        pane.selectedFactionID ~= nil
+                        and pane.selectedFactionID == data.factionID
+                    row.selected:SetShown(isSelected)
+
+                    if isSelected then
+                        selectedIndex = index
+                    end
+
+                    row:SetScript("OnClick", function(self)
+                        pane.selectedFactionID = self.factionID
+                        pane.selectedIndex = self.index
+
+                        if C_Reputation.SetSelectedFaction then
+                            SafeCall(
+                                C_Reputation.SetSelectedFaction,
+                                self.index
+                            )
+                        end
+
+                        UpdateReputationPane(frame)
+                    end)
+
+                    y = y - 32
+                end
+
+                row:Show()
+            else
+                row:Hide()
+            end
+        end
+    end
+
+    pane.listContent:SetHeight(math.max(1, -y + 4))
+    pane.UpdateScrollRange()
+
+    if not selectedIndex then
+        for index = 1, numFactions do
+            local data = GetFactionData(index)
+
+            if data and not data.isHeader then
+                pane.selectedFactionID = data.factionID
+                selectedIndex = index
+                break
+            end
+        end
+    end
+
+    UpdateReputationDetails(frame, selectedIndex)
+end
+
+local function CreateReputationPane(frame)
+    local pane = CreateFrame("Frame", nil, frame)
+    pane:SetPoint("TOPLEFT", frame, "TOPLEFT", 1, -HEADER_HEIGHT)
+    pane:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -1, 1)
+    pane:Hide()
+    pane.rows = {}
+    frame.reputationPane = pane
+
+    local listPanel = CreateFrame("Frame", nil, pane, "BackdropTemplate")
+    listPanel:SetPoint("TOPLEFT", 0, 0)
+    listPanel:SetPoint("BOTTOMLEFT", 0, 0)
+    listPanel:SetWidth(310)
+    listPanel:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8X8",
+        edgeFile = "Interface\\Buttons\\WHITE8X8",
+        edgeSize = 1,
+    })
+    listPanel:SetBackdropColor(0, 0, 0, 0.24)
+    listPanel:SetBackdropBorderColor(unpack(colors.border))
+
+    local list = CreateFrame("ScrollFrame", nil, listPanel)
+    list:SetPoint("TOPLEFT", 1, -1)
+    list:SetPoint("BOTTOMRIGHT", -1, 1)
+    list:EnableMouseWheel(true)
+    pane.list = list
+
+    local content = CreateFrame("Frame", nil, list)
+    content:SetWidth(296)
+    content:SetHeight(1)
+    list:SetScrollChild(content)
+    pane.listContent = content
+
+    local scrollbar = CreateFrame("Slider", nil, listPanel)
+    scrollbar:SetOrientation("VERTICAL")
+    scrollbar:SetPoint("TOPRIGHT", listPanel, "TOPRIGHT", -3, -4)
+    scrollbar:SetPoint("BOTTOMRIGHT", listPanel, "BOTTOMRIGHT", -3, 4)
+    scrollbar:SetWidth(6)
+    scrollbar:SetMinMaxValues(0, 0)
+    scrollbar:SetValueStep(20)
+    scrollbar:SetThumbTexture("Interface\\Buttons\\WHITE8X8")
+    local thumb = scrollbar:GetThumbTexture()
+
+    if thumb then
+        thumb:SetWidth(6)
+        thumb:SetColorTexture(0.45, 0.45, 0.48, 0.65)
+    end
+
+    scrollbar:SetScript("OnValueChanged", function(_, value)
+        list:SetVerticalScroll(value or 0)
+    end)
+    scrollbar:Hide()
+    pane.scrollbar = scrollbar
+
+    pane.UpdateScrollRange = function()
+        local viewportHeight = list:GetHeight() or 0
+        local contentHeight = content:GetHeight() or 0
+        local maxScroll = math.max(0, contentHeight - viewportHeight)
+
+        scrollbar:SetMinMaxValues(0, maxScroll)
+
+        if maxScroll > 0 then
+            local current = math.min(
+                scrollbar:GetValue() or 0,
+                maxScroll
+            )
+            scrollbar:SetValue(current)
+            list:SetVerticalScroll(current)
+
+            if thumb then
+                local trackHeight = math.max(
+                    1,
+                    scrollbar:GetHeight() or 1
+                )
+                local thumbHeight = math.max(
+                    20,
+                    trackHeight
+                        * viewportHeight
+                        / math.max(contentHeight, 1)
+                )
+                thumb:SetHeight(
+                    math.min(trackHeight, thumbHeight)
+                )
+            end
+
+            scrollbar:Show()
+        else
+            scrollbar:SetValue(0)
+            list:SetVerticalScroll(0)
+            scrollbar:Hide()
+        end
+    end
+
+    list:SetScript("OnMouseWheel", function(_, delta)
+        local _, maxScroll = scrollbar:GetMinMaxValues()
+
+        if not maxScroll or maxScroll <= 0 then
+            return
+        end
+
+        scrollbar:SetValue(
+            math.max(
+                0,
+                math.min(
+                    maxScroll,
+                    (scrollbar:GetValue() or 0) - delta * 32
+                )
+            )
+        )
+    end)
+
+    list:SetScript("OnSizeChanged", function()
+        pane.UpdateScrollRange()
+    end)
+
+    local detail = CreateFrame("Frame", nil, pane, "BackdropTemplate")
+    detail:SetPoint("TOPLEFT", listPanel, "TOPRIGHT", 0, 0)
+    detail:SetPoint("BOTTOMRIGHT", pane, "BOTTOMRIGHT", 0, 0)
+    detail:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8X8",
+        edgeFile = "Interface\\Buttons\\WHITE8X8",
+        edgeSize = 1,
+    })
+    detail:SetBackdropColor(0, 0, 0, 0.30)
+    detail:SetBackdropBorderColor(unpack(colors.border))
+    pane.detail = detail
+
+    local name = detail:CreateFontString(nil, "OVERLAY")
+    name:SetPoint("TOPLEFT", 10, -12)
+    name:SetPoint("TOPRIGHT", -10, -12)
+    name:SetJustifyH("CENTER")
+    name:SetFont("Fonts\\FRIZQT__.TTF", 12, "OUTLINE")
+    name:SetTextColor(0.94, 0.94, 0.96)
+    pane.detailName = name
+
+    local standing = detail:CreateFontString(nil, "OVERLAY")
+    standing:SetPoint("TOP", name, "BOTTOM", 0, -2)
+    standing:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
+    standing:SetTextColor(0.82, 0.72, 0.22)
+    pane.detailStanding = standing
+
+    local bar = CreateFrame("StatusBar", nil, detail)
+    bar:SetPoint("TOPLEFT", 14, -58)
+    bar:SetPoint("TOPRIGHT", -14, -58)
+    bar:SetHeight(15)
+    bar:SetStatusBarTexture("Interface\\Buttons\\WHITE8X8")
+    bar:SetMinMaxValues(0, 1)
+    bar:SetValue(0)
+    CreateBorder(bar, colors.border)
+    pane.detailBar = bar
+
+    local barBackground = bar:CreateTexture(nil, "BACKGROUND")
+    barBackground:SetAllPoints()
+    barBackground:SetColorTexture(0, 0, 0, 0.60)
+
+    local value = bar:CreateFontString(nil, "OVERLAY")
+    value:SetPoint("CENTER", 0, 0)
+    value:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+    value:SetTextColor(0.95, 0.95, 0.97)
+    pane.detailValue = value
+
+    local description = detail:CreateFontString(nil, "OVERLAY")
+    description:SetPoint("TOPLEFT", 12, -86)
+    description:SetPoint("TOPRIGHT", -12, -86)
+    description:SetJustifyH("LEFT")
+    description:SetJustifyV("TOP")
+    description:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+    description:SetTextColor(0.86, 0.86, 0.88)
+    description:SetWordWrap(true)
+    pane.detailDescription = description
+
+    pane.atWarOption = CreateReputationOption(
+        detail,
+        "At War",
+        -285
+    )
+    pane.inactiveOption = CreateReputationOption(
+        detail,
+        "Move to Inactive",
+        -310
+    )
+    pane.watchedOption = CreateReputationOption(
+        detail,
+        "Show as Experience Bar",
+        -335
+    )
+
+    pane.atWarOption:SetScript("OnClick", function()
+        if pane.selectedIndex
+            and C_Reputation
+            and C_Reputation.ToggleFactionAtWar
+        then
+            SafeCall(
+                C_Reputation.ToggleFactionAtWar,
+                pane.selectedIndex
+            )
+            UpdateReputationPane(frame)
+        end
+    end)
+
+    pane.inactiveOption:SetScript("OnClick", function()
+        if not pane.selectedIndex
+            or not C_Reputation
+            or not C_Reputation.SetFactionActive
+        then
+            return
+        end
+
+        local isActive = true
+
+        if C_Reputation.IsFactionActive then
+            local active = SafeCall(
+                C_Reputation.IsFactionActive,
+                pane.selectedIndex
+            )
+
+            if type(active) == "boolean" then
+                isActive = active
+            end
+        end
+
+        SafeCall(
+            C_Reputation.SetFactionActive,
+            pane.selectedIndex,
+            not isActive
+        )
+        UpdateReputationPane(frame)
+    end)
+
+    pane.watchedOption:SetScript("OnClick", function()
+        if not pane.selectedIndex or not C_Reputation then
+            return
+        end
+
+        if C_Reputation.SetWatchedFactionByIndex then
+            SafeCall(
+                C_Reputation.SetWatchedFactionByIndex,
+                pane.selectedIndex
+            )
+        elseif pane.selectedFactionID
+            and C_Reputation.SetWatchedFactionByID
+        then
+            SafeCall(
+                C_Reputation.SetWatchedFactionByID,
+                pane.selectedFactionID
+            )
+        end
+
+        UpdateReputationPane(frame)
+    end)
+
+    SetReputationOptionState(pane.atWarOption, false, false)
+    SetReputationOptionState(pane.inactiveOption, false, false)
+    SetReputationOptionState(pane.watchedOption, false, false)
+end
+
+SetOuterPage = function(frame, page)
+    if page ~= "reputation" then
+        page = "character"
+    end
+
+    frame.page = page
+
+    if frame.characterPane then
+        frame.characterPane:SetShown(page == "character")
+    end
+
+    if frame.sidebar then
+        frame.sidebar:SetShown(page == "character")
+    end
+
+    if frame.reputationPane then
+        frame.reputationPane:SetShown(page == "reputation")
+    end
+
+    if page == "character" then
+        UpdatePlayerInfo(frame)
+        frame.details:Show()
+        frame.titleButton:Show()
+        frame.titleArrow:Show()
+    else
+        frame.name:SetText("Reputation")
+        frame.name:SetTextColor(0.88, 0.72, 0.16)
+        frame.details:Hide()
+        frame.titleButton:Hide()
+        frame.titleArrow:Hide()
+        UpdateReputationPane(frame)
+    end
+
+    for _, tab in ipairs(frame.tabs or {}) do
+        local active = tab.page == page
+
+        if tab.enabled then
+            tab:SetAlpha(1)
+            tab.background:SetColorTexture(
+                active and 0.12 or 0.06,
+                active and 0.12 or 0.06,
+                active and 0.14 or 0.07,
+                0.95
+            )
+        else
+            tab:SetAlpha(0.45)
+        end
     end
 end
 
@@ -1360,9 +2046,9 @@ local function CreateFrameUI()
     end
 
     local tabs = {
-        { label = "Character", enabled = true },
-        { label = "Reputation", enabled = false },
-        { label = "Skills", enabled = false },
+        { label = "Character", page = "character", enabled = true },
+        { label = "Reputation", page = "reputation", enabled = true },
+        { label = "Skills", page = "skills", enabled = false },
     }
 
     frame.tabs = {}
@@ -1392,7 +2078,15 @@ local function CreateFrameUI()
 
         CreateBorder(tab, colors.border)
 
-        if not definition.enabled then
+        tab.page = definition.page
+        tab.enabled = definition.enabled == true
+        tab.background = bg
+
+        if definition.enabled then
+            tab:SetScript("OnClick", function(self)
+                SetOuterPage(frame, self.page)
+            end)
+        else
             tab:SetAlpha(0.45)
             tab:Disable()
         end
@@ -1401,6 +2095,8 @@ local function CreateFrameUI()
     end
 
     CreateSidebar(frame)
+    CreateReputationPane(frame)
+    SetOuterPage(frame, "character")
     LayoutOuterTabs(frame)
 
     frame:SetScript("OnShow", function()
@@ -1504,6 +2200,14 @@ function Module:Initialize()
 
     UI:RegisterEvent("EQUIPMENT_SWAP_FINISHED", function()
         Module:Refresh()
+    end)
+
+    UI:RegisterEvent("UPDATE_FACTION", function()
+        if Module.frame
+            and Module.frame.page == "reputation"
+        then
+            UpdateReputationPane(Module.frame)
+        end
     end)
 
     for _, event in ipairs({
