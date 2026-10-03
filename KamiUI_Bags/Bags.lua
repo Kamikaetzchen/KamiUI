@@ -20,6 +20,16 @@ local defaults = {
     border = { 0.20, 0.16, 0.24, 1.00 },
 }
 
+local bagFamilyColors = {
+    arrows = { 0.85, 0.55, 0.12, 1.00 },
+    bullets = { 0.55, 0.58, 0.62, 1.00 },
+    soul = { 0.55, 0.20, 0.75, 1.00 },
+    leather = { 0.58, 0.36, 0.18, 1.00 },
+    herbs = { 0.18, 0.68, 0.24, 1.00 },
+    mining = { 0.38, 0.55, 0.68, 1.00 },
+    keyring = { 0.90, 0.70, 0.15, 1.00 },
+}
+
 local originalFunctions = {}
 local pendingRebuild = false
 
@@ -56,6 +66,61 @@ local function GetContainerItemInfo(bagID, slotID)
     end
 
     return nil
+end
+
+local function GetContainerNumFreeSlots(bagID)
+    if C_Container and C_Container.GetContainerNumFreeSlots then
+        return C_Container.GetContainerNumFreeSlots(bagID)
+    end
+
+    if _G.GetContainerNumFreeSlots then
+        return _G.GetContainerNumFreeSlots(bagID)
+    end
+
+    return 0, 0
+end
+
+local function HasBagFamilyFlag(value, flag)
+    if not value or not flag or flag <= 0 then
+        return false
+    end
+
+    return value % (flag * 2) >= flag
+end
+
+local function GetBagFamilyColor(bagID)
+    local keyring = KEYRING_CONTAINER
+        or (Enum and Enum.BagIndex and Enum.BagIndex.Keyring)
+
+    if bagID == keyring then
+        return bagFamilyColors.keyring
+    end
+
+    local _, family = GetContainerNumFreeSlots(bagID)
+    family = family or 0
+
+    local arrows = BAG_FAMILY_MASK_ARROWS or 0x00000001
+    local bullets = BAG_FAMILY_MASK_BULLETS or 0x00000002
+    local soul = BAG_FAMILY_MASK_SOUL_SHARDS or 0x00000004
+    local leather = BAG_FAMILY_MASK_LEATHERWORKING_SUPP or 0x00000008
+    local herbs = BAG_FAMILY_MASK_HERBS or 0x00000020
+    local mining = BAG_FAMILY_MASK_MINING_SUPP or 0x00000400
+
+    if HasBagFamilyFlag(family, arrows) then
+        return bagFamilyColors.arrows
+    elseif HasBagFamilyFlag(family, bullets) then
+        return bagFamilyColors.bullets
+    elseif HasBagFamilyFlag(family, soul) then
+        return bagFamilyColors.soul
+    elseif HasBagFamilyFlag(family, herbs) then
+        return bagFamilyColors.herbs
+    elseif HasBagFamilyFlag(family, leather) then
+        return bagFamilyColors.leather
+    elseif HasBagFamilyFlag(family, mining) then
+        return bagFamilyColors.mining
+    end
+
+    return defaults.slotBorder
 end
 
 local function AddUniqueBag(bags, seen, bagID)
@@ -229,6 +294,8 @@ local function StyleItemButton(button)
     right:SetPoint("BOTTOMRIGHT")
     right:SetWidth(1)
 
+    button.KamiBorders = { top, bottom, left, right }
+
     local icon = button.icon or button.Icon
 
     if icon then
@@ -255,6 +322,14 @@ end
 local function UpdateItemButton(button, bagID, slotID)
     button:SetID(slotID)
 
+    local borderColor = GetBagFamilyColor(bagID)
+
+    if button.KamiBorders then
+        for _, border in ipairs(button.KamiBorders) do
+            border:SetColorTexture(unpack(borderColor))
+        end
+    end
+
     if ContainerFrameItemButton_Update then
         ContainerFrameItemButton_Update(button)
     end
@@ -263,6 +338,8 @@ local function UpdateItemButton(button, bagID, slotID)
     local icon = button.icon or button.Icon
 
     if info then
+        button:SetAlpha(info.isFiltered and 0.20 or 1.00)
+
         if icon then
             icon:SetTexture(info.iconFileID)
             icon:SetAlpha(1)
@@ -288,6 +365,8 @@ local function UpdateItemButton(button, bagID, slotID)
             )
         end
     else
+        button:SetAlpha(1)
+
         if icon then
             icon:SetTexture(nil)
         end
@@ -775,9 +854,69 @@ local function CreateFrameUI()
 
     local title = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     title:SetPoint("TOP", frame, "TOP", 0, -7)
-    title:SetText("Bags")
+    title:SetText((UnitName("player") or "Player") .. "'s Inventory")
     title:SetTextColor(0.92, 0.88, 1)
     frame.title = title
+
+    local titleButton = CreateFrame("Button", nil, frame)
+    titleButton:SetPoint("TOPLEFT", frame, "TOPLEFT", 90, -2)
+    titleButton:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -90, -2)
+    titleButton:SetHeight(24)
+    frame.titleButton = titleButton
+
+    local search = CreateFrame("EditBox", nil, frame, "InputBoxTemplate")
+    search:SetPoint("TOPLEFT", titleButton, "TOPLEFT", 0, -1)
+    search:SetPoint("TOPRIGHT", titleButton, "TOPRIGHT", 0, -1)
+    search:SetHeight(22)
+    search:SetAutoFocus(false)
+    search:SetTextInsets(6, 6, 0, 0)
+    search:Hide()
+    frame.search = search
+
+    local function CloseSearch(clear)
+        if clear then
+            search:SetText("")
+
+            if C_Container and C_Container.SetItemSearch then
+                C_Container.SetItemSearch("")
+            elseif SetItemSearch then
+                SetItemSearch("")
+            end
+
+            Module:Refresh()
+        end
+
+        search:ClearFocus()
+        search:Hide()
+        title:Show()
+    end
+
+    titleButton:SetScript("OnDoubleClick", function()
+        title:Hide()
+        search:Show()
+        search:SetFocus()
+        search:HighlightText()
+    end)
+
+    search:SetScript("OnTextChanged", function(self)
+        local text = self:GetText() or ""
+
+        if C_Container and C_Container.SetItemSearch then
+            C_Container.SetItemSearch(text)
+        elseif SetItemSearch then
+            SetItemSearch(text)
+        end
+
+        Module:Refresh()
+    end)
+
+    search:SetScript("OnEscapePressed", function()
+        CloseSearch(true)
+    end)
+
+    search:SetScript("OnEnterPressed", function(self)
+        self:ClearFocus()
+    end)
 
     local close = CreateFrame("Button", nil, frame)
     close:SetSize(22, 22)
