@@ -216,9 +216,18 @@ local function BuildUnitList()
 end
 
 local function GetThreatEntry(unit)
-    local _, _, _, _, rawThreat = UnitDetailedThreatSituation(unit, "target")
+    local isTanking, _, scaledPercentage, rawPercentage, rawThreat =
+        UnitDetailedThreatSituation(unit, "target")
 
-    if not CanAccessValue(rawThreat) or rawThreat == nil or rawThreat <= 0 then
+    -- Forever can mark threat values secret in restricted contexts. Never
+    -- branch on or do arithmetic with them unless the client says we may.
+    if not CanAccessValue(isTanking)
+        or not CanAccessValue(scaledPercentage)
+        or not CanAccessValue(rawPercentage)
+        or not CanAccessValue(rawThreat)
+        or rawThreat == nil
+        or rawThreat <= 0
+    then
         return
     end
 
@@ -234,6 +243,9 @@ local function GetThreatEntry(unit)
         unit = unit,
         name = name,
         threat = rawThreat,
+        isTanking = isTanking,
+        scaledPercentage = scaledPercentage,
+        rawPercentage = rawPercentage,
         r = r,
         g = g,
         b = b,
@@ -295,13 +307,25 @@ local function Update()
     end
 
     local entries = CollectThreat()
-    local leaderThreat = entries[1] and entries[1].threat
 
-    if not leaderThreat or leaderThreat <= 0 then
+    if #entries == 0 then
         HideRows()
         frame:SetHeight(defaults.titleHeight)
         frame:SetShown(inCombat)
         return
+    end
+
+    -- rawPercentage is relative to the mob's current primary target, not to
+    -- whoever happens to have the most raw threat. That distinction matters
+    -- because a unit can sit above 100% raw threat without pulling aggro.
+    local barMaximum = 130
+
+    for _, entry in ipairs(entries) do
+        local percentage = entry.isTanking and 100 or entry.rawPercentage
+
+        if percentage and percentage > barMaximum then
+            barMaximum = percentage
+        end
     end
 
     local shown = math.min(#entries, defaults.maxRows)
@@ -311,8 +335,9 @@ local function Update()
         local entry = entries[index]
 
         if index <= shown and entry then
-            local percentage = entry.threat / leaderThreat * 100
+            local percentage = entry.isTanking and 100 or entry.rawPercentage
 
+            row.bar:SetMinMaxValues(0, barMaximum)
             row.bar:SetValue(percentage)
             row.bar:SetStatusBarColor(entry.r, entry.g, entry.b, 1)
             row.name:SetText(entry.name)
