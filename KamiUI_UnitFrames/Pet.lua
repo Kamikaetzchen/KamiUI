@@ -60,7 +60,7 @@ local function CreatePetFrame()
         fontFlags
     )
     nameText:SetPoint("LEFT", 2, 0)
-    nameText:SetWidth(54)
+    nameText:SetWidth(64)
     nameText:SetJustifyH("LEFT")
     UF:ConfigureNameText(nameText)
     nameText:SetTextColor(1, 1, 1)
