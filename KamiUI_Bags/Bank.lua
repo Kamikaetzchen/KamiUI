@@ -136,6 +136,22 @@ local function GetBagFamilyColorFromMask(family)
     return defaults.slotBorder
 end
 
+local BANK_TAB_FALLBACK_ICON = 5524917
+
+local function GetBankTabIcon(data, info)
+    if info and info.iconFileID then
+        return info.iconFileID
+    end
+
+    local icon = data and data.icon
+
+    if icon and icon ~= 134400 then
+        return icon
+    end
+
+    return BANK_TAB_FALLBACK_ICON
+end
+
 local function GetCharacterBankBagIDs()
     local bags = {}
 
@@ -192,9 +208,7 @@ local function GetBankTabs()
                 index = entry.index,
                 name = data and data.name
                     or (entry.index == 1 and "Bank" or "Bank Bag " .. entry.index - 1),
-                icon = info and info.iconFileID
-                    or (data and data.icon)
-                    or "Interface\\Icons\\INV_Misc_Bag_10",
+                icon = GetBankTabIcon(data, info),
                 family = family or 0,
                 slotCount = slotCount,
             }
@@ -840,6 +854,74 @@ local function CreateBankBagButton(parent)
     return button
 end
 
+local function CreateBankPurchaseButton(parent)
+    local button = CreateFrame(
+        "Button",
+        nil,
+        parent,
+        "BankPanelPurchaseButtonScriptTemplate"
+    )
+    button:SetSize(32, 32)
+    button:SetAttribute(
+        "overrideBankType",
+        Enum and Enum.BankType and Enum.BankType.Character
+    )
+
+    local background = button:CreateTexture(nil, "BACKGROUND")
+    background:SetAllPoints()
+    background:SetColorTexture(unpack(defaults.slotBackground))
+    button.background = background
+
+    local icon = button:CreateTexture(nil, "ARTWORK")
+    icon:SetPoint("TOPLEFT", button, "TOPLEFT", 1, -1)
+    icon:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", -1, 1)
+    icon:SetTexture("Interface\\PaperDoll\\UI-PaperDoll-Slot-Bag")
+    icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
+    icon:SetDesaturated(true)
+    icon:SetAlpha(0.45)
+    button.icon = icon
+
+    local plus = button:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    plus:SetPoint("CENTER", 0, 0)
+    plus:SetText("+")
+    plus:SetTextColor(1, 0.82, 0, 0.95)
+    button.plus = plus
+
+    local highlight = button:CreateTexture(nil, "HIGHLIGHT")
+    highlight:SetAllPoints()
+    highlight:SetColorTexture(1, 1, 1, 0.12)
+
+    button:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:SetText("Buy Bank Slot")
+
+        if C_Bank and C_Bank.FetchNextPurchasableBankTabData
+            and Enum and Enum.BankType
+        then
+            local data = C_Bank.FetchNextPurchasableBankTabData(
+                Enum.BankType.Character
+            )
+
+            if data and data.tabCost then
+                GameTooltip:AddLine(
+                    "Cost: " .. FormatMoney(data.tabCost),
+                    1,
+                    1,
+                    1
+                )
+            end
+        end
+
+        GameTooltip:Show()
+    end)
+
+    button:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
+
+    return button
+end
+
 function Module:UpdateBagBar()
     local frame = self.frame
 
@@ -906,6 +988,52 @@ function Module:UpdateBagBar()
 
     for index = #tabs + 1, #frame.bagBarButtons do
         frame.bagBarButtons[index]:Hide()
+    end
+
+    frame.purchaseButtons = frame.purchaseButtons or {}
+
+    local purchaseCount = 0
+
+    if isCurrent
+        and bankOpen
+        and C_Bank
+        and C_Bank.FetchMaxNumBankTabs
+        and C_Bank.FetchPurchasedBankTabData
+        and Enum
+        and Enum.BankType
+    then
+        local maxTabs = C_Bank.FetchMaxNumBankTabs(
+            Enum.BankType.Character
+        ) or 0
+        local purchased = C_Bank.FetchPurchasedBankTabData(
+            Enum.BankType.Character
+        ) or {}
+        local purchasedCount = #purchased
+
+        for index = purchasedCount + 1, maxTabs do
+            purchaseCount = purchaseCount + 1
+
+            local button = frame.purchaseButtons[purchaseCount]
+
+            if not button then
+                button = CreateBankPurchaseButton(frame.bagBar)
+                frame.purchaseButtons[purchaseCount] = button
+            end
+
+            button:ClearAllPoints()
+            button:SetPoint(
+                "LEFT",
+                frame.bagBar,
+                "LEFT",
+                (#tabs + purchaseCount - 1) * 35,
+                0
+            )
+            button:Show()
+        end
+    end
+
+    for index = purchaseCount + 1, #frame.purchaseButtons do
+        frame.purchaseButtons[index]:Hide()
     end
 end
 
@@ -1438,13 +1566,17 @@ local function CreateFrameUI()
         sortingBank = true
         sort:Disable()
 
-        if C_Container and C_Container.SortBankBags then
+        if C_Container and C_Container.SortBank
+            and Enum and Enum.BankType
+        then
+            C_Container.SortBank(Enum.BankType.Character)
+        elseif C_Container and C_Container.SortBankBags then
             C_Container.SortBankBags()
         elseif SortBankBags then
             SortBankBags()
         end
 
-        C_Timer.After(0.35, function()
+        C_Timer.After(0.75, function()
             sortingBank = false
             sort:Enable()
 
@@ -1610,6 +1742,8 @@ eventFrame:RegisterEvent("BANKFRAME_OPENED")
 eventFrame:RegisterEvent("BANKFRAME_CLOSED")
 eventFrame:RegisterEvent("BAG_UPDATE")
 eventFrame:RegisterEvent("PLAYERBANKSLOTS_CHANGED")
+eventFrame:RegisterEvent("BANK_TABS_CHANGED")
+eventFrame:RegisterEvent("BANK_TAB_SETTINGS_UPDATED")
 eventFrame:RegisterEvent("BAG_CONTAINER_UPDATE")
 eventFrame:RegisterEvent("PLAYER_MONEY")
 
