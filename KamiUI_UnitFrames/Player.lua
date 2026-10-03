@@ -103,7 +103,7 @@ nameText:SetJustifyH("LEFT")
 nameText:SetTextColor(1, 1, 1)
 nameText:SetShadowColor(0, 0, 0, 1)
 nameText:SetShadowOffset(1, -1)
-nameText:SetWidth(112)
+nameText:SetWidth(110)
 UF:ConfigureNameText(nameText)
 
 local healthText = health:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
