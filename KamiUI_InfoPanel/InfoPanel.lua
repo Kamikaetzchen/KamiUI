@@ -54,13 +54,14 @@ local function FormatMoney(copper)
     local silver = math.floor((copper % 10000) / 100)
     local bronze = copper % 100
 
-    if gold > 0 then
-        return string.format("%dg %ds %dc", gold, silver, bronze)
-    elseif silver > 0 then
-        return string.format("%ds %dc", silver, bronze)
-    end
-
-    return string.format("%dc", bronze)
+    return string.format(
+        "%d |TInterface\\MoneyFrame\\UI-GoldIcon:12:12:0:0|t "
+            .. "%d |TInterface\\MoneyFrame\\UI-SilverIcon:12:12:0:0|t "
+            .. "%d |TInterface\\MoneyFrame\\UI-CopperIcon:12:12:0:0|t",
+        gold,
+        silver,
+        bronze
+    )
 end
 
 local function GetBagUsage()
@@ -280,7 +281,10 @@ function Module:Refresh()
     self.texts.speed:SetText(string.format("Speed %d%%", movement))
     self.texts.xp:SetText(string.format("XP/h %s", FormatNumber(xpPerHour)))
     self.texts.bags:SetText(string.format("Bags %d/%d", used, total))
-    self.texts.durability:SetText(string.format("Dur %d%%", durability))
+    self.texts.durability:SetText(string.format(
+        "|TInterface\\Minimap\\Tracking\\Repair:13:13:0:0|t %d%%",
+        durability
+    ))
     self.texts.gold:SetText(FormatMoney(GetMoney and GetMoney() or 0))
     self.texts.fps:SetText(string.format("%d FPS", fps))
     self.texts.latency:SetText(string.format("%d ms", latency))
