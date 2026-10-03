@@ -65,6 +65,11 @@ local function HideBlizzardChrome()
     HideObject(TimeManagerClockButton)
     HideObject(GameTimeFrame)
 
+    -- Instance/dungeon difficulty badges normally sit on the minimap rim.
+    HideObject(MiniMapInstanceDifficulty)
+    HideObject(GuildInstanceDifficulty)
+    HideObject(MiniMapChallengeMode)
+
     HideObject(MinimapZoneTextButton)
     HideObject(MinimapZoneText)
 
@@ -146,6 +151,9 @@ function Module:Initialize()
             HideBlizzardChrome()
         end
     end)
+
+    UI:RegisterEvent("PLAYER_DIFFICULTY_CHANGED", HideBlizzardChrome)
+    UI:RegisterEvent("ZONE_CHANGED_NEW_AREA", HideBlizzardChrome)
 
     UI:RegisterEvent("ADDON_LOADED", function(_, addonName)
         if addonName == "Blizzard_Minimap"
