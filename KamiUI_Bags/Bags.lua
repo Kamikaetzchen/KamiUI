@@ -393,7 +393,32 @@ local function UpdateItemButton(button, bagID, slotID)
     local icon = button.icon or button.Icon
 
     if info then
-        button:SetAlpha(info.isFiltered and 0.20 or 1.00)
+        local filtered = info.isFiltered == true
+        local search = Module.frame
+            and Module.frame.search
+            and Module.frame.search:GetText()
+            or ""
+
+        if search ~= "" then
+            local itemName = info.itemName
+
+            if not itemName and info.hyperlink and GetItemInfo then
+                itemName = GetItemInfo(info.hyperlink)
+            end
+
+            local haystack = string.lower(
+                itemName or info.hyperlink or ""
+            )
+
+            filtered = not string.find(
+                haystack,
+                string.lower(search),
+                1,
+                true
+            )
+        end
+
+        button:SetAlpha(filtered and 0.20 or 1.00)
 
         if icon then
             icon:SetTexture(info.iconFileID)
@@ -1177,6 +1202,14 @@ local function CreateFrameUI()
     titleButton:SetPoint("TOPLEFT", frame, "TOPLEFT", 90, -2)
     titleButton:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -90, -2)
     titleButton:SetHeight(24)
+    titleButton:RegisterForDrag("LeftButton")
+    titleButton:SetScript("OnDragStart", function()
+        frame:StartMoving()
+    end)
+    titleButton:SetScript("OnDragStop", function()
+        frame:StopMovingOrSizing()
+        SavePosition(frame)
+    end)
     frame.titleButton = titleButton
 
     local search = CreateFrame("EditBox", nil, frame, "InputBoxTemplate")
