@@ -26,7 +26,7 @@ local bagFamilyColors = {
     soul = { 0.55, 0.20, 0.75, 1.00 },
     leather = { 0.439, 0.188, 0.063, 1.00 },
     skinning = { 0.439, 0.188, 0.063, 1.00 },
-    herbs = { 0.18, 0.68, 0.24, 1.00 },
+    herbs = { 0.122, 0.420, 0.220, 1.00 },
     mining = { 0.38, 0.55, 0.68, 1.00 },
     keyring = { 0.90, 0.70, 0.15, 1.00 },
 }
@@ -81,6 +81,36 @@ itemDragFrame:SetScript("OnUpdate", function(self)
                 end
 
                 return
+            end
+        end
+    end
+
+    local bankFrame = _G.KamiUIBankFrame
+
+    if bankFrame
+        and bankFrame:IsShown()
+        and bankFrame.liveBankAccess
+    then
+        for _, button in ipairs(bankFrame.activeButtons or {}) do
+            if button:IsShown() and button:GetParent():IsShown() then
+                local scale = button:GetEffectiveScale()
+                local x = cursorX / scale
+                local y = cursorY / scale
+                local left, bottom, width, height = button:GetRect()
+
+                if left
+                    and bottom
+                    and x >= left
+                    and x <= left + width
+                    and y >= bottom
+                    and y <= bottom + height
+                then
+                    local bagID = button:GetParent():GetID()
+                    local slotID = button:GetID()
+
+                    C_Container.PickupContainerItem(bagID, slotID)
+                    return
+                end
             end
         end
     end
@@ -417,6 +447,37 @@ local function StyleItemButton(button)
 
     button.KamiBorders = { top, bottom, left, right }
 
+    local rarityTop = button:CreateTexture(nil, "BORDER", nil, 1)
+    rarityTop:SetPoint("TOPLEFT", button, "TOPLEFT", 1, -1)
+    rarityTop:SetPoint("TOPRIGHT", button, "TOPRIGHT", -1, -1)
+    rarityTop:SetHeight(1)
+
+    local rarityBottom = button:CreateTexture(nil, "BORDER", nil, 1)
+    rarityBottom:SetPoint("BOTTOMLEFT", button, "BOTTOMLEFT", 1, 1)
+    rarityBottom:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", -1, 1)
+    rarityBottom:SetHeight(1)
+
+    local rarityLeft = button:CreateTexture(nil, "BORDER", nil, 1)
+    rarityLeft:SetPoint("TOPLEFT", button, "TOPLEFT", 1, -1)
+    rarityLeft:SetPoint("BOTTOMLEFT", button, "BOTTOMLEFT", 1, 1)
+    rarityLeft:SetWidth(1)
+
+    local rarityRight = button:CreateTexture(nil, "BORDER", nil, 1)
+    rarityRight:SetPoint("TOPRIGHT", button, "TOPRIGHT", -1, -1)
+    rarityRight:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", -1, 1)
+    rarityRight:SetWidth(1)
+
+    button.KamiRarityBorders = {
+        rarityTop,
+        rarityBottom,
+        rarityLeft,
+        rarityRight,
+    }
+
+    for _, border in ipairs(button.KamiRarityBorders) do
+        border:Hide()
+    end
+
     local icon = button.icon or button.Icon
 
     if icon then
@@ -440,6 +501,39 @@ local function StyleItemButton(button)
     end
 end
 
+local function UpdateRarityBorder(button, quality)
+    local color = quality ~= nil
+        and ITEM_QUALITY_COLORS
+        and ITEM_QUALITY_COLORS[quality]
+
+    for _, border in ipairs(button.KamiRarityBorders or {}) do
+        if color then
+            border:SetColorTexture(color.r, color.g, color.b, 1)
+            border:Show()
+        else
+            border:Hide()
+        end
+    end
+end
+
+local function SuppressNewItemFlash(button)
+    if button.NewItemTexture then
+        button.NewItemTexture:Hide()
+    end
+
+    if button.BattlepayItemTexture then
+        button.BattlepayItemTexture:Hide()
+    end
+
+    if button.flashAnim and button.flashAnim:IsPlaying() then
+        button.flashAnim:Stop()
+    end
+
+    if button.newitemglowAnim and button.newitemglowAnim:IsPlaying() then
+        button.newitemglowAnim:Stop()
+    end
+end
+
 local function UpdateItemButton(button, bagID, slotID)
     button:SetID(slotID)
 
@@ -455,10 +549,14 @@ local function UpdateItemButton(button, bagID, slotID)
         ContainerFrameItemButton_Update(button)
     end
 
+    SuppressNewItemFlash(button)
+
     local info = GetContainerItemInfo(bagID, slotID)
     local icon = button.icon or button.Icon
 
     if info then
+        UpdateRarityBorder(button, info.quality)
+
         local filtered = info.isFiltered == true
         local search = Module.frame
             and Module.frame.search
@@ -517,6 +615,7 @@ local function UpdateItemButton(button, bagID, slotID)
             )
         end
     else
+        UpdateRarityBorder(button, nil)
         button:SetAlpha(1)
 
         if icon then
@@ -605,6 +704,8 @@ local function UpdateCachedItemButton(button, slot, bag)
             border:SetColorTexture(unpack(borderColor))
         end
     end
+
+    UpdateRarityBorder(button, slot and slot.quality or nil)
 
     button.itemLink = slot and slot.link or nil
     button.icon:SetTexture(slot and slot.icon or nil)
@@ -1169,6 +1270,7 @@ function Module:Rebuild()
     local _, character, isCurrent = GetViewedCharacter()
 
     if not isCurrent and character then
+        frame.liveInventory = false
         local activeButtons = {}
         local index = 0
 
@@ -1219,6 +1321,7 @@ function Module:Rebuild()
         return
     end
 
+    frame.liveInventory = true
     frame.bagBarToggle:Show()
     frame.sort:Show()
 
@@ -1949,6 +2052,22 @@ function Module:Initialize()
     SaveCurrentCharacter()
 
     self.frame = CreateFrameUI()
+
+    local hotkeyButton = CreateFrame("Button", "KamiUIBagsHotkeyButton", UIParent)
+    hotkeyButton:SetScript("OnClick", function()
+        Module:Toggle()
+    end)
+    self.hotkeyButton = hotkeyButton
+
+    if SetOverrideBindingClick then
+        SetOverrideBindingClick(
+            hotkeyButton,
+            true,
+            "B",
+            "KamiUIBagsHotkeyButton",
+            "LeftButton"
+        )
+    end
 
     self:UpdateBagBarVisibility()
     self:Rebuild()
