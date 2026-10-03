@@ -164,6 +164,59 @@ function UF:GetUnitDisplayName(unit)
     return status .. levelColor .. levelText .. suffix .. "|r " .. name
 end
 
+function UF:ConfigureNameText(fontString)
+    if fontString.SetWordWrap then
+        fontString:SetWordWrap(false)
+    end
+
+    if fontString.SetMaxLines then
+        fontString:SetMaxLines(1)
+    end
+end
+
+function UF:SetUnitDisplayName(fontString, unit)
+    if not fontString then
+        return
+    end
+
+    local display = self:GetUnitDisplayName(unit)
+    fontString:SetText(display)
+
+    if not self:CanAccessValue(display) then
+        return
+    end
+
+    local width = fontString:GetWidth()
+
+    if not width or width <= 0
+        or fontString:GetStringWidth() <= width
+    then
+        return
+    end
+
+    local prefix, name = string.match(display, "^(.-|r%s)(.*)$")
+
+    if not prefix then
+        prefix = ""
+        name = display
+    end
+
+    local length = #name
+
+    while length > 0 do
+        length = length - 1
+        fontString:SetText(
+            prefix .. string.sub(name, 1, length) .. "..."
+        )
+
+        if fontString:GetStringWidth() <= width then
+            return
+        end
+    end
+
+    fontString:SetText(prefix .. "...")
+end
+
 function UF:ConfigureUnitButton(frame, unit)
     frame.unit = unit
     frame:RegisterForClicks("AnyUp")
