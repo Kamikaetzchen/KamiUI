@@ -9,6 +9,7 @@ local FRAME_WIDTH = 360
 local FRAME_HEIGHT = 420
 local SLOT_SIZE = 36
 local SLOT_GAP = 3
+local SIDEBAR_WIDTH = 165
 
 local colors = {
     background = { 0.00, 0.00, 0.00, 0.25 },
@@ -331,7 +332,7 @@ local function LayoutEquipmentSlot(button, definition, frame)
             frame,
             "BOTTOM",
             BOTTOM_SLOT_X[definition.key] or 0,
-            14
+            definition.key == "AmmoSlot" and 20 or 14
         )
     end
 end
@@ -424,6 +425,13 @@ function Module:Refresh()
     for _, button in ipairs(self.frame.equipmentSlots or {}) do
         UpdateEquipmentSlot(button)
     end
+
+    if self.frame.sidebar and self.frame.sidebar:IsShown() then
+        SetSidebarMode(
+            self.frame,
+            self.frame.sidebar.mode or "stats"
+        )
+    end
 end
 
 function Module:Show()
@@ -451,6 +459,417 @@ function Module:Toggle()
     else
         self:Show()
     end
+end
+
+local function CanAccessValue(value)
+    if canaccessvalue then
+        return canaccessvalue(value)
+    end
+
+    if issecretvalue then
+        return not issecretvalue(value)
+    end
+
+    return true
+end
+
+local function FormatStatValue(value, suffix)
+    if not CanAccessValue(value) or type(value) ~= "number" then
+        return "-"
+    end
+
+    if suffix then
+        return string.format("%.1f%s", value, suffix)
+    end
+
+    return string.format("%.0f", value)
+end
+
+local function SafeCall(func, ...)
+    if not func then
+        return nil
+    end
+
+    local ok, a, b, c, d, e, f, g, h = pcall(func, ...)
+
+    if not ok then
+        return nil
+    end
+
+    return a, b, c, d, e, f, g, h
+end
+
+local function CreateSidebarRow(parent, y)
+    local row = CreateFrame("Frame", nil, parent)
+    row:SetPoint("TOPLEFT", parent, "TOPLEFT", 8, y)
+    row:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -8, y)
+    row:SetHeight(18)
+
+    local label = row:CreateFontString(nil, "OVERLAY")
+    label:SetPoint("LEFT", 0, 0)
+    label:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+    label:SetTextColor(0.82, 0.72, 0.22)
+    row.label = label
+
+    local value = row:CreateFontString(nil, "OVERLAY")
+    value:SetPoint("RIGHT", 0, 0)
+    value:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+    value:SetTextColor(0.90, 0.90, 0.92)
+    row.value = value
+
+    return row
+end
+
+local function UpdateStatsPane(frame)
+    local pane = frame.sidebar and frame.sidebar.statsPane
+
+    if not pane then
+        return
+    end
+
+    local rows = pane.rows
+    local health = UnitHealthMax and UnitHealthMax("player")
+    local power = UnitPowerMax and UnitPowerMax("player")
+    local powerName = "Power"
+
+    if UnitPowerType then
+        local _, token = UnitPowerType("player")
+
+        if token and CanAccessValue(token) then
+            powerName = token:sub(1, 1) .. token:sub(2):lower()
+        end
+    end
+
+    rows.health.label:SetText("Health")
+    rows.health.value:SetText(FormatStatValue(health))
+    rows.power.label:SetText(powerName)
+    rows.power.value:SetText(FormatStatValue(power))
+
+    local attributes = {
+        { "strength", "Strength", 1 },
+        { "agility", "Agility", 2 },
+        { "stamina", "Stamina", 3 },
+        { "intellect", "Intellect", 4 },
+        { "spirit", "Spirit", 5 },
+    }
+
+    for _, data in ipairs(attributes) do
+        local effective = select(2, SafeCall(UnitStat, "player", data[3]))
+        rows[data[1]].label:SetText(data[2])
+        rows[data[1]].value:SetText(FormatStatValue(effective))
+    end
+
+    local _, effectiveArmor = SafeCall(UnitArmor, "player")
+    rows.armor.value:SetText(FormatStatValue(effectiveArmor))
+
+    local baseAP, posAP, negAP = SafeCall(UnitAttackPower, "player")
+    local attackPower
+
+    if CanAccessValue(baseAP)
+        and CanAccessValue(posAP)
+        and CanAccessValue(negAP)
+        and type(baseAP) == "number"
+        and type(posAP) == "number"
+        and type(negAP) == "number"
+    then
+        attackPower = baseAP + posAP + negAP
+    end
+
+    rows.attackPower.value:SetText(FormatStatValue(attackPower))
+
+    local crit = SafeCall(GetCritChance)
+    rows.crit.value:SetText(FormatStatValue(crit, "%"))
+
+    local hit = SafeCall(GetHitModifier)
+    rows.hit.value:SetText(FormatStatValue(hit, "%"))
+end
+
+local function UpdateEquipmentPane(frame)
+    local pane = frame.sidebar and frame.sidebar.equipmentPane
+
+    if not pane then
+        return
+    end
+
+    local ids = C_EquipmentSet
+        and C_EquipmentSet.GetEquipmentSetIDs
+        and SafeCall(C_EquipmentSet.GetEquipmentSetIDs)
+        or {}
+
+    if type(ids) ~= "table" then
+        ids = {}
+    end
+
+    pane.setIDs = ids
+
+    for index = 1, math.max(#ids, #pane.rows) do
+        local row = pane.rows[index]
+
+        if not row and index <= 10 then
+            row = CreateFrame("Button", nil, pane)
+            row:SetPoint("TOPLEFT", pane, "TOPLEFT", 6, -(34 + (index - 1) * 28))
+            row:SetPoint("TOPRIGHT", pane, "TOPRIGHT", -6, -(34 + (index - 1) * 28))
+            row:SetHeight(26)
+
+            local bg = row:CreateTexture(nil, "BACKGROUND")
+            bg:SetAllPoints()
+            bg:SetColorTexture(1, 1, 1, 0.04)
+            row.background = bg
+
+            local icon = row:CreateTexture(nil, "ARTWORK")
+            icon:SetSize(22, 22)
+            icon:SetPoint("LEFT", 2, 0)
+            icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
+            row.icon = icon
+
+            local name = row:CreateFontString(nil, "OVERLAY")
+            name:SetPoint("LEFT", icon, "RIGHT", 5, 0)
+            name:SetPoint("RIGHT", row, "RIGHT", -4, 0)
+            name:SetJustifyH("LEFT")
+            name:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+            row.name = name
+
+            local selected = row:CreateTexture(nil, "BORDER")
+            selected:SetAllPoints()
+            selected:SetColorTexture(1.0, 0.82, 0.0, 0.10)
+            selected:Hide()
+            row.selected = selected
+
+            row:SetScript("OnClick", function(self)
+                pane.selectedSetID = self.setID
+                UpdateEquipmentPane(frame)
+            end)
+
+            row:SetScript("OnDoubleClick", function(self)
+                if C_EquipmentSet and C_EquipmentSet.UseEquipmentSet then
+                    SafeCall(C_EquipmentSet.UseEquipmentSet, self.setID)
+                elseif EquipmentManager_EquipSet then
+                    SafeCall(EquipmentManager_EquipSet, self.setID)
+                end
+            end)
+
+            pane.rows[index] = row
+        end
+
+        if row then
+            local setID = ids[index]
+
+            if setID then
+                local name, icon, actualID, isEquipped =
+                    SafeCall(C_EquipmentSet.GetEquipmentSetInfo, setID)
+
+                row.setID = actualID or setID
+                row.icon:SetTexture(icon)
+                row.name:SetText(
+                    isEquipped and ((name or "Set") .. "  |cff66ff66*|r")
+                        or (name or "Set")
+                )
+                row.selected:SetShown(pane.selectedSetID == row.setID)
+                row:Show()
+            else
+                row:Hide()
+            end
+        end
+    end
+
+    local hasSelection = pane.selectedSetID ~= nil
+    pane.equip:SetEnabled(hasSelection)
+    pane.save:SetEnabled(hasSelection)
+end
+
+local function SetSidebarMode(frame, mode)
+    local sidebar = frame.sidebar
+
+    if not sidebar then
+        return
+    end
+
+    sidebar.mode = mode
+    sidebar.statsPane:SetShown(mode == "stats")
+    sidebar.equipmentPane:SetShown(mode == "equipment")
+
+    sidebar.statsTab.background:SetColorTexture(
+        1, 1, 1, mode == "stats" and 0.10 or 0.03
+    )
+    sidebar.equipmentTab.background:SetColorTexture(
+        1, 1, 1, mode == "equipment" and 0.10 or 0.03
+    )
+
+    if mode == "stats" then
+        UpdateStatsPane(frame)
+    else
+        UpdateEquipmentPane(frame)
+    end
+end
+
+local function LayoutOuterTabs(frame)
+    local offset = frame.sidebar
+        and frame.sidebar:IsShown()
+        and (SIDEBAR_WIDTH + 4)
+        or 0
+
+    for index, tab in ipairs(frame.tabs or {}) do
+        tab:ClearAllPoints()
+        tab:SetPoint(
+            "RIGHT",
+            frame,
+            "RIGHT",
+            72 + offset,
+            92 - (index - 1) * 24
+        )
+    end
+end
+
+local function CreateSidebar(frame)
+    local sidebar = CreateFrame("Frame", nil, frame, "BackdropTemplate")
+    sidebar:SetSize(SIDEBAR_WIDTH, FRAME_HEIGHT - 50)
+    sidebar:SetPoint("TOPLEFT", frame, "TOPRIGHT", 4, -48)
+    sidebar:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8X8",
+        edgeFile = "Interface\\Buttons\\WHITE8X8",
+        edgeSize = 1,
+    })
+    sidebar:SetBackdropColor(0, 0, 0, 0.78)
+    sidebar:SetBackdropBorderColor(unpack(colors.border))
+    sidebar:Hide()
+    frame.sidebar = sidebar
+
+    local statsTab = CreateFrame("Button", nil, sidebar)
+    statsTab:SetPoint("TOPLEFT", 5, -5)
+    statsTab:SetSize(72, 22)
+    statsTab:SetNormalFontObject("GameFontNormalSmall")
+    statsTab:SetHighlightFontObject("GameFontHighlightSmall")
+    statsTab:SetText("Stats")
+    statsTab.background = statsTab:CreateTexture(nil, "BACKGROUND")
+    statsTab.background:SetAllPoints()
+    statsTab.background:SetColorTexture(1, 1, 1, 0.10)
+    statsTab:SetScript("OnClick", function()
+        SetSidebarMode(frame, "stats")
+    end)
+    sidebar.statsTab = statsTab
+
+    local equipmentTab = CreateFrame("Button", nil, sidebar)
+    equipmentTab:SetPoint("LEFT", statsTab, "RIGHT", 4, 0)
+    equipmentTab:SetSize(78, 22)
+    equipmentTab:SetNormalFontObject("GameFontNormalSmall")
+    equipmentTab:SetHighlightFontObject("GameFontHighlightSmall")
+    equipmentTab:SetText("Equipment")
+    equipmentTab.background = equipmentTab:CreateTexture(nil, "BACKGROUND")
+    equipmentTab.background:SetAllPoints()
+    equipmentTab.background:SetColorTexture(1, 1, 1, 0.03)
+    equipmentTab:SetScript("OnClick", function()
+        SetSidebarMode(frame, "equipment")
+    end)
+    sidebar.equipmentTab = equipmentTab
+
+    local statsPane = CreateFrame("Frame", nil, sidebar)
+    statsPane:SetPoint("TOPLEFT", 1, -31)
+    statsPane:SetPoint("BOTTOMRIGHT", -1, 1)
+    statsPane.rows = {}
+    sidebar.statsPane = statsPane
+
+    local statRows = {
+        { key = "health", label = "Health" },
+        { key = "power", label = "Power" },
+        { key = "strength", label = "Strength" },
+        { key = "agility", label = "Agility" },
+        { key = "stamina", label = "Stamina" },
+        { key = "intellect", label = "Intellect" },
+        { key = "spirit", label = "Spirit" },
+        { key = "armor", label = "Armor" },
+        { key = "attackPower", label = "Attack Power" },
+        { key = "crit", label = "Crit" },
+        { key = "hit", label = "Hit" },
+    }
+
+    for index, data in ipairs(statRows) do
+        local row = CreateSidebarRow(
+            statsPane,
+            -(8 + (index - 1) * 22)
+        )
+        row.label:SetText(data.label)
+        row.value:SetText("-")
+        statsPane.rows[data.key] = row
+    end
+
+    local equipmentPane = CreateFrame("Frame", nil, sidebar)
+    equipmentPane:SetPoint("TOPLEFT", 1, -31)
+    equipmentPane:SetPoint("BOTTOMRIGHT", -1, 1)
+    equipmentPane.rows = {}
+    equipmentPane:Hide()
+    sidebar.equipmentPane = equipmentPane
+
+    local empty = equipmentPane:CreateFontString(nil, "OVERLAY")
+    empty:SetPoint("TOP", 0, -12)
+    empty:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+    empty:SetTextColor(0.55, 0.55, 0.58)
+    empty:SetText("Equipment Sets")
+    equipmentPane.empty = empty
+
+    local equip = CreateFrame("Button", nil, equipmentPane)
+    equip:SetSize(58, 20)
+    equip:SetPoint("BOTTOMLEFT", 8, 8)
+    equip:SetNormalFontObject("GameFontNormalSmall")
+    equip:SetHighlightFontObject("GameFontHighlightSmall")
+    equip:SetText("Equip")
+    equip:SetScript("OnClick", function()
+        local setID = equipmentPane.selectedSetID
+
+        if not setID then
+            return
+        end
+
+        if C_EquipmentSet and C_EquipmentSet.UseEquipmentSet then
+            SafeCall(C_EquipmentSet.UseEquipmentSet, setID)
+        elseif EquipmentManager_EquipSet then
+            SafeCall(EquipmentManager_EquipSet, setID)
+        end
+    end)
+    equipmentPane.equip = equip
+
+    local save = CreateFrame("Button", nil, equipmentPane)
+    save:SetSize(58, 20)
+    save:SetPoint("LEFT", equip, "RIGHT", 6, 0)
+    save:SetNormalFontObject("GameFontNormalSmall")
+    save:SetHighlightFontObject("GameFontHighlightSmall")
+    save:SetText("Save")
+    save:SetScript("OnClick", function()
+        local setID = equipmentPane.selectedSetID
+
+        if setID
+            and C_EquipmentSet
+            and C_EquipmentSet.SaveEquipmentSet
+        then
+            SafeCall(C_EquipmentSet.SaveEquipmentSet, setID)
+        end
+    end)
+    equipmentPane.save = save
+
+    local toggle = CreateFrame("Button", nil, frame, "BackdropTemplate")
+    toggle:SetSize(18, 42)
+    toggle:SetPoint("LEFT", frame, "RIGHT", 0, 70)
+    toggle:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8X8",
+        edgeFile = "Interface\\Buttons\\WHITE8X8",
+        edgeSize = 1,
+    })
+    toggle:SetBackdropColor(0, 0, 0, 0.78)
+    toggle:SetBackdropBorderColor(unpack(colors.border))
+    toggle:SetNormalFontObject("GameFontNormalSmall")
+    toggle:SetHighlightFontObject("GameFontHighlightSmall")
+    toggle:SetText(">")
+    toggle:SetScript("OnClick", function(self)
+        sidebar:SetShown(not sidebar:IsShown())
+        self:SetText(sidebar:IsShown() and "<" or ">")
+        LayoutOuterTabs(frame)
+
+        if sidebar:IsShown() then
+            SetSidebarMode(frame, sidebar.mode or "stats")
+        end
+    end)
+    frame.sidebarToggle = toggle
+
+    SetSidebarMode(frame, "stats")
 end
 
 local function CreateFrameUI()
@@ -700,21 +1119,6 @@ local function CreateFrameUI()
         frame.equipmentByKey[definition.key] = button
     end
 
-    local ammoArrow = frame:CreateTexture(nil, "OVERLAY")
-    ammoArrow:SetSize(12, 12)
-    ammoArrow:SetPoint(
-        "LEFT",
-        frame.equipmentByKey.RangedSlot,
-        "RIGHT",
-        3,
-        0
-    )
-    ammoArrow:SetTexture(
-        "Interface\\Buttons\\UI-SpellbookIcon-PrevPage-Up"
-    )
-    ammoArrow:SetVertexColor(0.65, 0.65, 0.68, 0.90)
-    frame.ammoArrow = ammoArrow
-
     local tabs = {
         { label = "Character", enabled = true },
         { label = "Reputation", enabled = false },
@@ -755,6 +1159,9 @@ local function CreateFrameUI()
 
         frame.tabs[#frame.tabs + 1] = tab
     end
+
+    CreateSidebar(frame)
+    LayoutOuterTabs(frame)
 
     frame:SetScript("OnShow", function()
         Module:Refresh()
@@ -849,6 +1256,14 @@ function Module:Initialize()
         then
             Module.frame.titleMenu:Hide()
         end
+    end)
+
+    UI:RegisterEvent("EQUIPMENT_SETS_CHANGED", function()
+        Module:Refresh()
+    end)
+
+    UI:RegisterEvent("EQUIPMENT_SWAP_FINISHED", function()
+        Module:Refresh()
     end)
 end
 
