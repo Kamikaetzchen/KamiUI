@@ -85,6 +85,15 @@ local function CreateCenterIndicators(frame)
         ghost = CreateIcon(row),
     }
 
+    local raid = row.icons.raid
+    local raidSize = math.floor(frame:GetHeight() * 0.75 + 0.5)
+
+    raidSize = math.max(12, math.min(30, raidSize))
+    raid:SetSize(raidSize, raidSize)
+    raid:SetAlpha(0.80)
+    raid:ClearAllPoints()
+    raid:SetPoint("CENTER", frame, "CENTER", 0, 0)
+
     frame.centerIndicators = row
 end
 
@@ -97,7 +106,6 @@ local function LayoutCenterIndicators(frame)
     local visible = {}
 
     for _, key in ipairs({
-        "raid",
         "ready",
         "resurrect",
         "summon",
