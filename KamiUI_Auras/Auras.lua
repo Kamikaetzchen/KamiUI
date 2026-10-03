@@ -77,7 +77,7 @@ local function CreateBorder(parent, top, bottom, left, right)
     end
 end
 
-local function InitializeAuraButton(button, color)
+local function InitializeAuraButton(button, color, useDispelColor)
     button:SetSize(defaults.width, defaults.height)
     button:EnableMouse(true)
 
@@ -90,7 +90,10 @@ local function InitializeAuraButton(button, color)
     bar:SetSize(defaults.width - defaults.iconSize, defaults.height)
     bar:SetPoint("LEFT", icon, "RIGHT", 0, 0)
     bar:SetStatusBarTexture("Interface\\Buttons\\WHITE8X8")
-    bar:SetStatusBarColor(color[1], color[2], color[3], defaults.barAlpha)
+    bar:SetStatusBarColor(color[1], color[2], color[3], 1)
+
+    local statusTexture = bar:GetStatusBarTexture()
+    statusTexture:SetAlpha(defaults.barAlpha)
 
     local background = bar:CreateTexture(nil, "BACKGROUND")
     background:SetAllPoints()
@@ -147,6 +150,17 @@ local function InitializeAuraButton(button, color)
         direction = Enum.StatusBarTimerDirection.RemainingTime,
         interpolation = Enum.StatusBarInterpolation.Immediate,
     })
+
+    if useDispelColor then
+        -- Let Blizzard color the existing duration-bar texture from the aura's
+        -- dispel type. This works with secret aura data in combat and gives us
+        -- the standard Magic/Curse/Disease/Poison/Bleed/None colors.
+        button:AddDispelTypeTexture(statusTexture, {
+            showAlways = true,
+            style = Enum.CustomAuraButtonDispelTypeTextureStyle.PreserveAsset,
+        })
+    end
+
     button:SetSpellName(nameText)
     button:SetDurationText(timeText)
     button:SetApplicationCount(stackText)
@@ -186,7 +200,7 @@ local function CreateAuraContainer()
         sortMethod = AuraContainerSortMethod.Expiration,
         sortDirection = AuraContainerSortDirection.Reverse,
         initializeFrame = function(button)
-            InitializeAuraButton(button, defaults.helpfulColor)
+            InitializeAuraButton(button, defaults.helpfulColor, false)
         end,
         layout = {
             elementWidth = defaults.width,
@@ -200,7 +214,7 @@ local function CreateAuraContainer()
         sortMethod = AuraContainerSortMethod.Expiration,
         sortDirection = AuraContainerSortDirection.Reverse,
         initializeFrame = function(button)
-            InitializeAuraButton(button, defaults.harmfulColor)
+            InitializeAuraButton(button, defaults.harmfulColor, true)
         end,
         layout = {
             elementWidth = defaults.width,
