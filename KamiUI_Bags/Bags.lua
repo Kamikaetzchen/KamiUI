@@ -34,6 +34,56 @@ local bagFamilyColors = {
 local originalFunctions = {}
 local pendingRebuild = false
 
+local itemDragFrame = CreateFrame("Frame")
+itemDragFrame:Hide()
+itemDragFrame:SetScript("OnUpdate", function(self)
+    if IsMouseButtonDown("LeftButton") then
+        return
+    end
+
+    self:Hide()
+
+    if not CursorHasItem or not CursorHasItem() then
+        return
+    end
+
+    local frame = Module.frame
+
+    if not frame or not frame:IsShown() then
+        return
+    end
+
+    local cursorX, cursorY = GetCursorPosition()
+
+    for _, button in ipairs(frame.activeButtons or {}) do
+        if button:IsShown() and button:GetParent():IsShown() then
+            local scale = button:GetEffectiveScale()
+            local x = cursorX / scale
+            local y = cursorY / scale
+            local left, bottom, width, height = button:GetRect()
+
+            if left
+                and bottom
+                and x >= left
+                and x <= left + width
+                and y >= bottom
+                and y <= bottom + height
+            then
+                local bagID = button:GetParent():GetID()
+                local slotID = button:GetID()
+
+                if C_Container and C_Container.PickupContainerItem then
+                    C_Container.PickupContainerItem(bagID, slotID)
+                elseif PickupContainerItem then
+                    PickupContainerItem(bagID, slotID)
+                end
+
+                return
+            end
+        end
+    end
+end)
+
 local function EnsureDatabase()
     KamiUIDB = KamiUIDB or {}
     KamiUIDB.bags = KamiUIDB.bags or {}
@@ -501,15 +551,8 @@ local function CreateItemButton(content, carrier)
     button:UnregisterAllEvents()
     button:RegisterForDrag("LeftButton")
 
-    button:SetScript("OnReceiveDrag", function(self)
-        local bagID = self:GetParent():GetID()
-        local slotID = self:GetID()
-
-        if C_Container and C_Container.PickupContainerItem then
-            C_Container.PickupContainerItem(bagID, slotID)
-        elseif PickupContainerItem then
-            PickupContainerItem(bagID, slotID)
-        end
+    button:HookScript("OnDragStart", function()
+        itemDragFrame:Show()
     end)
 
     StyleItemButton(button)
