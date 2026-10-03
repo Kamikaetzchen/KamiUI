@@ -115,6 +115,16 @@ local function PositionHeaderIndicators()
     end
 end
 
+local function HideRoundBlobRings()
+    if Minimap.SetQuestBlobRingAlpha then
+        Minimap:SetQuestBlobRingAlpha(0)
+    end
+
+    if Minimap.SetTaskBlobRingAlpha then
+        Minimap:SetTaskBlobRingAlpha(0)
+    end
+end
+
 local function StyleMinimap()
     Minimap:SetSize(defaults.size, defaults.size)
 
@@ -130,6 +140,7 @@ local function StyleMinimap()
     -- Keep the map square. The Blizzard ring/chrome is hidden separately.
     Minimap:SetMaskTexture("Interface\\Buttons\\WHITE8X8")
 
+    HideRoundBlobRings()
     HideBlizzardChrome()
     PositionHeaderIndicators()
     CreateBorder()
