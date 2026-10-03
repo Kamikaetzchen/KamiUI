@@ -32,6 +32,8 @@ local function EnsureDatabase()
         db.bagBarExpanded = false
     end
 
+    db.hiddenBags = db.hiddenBags or {}
+
     return db
 end
 
@@ -76,10 +78,15 @@ local function GetInventoryBags()
         AddUniqueBag(bags, seen, bagID)
     end
 
-    local reagentBag
+    local reagentBag = Enum
+        and Enum.BagIndex
+        and Enum.BagIndex.ReagentBag
 
-    if Enum and Enum.BagIndex then
-        reagentBag = Enum.BagIndex.ReagentBag
+    if reagentBag == nil
+        and NUM_TOTAL_EQUIPPED_BAG_SLOTS
+        and NUM_TOTAL_EQUIPPED_BAG_SLOTS > normalBagCount
+    then
+        reagentBag = NUM_TOTAL_EQUIPPED_BAG_SLOTS
     end
 
     if reagentBag == nil
@@ -89,7 +96,7 @@ local function GetInventoryBags()
         reagentBag = normalBagCount + 1
     end
 
-    if reagentBag ~= nil and GetContainerNumSlots(reagentBag) > 0 then
+    if reagentBag ~= nil then
         AddUniqueBag(bags, seen, reagentBag)
     end
 
@@ -99,7 +106,7 @@ local function GetInventoryBags()
         keyring = Enum.BagIndex.Keyring
     end
 
-    if keyring ~= nil and GetContainerNumSlots(keyring) > 0 then
+    if keyring ~= nil then
         AddUniqueBag(bags, seen, keyring)
     end
 
@@ -176,8 +183,8 @@ local function StyleItemButton(button)
         button.NormalTexture:SetAlpha(0)
     end
 
-    if button.SetNormalTexture then
-        button:SetNormalTexture(nil)
+    if button.NormalTexture then
+        button.NormalTexture:Hide()
     end
 
     if button.IconBorder then
@@ -275,6 +282,14 @@ local function GetBagName(bagID)
         return BACKPACK_TOOLTIP or "Backpack"
     end
 
+    local reagentBag = Enum
+        and Enum.BagIndex
+        and Enum.BagIndex.ReagentBag
+
+    if reagentBag and bagID == reagentBag then
+        return REAGENT_BAG or "Reagent Bag"
+    end
+
     if C_Container and C_Container.GetBagName then
         local name = C_Container.GetBagName(bagID)
 
@@ -309,10 +324,13 @@ end
 local function CreateBagBarButton(parent)
     local button = CreateFrame("Button", nil, parent)
     button:SetSize(32, 32)
+    button:RegisterForClicks("LeftButtonUp")
+    button:RegisterForDrag("LeftButton")
 
     local background = button:CreateTexture(nil, "BACKGROUND")
     background:SetAllPoints()
     background:SetColorTexture(unpack(defaults.slotBackground))
+    button.background = background
 
     local icon = button:CreateTexture(nil, "ARTWORK")
     icon:SetPoint("TOPLEFT", button, "TOPLEFT", 1, -1)
@@ -329,16 +347,58 @@ local function CreateBagBarButton(parent)
     highlight:SetAllPoints()
     highlight:SetColorTexture(1, 1, 1, 0.12)
 
+    button:SetScript("OnClick", function(self)
+        local inventoryID = GetBagInventoryID(self.bagID)
+
+        if CursorHasItem and CursorHasItem() and inventoryID then
+            if not InCombatLockdown or not InCombatLockdown() then
+                PickupInventoryItem(inventoryID)
+            end
+
+            return
+        end
+
+        local db = EnsureDatabase()
+        db.hiddenBags[self.bagID] = not db.hiddenBags[self.bagID]
+
+        Module:Rebuild()
+    end)
+
+    button:SetScript("OnReceiveDrag", function(self)
+        local inventoryID = GetBagInventoryID(self.bagID)
+
+        if inventoryID
+            and (not InCombatLockdown or not InCombatLockdown())
+        then
+            PickupInventoryItem(inventoryID)
+        end
+    end)
+
+    button:SetScript("OnDragStart", function(self)
+        local inventoryID = GetBagInventoryID(self.bagID)
+
+        if inventoryID
+            and (not InCombatLockdown or not InCombatLockdown())
+        then
+            PickupInventoryItem(inventoryID)
+        end
+    end)
+
     button:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_TOP")
 
         local inventoryID = GetBagInventoryID(self.bagID)
 
         if inventoryID and GameTooltip:SetInventoryItem("player", inventoryID) then
+            GameTooltip:AddLine(" ")
+            GameTooltip:AddLine("Click: show/hide bag", 0.75, 0.75, 0.75)
+            GameTooltip:AddLine("Drag: equip/swap bag", 0.75, 0.75, 0.75)
+            GameTooltip:Show()
             return
         end
 
         GameTooltip:SetText(GetBagName(self.bagID))
+        GameTooltip:AddLine("Click: show/hide bag", 0.75, 0.75, 0.75)
         GameTooltip:Show()
     end)
 
@@ -379,6 +439,11 @@ function Module:UpdateBagBar()
         button.bagID = bagID
         button.icon:SetTexture(GetBagButtonTexture(bagID))
         button.count:SetText(CountFreeSlots(bagID))
+
+        local hidden = EnsureDatabase().hiddenBags[bagID] == true
+        button.icon:SetAlpha(hidden and 0.30 or 1.00)
+        button.count:SetAlpha(hidden and 0.30 or 1.00)
+        button.background:SetAlpha(hidden and 0.35 or 1.00)
         button:ClearAllPoints()
         button:SetPoint(
             "LEFT",
@@ -490,7 +555,8 @@ function Module:Rebuild()
     local bags = GetInventoryBags()
 
     for _, bagID in ipairs(bags) do
-        local carrier = frame.bagCarriers[bagID]
+        if not EnsureDatabase().hiddenBags[bagID] then
+            local carrier = frame.bagCarriers[bagID]
 
         if not carrier then
             carrier = CreateBagCarrier(frame.content, bagID)
@@ -501,18 +567,19 @@ function Module:Rebuild()
 
         local slotCount = GetContainerNumSlots(bagID)
 
-        for slotID = 1, slotCount do
-            activeIndex = activeIndex + 1
+            for slotID = 1, slotCount do
+                activeIndex = activeIndex + 1
 
-            local button = frame.itemButtons[activeIndex]
+                local button = frame.itemButtons[activeIndex]
 
-            if not button or button:GetParent() ~= carrier then
-                button = CreateItemButton(frame.content, carrier)
-                frame.itemButtons[activeIndex] = button
+                if not button or button:GetParent() ~= carrier then
+                    button = CreateItemButton(frame.content, carrier)
+                    frame.itemButtons[activeIndex] = button
+                end
+
+                button:Show()
+                UpdateItemButton(button, bagID, slotID)
             end
-
-            button:Show()
-            UpdateItemButton(button, bagID, slotID)
         end
     end
 
