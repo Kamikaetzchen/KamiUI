@@ -382,12 +382,10 @@ local function UpdatePlate(data)
         return
     end
 
-    local current = UnitHealth(unit)
-    local maximum = UnitHealthMax(unit)
-
-    data.health:SetMinMaxValues(0, maximum)
-    data.health:SetValue(current)
-
+    -- Never feed UnitHealth/UnitHealthMax back into Blizzard's native
+    -- TextStatusBar. On Forever those values can be secret, and touching the
+    -- native bar from addon code taints Blizzard_TextStatusBar's comparisons.
+    -- Blizzard already owns and updates the actual bar value; we only style it.
     local r, g, b = GetUnitColor(unit)
     data.health:SetStatusBarColor(r, g, b)
 
