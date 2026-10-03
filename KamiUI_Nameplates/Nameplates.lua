@@ -357,6 +357,10 @@ local function UpdatePlate(data)
     -- new unit or on mouseover. Keep our replacements authoritative.
     HideNativePlateArt(data.root)
 
+    if data.root.LevelFrame then
+        data.root.LevelFrame:SetAlpha(0)
+    end
+
     -- Never feed UnitHealth/UnitHealthMax back into Blizzard's native
     -- TextStatusBar. On Forever those values can be secret, and touching the
     -- native bar from addon code taints Blizzard_TextStatusBar's comparisons.
@@ -376,6 +380,8 @@ local function UpdatePlate(data)
         data.healthPercent:ClearAllPoints()
         data.healthPercent:SetPoint("RIGHT", data.health, "RIGHT", -3, 0)
         data.healthPercent:SetJustifyH("RIGHT")
+        data.healthPercent:SetFont(fontPath, 8, fontFlags)
+        data.healthPercent:SetTextColor(1, 1, 1)
     end
 
     SetSingleLine(data.name, GetDisplayName(unit))
@@ -408,6 +414,16 @@ local function StylePlate(namePlate, unit)
 
         HideNativePlateArt(unitFrame)
 
+        if unitFrame.LevelFrame and not unitFrame.LevelFrame.KamiHidden then
+            unitFrame.LevelFrame.KamiHidden = true
+            unitFrame.LevelFrame:SetAlpha(0)
+
+            unitFrame.LevelFrame:HookScript("OnShow", function(self)
+                self:SetAlpha(0)
+                self:Hide()
+            end)
+        end
+
         health:ClearAllPoints()
         health:SetSize(PLATE_WIDTH, HEALTH_HEIGHT)
         health:SetPoint("CENTER", unitFrame, "CENTER", 0, 0)
@@ -437,7 +453,7 @@ local function StylePlate(namePlate, unit)
             healthPercent:ClearAllPoints()
             healthPercent:SetPoint("RIGHT", health, "RIGHT", -3, 0)
             healthPercent:SetJustifyH("RIGHT")
-            healthPercent:SetFont(fontPath, 9, fontFlags)
+            healthPercent:SetFont(fontPath, 8, fontFlags)
             healthPercent:SetTextColor(1, 1, 1)
             healthPercent:SetShadowColor(0, 0, 0, 1)
             healthPercent:SetShadowOffset(1, -1)
