@@ -823,8 +823,9 @@ local function CreateSidebar(frame)
     frame.sidebar = sidebar
 
     local statsTab = CreateFrame("Button", nil, sidebar)
-    statsTab:SetPoint("TOPLEFT", 5, -27)
-    statsTab:SetSize(72, 22)
+    statsTab:SetPoint("TOPLEFT", sidebar, "TOPLEFT", 1, -26)
+    statsTab:SetPoint("TOPRIGHT", sidebar, "TOP", 0, -26)
+    statsTab:SetHeight(24)
     statsTab:SetNormalFontObject("GameFontNormalSmall")
     statsTab:SetHighlightFontObject("GameFontHighlightSmall")
     statsTab:SetText("Stats")
@@ -843,8 +844,9 @@ local function CreateSidebar(frame)
     sidebar.statsTab = statsTab
 
     local equipmentTab = CreateFrame("Button", nil, sidebar)
-    equipmentTab:SetPoint("LEFT", statsTab, "RIGHT", 4, 0)
-    equipmentTab:SetSize(78, 22)
+    equipmentTab:SetPoint("TOPLEFT", sidebar, "TOP", 0, -26)
+    equipmentTab:SetPoint("TOPRIGHT", sidebar, "TOPRIGHT", -1, -26)
+    equipmentTab:SetHeight(24)
     equipmentTab:SetNormalFontObject("GameFontNormalSmall")
     equipmentTab:SetHighlightFontObject("GameFontHighlightSmall")
     equipmentTab:SetText("Equipment")
@@ -862,11 +864,96 @@ local function CreateSidebar(frame)
     end)
     sidebar.equipmentTab = equipmentTab
 
-    local statsPane = CreateFrame("Frame", nil, sidebar)
-    statsPane:SetPoint("TOPLEFT", 1, -55)
+    local statsPane = CreateFrame("ScrollFrame", nil, sidebar)
+    statsPane:SetPoint("TOPLEFT", 1, -50)
     statsPane:SetPoint("BOTTOMRIGHT", -1, 1)
+    statsPane:EnableMouseWheel(true)
     statsPane.rows = {}
     sidebar.statsPane = statsPane
+
+    local statsContent = CreateFrame("Frame", nil, statsPane)
+    statsContent:SetWidth(SIDEBAR_WIDTH - 12)
+    statsContent:SetHeight(1)
+    statsPane:SetScrollChild(statsContent)
+    statsPane.content = statsContent
+
+    local statsScrollbar = CreateFrame("Slider", nil, statsPane)
+    statsScrollbar:SetOrientation("VERTICAL")
+    statsScrollbar:SetPoint("TOPRIGHT", statsPane, "TOPRIGHT", -3, -3)
+    statsScrollbar:SetPoint("BOTTOMRIGHT", statsPane, "BOTTOMRIGHT", -3, 3)
+    statsScrollbar:SetWidth(6)
+    statsScrollbar:SetMinMaxValues(0, 0)
+    statsScrollbar:SetValueStep(10)
+    statsScrollbar:SetObeyStepOnDrag(false)
+
+    local scrollTrack = statsScrollbar:CreateTexture(nil, "BACKGROUND")
+    scrollTrack:SetAllPoints()
+    scrollTrack:SetColorTexture(1, 1, 1, 0.05)
+
+    statsScrollbar:SetThumbTexture("Interface\\Buttons\\WHITE8X8")
+    local scrollThumb = statsScrollbar:GetThumbTexture()
+
+    if scrollThumb then
+        scrollThumb:SetWidth(6)
+        scrollThumb:SetColorTexture(0.45, 0.45, 0.48, 0.65)
+    end
+
+    statsScrollbar:SetScript("OnValueChanged", function(_, value)
+        statsPane:SetVerticalScroll(value or 0)
+    end)
+    statsScrollbar:Hide()
+    statsPane.scrollbar = statsScrollbar
+
+    local function UpdateStatsScrollRange()
+        local viewportHeight = statsPane:GetHeight() or 0
+        local contentHeight = statsContent:GetHeight() or 0
+        local maxScroll = math.max(0, contentHeight - viewportHeight)
+
+        statsScrollbar:SetMinMaxValues(0, maxScroll)
+
+        if maxScroll > 0 then
+            local current = math.min(statsScrollbar:GetValue() or 0, maxScroll)
+            statsScrollbar:SetValue(current)
+            statsPane:SetVerticalScroll(current)
+
+            if scrollThumb then
+                local trackHeight = math.max(1, statsScrollbar:GetHeight() or 1)
+                local thumbHeight = math.max(
+                    20,
+                    trackHeight * viewportHeight / math.max(contentHeight, 1)
+                )
+                scrollThumb:SetHeight(math.min(trackHeight, thumbHeight))
+            end
+
+            statsScrollbar:Show()
+        else
+            statsScrollbar:SetValue(0)
+            statsPane:SetVerticalScroll(0)
+            statsScrollbar:Hide()
+        end
+    end
+
+    statsPane:SetScript("OnMouseWheel", function(_, delta)
+        local _, maxScroll = statsScrollbar:GetMinMaxValues()
+
+        if not maxScroll or maxScroll <= 0 then
+            return
+        end
+
+        statsScrollbar:SetValue(
+            math.max(
+                0,
+                math.min(
+                    maxScroll,
+                    (statsScrollbar:GetValue() or 0) - delta * 28
+                )
+            )
+        )
+    end)
+
+    statsPane:SetScript("OnSizeChanged", function()
+        UpdateStatsScrollRange()
+    end)
 
     local statLayout = {
         { header = "General" },
@@ -904,10 +991,10 @@ local function CreateSidebar(frame)
 
     for _, data in ipairs(statLayout) do
         if data.header then
-            CreateSidebarHeader(statsPane, y, data.header)
+            CreateSidebarHeader(statsContent, y, data.header)
             y = y - 18
         else
-            local row = CreateSidebarRow(statsPane, y)
+            local row = CreateSidebarRow(statsContent, y)
             row:SetHeight(13)
             row.label:SetText(data.label)
             row.value:SetText("-")
@@ -916,8 +1003,11 @@ local function CreateSidebar(frame)
         end
     end
 
+    statsContent:SetHeight(math.max(1, -y + 4))
+    UpdateStatsScrollRange()
+
     local equipmentPane = CreateFrame("Frame", nil, sidebar)
-    equipmentPane:SetPoint("TOPLEFT", 1, -55)
+    equipmentPane:SetPoint("TOPLEFT", 1, -50)
     equipmentPane:SetPoint("BOTTOMRIGHT", -1, 1)
     equipmentPane.rows = {}
     equipmentPane:Hide()
@@ -931,8 +1021,8 @@ local function CreateSidebar(frame)
     equipmentPane.empty = empty
 
     local equip = CreateFrame("Button", nil, equipmentPane)
-    equip:SetSize(58, 20)
-    equip:SetPoint("BOTTOMLEFT", 8, 8)
+    equip:SetSize(66, 20)
+    equip:SetPoint("BOTTOMRIGHT", equipmentPane, "BOTTOM", -3, 8)
     equip:SetNormalFontObject("GameFontNormalSmall")
     equip:SetHighlightFontObject("GameFontHighlightSmall")
     equip:SetText("Equip")
@@ -962,8 +1052,8 @@ local function CreateSidebar(frame)
     equipmentPane.equip = equip
 
     local save = CreateFrame("Button", nil, equipmentPane)
-    save:SetSize(58, 20)
-    save:SetPoint("LEFT", equip, "RIGHT", 6, 0)
+    save:SetSize(66, 20)
+    save:SetPoint("BOTTOMLEFT", equipmentPane, "BOTTOM", 3, 8)
     save:SetNormalFontObject("GameFontNormalSmall")
     save:SetHighlightFontObject("GameFontHighlightSmall")
     save:SetText("Save")
