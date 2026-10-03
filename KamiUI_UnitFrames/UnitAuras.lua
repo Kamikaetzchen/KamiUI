@@ -2,6 +2,7 @@ local UI = KamiUI
 local UF = UI:GetModule("UnitFrames")
 
 local AURAS_PER_ROW = 8
+local containers = {}
 
 local function CreateBorder(parent)
     local top = parent:CreateTexture(nil, "OVERLAY")
@@ -69,23 +70,8 @@ local function InitializeAuraButton(button, size)
     button:SetApplicationCount(stacks)
 end
 
-local function CreateAuraContainer(parent, unit, filter, maxCount, rows, size)
-    local container = CreateFrame(
-        "AuraContainer",
-        nil,
-        parent,
-        "CustomAuraContainerTemplate, DisableUntrustedLayoutScriptsTemplate"
-    )
-
-    container:SetFlowLayoutAxis(AnchorUtil.FlowLayoutAxis.Horizontal)
-    container:SetFlowLayoutAnchorPoint("TOPLEFT")
-    container:SetFlowLayoutGrowthDirection(
-        AnchorUtil.FlowDirection.Right,
-        AnchorUtil.FlowDirection.Down
-    )
-    container:SetFlowLayoutMaximumLineSize(size * AURAS_PER_ROW)
-
-    container:AddAuraGroup("auras", filter, {
+local function AddAuraGroup(container, key, filter, maxCount, size, index, forceNewLine)
+    container:AddAuraGroup(key, filter, {
         maxFrameCount = maxCount,
         sortMethod = AuraContainerSortMethod.Expiration,
         sortDirection = AuraContainerSortDirection.Reverse,
@@ -95,56 +81,128 @@ local function CreateAuraContainer(parent, unit, filter, maxCount, rows, size)
         layout = {
             elementWidth = size,
             elementHeight = size,
-            layoutIndex = 1,
+            elementSpacing = 0,
+            lineSpacing = 0,
+            groupSpacing = 0,
+            groupLineSpacing = 0,
+            forceNewLine = forceNewLine,
+            layoutIndex = index,
         },
     })
+end
 
-    container:SetSize(size * AURAS_PER_ROW, size * rows)
+local function CreateAuraContainer(parent, unit, buffCount, debuffCount, rows, growUp)
+    local size = parent:GetWidth() / AURAS_PER_ROW
+    local container = CreateFrame(
+        "AuraContainer",
+        nil,
+        parent,
+        "CustomAuraContainerTemplate, DisableUntrustedLayoutScriptsTemplate"
+    )
+
+    container:SetSize(parent:GetWidth(), size * rows)
+    container:SetFlowLayoutAxis(AnchorUtil.FlowLayoutAxis.Horizontal)
+    container:SetFlowLayoutAnchorPoint(growUp and "BOTTOMLEFT" or "TOPLEFT")
+    container:SetFlowLayoutGrowthDirection(
+        AnchorUtil.FlowDirection.Right,
+        growUp and AnchorUtil.FlowDirection.Up or AnchorUtil.FlowDirection.Down
+    )
+    container:SetFlowLayoutMaximumLineSize(parent:GetWidth())
+
+    AddAuraGroup(container, "buffs", "HELPFUL", buffCount, size, 1, false)
+    AddAuraGroup(container, "debuffs", "HARMFUL", debuffCount, size, 2, true)
+
+    if growUp then
+        container:SetPoint("BOTTOMLEFT", parent, "TOPLEFT", 0, 0)
+    else
+        container:SetPoint("TOPLEFT", parent, "BOTTOMLEFT", 0, 0)
+    end
+
     container:SetEnabled(true)
     container:SetUnit(unit)
     container:UpdateAllAuras()
 
+    container.unit = unit
+    containers[#containers + 1] = container
+
     return container
 end
 
-local function AttachTargetAuras()
-    local frame = UF.targetFrame
-    if not frame then
-        return
+local function RefreshAuras(unit)
+    for _, container in ipairs(containers) do
+        if not unit or container.unit == unit then
+            container:UpdateAllAuras()
+        end
     end
-
-    local size = frame:GetWidth() / AURAS_PER_ROW
-
-    local debuffs = CreateAuraContainer(frame, "target", "HARMFUL", 8, 1, size)
-    debuffs:SetPoint("BOTTOMLEFT", frame, "TOPLEFT", 0, 0)
-
-    local buffs = CreateAuraContainer(frame, "target", "HELPFUL", 16, 2, size)
-    buffs:SetPoint("BOTTOMLEFT", frame, "TOPLEFT", 0, size)
-
-    frame.auraBuffs = buffs
-    frame.auraDebuffs = debuffs
 end
 
-local function AttachBottomAuras(frame, unit)
-    if not frame then
-        return
+local function AttachAuras()
+    if UF.targetFrame then
+        UF.targetFrame.auras = CreateAuraContainer(
+            UF.targetFrame,
+            "target",
+            16,
+            8,
+            3,
+            true
+        )
     end
 
-    local size = frame:GetWidth() / AURAS_PER_ROW
+    local secondary = {
+        { UF.targetTargetFrame, "targettarget" },
+        { UF.targetTargetTargetFrame, "targettargettarget" },
+        { UF.focusFrame, "focus" },
+        { UF.focusTargetFrame, "focustarget" },
+        { UF.petFrame, "pet" },
+    }
 
-    local buffs = CreateAuraContainer(frame, unit, "HELPFUL", 8, 1, size)
-    buffs:SetPoint("TOPLEFT", frame, "BOTTOMLEFT", 0, 0)
+    for _, entry in ipairs(secondary) do
+        local frame, unit = unpack(entry)
 
-    local debuffs = CreateAuraContainer(frame, unit, "HARMFUL", 8, 1, size)
-    debuffs:SetPoint("TOPLEFT", frame, "BOTTOMLEFT", 0, -size)
-
-    frame.auraBuffs = buffs
-    frame.auraDebuffs = debuffs
+        if frame then
+            frame.auras = CreateAuraContainer(frame, unit, 8, 8, 2, false)
+        end
+    end
 end
 
-AttachTargetAuras()
-AttachBottomAuras(UF.targetTargetFrame, "targettarget")
-AttachBottomAuras(UF.targetTargetTargetFrame, "targettargettarget")
-AttachBottomAuras(UF.focusFrame, "focus")
-AttachBottomAuras(UF.focusTargetFrame, "focustarget")
-AttachBottomAuras(UF.petFrame, "pet")
+AttachAuras()
+
+UI:RegisterEvent("PLAYER_ENTERING_WORLD", function()
+    C_Timer.After(0, function()
+        RefreshAuras()
+    end)
+end)
+
+UI:RegisterEvent("PLAYER_TARGET_CHANGED", function()
+    C_Timer.After(0, function()
+        RefreshAuras("target")
+        RefreshAuras("targettarget")
+        RefreshAuras("targettargettarget")
+    end)
+end)
+
+UI:RegisterEvent("PLAYER_FOCUS_CHANGED", function()
+    C_Timer.After(0, function()
+        RefreshAuras("focus")
+        RefreshAuras("focustarget")
+    end)
+end)
+
+UI:RegisterEvent("UNIT_TARGET", function(_, unit)
+    if unit == "target" then
+        RefreshAuras("targettarget")
+        RefreshAuras("targettargettarget")
+    elseif unit == "targettarget" then
+        RefreshAuras("targettargettarget")
+    elseif unit == "focus" then
+        RefreshAuras("focustarget")
+    end
+end)
+
+UI:RegisterEvent("UNIT_PET", function(_, unit)
+    if unit == "player" then
+        C_Timer.After(0, function()
+            RefreshAuras("pet")
+        end)
+    end
+end)
