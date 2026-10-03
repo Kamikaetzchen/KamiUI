@@ -212,9 +212,9 @@ local function CreateAuraContainer(
     )
 
     if growUp then
-        container:SetPoint("BOTTOMLEFT", parent, "TOPLEFT", 0, 0)
+        container:SetPoint("BOTTOMLEFT", parent, "TOPLEFT", 0, 1)
     else
-        container:SetPoint("TOPLEFT", parent, "BOTTOMLEFT", 0, 0)
+        container:SetPoint("TOPLEFT", parent, "BOTTOMLEFT", 0, -1)
     end
 
     container:SetEnabled(true)
