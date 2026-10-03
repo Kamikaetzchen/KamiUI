@@ -884,7 +884,10 @@ local function CreateSidebar(frame)
     statsScrollbar:SetWidth(6)
     statsScrollbar:SetMinMaxValues(0, 0)
     statsScrollbar:SetValueStep(10)
-    statsScrollbar:SetObeyStepOnDrag(false)
+
+    if statsScrollbar.SetObeyStepOnDrag then
+        statsScrollbar:SetObeyStepOnDrag(false)
+    end
 
     local scrollTrack = statsScrollbar:CreateTexture(nil, "BACKGROUND")
     scrollTrack:SetAllPoints()
