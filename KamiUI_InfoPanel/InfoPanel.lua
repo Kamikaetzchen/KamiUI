@@ -27,7 +27,7 @@ local slotOrder = {
 }
 
 local slotWidths = {
-    location = 165,
+    location = 210,
     speed = 52,
     xp = 78,
     bags = 52,
@@ -297,6 +297,8 @@ local function CreatePanel()
         texts[key] = text
         previous = text
     end
+
+    texts.location:SetJustifyH("CENTER")
 
     local signal = CreateFrame("Frame", nil, content)
     signal:SetSize(12, 12)
