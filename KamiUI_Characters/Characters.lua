@@ -608,11 +608,12 @@ end
 local function CreateSidebarHeader(parent, y, text)
     local header = CreateFrame("Button", nil, parent)
     header:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, y)
-    header:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -6, y)
+    header:SetPoint("TOPRIGHT", parent, "TOPRIGHT", 0, y)
     header:SetHeight(17)
 
     local background = header:CreateTexture(nil, "BACKGROUND")
-    background:SetAllPoints()
+    background:SetPoint("TOPLEFT", header, "TOPLEFT", 2, 0)
+    background:SetPoint("BOTTOMRIGHT", header, "BOTTOMRIGHT", -2, 0)
     background:SetColorTexture(1, 1, 1, 0.055)
 
     local label = header:CreateFontString(nil, "OVERLAY")
@@ -625,7 +626,8 @@ local function CreateSidebarHeader(parent, y, text)
     header.label = label
 
     local highlight = header:CreateTexture(nil, "HIGHLIGHT")
-    highlight:SetAllPoints()
+    highlight:SetPoint("TOPLEFT", header, "TOPLEFT", 2, 0)
+    highlight:SetPoint("BOTTOMRIGHT", header, "BOTTOMRIGHT", -2, 0)
     highlight:SetColorTexture(1, 1, 1, 0.04)
 
     return header
@@ -2340,7 +2342,10 @@ local function CreateSidebar(frame)
 
         statsScrollbar:SetMinMaxValues(0, maxScroll)
 
+        local paneWidth = statsPane:GetWidth() or 0
+
         if maxScroll > 0 then
+            statsContent:SetWidth(math.max(1, paneWidth - 9))
             local current = math.min(statsScrollbar:GetValue() or 0, maxScroll)
             statsScrollbar:SetValue(current)
             statsPane:SetVerticalScroll(current)
@@ -2356,6 +2361,7 @@ local function CreateSidebar(frame)
 
             statsScrollbar:Show()
         else
+            statsContent:SetWidth(math.max(1, paneWidth))
             statsScrollbar:SetValue(0)
             statsPane:SetVerticalScroll(0)
             statsScrollbar:Hide()
@@ -2468,7 +2474,7 @@ local function CreateSidebar(frame)
                     "TOPRIGHT",
                     statsContent,
                     "TOPRIGHT",
-                    -6,
+                    0,
                     y
                 )
                 widget.label:SetText(
