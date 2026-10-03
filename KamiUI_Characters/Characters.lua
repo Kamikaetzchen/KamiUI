@@ -5,7 +5,7 @@ local Module = UI:NewModule("Characters")
 Module.name = "KamiUI_Characters"
 Module.version = "0.2.0"
 
-local CHARACTER_WIDTH = 333
+local CHARACTER_WIDTH = 323
 local SIDEBAR_WIDTH = 165
 local SPLIT_WIDTH = CHARACTER_WIDTH - 2
 local LIST_CONTENT_WIDTH = SPLIT_WIDTH - 14
@@ -2811,7 +2811,7 @@ local function CreateFrameUI()
     local modelPanel = CreateFrame("Frame", nil, characterPane, "BackdropTemplate")
     modelPanel:SetPoint("TOP", characterPane, "TOP", 0, -54)
     modelPanel:SetPoint("BOTTOM", characterPane, "BOTTOM", 0, 58)
-    modelPanel:SetWidth(240)
+    modelPanel:SetWidth(230)
     modelPanel:SetBackdrop({
         bgFile = "Interface\\Buttons\\WHITE8X8",
         edgeFile = "Interface\\Buttons\\WHITE8X8",
