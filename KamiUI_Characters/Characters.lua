@@ -5,8 +5,10 @@ local Module = UI:NewModule("Characters")
 Module.name = "KamiUI_Characters"
 Module.version = "0.2.0"
 
-local CHARACTER_WIDTH = 360
+local CHARACTER_WIDTH = 333
 local SIDEBAR_WIDTH = 165
+local SPLIT_WIDTH = CHARACTER_WIDTH - 2
+local LIST_CONTENT_WIDTH = SPLIT_WIDTH - 14
 local FRAME_WIDTH = CHARACTER_WIDTH + SIDEBAR_WIDTH
 local FRAME_HEIGHT = 420
 local HEADER_HEIGHT = 40
@@ -1190,7 +1192,7 @@ local function CreateReputationPane(frame)
     local listPanel = CreateFrame("Frame", nil, pane, "BackdropTemplate")
     listPanel:SetPoint("TOPLEFT", 0, 0)
     listPanel:SetPoint("BOTTOMLEFT", 0, 0)
-    listPanel:SetWidth(310)
+    listPanel:SetWidth(SPLIT_WIDTH)
     listPanel:SetBackdrop({
         bgFile = "Interface\\Buttons\\WHITE8X8",
         edgeFile = "Interface\\Buttons\\WHITE8X8",
@@ -1206,7 +1208,7 @@ local function CreateReputationPane(frame)
     pane.list = list
 
     local content = CreateFrame("Frame", nil, list)
-    content:SetWidth(296)
+    content:SetWidth(LIST_CONTENT_WIDTH)
     content:SetHeight(1)
     list:SetScrollChild(content)
     pane.listContent = content
@@ -1833,7 +1835,7 @@ local function CreateSkillsPane(frame)
     local listPanel = CreateFrame("Frame", nil, pane, "BackdropTemplate")
     listPanel:SetPoint("TOPLEFT", 0, 0)
     listPanel:SetPoint("BOTTOMLEFT", 0, 0)
-    listPanel:SetWidth(310)
+    listPanel:SetWidth(SPLIT_WIDTH)
     listPanel:SetBackdrop({
         bgFile = "Interface\\Buttons\\WHITE8X8",
         edgeFile = "Interface\\Buttons\\WHITE8X8",
@@ -1849,7 +1851,7 @@ local function CreateSkillsPane(frame)
     pane.list = list
 
     local content = CreateFrame("Frame", nil, list)
-    content:SetWidth(296)
+    content:SetWidth(LIST_CONTENT_WIDTH)
     content:SetHeight(1)
     list:SetScrollChild(content)
     pane.listContent = content
