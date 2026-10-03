@@ -154,21 +154,17 @@ local function GetLocation()
 end
 
 local function GetMovementSpeed()
-    if InCombatLockdown and InCombatLockdown() then
-        return Module.lastMovementSpeed or 0
-    end
-
     local speed = GetUnitSpeed and GetUnitSpeed("player") or 0
 
+    if canaccessvalue and not canaccessvalue(speed) then
+        return nil
+    end
+
     if speed <= 0 then
-        Module.lastMovementSpeed = 0
         return 0
     end
 
-    local movement = math.floor((speed / 7) * 100 + 0.5)
-    Module.lastMovementSpeed = movement
-
-    return movement
+    return math.floor((speed / 7) * 100 + 0.5)
 end
 
 local function GetLatency()
@@ -435,10 +431,16 @@ function Module:Refresh()
         "|TInterface\\Icons\\icon_treasuremap:13:13:0:2:64:64:4:60:4:60|t %s",
         GetLocation()
     ))
-    self.texts.speed:SetText(string.format(
-        "|TInterface\\Icons\\Ability_Rogue_Sprint:13:13:0:2:64:64:4:60:4:60|t %d%%",
-        movement
-    ))
+    if movement then
+        self.texts.speed:SetText(string.format(
+            "|TInterface\\Icons\\Ability_Rogue_Sprint:13:13:0:2:64:64:4:60:4:60|t %d%%",
+            movement
+        ))
+    else
+        self.texts.speed:SetText(
+            "|TInterface\\Icons\\Ability_Rogue_Sprint:13:13:0:2:64:64:4:60:4:60|t N/A"
+        )
+    end
     self.texts.xp:SetText(string.format(
         "|TInterface\\Icons\\xp_icon:13:13:0:2:64:64:4:60:4:60|t %s/h",
         FormatNumber(xpPerHour)
