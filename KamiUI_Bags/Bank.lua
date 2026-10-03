@@ -1564,6 +1564,7 @@ local function CreateFrameUI()
         end
 
         sortingBank = true
+        _G.KamiUIBankSortInProgress = true
         sort:Disable()
 
         if C_Container and C_Container.SortBank
@@ -1578,6 +1579,7 @@ local function CreateFrameUI()
 
         C_Timer.After(0.75, function()
             sortingBank = false
+            _G.KamiUIBankSortInProgress = false
             sort:Enable()
 
             if bankOpen then
