@@ -11,9 +11,8 @@ local defaults = {
     spacing = 18,
     fontSize = 12,
     background = { 0.005, 0.008, 0.015, 0.95 },
-    border = { 0.2, 0.2, 0.2, 1 },
+    bottomBorder = { 0.55, 0.42, 0.16, 1 },
     text = { 0.82, 0.82, 0.82, 1 },
-    value = { 1, 1, 1, 1 },
 }
 
 local function FormatNumber(value)
@@ -139,10 +138,6 @@ local function GetLatency()
     return math.max(home or 0, world or 0)
 end
 
-local function SetTextColor(fontString, color)
-    fontString:SetTextColor(color[1], color[2], color[3], color[4])
-end
-
 local function CreateText(parent, justify)
     local text = parent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     local font, _, flags = GameFontNormal:GetFont()
@@ -152,7 +147,7 @@ local function CreateText(parent, justify)
     end
 
     text:SetJustifyH(justify or "LEFT")
-    SetTextColor(text, defaults.text)
+    text:SetTextColor(unpack(defaults.text))
 
     return text
 end
@@ -162,59 +157,48 @@ local function CreatePanel()
         return
     end
 
-    local frame = CreateFrame(
-        "Frame",
-        "KamiUIInfoPanel",
-        UIParent,
-        "BackdropTemplate"
-    )
-
+    local frame = CreateFrame("Frame", "KamiUIInfoPanel", UIParent)
     frame:SetPoint("TOPLEFT", UIParent, "TOPLEFT", 0, 0)
     frame:SetPoint("TOPRIGHT", UIParent, "TOPRIGHT", 0, 0)
     frame:SetHeight(defaults.height)
     frame:SetFrameStrata("HIGH")
-    frame:SetBackdrop({
-        bgFile = "Interface\\Buttons\\WHITE8X8",
-        edgeFile = "Interface\\Buttons\\WHITE8X8",
-        edgeSize = 1,
-    })
-    frame:SetBackdropColor(unpack(defaults.background))
-    frame:SetBackdropBorderColor(unpack(defaults.border))
     frame:EnableMouse(false)
 
-    local left = CreateFrame("Frame", nil, frame)
-    left:SetPoint("TOPLEFT", frame, "TOPLEFT", defaults.padding, 0)
-    left:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", defaults.padding, 0)
+    local background = frame:CreateTexture(nil, "BACKGROUND")
+    background:SetAllPoints(frame)
+    background:SetColorTexture(unpack(defaults.background))
 
-    local right = CreateFrame("Frame", nil, frame)
-    right:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -defaults.padding, 0)
-    right:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -defaults.padding, 0)
+    local bottomBorder = frame:CreateTexture(nil, "ARTWORK")
+    bottomBorder:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 0, 0)
+    bottomBorder:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", 0, 0)
+    bottomBorder:SetHeight(1)
+    bottomBorder:SetColorTexture(unpack(defaults.bottomBorder))
 
-    local location = CreateText(left, "LEFT")
-    location:SetPoint("LEFT", left, "LEFT", 0, 0)
+    local location = CreateText(frame, "LEFT")
+    location:SetPoint("LEFT", frame, "LEFT", defaults.padding, 0)
 
-    local speed = CreateText(left, "LEFT")
+    local speed = CreateText(frame, "LEFT")
     speed:SetPoint("LEFT", location, "RIGHT", defaults.spacing, 0)
 
-    local xp = CreateText(left, "LEFT")
+    local xp = CreateText(frame, "LEFT")
     xp:SetPoint("LEFT", speed, "RIGHT", defaults.spacing, 0)
 
-    local bags = CreateText(left, "LEFT")
+    local bags = CreateText(frame, "LEFT")
     bags:SetPoint("LEFT", xp, "RIGHT", defaults.spacing, 0)
 
-    local durability = CreateText(left, "LEFT")
+    local durability = CreateText(frame, "LEFT")
     durability:SetPoint("LEFT", bags, "RIGHT", defaults.spacing, 0)
 
-    local gold = CreateText(left, "LEFT")
+    local gold = CreateText(frame, "LEFT")
     gold:SetPoint("LEFT", durability, "RIGHT", defaults.spacing, 0)
 
-    local clock = CreateText(right, "RIGHT")
-    clock:SetPoint("RIGHT", right, "RIGHT", 0, 0)
+    local clock = CreateText(frame, "RIGHT")
+    clock:SetPoint("RIGHT", frame, "RIGHT", -defaults.padding, 0)
 
-    local latency = CreateText(right, "RIGHT")
+    local latency = CreateText(frame, "RIGHT")
     latency:SetPoint("RIGHT", clock, "LEFT", -defaults.spacing, 0)
 
-    local fps = CreateText(right, "RIGHT")
+    local fps = CreateText(frame, "RIGHT")
     fps:SetPoint("RIGHT", latency, "LEFT", -defaults.spacing, 0)
 
     Module.frame = frame
@@ -334,11 +318,9 @@ function Module:Initialize()
         Module:Refresh()
     end)
 
-    local ticker = C_Timer.NewTicker(1, function()
+    self.ticker = C_Timer.NewTicker(1, function()
         Module:Refresh()
     end)
-
-    self.ticker = ticker
 end
 
 Module:Initialize()
