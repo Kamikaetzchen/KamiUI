@@ -6,7 +6,7 @@ Module.name = "KamiUI_InfoPanel"
 Module.version = "0.1.0"
 
 local defaults = {
-    height = 25,
+    height = 22,
     padding = 6,
     spacing = 12,
     fontSize = 12,
