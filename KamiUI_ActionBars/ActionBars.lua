@@ -700,23 +700,21 @@ local function CreateStanceBar()
     Module.stanceBar = frame
 end
 
-local function UpdateStanceBar()
+local function UpdateStanceState()
     local frame = Module.stanceBar
     if not frame then
         return
     end
 
-    if InCombatLockdown and InCombatLockdown() then
-        Module.layoutPending = true
-        return
-    end
-
     local count = GetNumShapeshiftForms and GetNumShapeshiftForms() or 0
-    local previous
 
+    -- These are visual state updates only. Blizzard updates the same properties
+    -- on StanceButtonTemplate in combat, so keep them separate from protected
+    -- layout/show/hide changes.
     for index, button in ipairs(frame.buttons) do
         if index <= count then
             local texture, isActive, isCastable = GetShapeshiftFormInfo(index)
+
             button.icon:SetTexture(texture)
             button.icon:SetShown(texture ~= nil)
             button.icon:SetVertexColor(
@@ -728,7 +726,28 @@ local function UpdateStanceBar()
 
             local start, duration, enable = GetShapeshiftFormCooldown(index)
             CooldownFrame_Set(button.cooldown, start, duration, enable)
+        end
+    end
+end
 
+local function UpdateStanceBar()
+    local frame = Module.stanceBar
+    if not frame then
+        return
+    end
+
+    UpdateStanceState()
+
+    if InCombatLockdown and InCombatLockdown() then
+        Module.layoutPending = true
+        return
+    end
+
+    local count = GetNumShapeshiftForms and GetNumShapeshiftForms() or 0
+    local previous
+
+    for index, button in ipairs(frame.buttons) do
+        if index <= count then
             button:ClearAllPoints()
             if previous then
                 button:SetPoint("LEFT", previous, "RIGHT", 0, 0)
@@ -947,6 +966,8 @@ function Module:Initialize()
     end)
 
     UI:RegisterEvent("UPDATE_SHAPESHIFT_FORMS", function()
+        UpdateStanceState()
+
         if InCombatLockdown and InCombatLockdown() then
             Module.layoutPending = true
             return
@@ -957,15 +978,15 @@ function Module:Initialize()
     end)
 
     UI:RegisterEvent("UPDATE_SHAPESHIFT_FORM", function()
-        UpdateStanceBar()
+        UpdateStanceState()
     end)
 
     UI:RegisterEvent("UPDATE_SHAPESHIFT_USABLE", function()
-        UpdateStanceBar()
+        UpdateStanceState()
     end)
 
     UI:RegisterEvent("UPDATE_SHAPESHIFT_COOLDOWN", function()
-        UpdateStanceBar()
+        UpdateStanceState()
     end)
 
     for _, event in ipairs({
