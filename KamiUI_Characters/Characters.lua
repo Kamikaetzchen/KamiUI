@@ -593,7 +593,7 @@ local function CreateSidebarRow(parent, y)
     local label = row:CreateFontString(nil, "OVERLAY")
     label:SetPoint("LEFT", 0, 0)
     label:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
-    label:SetTextColor(0.82, 0.72, 0.22)
+    label:SetTextColor(0.92, 0.92, 0.94)
     row.label = label
 
     local value = row:CreateFontString(nil, "OVERLAY")
@@ -606,7 +606,7 @@ local function CreateSidebarRow(parent, y)
 end
 
 local function CreateSidebarHeader(parent, y, text)
-    local header = CreateFrame("Frame", nil, parent)
+    local header = CreateFrame("Button", nil, parent)
     header:SetPoint("TOPLEFT", parent, "TOPLEFT", 6, y)
     header:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -6, y)
     header:SetHeight(17)
@@ -618,8 +618,13 @@ local function CreateSidebarHeader(parent, y, text)
     local label = header:CreateFontString(nil, "OVERLAY")
     label:SetPoint("CENTER", 0, 0)
     label:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
-    label:SetTextColor(0.88, 0.88, 0.90)
+    label:SetTextColor(0.88, 0.72, 0.16)
     label:SetText(text)
+    header.label = label
+
+    local highlight = header:CreateTexture(nil, "HIGHLIGHT")
+    highlight:SetAllPoints()
+    highlight:SetColorTexture(1, 1, 1, 0.04)
 
     return header
 end
@@ -2409,24 +2414,98 @@ local function CreateSidebar(frame)
         { key = "arcane", label = "Arcane" },
     }
 
-    local y = -4
+    local LayoutStatsContent
+    local currentSection
 
     for _, data in ipairs(statLayout) do
         if data.header then
-            CreateSidebarHeader(statsContent, y, data.header)
-            y = y - 18
+            currentSection = data.header
+
+            local header = CreateSidebarHeader(
+                statsContent,
+                -4,
+                data.header
+            )
+            header.section = data.header
+            header.collapsed = false
+            data.frame = header
+
+            header:SetScript("OnClick", function(self)
+                self.collapsed = not self.collapsed
+                LayoutStatsContent()
+            end)
         else
-            local row = CreateSidebarRow(statsContent, y)
+            local row = CreateSidebarRow(statsContent, -4)
             row:SetHeight(13)
             row.label:SetText(data.label)
             row.value:SetText("-")
+            row.section = currentSection
+            data.frame = row
             statsPane.rows[data.key] = row
-            y = y - 14
         end
     end
 
-    statsContent:SetHeight(math.max(1, -y + 4))
-    UpdateStatsScrollRange()
+    LayoutStatsContent = function()
+        local y = -4
+        local collapsed = false
+
+        for _, data in ipairs(statLayout) do
+            local widget = data.frame
+
+            if data.header then
+                collapsed = widget.collapsed == true
+                widget:ClearAllPoints()
+                widget:SetPoint(
+                    "TOPLEFT",
+                    statsContent,
+                    "TOPLEFT",
+                    6,
+                    y
+                )
+                widget:SetPoint(
+                    "TOPRIGHT",
+                    statsContent,
+                    "TOPRIGHT",
+                    -6,
+                    y
+                )
+                widget.label:SetText(
+                    string.format(
+                        "%s %s",
+                        collapsed and "+" or "-",
+                        data.header
+                    )
+                )
+                widget:Show()
+                y = y - 18
+            elseif collapsed then
+                widget:Hide()
+            else
+                widget:ClearAllPoints()
+                widget:SetPoint(
+                    "TOPLEFT",
+                    statsContent,
+                    "TOPLEFT",
+                    8,
+                    y
+                )
+                widget:SetPoint(
+                    "TOPRIGHT",
+                    statsContent,
+                    "TOPRIGHT",
+                    -8,
+                    y
+                )
+                widget:Show()
+                y = y - 14
+            end
+        end
+
+        statsContent:SetHeight(math.max(1, -y + 4))
+        UpdateStatsScrollRange()
+    end
+
+    LayoutStatsContent()
 
     local equipmentPane = CreateFrame("Frame", nil, sidebar)
     equipmentPane:SetPoint("TOPLEFT", 1, -25)
