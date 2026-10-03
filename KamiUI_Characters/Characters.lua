@@ -1049,7 +1049,7 @@ local function UpdateReputationPane(frame)
         if row then
             local data = index <= numFactions and GetFactionData(index)
 
-            if data then
+            if data and ShouldShowSkillLineData(data) then
                 row.index = index
                 row.factionID = data.factionID
                 row:ClearAllPoints()
@@ -1485,6 +1485,22 @@ local function GetSkillLineData(index)
     }
 end
 
+local function ShouldShowSkillLineData(data)
+    if not data then
+        return false
+    end
+
+    if (tonumber(data.parentSkillLineID) or 0) ~= 0 then
+        return false
+    end
+
+    if data.isHeader then
+        return tonumber(data.skillID) ~= 7
+    end
+
+    return tonumber(data.skillLineCategoryID) ~= 7
+end
+
 local function GetNumSkillLinesValue()
     if C_SkillInfo and C_SkillInfo.GetNumSkillLines then
         return tonumber(
@@ -1775,7 +1791,10 @@ local function UpdateSkillsPane(frame)
         then
             local data = GetSkillLineData(selectedFromAPI)
 
-            if data and not data.isHeader then
+            if data
+                and not data.isHeader
+                and ShouldShowSkillLineData(data)
+            then
                 pane.selectedIndex = selectedFromAPI
                 pane.selectedSkillID = data.skillID
                 selectedIndex = selectedFromAPI
@@ -1787,7 +1806,10 @@ local function UpdateSkillsPane(frame)
         for index = 1, numSkills do
             local data = GetSkillLineData(index)
 
-            if data and not data.isHeader then
+            if data
+                and not data.isHeader
+                and ShouldShowSkillLineData(data)
+            then
                 pane.selectedIndex = index
                 pane.selectedSkillID = data.skillID
                 selectedIndex = index
