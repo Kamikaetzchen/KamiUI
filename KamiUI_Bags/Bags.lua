@@ -1267,6 +1267,13 @@ local function CreateFrameUI()
 
     search:SetScript("OnEnterPressed", function(self)
         self:ClearFocus()
+        CloseSearch(false)
+    end)
+
+    search:SetScript("OnEditFocusLost", function()
+        if search:IsShown() then
+            CloseSearch(false)
+        end
     end)
 
     local close = CreateFrame("Button", nil, frame)
