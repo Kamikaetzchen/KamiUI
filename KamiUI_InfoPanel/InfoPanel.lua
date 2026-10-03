@@ -236,32 +236,56 @@ local function GetLatency()
     return math.max(home, world)
 end
 
-local function GetMoneyDB()
-    KamiUIInfoPanelDB = KamiUIInfoPanelDB or {}
-    KamiUIInfoPanelDB.characters = KamiUIInfoPanelDB.characters or {}
+local function GetCharactersModule()
+    if not UI.GetModule then
+        return nil
+    end
 
-    return KamiUIInfoPanelDB.characters
+    local characters = UI:GetModule("Characters")
+
+    if characters and characters.GetCharacters then
+        return characters
+    end
+
+    return nil
 end
 
-local function UpdateCharacterMoney()
-    if not GetMoney then
-        return
+local function GetFallbackCharacter()
+    local first, surname = UnitName("player")
+
+    first = first or "Player"
+
+    local fullName = first
+
+    if surname and surname ~= "" then
+        fullName = first .. " " .. surname
     end
 
-    local name = UnitName("player")
+    return {
+        name = fullName,
+        realm = GetRealmName and GetRealmName() or "",
+        classFile = select(2, UnitClass("player")),
+        money = GetMoney and GetMoney() or 0,
+    }
+end
 
-    if not name or name == "" then
-        return
+local function GetMoneyCharacters()
+    local characters = GetCharactersModule()
+
+    if characters then
+        if characters.UpdateCurrentCharacter then
+            characters:UpdateCurrentCharacter()
+        end
+
+        if characters.GetSortedCharacters then
+            return characters:GetSortedCharacters()
+        end
     end
 
-    local realm = GetRealmName and GetRealmName() or ""
-    local key = string.format("%s:%s", realm, name)
-    local characters = GetMoneyDB()
-
-    characters[key] = {
-        name = name,
-        realm = realm,
-        money = GetMoney() or 0,
+    return {
+        {
+            character = GetFallbackCharacter(),
+        },
     }
 end
 
@@ -365,28 +389,23 @@ local function ShowDurabilityTooltip(owner)
 end
 
 local function ShowGoldTooltip(owner)
-    UpdateCharacterMoney()
     PrepareTooltip(owner, "Gold")
 
     local currentRealm = GetRealmName and GetRealmName() or ""
-    local entries = {}
     local total = 0
 
-    for _, character in pairs(GetMoneyDB()) do
-        entries[#entries + 1] = character
-        total = total + (character.money or 0)
-    end
-
-    table.sort(entries, function(left, right)
-        if left.name == right.name then
-            return (left.realm or "") < (right.realm or "")
-        end
-
-        return (left.name or "") < (right.name or "")
-    end)
-
-    for _, character in ipairs(entries) do
+    for _, entry in ipairs(GetMoneyCharacters()) do
+        local character = entry.character
         local name = character.name or "Unknown"
+        local amount = character.money or 0
+        local color = character.classFile
+            and RAID_CLASS_COLORS
+            and RAID_CLASS_COLORS[character.classFile]
+        local r = color and color.r or 1
+        local g = color and color.g or 1
+        local b = color and color.b or 1
+
+        total = total + amount
 
         if character.realm and character.realm ~= ""
             and character.realm ~= currentRealm then
@@ -395,8 +414,8 @@ local function ShowGoldTooltip(owner)
 
         GameTooltip:AddDoubleLine(
             name,
-            FormatMoney(character.money or 0),
-            1, 1, 1,
+            FormatMoney(amount),
+            r, g, b,
             1, 1, 1
         )
     end
@@ -771,13 +790,11 @@ end
 
 function Module:Initialize()
     ResetSession()
-    UpdateCharacterMoney()
     CreatePanel()
     self:Refresh()
 
     UI:RegisterEvent("PLAYER_ENTERING_WORLD", function()
         C_Timer.After(0, function()
-            UpdateCharacterMoney()
             Module:Refresh()
         end)
     end)
@@ -802,7 +819,6 @@ function Module:Initialize()
     end)
 
     UI:RegisterEvent("PLAYER_MONEY", function()
-        UpdateCharacterMoney()
         Module:Refresh()
     end)
 
