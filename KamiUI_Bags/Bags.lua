@@ -2091,7 +2091,7 @@ function Module:Initialize()
     InstallTooltipHook()
 
     UI:RegisterEvent("BAG_UPDATE_DELAYED", function()
-        if sortingBags then
+        if sortingBags or _G.KamiUIBankSortInProgress then
             pendingSortRefresh = true
             return
         end
@@ -2101,7 +2101,7 @@ function Module:Initialize()
     end)
 
     UI:RegisterEvent("BAG_UPDATE_COOLDOWN", function()
-        if sortingBags then
+        if sortingBags or _G.KamiUIBankSortInProgress then
             return
         end
 
@@ -2109,7 +2109,7 @@ function Module:Initialize()
     end)
 
     UI:RegisterEvent("ITEM_LOCK_CHANGED", function()
-        if sortingBags then
+        if sortingBags or _G.KamiUIBankSortInProgress then
             return
         end
 
