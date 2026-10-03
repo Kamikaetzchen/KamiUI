@@ -496,8 +496,16 @@ local function StylePlate(namePlate, unit)
     UpdatePlate(data)
 end
 
+local function IsNamePlateUnitToken(unit)
+    return type(unit) == "string"
+        and string.match(unit, "^nameplate%d+$") ~= nil
+end
+
 local function RefreshUnit(unit)
-    if not unit or not C_NamePlate or not C_NamePlate.GetNamePlateForUnit then
+    if not IsNamePlateUnitToken(unit)
+        or not C_NamePlate
+        or not C_NamePlate.GetNamePlateForUnit
+    then
         return
     end
 
@@ -518,6 +526,10 @@ function Module:Initialize()
     end)
 
     UI:RegisterEvent("NAME_PLATE_UNIT_REMOVED", function(_, unit)
+        if not IsNamePlateUnitToken(unit) then
+            return
+        end
+
         local plate = C_NamePlate
             and C_NamePlate.GetNamePlateForUnit
             and C_NamePlate.GetNamePlateForUnit(unit)
