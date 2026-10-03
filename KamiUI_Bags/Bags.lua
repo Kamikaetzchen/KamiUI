@@ -499,6 +499,19 @@ local function CreateItemButton(content, carrier)
     )
 
     button:UnregisterAllEvents()
+    button:RegisterForDrag("LeftButton")
+
+    button:SetScript("OnReceiveDrag", function(self)
+        local bagID = self:GetParent():GetID()
+        local slotID = self:GetID()
+
+        if C_Container and C_Container.PickupContainerItem then
+            C_Container.PickupContainerItem(bagID, slotID)
+        elseif PickupContainerItem then
+            PickupContainerItem(bagID, slotID)
+        end
+    end)
+
     StyleItemButton(button)
 
     return button
@@ -762,6 +775,13 @@ local function CreateBagBarButton(parent)
     highlight:SetColorTexture(1, 1, 1, 0.12)
 
     button:SetScript("OnClick", function(self)
+        if self.isCached then
+            local db = EnsureDatabase()
+            db.hiddenBags[self.bagID] = not db.hiddenBags[self.bagID]
+            Module:Rebuild()
+            return
+        end
+
         local inventoryID = GetBagInventoryID(self.bagID)
 
         if CursorHasItem and CursorHasItem() and inventoryID then
@@ -779,6 +799,10 @@ local function CreateBagBarButton(parent)
     end)
 
     button:SetScript("OnReceiveDrag", function(self)
+        if self.isCached then
+            return
+        end
+
         local inventoryID = GetBagInventoryID(self.bagID)
 
         if inventoryID
@@ -789,6 +813,10 @@ local function CreateBagBarButton(parent)
     end)
 
     button:SetScript("OnDragStart", function(self)
+        if self.isCached then
+            return
+        end
+
         local inventoryID = GetBagInventoryID(self.bagID)
 
         if inventoryID
@@ -800,6 +828,13 @@ local function CreateBagBarButton(parent)
 
     button:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_TOP")
+
+        if self.isCached then
+            GameTooltip:SetText(self.cachedName or ("Bag " .. tostring(self.bagID)))
+            GameTooltip:AddLine("Click: show/hide bag", 0.75, 0.75, 0.75)
+            GameTooltip:Show()
+            return
+        end
 
         local inventoryID = GetBagInventoryID(self.bagID)
 
@@ -860,9 +895,47 @@ function Module:UpdateBagBar()
         return
     end
 
-    local bags = GetInventoryBags()
+    local _, character, isCurrent = GetViewedCharacter()
+    local bags = {}
 
-    for index, bagID in ipairs(bags) do
+    if isCurrent then
+        for _, bagID in ipairs(GetInventoryBags()) do
+            bags[#bags + 1] = {
+                bagID = bagID,
+                icon = GetBagButtonTexture(bagID),
+                name = GetBagName(bagID),
+                free = CountFreeSlots(bagID),
+                isKeyring = bagID == (
+                    KEYRING_CONTAINER
+                    or (Enum and Enum.BagIndex and Enum.BagIndex.Keyring)
+                ),
+                isCached = false,
+            }
+        end
+    elseif character then
+        for _, bag in ipairs(character.bags or {}) do
+            local used = 0
+
+            for slotID = 1, bag.slotCount or 0 do
+                local slot = bag.slots and bag.slots[slotID]
+
+                if slot then
+                    used = used + 1
+                end
+            end
+
+            bags[#bags + 1] = {
+                bagID = bag.bagID,
+                icon = bag.icon,
+                name = bag.name,
+                free = math.max(0, (bag.slotCount or 0) - used),
+                isKeyring = bag.isKeyring,
+                isCached = true,
+            }
+        end
+    end
+
+    for index, bag in ipairs(bags) do
         local button = frame.bagBarButtons[index]
 
         if not button then
@@ -870,21 +943,20 @@ function Module:UpdateBagBar()
             frame.bagBarButtons[index] = button
         end
 
-        button.bagID = bagID
-        button.icon:SetTexture(GetBagButtonTexture(bagID))
+        button.bagID = bag.bagID
+        button.isCached = bag.isCached
+        button.cachedName = bag.name
+        button.icon:SetTexture(bag.icon)
 
-        local keyring = KEYRING_CONTAINER
-            or (Enum and Enum.BagIndex and Enum.BagIndex.Keyring)
-
-        if bagID == keyring then
+        if bag.isKeyring then
             button.icon:SetTexCoord(0, 0.9, 0.1, 1)
         else
             button.icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
         end
 
-        button.count:SetText(CountFreeSlots(bagID))
+        button.count:SetText(bag.free)
 
-        local hidden = EnsureDatabase().hiddenBags[bagID] == true
+        local hidden = EnsureDatabase().hiddenBags[bag.bagID] == true
         button.icon:SetAlpha(hidden and 0.30 or 1.00)
         button.count:SetAlpha(hidden and 0.30 or 1.00)
         button.background:SetAlpha(hidden and 0.35 or 1.00)
@@ -1092,12 +1164,12 @@ function Module:Rebuild()
         end
 
         frame.activeButtons = activeButtons
-        frame.bagBar:Hide()
-        frame.bagBarToggle:Hide()
+        frame.bagBarToggle:Show()
         frame.sort:Hide()
+        self:UpdateBagBar()
         self:UpdateMoney()
         self:UpdateTitle()
-        self:Layout()
+        self:UpdateBagBarVisibility()
 
         return
     end
@@ -1525,6 +1597,59 @@ local function CreateFrameUI()
     money:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -FRAME_PADDING, 8)
     money:SetTextColor(0.85, 0.85, 0.85)
     frame.money = money
+
+    local moneyButton = CreateFrame("Button", nil, frame)
+    moneyButton:SetPoint("TOPLEFT", money, "TOPLEFT", -4, 4)
+    moneyButton:SetPoint("BOTTOMRIGHT", money, "BOTTOMRIGHT", 4, -4)
+    frame.moneyButton = moneyButton
+
+    moneyButton:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_TOPRIGHT")
+        GameTooltip:SetText("Money")
+
+        local total = 0
+
+        for _, entry in ipairs(GetSortedCharacters()) do
+            local character = entry.character
+            local amount = character.money or 0
+            local color = character.classFile
+                and RAID_CLASS_COLORS
+                and RAID_CLASS_COLORS[character.classFile]
+            local r = color and color.r or 0.75
+            local g = color and color.g or 0.75
+            local b = color and color.b or 0.75
+
+            total = total + amount
+
+            GameTooltip:AddDoubleLine(
+                character.name or "Unknown",
+                FormatMoney(amount),
+                r,
+                g,
+                b,
+                1,
+                1,
+                1
+            )
+        end
+
+        GameTooltip:AddLine(" ")
+        GameTooltip:AddDoubleLine(
+            "Total",
+            FormatMoney(total),
+            1,
+            0.82,
+            0,
+            1,
+            1,
+            1
+        )
+        GameTooltip:Show()
+    end)
+
+    moneyButton:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
 
     frame:SetScript("OnShow", function()
         Module:Rebuild()
