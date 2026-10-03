@@ -13,7 +13,7 @@ local SLOT_SIZE = 36
 local SLOT_GAP = 3
 
 local colors = {
-    background = { 0.00, 0.00, 0.00, 0.25 },
+    background = { 0.00, 0.00, 0.00, 0.30 },
     panel = { 0.00, 0.00, 0.00, 0.40 },
     slot = { 0.00, 0.00, 0.00, 0.55 },
     border = { 0.16, 0.16, 0.18, 1.00 },
@@ -741,7 +741,7 @@ local function UpdateEquipmentPane(frame)
                 end
 
                 if isEquipped then
-                    row.background:SetColorTexture(0.10, 0.48, 0.18, 0.16)
+                    row.background:SetColorTexture(0.10, 0.52, 0.18, 0.26)
                 else
                     row.background:SetColorTexture(1, 1, 1, 0.04)
                 end
@@ -782,10 +782,10 @@ SetSidebarMode = function(frame, mode)
     sidebar.equipmentPane:SetShown(mode == "equipment")
 
     sidebar.statsTab.background:SetColorTexture(
-        1, 1, 1, mode == "stats" and 0.10 or 0.03
+        1, 1, 1, mode == "stats" and 0.18 or 0.07
     )
     sidebar.equipmentTab.background:SetColorTexture(
-        1, 1, 1, mode == "equipment" and 0.10 or 0.03
+        1, 1, 1, mode == "equipment" and 0.18 or 0.07
     )
 
     if mode == "stats" then
@@ -830,7 +830,13 @@ local function CreateSidebar(frame)
     statsTab:SetText("Stats")
     statsTab.background = statsTab:CreateTexture(nil, "BACKGROUND")
     statsTab.background:SetAllPoints()
-    statsTab.background:SetColorTexture(1, 1, 1, 0.10)
+    statsTab.background:SetColorTexture(1, 1, 1, 0.18)
+    CreateBorder(statsTab, colors.border)
+
+    local statsHighlight = statsTab:CreateTexture(nil, "HIGHLIGHT")
+    statsHighlight:SetAllPoints()
+    statsHighlight:SetColorTexture(1, 1, 1, 0.08)
+
     statsTab:SetScript("OnClick", function()
         SetSidebarMode(frame, "stats")
     end)
@@ -844,7 +850,13 @@ local function CreateSidebar(frame)
     equipmentTab:SetText("Equipment")
     equipmentTab.background = equipmentTab:CreateTexture(nil, "BACKGROUND")
     equipmentTab.background:SetAllPoints()
-    equipmentTab.background:SetColorTexture(1, 1, 1, 0.03)
+    equipmentTab.background:SetColorTexture(1, 1, 1, 0.07)
+    CreateBorder(equipmentTab, colors.border)
+
+    local equipmentHighlight = equipmentTab:CreateTexture(nil, "HIGHLIGHT")
+    equipmentHighlight:SetAllPoints()
+    equipmentHighlight:SetColorTexture(1, 1, 1, 0.08)
+
     equipmentTab:SetScript("OnClick", function()
         SetSidebarMode(frame, "equipment")
     end)
@@ -924,6 +936,16 @@ local function CreateSidebar(frame)
     equip:SetNormalFontObject("GameFontNormalSmall")
     equip:SetHighlightFontObject("GameFontHighlightSmall")
     equip:SetText("Equip")
+
+    local equipBackground = equip:CreateTexture(nil, "BACKGROUND")
+    equipBackground:SetAllPoints()
+    equipBackground:SetColorTexture(1, 1, 1, 0.12)
+    CreateBorder(equip, colors.border)
+
+    local equipHighlight = equip:CreateTexture(nil, "HIGHLIGHT")
+    equipHighlight:SetAllPoints()
+    equipHighlight:SetColorTexture(1, 1, 1, 0.10)
+
     equip:SetScript("OnClick", function()
         local setID = equipmentPane.selectedSetID
 
@@ -945,6 +967,16 @@ local function CreateSidebar(frame)
     save:SetNormalFontObject("GameFontNormalSmall")
     save:SetHighlightFontObject("GameFontHighlightSmall")
     save:SetText("Save")
+
+    local saveBackground = save:CreateTexture(nil, "BACKGROUND")
+    saveBackground:SetAllPoints()
+    saveBackground:SetColorTexture(1, 1, 1, 0.12)
+    CreateBorder(save, colors.border)
+
+    local saveHighlight = save:CreateTexture(nil, "HIGHLIGHT")
+    saveHighlight:SetAllPoints()
+    saveHighlight:SetColorTexture(1, 1, 1, 0.10)
+
     save:SetScript("OnClick", function()
         local setID = equipmentPane.selectedSetID
 
