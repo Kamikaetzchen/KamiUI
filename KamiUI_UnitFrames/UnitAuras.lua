@@ -5,6 +5,7 @@ local DEFAULT_AURAS_PER_ROW = 8
 local TARGET_AURAS_PER_ROW = 10
 local AURA_SPACING = 1
 local containers = {}
+local pendingBounce = {}
 
 local DISPEL_TYPES = {
     "Curse",
@@ -227,11 +228,23 @@ local function CreateAuraContainer(
     return container
 end
 
+local function BounceContainer(container)
+    if InCombatLockdown and InCombatLockdown() then
+        pendingBounce[container] = true
+        container:UpdateAllAuras()
+        return
+    end
+
+    pendingBounce[container] = nil
+    container:Hide()
+    container:Show()
+    container:UpdateAllAuras()
+end
+
 local function RefreshAuras(unit)
     for _, container in ipairs(containers) do
         if not unit or container.unit == unit then
-            container:SetUnit(container.unit)
-            container:UpdateAllAuras()
+            BounceContainer(container)
         end
     end
 end
@@ -280,6 +293,15 @@ UI:RegisterEvent("PLAYER_ENTERING_WORLD", function()
     C_Timer.After(0, function()
         RefreshAuras()
     end)
+end)
+
+UI:RegisterEvent("PLAYER_REGEN_ENABLED", function()
+    for container in pairs(pendingBounce) do
+        pendingBounce[container] = nil
+        container:Hide()
+        container:Show()
+        container:UpdateAllAuras()
+    end
 end)
 
 UI:RegisterEvent("PLAYER_TARGET_CHANGED", function()
