@@ -662,6 +662,7 @@ end
 
 local function UpdateItemButton(button, bagID, slotID)
     button:SetID(slotID)
+    button.bagID = bagID
 
     local borderColor = GetBagFamilyColor(bagID)
 
@@ -826,6 +827,7 @@ local function CreateCachedItemButton(content)
 end
 
 local function UpdateCachedItemButton(button, slot, bag)
+    button.bagID = bag.bagID
     local borderColor = GetBagFamilyColorFromMask(
         bag.family,
         bag.isKeyring
@@ -1030,6 +1032,31 @@ local function CountFreeSlots(bagID)
     return free
 end
 
+function Module:SetBagSlotHighlight(bagID, shown)
+    self.highlightedBagID = shown and bagID or nil
+
+    local frame = self.frame
+
+    if not frame then
+        return
+    end
+
+    for _, button in ipairs(frame.activeButtons or {}) do
+        if not button.KamiBagHighlight then
+            local highlight = button:CreateTexture(nil, "ARTWORK", nil, 7)
+            highlight:SetPoint("TOPLEFT", button, "TOPLEFT", 1, -1)
+            highlight:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", -1, 1)
+            highlight:SetColorTexture(1, 1, 1, 0.14)
+            highlight:Hide()
+            button.KamiBagHighlight = highlight
+        end
+
+        button.KamiBagHighlight:SetShown(
+            shown and button.bagID == bagID
+        )
+    end
+end
+
 local function CreateBagBarButton(parent)
     local button = CreateFrame("Button", nil, parent)
     button:SetSize(32, 32)
@@ -1109,6 +1136,7 @@ local function CreateBagBarButton(parent)
     end)
 
     button:SetScript("OnEnter", function(self)
+        Module:SetBagSlotHighlight(self.bagID, true)
         GameTooltip:SetOwner(self, "ANCHOR_TOP")
 
         if self.isCached then
@@ -1133,7 +1161,8 @@ local function CreateBagBarButton(parent)
         GameTooltip:Show()
     end)
 
-    button:SetScript("OnLeave", function()
+    button:SetScript("OnLeave", function(self)
+        Module:SetBagSlotHighlight(self.bagID, false)
         GameTooltip:Hide()
     end)
 
@@ -1445,6 +1474,11 @@ function Module:Rebuild()
         end
 
         frame.activeButtons = activeButtons
+
+        if self.highlightedBagID then
+            self:SetBagSlotHighlight(self.highlightedBagID, true)
+        end
+
         frame.bagBarToggle:Show()
         frame.sort:Hide()
         self:UpdateBagBar()
@@ -1513,6 +1547,10 @@ function Module:Rebuild()
     end
 
     frame.activeButtons = activeButtons
+
+    if self.highlightedBagID then
+        self:SetBagSlotHighlight(self.highlightedBagID, true)
+    end
 
     self:UpdateBagBar()
     self:UpdateMoney()
