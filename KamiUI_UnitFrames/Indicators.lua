@@ -58,6 +58,18 @@ local function CreateCenterIndicators(frame)
     local row = CreateFrame("Frame", nil, frame)
     row:SetSize(90, STATUS_ICON_SIZE)
 
+    local level = frame:GetFrameLevel()
+
+    if frame.health then
+        level = math.max(level, frame.health:GetFrameLevel())
+    end
+
+    if frame.power then
+        level = math.max(level, frame.power:GetFrameLevel())
+    end
+
+    row:SetFrameLevel(level + 20)
+
     if frame.portrait and frame.health then
         row:SetPoint("CENTER", frame.health, "BOTTOM", 0, -2)
     else
