@@ -1310,6 +1310,7 @@ end
 
 function Module:Hide()
     if self.frame and self.frame:IsShown() then
+        self.viewCharacterKey = nil
         self.frame:Hide()
 
         if PlaySound then
