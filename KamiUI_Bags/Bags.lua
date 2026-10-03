@@ -100,6 +100,17 @@ local function HasBagFamilyFlag(value, flag)
     return value % (flag * 2) >= flag
 end
 
+local function GetBagInventoryID(bagID)
+    if C_Container and C_Container.ContainerIDToInventoryID then
+        return C_Container.ContainerIDToInventoryID(bagID)
+    end
+
+    if ContainerIDToInventoryID then
+        return ContainerIDToInventoryID(bagID)
+    end
+end
+
+
 local function GetBagFamilyColorFromMask(family, isKeyring)
     if isKeyring then
         return bagFamilyColors.keyring
@@ -227,16 +238,6 @@ local function GetInventoryBags()
     end
 
     return bags
-end
-
-local function GetBagInventoryID(bagID)
-    if C_Container and C_Container.ContainerIDToInventoryID then
-        return C_Container.ContainerIDToInventoryID(bagID)
-    end
-
-    if ContainerIDToInventoryID then
-        return ContainerIDToInventoryID(bagID)
-    end
 end
 
 local function CreateBackdrop(frame, color)
