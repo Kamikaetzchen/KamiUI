@@ -5,11 +5,12 @@ local Module = UI:NewModule("Characters")
 Module.name = "KamiUI_Characters"
 Module.version = "0.2.0"
 
-local FRAME_WIDTH = 360
+local CHARACTER_WIDTH = 360
+local SIDEBAR_WIDTH = 165
+local FRAME_WIDTH = CHARACTER_WIDTH + SIDEBAR_WIDTH
 local FRAME_HEIGHT = 420
 local SLOT_SIZE = 36
 local SLOT_GAP = 3
-local SIDEBAR_WIDTH = 165
 
 local colors = {
     background = { 0.00, 0.00, 0.00, 0.25 },
@@ -306,6 +307,7 @@ local BOTTOM_SLOT_X = {
 }
 
 local function LayoutEquipmentSlot(button, definition, frame)
+    local pane = frame.characterPane or frame
     local top = -58
 
     button:ClearAllPoints()
@@ -313,7 +315,7 @@ local function LayoutEquipmentSlot(button, definition, frame)
     if definition.side == "LEFT" then
         button:SetPoint(
             "TOPLEFT",
-            frame,
+            pane,
             "TOPLEFT",
             12,
             top - (definition.row - 1) * (SLOT_SIZE + SLOT_GAP)
@@ -321,7 +323,7 @@ local function LayoutEquipmentSlot(button, definition, frame)
     elseif definition.side == "RIGHT" then
         button:SetPoint(
             "TOPRIGHT",
-            frame,
+            pane,
             "TOPRIGHT",
             -12,
             top - (definition.row - 1) * (SLOT_SIZE + SLOT_GAP)
@@ -329,7 +331,7 @@ local function LayoutEquipmentSlot(button, definition, frame)
     else
         button:SetPoint(
             "BOTTOM",
-            frame,
+            pane,
             "BOTTOM",
             BOTTOM_SLOT_X[definition.key] or 0,
             definition.key == "AmmoSlot" and 20 or 14
@@ -522,6 +524,25 @@ local function CreateSidebarRow(parent, y)
     return row
 end
 
+local function CreateSidebarHeader(parent, y, text)
+    local header = CreateFrame("Frame", nil, parent)
+    header:SetPoint("TOPLEFT", parent, "TOPLEFT", 6, y)
+    header:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -6, y)
+    header:SetHeight(17)
+
+    local background = header:CreateTexture(nil, "BACKGROUND")
+    background:SetAllPoints()
+    background:SetColorTexture(1, 1, 1, 0.055)
+
+    local label = header:CreateFontString(nil, "OVERLAY")
+    label:SetPoint("CENTER", 0, 0)
+    label:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+    label:SetTextColor(0.88, 0.88, 0.90)
+    label:SetText(text)
+
+    return header
+end
+
 local function UpdateStatsPane(frame)
     local pane = frame.sidebar and frame.sidebar.statsPane
 
@@ -547,22 +568,32 @@ local function UpdateStatsPane(frame)
     rows.power.label:SetText(powerName)
     rows.power.value:SetText(FormatStatValue(power))
 
+    local moveSpeed
+    local speed = GetUnitSpeed and SafeCall(GetUnitSpeed, "player")
+    local baseSpeed = BASE_MOVEMENT_SPEED or 7
+
+    if CanAccessValue(speed)
+        and type(speed) == "number"
+        and speed >= 0
+        and baseSpeed > 0
+    then
+        moveSpeed = speed / baseSpeed * 100
+    end
+
+    rows.moveSpeed.value:SetText(FormatStatValue(moveSpeed, "%"))
+
     local attributes = {
-        { "strength", "Strength", 1 },
-        { "agility", "Agility", 2 },
-        { "stamina", "Stamina", 3 },
-        { "intellect", "Intellect", 4 },
-        { "spirit", "Spirit", 5 },
+        { "strength", 1 },
+        { "agility", 2 },
+        { "stamina", 3 },
+        { "intellect", 4 },
+        { "spirit", 5 },
     }
 
     for _, data in ipairs(attributes) do
-        local effective = select(2, SafeCall(UnitStat, "player", data[3]))
-        rows[data[1]].label:SetText(data[2])
+        local effective = select(2, SafeCall(UnitStat, "player", data[2]))
         rows[data[1]].value:SetText(FormatStatValue(effective))
     end
-
-    local _, effectiveArmor = SafeCall(UnitArmor, "player")
-    rows.armor.value:SetText(FormatStatValue(effectiveArmor))
 
     local baseAP, posAP, negAP = SafeCall(UnitAttackPower, "player")
     local attackPower
@@ -578,12 +609,33 @@ local function UpdateStatsPane(frame)
     end
 
     rows.attackPower.value:SetText(FormatStatValue(attackPower))
+    rows.crit.value:SetText(FormatStatValue(SafeCall(GetCritChance), "%"))
+    rows.hit.value:SetText(FormatStatValue(SafeCall(GetHitModifier), "%"))
 
-    local crit = SafeCall(GetCritChance)
-    rows.crit.value:SetText(FormatStatValue(crit, "%"))
+    local _, effectiveArmor = SafeCall(UnitArmor, "player")
+    rows.armor.value:SetText(FormatStatValue(effectiveArmor))
+    rows.dodge.value:SetText(FormatStatValue(SafeCall(GetDodgeChance), "%"))
+    rows.parry.value:SetText(FormatStatValue(SafeCall(GetParryChance), "%"))
+    rows.block.value:SetText(FormatStatValue(SafeCall(GetBlockChance), "%"))
 
-    local hit = SafeCall(GetHitModifier)
-    rows.hit.value:SetText(FormatStatValue(hit, "%"))
+    local resistances = {
+        { "fire", 2 },
+        { "nature", 3 },
+        { "frost", 4 },
+        { "shadow", 5 },
+        { "arcane", 6 },
+    }
+
+    for _, data in ipairs(resistances) do
+        local base, total = SafeCall(UnitResistance, "player", data[2])
+        local value = total
+
+        if not CanAccessValue(value) or type(value) ~= "number" then
+            value = base
+        end
+
+        rows[data[1]].value:SetText(FormatStatValue(value))
+    end
 end
 
 local function UpdateEquipmentPane(frame)
@@ -650,6 +702,23 @@ local function UpdateEquipmentPane(frame)
                 end
             end)
 
+            row:SetScript("OnEnter", function(self)
+                if not self.setID then
+                    return
+                end
+
+                GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+
+                if GameTooltip.SetEquipmentSet then
+                    GameTooltip:SetEquipmentSet(self.setID)
+                    GameTooltip:Show()
+                end
+            end)
+
+            row:SetScript("OnLeave", function()
+                GameTooltip:Hide()
+            end)
+
             pane.rows[index] = row
         end
 
@@ -657,16 +726,30 @@ local function UpdateEquipmentPane(frame)
             local setID = ids[index]
 
             if setID then
-                local name, icon, actualID, isEquipped =
+                local name, icon, actualID, isEquipped,
+                    _, _, _, numLost =
                     SafeCall(C_EquipmentSet.GetEquipmentSetInfo, setID)
 
                 row.setID = actualID or setID
                 row.icon:SetTexture(icon)
-                row.name:SetText(
-                    isEquipped and ((name or "Set") .. "  |cff66ff66*|r")
-                        or (name or "Set")
+                row.name:SetText(name or "Set")
+
+                if numLost and numLost > 0 then
+                    row.name:SetTextColor(1.0, 0.28, 0.28)
+                else
+                    row.name:SetTextColor(0.92, 0.92, 0.94)
+                end
+
+                if isEquipped then
+                    row.background:SetColorTexture(0.10, 0.48, 0.18, 0.16)
+                else
+                    row.background:SetColorTexture(1, 1, 1, 0.04)
+                end
+
+                row.selected:SetShown(
+                    pane.selectedSetID == row.setID and not isEquipped
                 )
-                row.selected:SetShown(pane.selectedSetID == row.setID)
+                row.isEquipped = isEquipped == true
                 row:Show()
             else
                 row:Hide()
@@ -675,8 +758,16 @@ local function UpdateEquipmentPane(frame)
     end
 
     local hasSelection = pane.selectedSetID ~= nil
-    pane.equip:SetEnabled(hasSelection)
-    pane.save:SetEnabled(hasSelection)
+    local selectedEquipped = false
+
+    if hasSelection and C_EquipmentSet and C_EquipmentSet.GetEquipmentSetInfo then
+        local _, _, _, isEquipped =
+            SafeCall(C_EquipmentSet.GetEquipmentSetInfo, pane.selectedSetID)
+        selectedEquipped = isEquipped == true
+    end
+
+    pane.equip:SetEnabled(hasSelection and not selectedEquipped)
+    pane.save:SetEnabled(hasSelection and not selectedEquipped)
 end
 
 SetSidebarMode = function(frame, mode)
@@ -705,15 +796,13 @@ SetSidebarMode = function(frame, mode)
 end
 
 local function LayoutOuterTabs(frame)
-    local offset = SIDEBAR_WIDTH + 4
-
     for index, tab in ipairs(frame.tabs or {}) do
         tab:ClearAllPoints()
         tab:SetPoint(
             "RIGHT",
             frame,
             "RIGHT",
-            72 + offset,
+            72,
             92 - (index - 1) * 24
         )
     end
@@ -721,19 +810,20 @@ end
 
 local function CreateSidebar(frame)
     local sidebar = CreateFrame("Frame", nil, frame, "BackdropTemplate")
-    sidebar:SetSize(SIDEBAR_WIDTH, FRAME_HEIGHT - 50)
-    sidebar:SetPoint("TOPLEFT", frame, "TOPRIGHT", 4, -48)
+    sidebar:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -1, -1)
+    sidebar:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -1, 1)
+    sidebar:SetWidth(SIDEBAR_WIDTH)
     sidebar:SetBackdrop({
         bgFile = "Interface\\Buttons\\WHITE8X8",
         edgeFile = "Interface\\Buttons\\WHITE8X8",
         edgeSize = 1,
     })
-    sidebar:SetBackdropColor(0, 0, 0, 0.78)
+    sidebar:SetBackdropColor(0, 0, 0, 0.40)
     sidebar:SetBackdropBorderColor(unpack(colors.border))
     frame.sidebar = sidebar
 
     local statsTab = CreateFrame("Button", nil, sidebar)
-    statsTab:SetPoint("TOPLEFT", 5, -5)
+    statsTab:SetPoint("TOPLEFT", 5, -27)
     statsTab:SetSize(72, 22)
     statsTab:SetNormalFontObject("GameFontNormalSmall")
     statsTab:SetHighlightFontObject("GameFontHighlightSmall")
@@ -761,37 +851,61 @@ local function CreateSidebar(frame)
     sidebar.equipmentTab = equipmentTab
 
     local statsPane = CreateFrame("Frame", nil, sidebar)
-    statsPane:SetPoint("TOPLEFT", 1, -31)
+    statsPane:SetPoint("TOPLEFT", 1, -55)
     statsPane:SetPoint("BOTTOMRIGHT", -1, 1)
     statsPane.rows = {}
     sidebar.statsPane = statsPane
 
-    local statRows = {
+    local statLayout = {
+        { header = "General" },
         { key = "health", label = "Health" },
         { key = "power", label = "Power" },
+        { key = "moveSpeed", label = "Movement Speed" },
+
+        { header = "Primary Attributes" },
         { key = "strength", label = "Strength" },
         { key = "agility", label = "Agility" },
         { key = "stamina", label = "Stamina" },
         { key = "intellect", label = "Intellect" },
         { key = "spirit", label = "Spirit" },
-        { key = "armor", label = "Armor" },
+
+        { header = "Weapons" },
         { key = "attackPower", label = "Attack Power" },
         { key = "crit", label = "Crit" },
         { key = "hit", label = "Hit" },
+
+        { header = "Defense" },
+        { key = "armor", label = "Armor" },
+        { key = "dodge", label = "Dodge" },
+        { key = "parry", label = "Parry" },
+        { key = "block", label = "Block" },
+
+        { header = "Resistances" },
+        { key = "fire", label = "Fire" },
+        { key = "nature", label = "Nature" },
+        { key = "frost", label = "Frost" },
+        { key = "shadow", label = "Shadow" },
+        { key = "arcane", label = "Arcane" },
     }
 
-    for index, data in ipairs(statRows) do
-        local row = CreateSidebarRow(
-            statsPane,
-            -(8 + (index - 1) * 22)
-        )
-        row.label:SetText(data.label)
-        row.value:SetText("-")
-        statsPane.rows[data.key] = row
+    local y = -4
+
+    for _, data in ipairs(statLayout) do
+        if data.header then
+            CreateSidebarHeader(statsPane, y, data.header)
+            y = y - 18
+        else
+            local row = CreateSidebarRow(statsPane, y)
+            row:SetHeight(13)
+            row.label:SetText(data.label)
+            row.value:SetText("-")
+            statsPane.rows[data.key] = row
+            y = y - 14
+        end
     end
 
     local equipmentPane = CreateFrame("Frame", nil, sidebar)
-    equipmentPane:SetPoint("TOPLEFT", 1, -31)
+    equipmentPane:SetPoint("TOPLEFT", 1, -55)
     equipmentPane:SetPoint("BOTTOMRIGHT", -1, 1)
     equipmentPane.rows = {}
     equipmentPane:Hide()
@@ -869,9 +983,15 @@ local function CreateFrameUI()
     frame:SetBackdropColor(unpack(colors.background))
     frame:SetBackdropBorderColor(unpack(colors.border))
 
-    local header = CreateFrame("Frame", nil, frame)
-    header:SetPoint("TOPLEFT", 1, -1)
-    header:SetPoint("TOPRIGHT", -1, -1)
+    local characterPane = CreateFrame("Frame", nil, frame)
+    characterPane:SetPoint("TOPLEFT", frame, "TOPLEFT", 1, -1)
+    characterPane:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 1, 1)
+    characterPane:SetWidth(CHARACTER_WIDTH - 1)
+    frame.characterPane = characterPane
+
+    local header = CreateFrame("Frame", nil, characterPane)
+    header:SetPoint("TOPLEFT", 0, 0)
+    header:SetPoint("TOPRIGHT", 0, 0)
     header:SetHeight(48)
     header:EnableMouse(true)
     header:RegisterForDrag("LeftButton")
@@ -1049,7 +1169,7 @@ local function CreateFrameUI()
 
     local close = CreateFrame("Button", nil, frame)
     close:SetSize(22, 22)
-    close:SetPoint("TOPRIGHT", -4, -4)
+    close:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -4, -4)
     close:SetNormalFontObject("GameFontNormal")
     close:SetHighlightFontObject("GameFontHighlight")
     close:SetText("x")
@@ -1057,9 +1177,9 @@ local function CreateFrameUI()
         Module:Hide()
     end)
 
-    local modelPanel = CreateFrame("Frame", nil, frame, "BackdropTemplate")
-    modelPanel:SetPoint("TOPLEFT", 51, -54)
-    modelPanel:SetPoint("BOTTOMRIGHT", -51, 58)
+    local modelPanel = CreateFrame("Frame", nil, characterPane, "BackdropTemplate")
+    modelPanel:SetPoint("TOPLEFT", characterPane, "TOPLEFT", 51, -54)
+    modelPanel:SetPoint("BOTTOMRIGHT", characterPane, "BOTTOMRIGHT", -51, 58)
     modelPanel:SetBackdrop({
         bgFile = "Interface\\Buttons\\WHITE8X8",
         edgeFile = "Interface\\Buttons\\WHITE8X8",
@@ -1087,7 +1207,7 @@ local function CreateFrameUI()
     frame.equipmentByKey = {}
 
     for _, definition in ipairs(SLOT_LAYOUT) do
-        local button = CreateEquipmentSlot(frame, definition)
+        local button = CreateEquipmentSlot(characterPane, definition)
         LayoutEquipmentSlot(button, definition, frame)
         frame.equipmentSlots[#frame.equipmentSlots + 1] = button
         frame.equipmentByKey[definition.key] = button
@@ -1239,6 +1359,21 @@ function Module:Initialize()
     UI:RegisterEvent("EQUIPMENT_SWAP_FINISHED", function()
         Module:Refresh()
     end)
+
+    for _, event in ipairs({
+        "UNIT_STATS",
+        "UNIT_MAXHEALTH",
+        "UNIT_POWER_UPDATE",
+        "UNIT_RESISTANCES",
+        "COMBAT_RATING_UPDATE",
+        "PLAYER_DAMAGE_DONE_MODS",
+    }) do
+        UI:RegisterEvent(event, function(_, unit)
+            if not unit or unit == "player" then
+                Module:Refresh()
+            end
+        end)
+    end
 end
 
 Module:Initialize()
