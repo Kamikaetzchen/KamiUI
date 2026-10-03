@@ -104,6 +104,8 @@ nameText:SetJustifyH("LEFT")
 nameText:SetTextColor(1, 1, 1)
 nameText:SetShadowColor(0, 0, 0, 1)
 nameText:SetShadowOffset(1, -1)
+nameText:SetWidth(92)
+UF:ConfigureNameText(nameText)
 
 local healthText = health:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
 healthText:SetPoint("RIGHT", -3, 0)
@@ -273,7 +275,7 @@ local function UpdatePower()
 end
 
 local function UpdateIdentity()
-    nameText:SetText(UF:GetUnitDisplayName("target"))
+    UF:SetUnitDisplayName(nameText, "target")
     portrait:SetUnit("target")
 end
 
