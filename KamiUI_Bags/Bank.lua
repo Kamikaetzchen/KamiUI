@@ -764,6 +764,7 @@ end
 
 local function UpdateItemButton(button, bagID, slotID, family)
     button:SetID(slotID)
+    button.bagID = bagID
 
     local color = GetBagFamilyColorFromMask(family)
 
@@ -872,6 +873,7 @@ local function CreateCachedItemButton(content)
 end
 
 local function UpdateCachedItemButton(button, slot, tab)
+    button.bagID = tab.bagID
     local color = GetBagFamilyColorFromMask(tab.family)
 
     for _, border in ipairs(button.KamiBorders or {}) do
@@ -900,6 +902,31 @@ local function UpdateCachedItemButton(button, slot, tab)
         )
     else
         button:SetAlpha(1)
+    end
+end
+
+function Module:SetBagSlotHighlight(bagID, shown)
+    self.highlightedBagID = shown and bagID or nil
+
+    local frame = self.frame
+
+    if not frame then
+        return
+    end
+
+    for _, button in ipairs(frame.activeButtons or {}) do
+        if not button.KamiBagHighlight then
+            local highlight = button:CreateTexture(nil, "ARTWORK", nil, 7)
+            highlight:SetPoint("TOPLEFT", button, "TOPLEFT", 1, -1)
+            highlight:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", -1, 1)
+            highlight:SetColorTexture(1, 1, 1, 0.14)
+            highlight:Hide()
+            button.KamiBagHighlight = highlight
+        end
+
+        button.KamiBagHighlight:SetShown(
+            shown and button.bagID == bagID
+        )
     end
 end
 
@@ -958,6 +985,7 @@ local function CreateBankBagButton(parent)
     button:SetScript("OnReceiveDrag", PickupBankBag)
 
     button:SetScript("OnEnter", function(self)
+        Module:SetBagSlotHighlight(self.bagID, true)
         GameTooltip:SetOwner(self, "ANCHOR_TOP")
         GameTooltip:SetText(self.tabName or "Bank")
 
@@ -984,7 +1012,8 @@ local function CreateBankBagButton(parent)
         GameTooltip:Show()
     end)
 
-    button:SetScript("OnLeave", function()
+    button:SetScript("OnLeave", function(self)
+        Module:SetBagSlotHighlight(self.bagID, false)
         GameTooltip:Hide()
     end)
 
@@ -1342,6 +1371,10 @@ function Module:Rebuild()
 
         frame.activeButtons = active
         frame.liveBankAccess = false
+
+        if self.highlightedBagID then
+            self:SetBagSlotHighlight(self.highlightedBagID, true)
+        end
         frame.sort:Hide()
         frame.bagBarToggle:Show()
         self:UpdateBagBar()
@@ -1387,6 +1420,10 @@ function Module:Rebuild()
 
     frame.activeButtons = active
     frame.liveBankAccess = true
+
+    if self.highlightedBagID then
+        self:SetBagSlotHighlight(self.highlightedBagID, true)
+    end
     frame.sort:Show()
     frame.bagBarToggle:Show()
     self:UpdateBagBar()
