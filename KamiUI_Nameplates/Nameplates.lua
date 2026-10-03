@@ -364,6 +364,14 @@ local function UpdatePlate(data)
     local r, g, b = GetUnitColor(unit)
     data.health:SetStatusBarColor(r, g, b)
 
+    if data.nativeName then
+        data.nativeName:Hide()
+
+        if data.nativeName.SetAlpha then
+            data.nativeName:SetAlpha(0)
+        end
+    end
+
     SetSingleLine(data.name, GetDisplayName(unit))
     UpdateAuras(data)
     UpdateCast(data)
@@ -405,24 +413,28 @@ local function StylePlate(namePlate, unit)
         data.background = background
         data.border = CreateBorder(health)
 
-        local name = GetNativeName(unitFrame)
+        local nativeName = GetNativeName(unitFrame)
 
-        if name then
-            name:ClearAllPoints()
-            name:SetPoint("BOTTOMLEFT", health, "TOPLEFT", 0, 2)
-            name:SetPoint("BOTTOMRIGHT", health, "TOPRIGHT", 0, 2)
-            name:SetJustifyH("LEFT")
-            name:SetFont(fontPath, 10, fontFlags)
-            SetSingleLine(name, "")
-            data.name = name
-        else
-            name = unitFrame:CreateFontString(nil, "OVERLAY")
-            name:SetPoint("BOTTOMLEFT", health, "TOPLEFT", 0, 2)
-            name:SetPoint("BOTTOMRIGHT", health, "TOPRIGHT", 0, 2)
-            name:SetJustifyH("LEFT")
-            name:SetFont(fontPath, 10, fontFlags)
-            data.name = name
+        if nativeName then
+            nativeName:Hide()
+
+            if nativeName.SetAlpha then
+                nativeName:SetAlpha(0)
+            end
+
+            data.nativeName = nativeName
         end
+
+        local name = unitFrame:CreateFontString(nil, "OVERLAY")
+        name:SetPoint("BOTTOMLEFT", health, "TOPLEFT", 0, 2)
+        name:SetPoint("BOTTOMRIGHT", health, "TOPRIGHT", 0, 2)
+        name:SetJustifyH("LEFT")
+        name:SetFont(fontPath, 10, fontFlags)
+        name:SetTextColor(1, 1, 1)
+        name:SetShadowColor(0, 0, 0, 1)
+        name:SetShadowOffset(1, -1)
+        SetSingleLine(name, "")
+        data.name = name
 
         local cast = CreateFrame("StatusBar", nil, unitFrame)
         cast:SetSize(PLATE_WIDTH, CAST_HEIGHT)
