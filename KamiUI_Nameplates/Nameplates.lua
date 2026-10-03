@@ -168,6 +168,7 @@ local function HideNativePlateArt(unitFrame)
         "aggroHighlight",
         "classificationIndicator",
         "ClassificationFrame",
+        "AurasFrame",
     }) do
         local object = unitFrame[key]
 
