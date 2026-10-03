@@ -50,15 +50,29 @@ local function EnsureDatabase()
     return db
 end
 
+local function GetCurrentCharacterNames()
+    local first, surname = UnitName("player")
+
+    first = first or "Player"
+
+    if surname and surname ~= "" then
+        return first, surname, first .. " " .. surname
+    end
+
+    return first, nil, first
+end
+
 local function GetCurrentCharacterKey()
-    local name = UnitName("player") or "Unknown"
+    local _, _, fullName = GetCurrentCharacterNames()
     local realm = GetRealmName() or ""
 
-    return realm .. "::" .. name
+    return realm .. "::" .. fullName
 end
 
 local function GetCurrentCharacterName()
-    return UnitName("player") or "Player"
+    local _, _, fullName = GetCurrentCharacterNames()
+
+    return fullName
 end
 
 local function GetContainerNumSlots(bagID)
@@ -607,10 +621,14 @@ end
 local function SaveCurrentCharacter()
     local db = EnsureDatabase()
     local key = GetCurrentCharacterKey()
-    local name = GetCurrentCharacterName()
+    local firstName, surname, name = GetCurrentCharacterNames()
     local realm = GetRealmName() or ""
+    local _, classFile = UnitClass("player")
     local character = {
         name = name,
+        firstName = firstName,
+        surname = surname,
+        classFile = classFile,
         realm = realm,
         money = GetMoney() or 0,
         items = {},
@@ -623,16 +641,16 @@ local function SaveCurrentCharacter()
 
     for _, bagID in ipairs(GetInventoryBags()) do
         local _, family = GetContainerNumFreeSlots(bagID)
+        local slotCount = GetContainerNumSlots(bagID)
         local bag = {
             bagID = bagID,
             name = GetBagName(bagID),
             icon = GetBagButtonTexture(bagID),
             family = family or 0,
             isKeyring = bagID == keyring,
+            slotCount = slotCount,
             slots = {},
         }
-
-        local slotCount = GetContainerNumSlots(bagID)
 
         for slotID = 1, slotCount do
             local info = GetContainerItemInfo(bagID, slotID)
@@ -903,6 +921,21 @@ function Module:UpdateTitle()
         and GetCurrentCharacterName()
         or (character and character.name)
         or "Unknown"
+    local classFile = isCurrent and select(2, UnitClass("player"))
+        or (character and character.classFile)
+    local classColor = classFile
+        and RAID_CLASS_COLORS
+        and RAID_CLASS_COLORS[classFile]
+
+    if classColor then
+        name = string.format(
+            "|cff%02x%02x%02x%s|r",
+            math.floor(classColor.r * 255 + 0.5),
+            math.floor(classColor.g * 255 + 0.5),
+            math.floor(classColor.b * 255 + 0.5),
+            name
+        )
+    end
 
     self.frame.title:SetText(name .. "'s Inventory")
 end
@@ -1018,8 +1051,16 @@ function Module:Rebuild()
 
         for _, bag in ipairs(character.bags or {}) do
             if not EnsureDatabase().hiddenBags[bag.bagID] then
-                for slotID = 1, #(bag.slots or {}) do
-                    local slot = bag.slots[slotID]
+                local slotCount = bag.slotCount or 0
+
+                if slotCount == 0 then
+                    for slotID in pairs(bag.slots or {}) do
+                        slotCount = math.max(slotCount, slotID)
+                    end
+                end
+
+                for slotID = 1, slotCount do
+                    local slot = bag.slots and bag.slots[slotID]
                     local showSlot = not bag.isKeyring or slot ~= nil
 
                     if showSlot then
@@ -1365,6 +1406,19 @@ local function CreateFrameUI()
 
             local character = entry.character
             local label = character.name or "Unknown"
+            local classColor = character.classFile
+                and RAID_CLASS_COLORS
+                and RAID_CLASS_COLORS[character.classFile]
+
+            if classColor then
+                label = string.format(
+                    "|cff%02x%02x%02x%s|r",
+                    math.floor(classColor.r * 255 + 0.5),
+                    math.floor(classColor.g * 255 + 0.5),
+                    math.floor(classColor.b * 255 + 0.5),
+                    label
+                )
+            end
 
             if character.realm
                 and character.realm ~= ""
@@ -1519,18 +1573,22 @@ UI:RegisterCommand(
     "Reset bag position"
 )
 
-local function AddCharacterCountsToTooltip(tooltip)
-    if not tooltip or type(tooltip.GetItem) ~= "function" then
+local function AddCharacterCountsToTooltip(tooltip, data)
+    if not tooltip then
         return
     end
 
-    local _, link = tooltip:GetItem()
+    local itemID = data and data.id
 
-    if not link then
-        return
+    if not itemID and type(tooltip.GetItem) == "function" then
+        local _, link = tooltip:GetItem()
+
+        if link then
+            itemID = tonumber(string.match(link, "item:(%d+)"))
+        end
     end
 
-    local itemID = tonumber(string.match(link, "item:(%d+)"))
+    itemID = tonumber(itemID)
 
     if not itemID or tooltip.KamiCountItemID == itemID then
         return
@@ -1548,6 +1606,7 @@ local function AddCharacterCountsToTooltip(tooltip)
         if count > 0 then
             lines[#lines + 1] = {
                 name = entry.character.name or "Unknown",
+                classFile = entry.character.classFile,
                 count = count,
             }
         end
@@ -1560,12 +1619,19 @@ local function AddCharacterCountsToTooltip(tooltip)
     tooltip:AddLine(" ")
 
     for _, line in ipairs(lines) do
+        local color = line.classFile
+            and RAID_CLASS_COLORS
+            and RAID_CLASS_COLORS[line.classFile]
+        local r = color and color.r or 0.75
+        local g = color and color.g or 0.65
+        local b = color and color.b or 0.90
+
         tooltip:AddDoubleLine(
             line.name,
             tostring(line.count),
-            0.75,
-            0.65,
-            0.90,
+            r,
+            g,
+            b,
             1,
             1,
             1
@@ -1592,6 +1658,18 @@ local function InstallTooltipHook()
             Enum.TooltipDataType.Item,
             AddCharacterCountsToTooltip
         )
+
+        for _, tooltip in ipairs({
+            GameTooltip,
+            ShoppingTooltip1,
+            ShoppingTooltip2,
+        }) do
+            if tooltip and tooltip.HookScript then
+                tooltip:HookScript("OnTooltipCleared", function(self)
+                    self.KamiCountItemID = nil
+                end)
+            end
+        end
     elseif GameTooltip and GameTooltip.HookScript then
         GameTooltip:HookScript("OnTooltipSetItem", function(self)
             AddCharacterCountsToTooltip(self)
