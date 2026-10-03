@@ -19,6 +19,10 @@ local fontPath, _, fontFlags = GameFontNormalSmall:GetFont()
 
 local styled = {}
 
+local healthPercentCurve = C_CurveUtil.CreateCurve()
+healthPercentCurve:AddPoint(0.0, 0.0)
+healthPercentCurve:AddPoint(1.0, 100.0)
+
 local CLASSIFICATION_SUFFIX = {
     elite = "E",
     rare = "R",
@@ -394,7 +398,8 @@ local function UpdateHealth(data)
     data.health:SetMinMaxValues(0, maximum)
     data.health:SetValue(current)
 
-    local percent = UnitHealthPercent and UnitHealthPercent(unit, true)
+    local percent = UnitHealthPercent
+        and UnitHealthPercent(unit, true, healthPercentCurve)
 
     if percent then
         data.percent:SetFormattedText("%.0f%%", percent)
