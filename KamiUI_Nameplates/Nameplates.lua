@@ -98,6 +98,13 @@ local function GetUnitColor(unit)
         return 0.35, 0.35, 0.35
     end
 
+    local multiplier = 0.60
+    local threat = UnitThreatSituation and UnitThreatSituation("player", unit)
+
+    if threat and CanAccessValue(threat) and threat >= 2 then
+        multiplier = 0.90
+    end
+
     local isPlayer = UnitIsPlayer(unit)
 
     if CanAccessValue(isPlayer) and isPlayer then
@@ -107,7 +114,9 @@ local function GetUnitColor(unit)
             local color = RAID_CLASS_COLORS[class]
 
             if color then
-                return color.r * 0.60, color.g * 0.60, color.b * 0.60
+                return color.r * multiplier,
+                    color.g * multiplier,
+                    color.b * multiplier
             end
         end
     end
@@ -118,11 +127,15 @@ local function GetUnitColor(unit)
         local color = FACTION_BAR_COLORS[reaction]
 
         if color then
-            return color.r * 0.60, color.g * 0.60, color.b * 0.60
+            return color.r * multiplier,
+                color.g * multiplier,
+                color.b * multiplier
         end
     end
 
-    return 0.20, 0.65, 0.20
+    return 0.20 * multiplier / 0.60,
+        0.65 * multiplier / 0.60,
+        0.20 * multiplier / 0.60
 end
 
 local function GetDisplayName(unit)
@@ -316,6 +329,32 @@ local function UpdateAuras(data)
     end
 end
 
+local function NeutralizeHealthSelection(data)
+    local health = data.nativeHealth
+
+    if health.SetShouldUseSelectedBorder then
+        health:SetShouldUseSelectedBorder(false)
+    end
+
+    if health.selectedBorder then
+        health.selectedBorder:SetAlpha(0)
+        health.selectedBorder:Hide()
+    end
+
+    if health.deselectedOverlay then
+        health.deselectedOverlay:SetAlpha(0)
+        health.deselectedOverlay:Hide()
+    end
+
+    health:SetAlpha(1)
+
+    local texture = health:GetStatusBarTexture()
+
+    if texture then
+        texture:SetAlpha(1)
+    end
+end
+
 local function StyleNativeHealthBar(data)
     local health = data.nativeHealth
 
@@ -332,14 +371,16 @@ local function StyleNativeHealthBar(data)
         data.healthBorder = CreateBorder(health)
     end
 
-    if health.selectedBorder then
-        health.selectedBorder:SetAlpha(0)
-        health.selectedBorder:Hide()
-    end
+    NeutralizeHealthSelection(data)
 
-    if health.deselectedOverlay then
-        health.deselectedOverlay:SetAlpha(0)
-        health.deselectedOverlay:Hide()
+    if not data.selectionHooked
+        and hooksecurefunc
+        and health.UpdateSelectionBorder
+    then
+        data.selectionHooked = true
+        hooksecurefunc(health, "UpdateSelectionBorder", function()
+            NeutralizeHealthSelection(data)
+        end)
     end
 
     if health.Text then
@@ -373,36 +414,52 @@ local function StyleNativeCastBar(data)
         background:SetColorTexture(0.05, 0.05, 0.05, 0.90)
         data.castBackground = background
         data.castBorder = CreateBorder(cast)
-
-        local overlay = CreateFrame("Frame", nil, cast)
-        overlay:SetAllPoints()
-        overlay:SetFrameLevel(cast:GetFrameLevel() + 5)
-        overlay:EnableMouse(false)
-        data.castOverlay = overlay
-
-        local name = overlay:CreateFontString(nil, "OVERLAY")
-        name:SetPoint("LEFT", 2, 0)
-        name:SetWidth(150)
-        name:SetJustifyH("LEFT")
-        name:SetFont(fontPath, 8, fontFlags)
-        name:SetTextColor(1, 1, 1)
-        name:SetShadowColor(0, 0, 0, 1)
-        name:SetShadowOffset(1, -1)
-        SetSingleLine(name, "")
-        data.castName = name
-
-        local timeText = overlay:CreateFontString(nil, "OVERLAY")
-        timeText:SetPoint("RIGHT", -2, 0)
-        timeText:SetJustifyH("RIGHT")
-        timeText:SetFont(fontPath, 8, fontFlags)
-        timeText:SetTextColor(1, 1, 1)
-        timeText:SetShadowColor(0, 0, 0, 1)
-        timeText:SetShadowOffset(1, -1)
-        data.castTime = timeText
     end
 
     if cast.Text then
-        cast.Text:SetAlpha(0)
+        cast.Text:SetAlpha(1)
+        cast.Text:Show()
+        cast.Text:ClearAllPoints()
+        cast.Text:SetPoint("LEFT", cast, "LEFT", 2, 0)
+        cast.Text:SetFont(fontPath, 8, fontFlags)
+        cast.Text:SetTextColor(1, 1, 1)
+        cast.Text:SetShadowColor(0, 0, 0, 1)
+        cast.Text:SetShadowOffset(1, -1)
+        cast.Text:SetJustifyH("LEFT")
+        data.castName = cast.Text
+    end
+
+    if not cast.CastTimeText then
+        cast.CastTimeText = cast:CreateFontString(nil, "OVERLAY")
+    end
+
+    cast.CastTimeText:SetAlpha(1)
+    cast.CastTimeText:ClearAllPoints()
+    cast.CastTimeText:SetPoint("RIGHT", cast, "RIGHT", -2, 0)
+    cast.CastTimeText:SetFont(fontPath, 8, fontFlags)
+    cast.CastTimeText:SetTextColor(1, 1, 1)
+    cast.CastTimeText:SetShadowColor(0, 0, 0, 1)
+    cast.CastTimeText:SetShadowOffset(1, -1)
+    cast.CastTimeText:SetJustifyH("RIGHT")
+    data.castTime = cast.CastTimeText
+
+    if cast.Text then
+        cast.Text:SetPoint("RIGHT", cast.CastTimeText, "LEFT", -3, 0)
+    end
+
+    if cast.SetNameTextShown then
+        cast:SetNameTextShown(true)
+    end
+
+    if cast.SetCastTimeTextShown then
+        cast:SetCastTimeTextShown(true)
+    else
+        cast.CastTimeText:Show()
+    end
+
+    if cast.CastTargetNameText then
+        cast.CastTargetNameText:SetAlpha(0)
+        cast.CastTargetNameText:Hide()
     end
 
     if cast.Icon then
@@ -417,56 +474,22 @@ end
 local function UpdateCastTexts(data)
     local cast = data.nativeCast
 
-    if not cast or not cast:IsShown() then
-        if data.castName then
-            data.castName:SetText("")
-        end
-
-        if data.castTime then
-            data.castTime:SetText("")
-        end
-
+    if not cast then
         return
     end
 
-    local unit = data.unit
-    local name, _, _, fourth, fifth, sixth = UnitCastingInfo(unit)
-    local startTime = fourth
-    local endTime = fifth
-
-    if name and (type(startTime) ~= "number" or type(endTime) ~= "number") then
-        startTime = fifth
-        endTime = sixth
+    if cast.Text then
+        cast.Text:SetAlpha(1)
     end
 
-    if not name then
-        name, _, _, fourth, fifth, sixth = UnitChannelInfo(unit)
-        startTime = fourth
-        endTime = fifth
+    if cast.CastTimeText then
+        cast.CastTimeText:SetAlpha(1)
 
-        if name
-            and (type(startTime) ~= "number" or type(endTime) ~= "number")
-        then
-            startTime = fifth
-            endTime = sixth
+        if cast.SetCastTimeTextShown then
+            cast:SetCastTimeTextShown(true)
+        else
+            cast.CastTimeText:SetShown(cast:IsShown())
         end
-    end
-
-    if name and CanAccessValue(name) then
-        SetSingleLine(data.castName, name)
-    else
-        data.castName:SetText("")
-    end
-
-    if startTime
-        and endTime
-        and CanAccessValue(startTime)
-        and CanAccessValue(endTime)
-    then
-        local remaining = math.max(endTime / 1000 - GetTime(), 0)
-        data.castTime:SetFormattedText("%.1f", remaining)
-    else
-        data.castTime:SetText("")
     end
 end
 
@@ -552,12 +575,6 @@ local function CreatePlate(namePlate, unit)
 
         CreateAuraContainer(data)
 
-        local updater = CreateFrame("Frame", nil, unitFrame)
-        updater:Hide()
-        updater:SetScript("OnUpdate", function()
-            UpdateCastTexts(data)
-        end)
-        data.castUpdater = updater
     end
 
     data.unit = unit
@@ -565,10 +582,6 @@ local function CreatePlate(namePlate, unit)
 
     if data.auras then
         data.auras:Show()
-    end
-
-    if data.castUpdater then
-        data.castUpdater:Show()
     end
 
     UpdatePlate(data)
@@ -640,10 +653,6 @@ function Module:Initialize()
                 data.auraUnit = nil
             end
 
-            if data.castUpdater then
-                data.castUpdater:Hide()
-            end
-
             if data.castName then
                 data.castName:SetText("")
             end
@@ -659,6 +668,8 @@ function Module:Initialize()
         "UNIT_MAXHEALTH",
         "UNIT_NAME_UPDATE",
         "UNIT_AURA",
+        "UNIT_THREAT_SITUATION_UPDATE",
+        "UNIT_THREAT_LIST_UPDATE",
         "UNIT_SPELLCAST_START",
         "UNIT_SPELLCAST_STOP",
         "UNIT_SPELLCAST_FAILED",
