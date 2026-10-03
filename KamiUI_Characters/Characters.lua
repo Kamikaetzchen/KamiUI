@@ -2593,8 +2593,9 @@ local function CreateFrameUI()
     end)
 
     local modelPanel = CreateFrame("Frame", nil, characterPane, "BackdropTemplate")
-    modelPanel:SetPoint("TOPLEFT", characterPane, "TOPLEFT", 51, -54)
-    modelPanel:SetPoint("BOTTOMRIGHT", characterPane, "BOTTOMRIGHT", -51, 58)
+    modelPanel:SetPoint("TOP", characterPane, "TOP", 0, -54)
+    modelPanel:SetPoint("BOTTOM", characterPane, "BOTTOM", 0, 58)
+    modelPanel:SetWidth(230)
     modelPanel:SetBackdrop({
         bgFile = "Interface\\Buttons\\WHITE8X8",
         edgeFile = "Interface\\Buttons\\WHITE8X8",
