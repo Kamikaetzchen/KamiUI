@@ -9,6 +9,7 @@ local CHARACTER_WIDTH = 360
 local SIDEBAR_WIDTH = 165
 local FRAME_WIDTH = CHARACTER_WIDTH + SIDEBAR_WIDTH
 local FRAME_HEIGHT = 420
+local HEADER_HEIGHT = 40
 local SLOT_SIZE = 36
 local SLOT_GAP = 3
 
@@ -812,7 +813,13 @@ end
 
 local function CreateSidebar(frame)
     local sidebar = CreateFrame("Frame", nil, frame, "BackdropTemplate")
-    sidebar:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -1, -1)
+    sidebar:SetPoint(
+        "TOPRIGHT",
+        frame,
+        "TOPRIGHT",
+        -1,
+        -HEADER_HEIGHT
+    )
     sidebar:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -1, 1)
     sidebar:SetWidth(SIDEBAR_WIDTH)
     sidebar:SetBackdrop({
@@ -825,8 +832,8 @@ local function CreateSidebar(frame)
     frame.sidebar = sidebar
 
     local statsTab = CreateFrame("Button", nil, sidebar)
-    statsTab:SetPoint("TOPLEFT", sidebar, "TOPLEFT", 1, -26)
-    statsTab:SetPoint("TOPRIGHT", sidebar, "TOP", 0, -26)
+    statsTab:SetPoint("TOPLEFT", sidebar, "TOPLEFT", 1, -1)
+    statsTab:SetPoint("TOPRIGHT", sidebar, "TOP", 0, -1)
     statsTab:SetHeight(24)
     statsTab:SetNormalFontObject("GameFontNormalSmall")
     statsTab:SetHighlightFontObject("GameFontHighlightSmall")
@@ -835,6 +842,7 @@ local function CreateSidebar(frame)
     statsTab.background:SetAllPoints()
     statsTab.background:SetColorTexture(1, 1, 1, 0.18)
     local statsBorders = CreateBorder(statsTab, colors.border)
+    statsBorders[1]:Hide()
     statsBorders[3]:Hide()
     statsBorders[4]:Hide()
 
@@ -848,8 +856,8 @@ local function CreateSidebar(frame)
     sidebar.statsTab = statsTab
 
     local equipmentTab = CreateFrame("Button", nil, sidebar)
-    equipmentTab:SetPoint("TOPLEFT", sidebar, "TOP", 0, -26)
-    equipmentTab:SetPoint("TOPRIGHT", sidebar, "TOPRIGHT", -1, -26)
+    equipmentTab:SetPoint("TOPLEFT", sidebar, "TOP", 0, -1)
+    equipmentTab:SetPoint("TOPRIGHT", sidebar, "TOPRIGHT", -1, -1)
     equipmentTab:SetHeight(24)
     equipmentTab:SetNormalFontObject("GameFontNormalSmall")
     equipmentTab:SetHighlightFontObject("GameFontHighlightSmall")
@@ -858,6 +866,7 @@ local function CreateSidebar(frame)
     equipmentTab.background:SetAllPoints()
     equipmentTab.background:SetColorTexture(1, 1, 1, 0.07)
     local equipmentBorders = CreateBorder(equipmentTab, colors.border)
+    equipmentBorders[1]:Hide()
     equipmentBorders[3]:Hide()
     equipmentBorders[4]:Hide()
 
@@ -877,7 +886,7 @@ local function CreateSidebar(frame)
     sidebar.equipmentTab = equipmentTab
 
     local statsPane = CreateFrame("ScrollFrame", nil, sidebar)
-    statsPane:SetPoint("TOPLEFT", 1, -50)
+    statsPane:SetPoint("TOPLEFT", 1, -25)
     statsPane:SetPoint("BOTTOMRIGHT", -1, 1)
     statsPane:EnableMouseWheel(true)
     statsPane.rows = {}
@@ -1022,7 +1031,7 @@ local function CreateSidebar(frame)
     UpdateStatsScrollRange()
 
     local equipmentPane = CreateFrame("Frame", nil, sidebar)
-    equipmentPane:SetPoint("TOPLEFT", 1, -50)
+    equipmentPane:SetPoint("TOPLEFT", 1, -25)
     equipmentPane:SetPoint("BOTTOMRIGHT", -1, 1)
     equipmentPane.rows = {}
     equipmentPane:Hide()
@@ -1126,10 +1135,10 @@ local function CreateFrameUI()
     characterPane:SetWidth(CHARACTER_WIDTH - 1)
     frame.characterPane = characterPane
 
-    local header = CreateFrame("Frame", nil, characterPane)
-    header:SetPoint("TOPLEFT", 0, 0)
-    header:SetPoint("TOPRIGHT", 0, 0)
-    header:SetHeight(48)
+    local header = CreateFrame("Frame", nil, frame)
+    header:SetPoint("TOPLEFT", frame, "TOPLEFT", 1, -1)
+    header:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -1, -1)
+    header:SetHeight(HEADER_HEIGHT - 1)
     header:EnableMouse(true)
     header:RegisterForDrag("LeftButton")
     header:SetScript("OnDragStart", function()
@@ -1145,20 +1154,20 @@ local function CreateFrameUI()
     headerBackground:SetColorTexture(0.00, 0.00, 0.00, 0.45)
 
     local name = header:CreateFontString(nil, "OVERLAY")
-    name:SetPoint("TOP", 0, -7)
+    name:SetPoint("TOP", header, "TOP", 0, -5)
     name:SetFont("Fonts\\FRIZQT__.TTF", 13, "OUTLINE")
     frame.name = name
 
     local details = header:CreateFontString(nil, "OVERLAY")
-    details:SetPoint("TOP", name, "BOTTOM", 0, -2)
+    details:SetPoint("TOP", name, "BOTTOM", 0, -1)
     details:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
     details:SetTextColor(0.72, 0.72, 0.75)
     frame.details = details
 
     local titleButton = CreateFrame("Button", nil, header)
-    titleButton:SetPoint("TOPLEFT", header, "TOPLEFT", 70, -2)
-    titleButton:SetPoint("TOPRIGHT", header, "TOPRIGHT", -70, -2)
-    titleButton:SetHeight(22)
+    titleButton:SetPoint("TOPLEFT", header, "TOPLEFT", 70, -1)
+    titleButton:SetPoint("TOPRIGHT", header, "TOPRIGHT", -70, -1)
+    titleButton:SetHeight(20)
     frame.titleButton = titleButton
 
     local titleArrow = titleButton:CreateFontString(nil, "OVERLAY")
@@ -1306,7 +1315,7 @@ local function CreateFrameUI()
 
     local close = CreateFrame("Button", nil, frame)
     close:SetSize(22, 22)
-    close:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -4, -4)
+    close:SetPoint("TOPRIGHT", header, "TOPRIGHT", -3, -3)
     close:SetNormalFontObject("GameFontNormal")
     close:SetHighlightFontObject("GameFontHighlight")
     close:SetText("x")
