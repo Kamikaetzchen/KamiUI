@@ -421,31 +421,63 @@ local function StyleItemButton(button)
     background:SetColorTexture(unpack(defaults.slotBackground))
     button.KamiBackground = background
 
-    local top = button:CreateTexture(nil, "BORDER")
+    local top = button:CreateTexture(nil, "OVERLAY", nil, 2)
     top:SetColorTexture(unpack(defaults.slotBorder))
     top:SetPoint("TOPLEFT")
     top:SetPoint("TOPRIGHT")
     top:SetHeight(1)
 
-    local bottom = button:CreateTexture(nil, "BORDER")
+    local bottom = button:CreateTexture(nil, "OVERLAY", nil, 2)
     bottom:SetColorTexture(unpack(defaults.slotBorder))
     bottom:SetPoint("BOTTOMLEFT")
     bottom:SetPoint("BOTTOMRIGHT")
     bottom:SetHeight(1)
 
-    local left = button:CreateTexture(nil, "BORDER")
+    local left = button:CreateTexture(nil, "OVERLAY", nil, 2)
     left:SetColorTexture(unpack(defaults.slotBorder))
     left:SetPoint("TOPLEFT")
     left:SetPoint("BOTTOMLEFT")
     left:SetWidth(1)
 
-    local right = button:CreateTexture(nil, "BORDER")
+    local right = button:CreateTexture(nil, "OVERLAY", nil, 2)
     right:SetColorTexture(unpack(defaults.slotBorder))
     right:SetPoint("TOPRIGHT")
     right:SetPoint("BOTTOMRIGHT")
     right:SetWidth(1)
 
     button.KamiBorders = { top, bottom, left, right }
+
+    local topLeft = button:CreateTexture(nil, "OVERLAY", nil, 2)
+    topLeft:SetSize(1, 1)
+    topLeft:SetPoint("TOPLEFT")
+
+    local topRight = button:CreateTexture(nil, "OVERLAY", nil, 2)
+    topRight:SetSize(1, 1)
+    topRight:SetPoint("TOPRIGHT")
+
+    local bottomLeft = button:CreateTexture(nil, "OVERLAY", nil, 2)
+    bottomLeft:SetSize(1, 1)
+    bottomLeft:SetPoint("BOTTOMLEFT")
+
+    local bottomRight = button:CreateTexture(nil, "OVERLAY", nil, 2)
+    bottomRight:SetSize(1, 1)
+    bottomRight:SetPoint("BOTTOMRIGHT")
+
+    button.KamiBorderCorners = {
+        topLeft,
+        topRight,
+        bottomLeft,
+        bottomRight,
+    }
+
+    local rarityGlow = button:CreateTexture(nil, "OVERLAY", nil, 1)
+    rarityGlow:SetPoint("CENTER", button, "CENTER", 1, 0)
+    rarityGlow:SetSize(62, 62)
+    rarityGlow:SetTexture("Interface\\Buttons\\UI-ActionButton-Border")
+    rarityGlow:SetBlendMode("ADD")
+    rarityGlow:SetAlpha(0.45)
+    rarityGlow:Hide()
+    button.KamiRarityGlow = rarityGlow
 
     local icon = button.icon or button.Icon
 
@@ -467,6 +499,29 @@ local function StyleItemButton(button)
         button.Count:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
         button.Count:ClearAllPoints()
         button.Count:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", -2, 2)
+    end
+end
+
+local function UpdateRarityBorder(button, quality)
+    local glow = button.KamiRarityGlow
+
+    if not glow then
+        return
+    end
+
+    if quality == nil or quality <= 1 then
+        glow:Hide()
+        return
+    end
+
+    local color = ITEM_QUALITY_COLORS
+        and ITEM_QUALITY_COLORS[quality]
+
+    if color then
+        glow:SetVertexColor(color.r, color.g, color.b, 1)
+        glow:Show()
+    else
+        glow:Hide()
     end
 end
 
@@ -499,6 +554,12 @@ local function UpdateItemButton(button, bagID, slotID)
         end
     end
 
+    if button.KamiBorderCorners then
+        for _, corner in ipairs(button.KamiBorderCorners) do
+            corner:SetColorTexture(unpack(borderColor))
+        end
+    end
+
     if ContainerFrameItemButton_Update then
         ContainerFrameItemButton_Update(button)
     end
@@ -509,6 +570,8 @@ local function UpdateItemButton(button, bagID, slotID)
     local icon = button.icon or button.Icon
 
     if info then
+        UpdateRarityBorder(button, info.quality)
+
         local filtered = info.isFiltered == true
         local search = Module.frame
             and Module.frame.search
@@ -567,6 +630,7 @@ local function UpdateItemButton(button, bagID, slotID)
             )
         end
     else
+        UpdateRarityBorder(button, nil)
         button:SetAlpha(1)
 
         if icon then
@@ -655,6 +719,8 @@ local function UpdateCachedItemButton(button, slot, bag)
             border:SetColorTexture(unpack(borderColor))
         end
     end
+
+    UpdateRarityBorder(button, slot and slot.quality or nil)
 
     button.itemLink = slot and slot.link or nil
     button.icon:SetTexture(slot and slot.icon or nil)
