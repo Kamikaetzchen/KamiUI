@@ -33,6 +33,8 @@ local bagFamilyColors = {
 
 local originalFunctions = {}
 local pendingRebuild = false
+local sortingBags = false
+local pendingSortRefresh = false
 
 local itemDragFrame = CreateFrame("Frame")
 itemDragFrame:Hide()
@@ -1628,11 +1630,31 @@ local function CreateFrameUI()
     sort:SetHighlightFontObject("GameFontHighlightSmall")
     sort:SetText("Sort")
     sort:SetScript("OnClick", function()
+        if sortingBags then
+            return
+        end
+
+        sortingBags = true
+        pendingSortRefresh = false
+        sort:Disable()
+
         if C_Container and C_Container.SortBags then
             C_Container.SortBags()
         elseif SortBags then
             SortBags()
         end
+
+        C_Timer.After(0.25, function()
+            sortingBags = false
+            sort:Enable()
+
+            if pendingSortRefresh then
+                pendingSortRefresh = false
+            end
+
+            SaveCurrentCharacter()
+            Module:Refresh()
+        end)
     end)
     frame.sort = sort
 
@@ -1918,15 +1940,28 @@ function Module:Initialize()
     InstallTooltipHook()
 
     UI:RegisterEvent("BAG_UPDATE_DELAYED", function()
+        if sortingBags then
+            pendingSortRefresh = true
+            return
+        end
+
         SaveCurrentCharacter()
         Module:Refresh()
     end)
 
     UI:RegisterEvent("BAG_UPDATE_COOLDOWN", function()
+        if sortingBags then
+            return
+        end
+
         Module:Refresh()
     end)
 
     UI:RegisterEvent("ITEM_LOCK_CHANGED", function()
+        if sortingBags then
+            return
+        end
+
         Module:Refresh()
     end)
 
