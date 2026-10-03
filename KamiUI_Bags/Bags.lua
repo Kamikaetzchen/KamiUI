@@ -14,8 +14,9 @@ local FOOTER_HEIGHT = 24
 local BAG_BAR_HEIGHT = 42
 
 local defaults = {
-    background = { 0.075, 0.025, 0.11, 0.40 },
-    slotBackground = { 0.03, 0.03, 0.03, 0.55 },
+    background = { 0x58 / 255, 0x00 / 255, 0x72 / 255, 0.40 },
+    slotBackground = { 0.02, 0.02, 0.02, 0.55 },
+    slotBorder = { 0.30, 0.24, 0.32, 0.90 },
     border = { 0.20, 0.16, 0.24, 1.00 },
 }
 
@@ -203,6 +204,30 @@ local function StyleItemButton(button)
     background:SetAllPoints()
     background:SetColorTexture(unpack(defaults.slotBackground))
     button.KamiBackground = background
+
+    local top = button:CreateTexture(nil, "BORDER")
+    top:SetColorTexture(unpack(defaults.slotBorder))
+    top:SetPoint("TOPLEFT")
+    top:SetPoint("TOPRIGHT")
+    top:SetHeight(1)
+
+    local bottom = button:CreateTexture(nil, "BORDER")
+    bottom:SetColorTexture(unpack(defaults.slotBorder))
+    bottom:SetPoint("BOTTOMLEFT")
+    bottom:SetPoint("BOTTOMRIGHT")
+    bottom:SetHeight(1)
+
+    local left = button:CreateTexture(nil, "BORDER")
+    left:SetColorTexture(unpack(defaults.slotBorder))
+    left:SetPoint("TOPLEFT")
+    left:SetPoint("BOTTOMLEFT")
+    left:SetWidth(1)
+
+    local right = button:CreateTexture(nil, "BORDER")
+    right:SetColorTexture(unpack(defaults.slotBorder))
+    right:SetPoint("TOPRIGHT")
+    right:SetPoint("BOTTOMRIGHT")
+    right:SetWidth(1)
 
     local icon = button.icon or button.Icon
 
@@ -601,19 +626,26 @@ function Module:Rebuild()
         carrier:SetID(bagID)
 
         local slotCount = GetContainerNumSlots(bagID)
+        local keyring = KEYRING_CONTAINER
+            or (Enum and Enum.BagIndex and Enum.BagIndex.Keyring)
 
             for slotID = 1, slotCount do
-                activeIndex = activeIndex + 1
+                local showSlot = bagID ~= keyring
+                    or GetContainerItemInfo(bagID, slotID) ~= nil
 
-                local button = frame.itemButtons[activeIndex]
+                if showSlot then
+                    activeIndex = activeIndex + 1
 
-                if not button or button:GetParent() ~= carrier then
-                    button = CreateItemButton(frame.content, carrier)
-                    frame.itemButtons[activeIndex] = button
+                    local button = frame.itemButtons[activeIndex]
+
+                    if not button or button:GetParent() ~= carrier then
+                        button = CreateItemButton(frame.content, carrier)
+                        frame.itemButtons[activeIndex] = button
+                    end
+
+                    button:Show()
+                    UpdateItemButton(button, bagID, slotID)
                 end
-
-                button:Show()
-                UpdateItemButton(button, bagID, slotID)
             end
         end
     end
