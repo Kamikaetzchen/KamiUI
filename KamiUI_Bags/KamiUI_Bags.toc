@@ -7,3 +7,4 @@
 ## OptionalDeps: KamiUI_Characters
 
 Bags.lua
+Bank.lua
