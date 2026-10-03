@@ -263,17 +263,17 @@ local function CreatePanel()
         -sideRun,
         0
     )
-    bottomBorder:SetHeight(2)
+    bottomBorder:SetHeight(3)
     bottomBorder:SetColorTexture(unpack(defaults.bottomBorder))
 
     local leftBorder = frame:CreateLine(nil, "ARTWORK")
-    leftBorder:SetThickness(2)
+    leftBorder:SetThickness(3)
     leftBorder:SetColorTexture(unpack(defaults.bottomBorder))
     leftBorder:SetStartPoint("TOPLEFT", frame, 0, 0)
     leftBorder:SetEndPoint("BOTTOMLEFT", frame, sideRun, 0)
 
     local rightBorder = frame:CreateLine(nil, "ARTWORK")
-    rightBorder:SetThickness(2)
+    rightBorder:SetThickness(3)
     rightBorder:SetColorTexture(unpack(defaults.bottomBorder))
     rightBorder:SetStartPoint("TOPRIGHT", frame, 0, 0)
     rightBorder:SetEndPoint("BOTTOMRIGHT", frame, -sideRun, 0)
