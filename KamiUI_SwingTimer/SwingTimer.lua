@@ -13,6 +13,13 @@ local defaults = {
 }
 
 local layoutQueued = false
+local styledFrames = setmetatable({}, { __mode = "k" })
+
+local _, playerClass = UnitClass("player")
+
+local function ShouldShowRangedTimer()
+    return playerClass == "HUNTER"
+end
 
 local function ClearPoints(frame)
     if frame.ClearAllPointsBase then
@@ -47,6 +54,50 @@ local function DetachFromFrameManager(frame)
     end
 end
 
+local function StyleFrame(frame)
+    if not frame or styledFrames[frame] then
+        return
+    end
+
+    styledFrames[frame] = true
+
+    -- Replace Blizzard's decorative swing-timer frame with the same simple
+    -- 1 px black border used by the rest of KamiUI.
+    if frame.Border then
+        frame.Border:Hide()
+    end
+
+    if frame.StatusBar then
+        frame.StatusBar:ClearAllPoints()
+        frame.StatusBar:SetPoint("TOPLEFT", frame, "TOPLEFT", 1, -1)
+        frame.StatusBar:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -1, 1)
+    end
+
+    local top = frame:CreateTexture(nil, "OVERLAY", nil, 7)
+    top:SetColorTexture(0, 0, 0, 1)
+    top:SetPoint("TOPLEFT")
+    top:SetPoint("TOPRIGHT")
+    top:SetHeight(1)
+
+    local bottom = frame:CreateTexture(nil, "OVERLAY", nil, 7)
+    bottom:SetColorTexture(0, 0, 0, 1)
+    bottom:SetPoint("BOTTOMLEFT")
+    bottom:SetPoint("BOTTOMRIGHT")
+    bottom:SetHeight(1)
+
+    local left = frame:CreateTexture(nil, "OVERLAY", nil, 7)
+    left:SetColorTexture(0, 0, 0, 1)
+    left:SetPoint("TOPLEFT")
+    left:SetPoint("BOTTOMLEFT")
+    left:SetWidth(1)
+
+    local right = frame:CreateTexture(nil, "OVERLAY", nil, 7)
+    right:SetColorTexture(0, 0, 0, 1)
+    right:SetPoint("TOPRIGHT")
+    right:SetPoint("BOTTOMRIGHT")
+    right:SetWidth(1)
+end
+
 local function ConfigureFrame(frame)
     if not frame then
         return
@@ -55,6 +106,7 @@ local function ConfigureFrame(frame)
     DetachFromFrameManager(frame)
     frame:SetScale(1)
     frame:SetSize(defaults.width, defaults.height)
+    StyleFrame(frame)
 end
 
 local function HasAppropriateWeapon(frame)
@@ -75,10 +127,15 @@ function Module:Apply()
     end
 
     local frames = {
-        SwingTimerRangedFrame,
         SwingTimerOffHandFrame,
         SwingTimerMainHandFrame,
     }
+
+    if ShouldShowRangedTimer() then
+        table.insert(frames, 1, SwingTimerRangedFrame)
+    elseif SwingTimerRangedFrame then
+        SwingTimerRangedFrame:Hide()
+    end
 
     for _, frame in ipairs(frames) do
         ConfigureFrame(frame)
@@ -137,7 +194,14 @@ local function HookFrame(frame)
 
     frame.KamiLayoutHooked = true
 
-    frame:HookScript("OnShow", QueueLayout)
+    frame:HookScript("OnShow", function(self)
+        if self == SwingTimerRangedFrame and not ShouldShowRangedTimer() then
+            self:Hide()
+            return
+        end
+
+        QueueLayout()
+    end)
 
     for _, method in ipairs({
         "ApplySystemAnchor",
