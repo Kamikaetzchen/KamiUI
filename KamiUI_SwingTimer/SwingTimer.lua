@@ -121,6 +121,34 @@ local function HasAppropriateWeapon(frame)
     return true
 end
 
+local function ShouldShowFrame(frame)
+    if not frame or not UnitAffectingCombat("player") then
+        return false
+    end
+
+    if frame == SwingTimerRangedFrame and not ShouldShowRangedTimer() then
+        return false
+    end
+
+    if GetCVarBool and not GetCVarBool("showSwingTimer") then
+        return false
+    end
+
+    return HasAppropriateWeapon(frame)
+end
+
+local function UpdateVisibility()
+    for _, frame in ipairs({
+        SwingTimerMainHandFrame,
+        SwingTimerOffHandFrame,
+        SwingTimerRangedFrame,
+    }) do
+        if frame then
+            frame:SetShown(ShouldShowFrame(frame))
+        end
+    end
+end
+
 function Module:Apply()
     if not KamiUIPlayerFrame then
         return false
@@ -171,6 +199,8 @@ function Module:Apply()
         end
     end
 
+    UpdateVisibility()
+
     return SwingTimerMainHandFrame ~= nil
 end
 
@@ -195,7 +225,7 @@ local function HookFrame(frame)
     frame.KamiLayoutHooked = true
 
     frame:HookScript("OnShow", function(self)
-        if self == SwingTimerRangedFrame and not ShouldShowRangedTimer() then
+        if not ShouldShowFrame(self) then
             self:Hide()
             return
         end
@@ -241,6 +271,16 @@ function Module:Initialize()
         if unit == "player" then
             QueueLayout()
         end
+    end)
+
+    UI:RegisterEvent("PLAYER_REGEN_DISABLED", function()
+        C_Timer.After(0, function()
+            Module:Apply()
+        end)
+    end)
+
+    UI:RegisterEvent("PLAYER_REGEN_ENABLED", function()
+        UpdateVisibility()
     end)
 
     UI:RegisterEvent("ADDON_LOADED", function(_, addonName)
