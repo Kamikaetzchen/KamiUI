@@ -320,7 +320,7 @@ local function LayoutEquipmentSlot(button, definition, frame)
             "TOPLEFT",
             pane,
             "TOPLEFT",
-            12,
+            6,
             top - (definition.row - 1) * (SLOT_SIZE + SLOT_GAP)
         )
     elseif definition.side == "RIGHT" then
@@ -328,7 +328,7 @@ local function LayoutEquipmentSlot(button, definition, frame)
             "TOPRIGHT",
             pane,
             "TOPRIGHT",
-            -12,
+            -6,
             top - (definition.row - 1) * (SLOT_SIZE + SLOT_GAP)
         )
     else
@@ -612,8 +612,8 @@ local function CreateSidebarHeader(parent, y, text)
     header:SetHeight(17)
 
     local background = header:CreateTexture(nil, "BACKGROUND")
-    background:SetPoint("TOPLEFT", header, "TOPLEFT", 2, 0)
-    background:SetPoint("BOTTOMRIGHT", header, "BOTTOMRIGHT", -2, 0)
+    background:SetPoint("TOPLEFT", header, "TOPLEFT", 6, 0)
+    background:SetPoint("BOTTOMRIGHT", header, "BOTTOMRIGHT", -6, 0)
     background:SetColorTexture(1, 1, 1, 0.055)
 
     local label = header:CreateFontString(nil, "OVERLAY")
@@ -626,8 +626,8 @@ local function CreateSidebarHeader(parent, y, text)
     header.label = label
 
     local highlight = header:CreateTexture(nil, "HIGHLIGHT")
-    highlight:SetPoint("TOPLEFT", header, "TOPLEFT", 2, 0)
-    highlight:SetPoint("BOTTOMRIGHT", header, "BOTTOMRIGHT", -2, 0)
+    highlight:SetPoint("TOPLEFT", header, "TOPLEFT", 6, 0)
+    highlight:SetPoint("BOTTOMRIGHT", header, "BOTTOMRIGHT", -6, 0)
     highlight:SetColorTexture(1, 1, 1, 0.04)
 
     return header
@@ -2811,7 +2811,7 @@ local function CreateFrameUI()
     local modelPanel = CreateFrame("Frame", nil, characterPane, "BackdropTemplate")
     modelPanel:SetPoint("TOP", characterPane, "TOP", 0, -54)
     modelPanel:SetPoint("BOTTOM", characterPane, "BOTTOM", 0, 58)
-    modelPanel:SetWidth(230)
+    modelPanel:SetWidth(240)
     modelPanel:SetBackdrop({
         bgFile = "Interface\\Buttons\\WHITE8X8",
         edgeFile = "Interface\\Buttons\\WHITE8X8",
