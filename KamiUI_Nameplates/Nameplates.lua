@@ -5,7 +5,7 @@ local Module = UI:NewModule("Nameplates")
 Module.name = "KamiUI_Nameplates"
 Module.version = "0.1.0"
 
-local PLATE_WIDTH = 120
+local PLATE_WIDTH = 140
 local HEALTH_HEIGHT = 14
 local CAST_HEIGHT = 8
 local BORDER_SIZE = 1
@@ -158,6 +158,38 @@ local function GetNativeName(unitFrame)
         or unitFrame.nameText
 end
 
+local function HideLevelFrame(unitFrame)
+    local candidates = {
+        unitFrame and unitFrame.LevelFrame,
+        unitFrame
+            and unitFrame.HealthBarsContainer
+            and unitFrame.HealthBarsContainer.LevelFrame,
+        unitFrame
+            and unitFrame.healthBar
+            and unitFrame.healthBar.LevelFrame,
+    }
+
+    for _, levelFrame in ipairs(candidates) do
+        if levelFrame then
+            levelFrame:Hide()
+
+            if levelFrame.SetAlpha then
+                levelFrame:SetAlpha(0)
+            end
+
+            if levelFrame.LevelText and levelFrame.LevelText.SetAlpha then
+                levelFrame.LevelText:SetAlpha(0)
+            end
+
+            if levelFrame.HighLevelTexture
+                and levelFrame.HighLevelTexture.SetAlpha
+            then
+                levelFrame.HighLevelTexture:SetAlpha(0)
+            end
+        end
+    end
+end
+
 local function HideNativePlateArt(unitFrame)
     for _, key in ipairs({
         "Border",
@@ -169,7 +201,6 @@ local function HideNativePlateArt(unitFrame)
         "classificationIndicator",
         "ClassificationFrame",
         "AurasFrame",
-        "LevelFrame",
     }) do
         local object = unitFrame[key]
 
@@ -177,6 +208,8 @@ local function HideNativePlateArt(unitFrame)
             object:Hide()
         end
     end
+
+    HideLevelFrame(unitFrame)
 end
 
 local function InitializeAuraButton(button)
@@ -357,9 +390,7 @@ local function UpdatePlate(data)
     -- new unit or on mouseover. Keep our replacements authoritative.
     HideNativePlateArt(data.root)
 
-    if data.root.LevelFrame then
-        data.root.LevelFrame:SetAlpha(0)
-    end
+    HideLevelFrame(data.root)
 
     -- Never feed UnitHealth/UnitHealthMax back into Blizzard's native
     -- TextStatusBar. On Forever those values can be secret, and touching the
@@ -414,19 +445,9 @@ local function StylePlate(namePlate, unit)
 
         HideNativePlateArt(unitFrame)
 
-        if unitFrame.LevelFrame and not unitFrame.LevelFrame.KamiHidden then
-            unitFrame.LevelFrame.KamiHidden = true
-            unitFrame.LevelFrame:SetAlpha(0)
-
-            unitFrame.LevelFrame:HookScript("OnShow", function(self)
-                self:SetAlpha(0)
-                self:Hide()
-            end)
-        end
-
         health:ClearAllPoints()
         health:SetSize(PLATE_WIDTH, HEALTH_HEIGHT)
-        health:SetPoint("CENTER", unitFrame, "CENTER", 0, 0)
+        health:SetPoint("CENTER", namePlate, "CENTER", 0, 0)
         health:SetStatusBarTexture(flatTexture)
 
         local background = health:CreateTexture(nil, "BACKGROUND")
