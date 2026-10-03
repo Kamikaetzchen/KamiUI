@@ -249,6 +249,89 @@ local function RefreshAuras(unit)
     end
 end
 
+local function CreatePartyBuffContainer(parent, unit)
+    local size = (parent:GetWidth() - 9 * AURA_SPACING) / 10
+
+    local container = CreateFrame(
+        "AuraContainer",
+        nil,
+        parent,
+        "CustomAuraContainerTemplate, DisableUntrustedLayoutScriptsTemplate"
+    )
+
+    container:SetSize(parent:GetWidth(), size)
+    container:SetFlowLayoutAxis(AnchorUtil.FlowLayoutAxis.Horizontal)
+    container:SetFlowLayoutAnchorPoint("TOPLEFT")
+    container:SetFlowLayoutGrowthDirection(
+        AnchorUtil.FlowDirection.Right,
+        AnchorUtil.FlowDirection.Down
+    )
+    container:SetFlowLayoutMaximumLineSize(parent:GetWidth())
+
+    AddAuraGroup(
+        container,
+        "buffs",
+        "HELPFUL",
+        10,
+        size,
+        1,
+        false,
+        false
+    )
+
+    container:SetPoint("TOPLEFT", parent, "BOTTOMLEFT", 0, -1)
+    container:SetEnabled(true)
+    container:SetUnit(unit)
+    container:UpdateAllAuras()
+
+    container.unit = unit
+    containers[#containers + 1] = container
+
+    return container
+end
+
+local function CreatePartyDebuffContainer(parent, unit)
+    local size = 25
+    local width = size * 5 + AURA_SPACING * 4
+
+    local container = CreateFrame(
+        "AuraContainer",
+        nil,
+        parent,
+        "CustomAuraContainerTemplate, DisableUntrustedLayoutScriptsTemplate"
+    )
+
+    container:SetSize(width, size)
+    container:SetFlowLayoutAxis(AnchorUtil.FlowLayoutAxis.Horizontal)
+    container:SetFlowLayoutAnchorPoint("LEFT")
+    container:SetFlowLayoutGrowthDirection(
+        AnchorUtil.FlowDirection.Right,
+        AnchorUtil.FlowDirection.Down
+    )
+    container:SetFlowLayoutMaximumLineSize(width)
+
+    AddAuraGroup(
+        container,
+        "debuffs",
+        "HARMFUL",
+        5,
+        size,
+        1,
+        false,
+        true
+    )
+
+    container:SetPoint("LEFT", parent, "RIGHT", 2, 0)
+    container:SetEnabled(true)
+    container:SetUnit(unit)
+    container:UpdateAllAuras()
+
+    container.unit = unit
+    containers[#containers + 1] = container
+
+    return container
+end
+
 local function AttachAuras()
     if UF.targetFrame then
         UF.targetFrame.auras = CreateAuraContainer(
@@ -284,6 +367,19 @@ local function AttachAuras()
                 DEFAULT_AURAS_PER_ROW
             )
         end
+    end
+
+    for index, group in ipairs(UF.partyFrames or {}) do
+        local unit = "party" .. index
+
+        group.main.buffs = CreatePartyBuffContainer(
+            group.main,
+            unit
+        )
+        group.debuffs = CreatePartyDebuffContainer(
+            group.pet,
+            unit
+        )
     end
 end
 
@@ -336,5 +432,17 @@ UI:RegisterEvent("UNIT_PET", function(_, unit)
         C_Timer.After(0, function()
             RefreshAuras("pet")
         end)
+    elseif unit and string.match(unit, "^party%d$") then
+        C_Timer.After(0, function()
+            RefreshAuras(unit)
+        end)
     end
+end)
+
+UI:RegisterEvent("GROUP_ROSTER_UPDATE", function()
+    C_Timer.After(0, function()
+        for index = 1, 4 do
+            RefreshAuras("party" .. index)
+        end
+    end)
 end)
