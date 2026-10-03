@@ -19,7 +19,7 @@ KamiUI is split into a small core and independent feature addons.
 | KamiUI_Auras | Player/target buffs and debuffs |
 | KamiUI_Nameplates | Friendly and hostile nameplates |
 | KamiUI_Tooltips | Unit, item, spell and hyperlink tooltips |
-| KamiUI_DataTexts | Gold, durability, bags, FPS, latency, coordinates and clock |
+| KamiUI_InfoPanel | Top information panel with location, XP, bags, durability, gold, performance and clock |
 
 All feature addons require the KamiUI core. Bags and Tooltips may optionally use
 KamiUI_Characters for account-wide item and character information.

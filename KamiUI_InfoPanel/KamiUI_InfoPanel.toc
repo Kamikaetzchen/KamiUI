@@ -1,0 +1,8 @@
+## Interface: 16001
+## Title: KamiUI - InfoPanel
+## Notes: Top information panel for KamiUI
+## Author: Kami Katze
+## Version: 0.1.0
+## RequiredDeps: KamiUI
+
+InfoPanel.lua
