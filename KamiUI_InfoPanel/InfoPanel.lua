@@ -8,11 +8,35 @@ Module.version = "0.1.0"
 local defaults = {
     height = 20,
     padding = 6,
-    spacing = 18,
+    spacing = 12,
     fontSize = 12,
-    background = { 0.005, 0.008, 0.015, 0.60 },
+    background = { 0.005, 0.008, 0.015, 0.80 },
     bottomBorder = { 0.55, 0.42, 0.16, 1 },
     text = { 0.82, 0.82, 0.82, 1 },
+}
+
+local slotOrder = {
+    "location",
+    "speed",
+    "xp",
+    "bags",
+    "durability",
+    "gold",
+    "fps",
+    "latency",
+    "clock",
+}
+
+local slotWidths = {
+    location = 220,
+    speed = 100,
+    xp = 120,
+    bags = 90,
+    durability = 90,
+    gold = 130,
+    fps = 80,
+    latency = 80,
+    clock = 70,
 }
 
 local function FormatNumber(value)
@@ -138,7 +162,7 @@ local function GetLatency()
     return math.max(home or 0, world or 0)
 end
 
-local function CreateText(parent, justify)
+local function CreateText(parent, width)
     local text = parent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     local font, _, flags = GameFontNormal:GetFont()
 
@@ -146,8 +170,13 @@ local function CreateText(parent, justify)
         text:SetFont(font, defaults.fontSize, flags)
     end
 
-    text:SetJustifyH(justify or "LEFT")
+    text:SetWidth(width)
+    text:SetJustifyH("CENTER")
     text:SetTextColor(unpack(defaults.text))
+
+    if text.SetWordWrap then
+        text:SetWordWrap(false)
+    end
 
     return text
 end
@@ -174,45 +203,35 @@ local function CreatePanel()
     bottomBorder:SetHeight(2)
     bottomBorder:SetColorTexture(unpack(defaults.bottomBorder))
 
-    local location = CreateText(frame, "LEFT")
-    location:SetPoint("LEFT", frame, "LEFT", defaults.padding, 0)
+    local totalWidth = defaults.spacing * (#slotOrder - 1)
 
-    local speed = CreateText(frame, "LEFT")
-    speed:SetPoint("LEFT", location, "RIGHT", defaults.spacing, 0)
+    for _, key in ipairs(slotOrder) do
+        totalWidth = totalWidth + slotWidths[key]
+    end
 
-    local xp = CreateText(frame, "LEFT")
-    xp:SetPoint("LEFT", speed, "RIGHT", defaults.spacing, 0)
+    local content = CreateFrame("Frame", nil, frame)
+    content:SetSize(totalWidth, defaults.height)
+    content:SetPoint("CENTER", frame, "CENTER", 0, 0)
 
-    local bags = CreateText(frame, "LEFT")
-    bags:SetPoint("LEFT", xp, "RIGHT", defaults.spacing, 0)
+    local texts = {}
+    local previous
 
-    local durability = CreateText(frame, "LEFT")
-    durability:SetPoint("LEFT", bags, "RIGHT", defaults.spacing, 0)
+    for _, key in ipairs(slotOrder) do
+        local text = CreateText(content, slotWidths[key])
 
-    local gold = CreateText(frame, "LEFT")
-    gold:SetPoint("LEFT", durability, "RIGHT", defaults.spacing, 0)
+        if previous then
+            text:SetPoint("LEFT", previous, "RIGHT", defaults.spacing, 0)
+        else
+            text:SetPoint("LEFT", content, "LEFT", 0, 0)
+        end
 
-    local clock = CreateText(frame, "RIGHT")
-    clock:SetPoint("RIGHT", frame, "RIGHT", -defaults.padding, 0)
-
-    local latency = CreateText(frame, "RIGHT")
-    latency:SetPoint("RIGHT", clock, "LEFT", -defaults.spacing, 0)
-
-    local fps = CreateText(frame, "RIGHT")
-    fps:SetPoint("RIGHT", latency, "LEFT", -defaults.spacing, 0)
+        texts[key] = text
+        previous = text
+    end
 
     Module.frame = frame
-    Module.texts = {
-        location = location,
-        speed = speed,
-        xp = xp,
-        bags = bags,
-        durability = durability,
-        gold = gold,
-        fps = fps,
-        latency = latency,
-        clock = clock,
-    }
+    Module.content = content
+    Module.texts = texts
 end
 
 local function ResetSession()
