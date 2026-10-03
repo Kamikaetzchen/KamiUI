@@ -52,7 +52,7 @@ local function CreateUnitFrame(name, unit)
         fontFlags
     )
     nameText:SetPoint("LEFT", 2, 0)
-    nameText:SetWidth(92)
+    nameText:SetWidth(105)
     nameText:SetJustifyH("LEFT")
     UF:ConfigureNameText(nameText)
     nameText:SetTextColor(1, 1, 1)
