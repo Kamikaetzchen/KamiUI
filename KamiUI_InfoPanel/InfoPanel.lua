@@ -238,9 +238,31 @@ local function CreatePanel()
         previous = text
     end
 
+    texts.latency:SetJustifyH("RIGHT")
+
+    local signal = CreateFrame("Frame", nil, content)
+    signal:SetSize(12, 12)
+    signal:SetPoint("LEFT", texts.latency, "LEFT", 4, 2)
+
+    local signalHeights = { 4, 7, 10 }
+
+    for index, height in ipairs(signalHeights) do
+        local bar = signal:CreateTexture(nil, "OVERLAY")
+        bar:SetSize(2, height)
+        bar:SetPoint(
+            "BOTTOMLEFT",
+            signal,
+            "BOTTOMLEFT",
+            (index - 1) * 4,
+            0
+        )
+        bar:SetColorTexture(unpack(defaults.text))
+    end
+
     Module.frame = frame
     Module.content = content
     Module.texts = texts
+    Module.latencySignal = signal
 end
 
 local function ResetSession()
@@ -310,10 +332,7 @@ function Module:Refresh()
         durability
     ))
     self.texts.gold:SetText(FormatMoney(GetMoney and GetMoney() or 0))
-    self.texts.latency:SetText(string.format(
-        "|A:ui-mainmenubar-performancebar-screen:14:9:0:2:1:1:1|a %d ms",
-        latency
-    ))
+    self.texts.latency:SetText(string.format("%d ms", latency))
     self.texts.clock:SetText(string.format(
         "|TInterface\\Icons\\INV_Misc_PocketWatch_01:13:13:0:2:64:64:4:60:4:60|t %s",
         date("%H:%M")
