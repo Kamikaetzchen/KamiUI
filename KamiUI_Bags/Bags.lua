@@ -2123,7 +2123,10 @@ local function AddCharacterCountsToTooltip(tooltip, data)
 
     tooltip:AddLine(" ")
 
+    local totalCount = 0
+
     for _, line in ipairs(lines) do
+        totalCount = totalCount + line.count
         local color = line.classFile
             and RAID_CLASS_COLORS
             and RAID_CLASS_COLORS[line.classFile]
@@ -2150,11 +2153,22 @@ local function AddCharacterCountsToTooltip(tooltip, data)
             r,
             g,
             b,
-            1,
-            1,
-            1
+            r,
+            g,
+            b
         )
     end
+
+    tooltip:AddDoubleLine(
+        "Total",
+        tostring(totalCount),
+        0.75,
+        0.75,
+        0.75,
+        1,
+        1,
+        1
+    )
 
     tooltip:Show()
 end
