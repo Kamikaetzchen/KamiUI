@@ -132,17 +132,13 @@ local function UpdateRaidMarker(frame)
 
     icon:SetTexture("Interface\\TargetingFrame\\UI-RaidTargetingIcons")
 
-    if index ~= nil and SetRaidTargetIconTexture then
-        SetRaidTargetIconTexture(icon, index)
+    local valid = false
+
+    if SetRaidTargetIconTexture then
+        valid = pcall(SetRaidTargetIconTexture, icon, index)
     end
 
-    if secretwrap then
-        icon:SetShown(secretwrap(index ~= nil))
-    elseif UF:CanAccessValue(index) then
-        icon:SetShown(index ~= nil)
-    else
-        icon:Hide()
-    end
+    icon:SetShown(valid)
 end
 
 local function UpdateReadyCheck(frame)
