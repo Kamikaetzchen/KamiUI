@@ -276,7 +276,7 @@ local function EnsureAuras(data)
     })
 
     container:SetEnabled(true)
-    container:SetPoint("TOP", data.cast, "BOTTOM", 0, -2)
+    container:SetPoint("BOTTOMLEFT", data.health, "TOPLEFT", 0, 2)
 
     data.auras = container
 end
@@ -333,8 +333,6 @@ local function UpdateCast(data)
         data.castStart = nil
         data.castEnd = nil
         data.cast:Hide()
-        data.auras:ClearAllPoints()
-        data.auras:SetPoint("TOP", data.health, "BOTTOM", 0, -2)
         return
     end
 
@@ -346,9 +344,6 @@ local function UpdateCast(data)
     data.cast:SetMinMaxValues(0, duration)
     data.castName:SetText(spellName)
     data.cast:Show()
-
-    data.auras:ClearAllPoints()
-    data.auras:SetPoint("TOP", data.cast, "BOTTOM", 0, -2)
 end
 
 local function UpdatePlate(data)
@@ -370,11 +365,17 @@ local function UpdatePlate(data)
     data.health:SetStatusBarColor(r, g, b)
 
     if data.nativeName then
-        data.nativeName:Hide()
+        data.nativeName:Show()
 
         if data.nativeName.SetAlpha then
             data.nativeName:SetAlpha(0)
         end
+    end
+
+    if data.healthPercent then
+        data.healthPercent:ClearAllPoints()
+        data.healthPercent:SetPoint("RIGHT", data.health, "RIGHT", -3, 0)
+        data.healthPercent:SetJustifyH("RIGHT")
     end
 
     SetSingleLine(data.name, GetDisplayName(unit))
@@ -421,7 +422,7 @@ local function StylePlate(namePlate, unit)
         local nativeName = GetNativeName(unitFrame)
 
         if nativeName then
-            nativeName:Hide()
+            nativeName:Show()
 
             if nativeName.SetAlpha then
                 nativeName:SetAlpha(0)
@@ -430,9 +431,28 @@ local function StylePlate(namePlate, unit)
             data.nativeName = nativeName
         end
 
+        local healthPercent = health.Text
+
+        if healthPercent then
+            healthPercent:ClearAllPoints()
+            healthPercent:SetPoint("RIGHT", health, "RIGHT", -3, 0)
+            healthPercent:SetJustifyH("RIGHT")
+            healthPercent:SetFont(fontPath, 9, fontFlags)
+            healthPercent:SetTextColor(1, 1, 1)
+            healthPercent:SetShadowColor(0, 0, 0, 1)
+            healthPercent:SetShadowOffset(1, -1)
+            data.healthPercent = healthPercent
+        end
+
         local name = unitFrame:CreateFontString(nil, "OVERLAY")
-        name:SetPoint("BOTTOMLEFT", health, "TOPLEFT", 0, 2)
-        name:SetPoint("BOTTOMRIGHT", health, "TOPRIGHT", 0, 2)
+        name:SetPoint("LEFT", health, "LEFT", 3, 0)
+
+        if healthPercent then
+            name:SetPoint("RIGHT", healthPercent, "LEFT", -3, 0)
+        else
+            name:SetPoint("RIGHT", health, "RIGHT", -3, 0)
+        end
+
         name:SetJustifyH("LEFT")
         name:SetFont(fontPath, 10, fontFlags)
         name:SetTextColor(1, 1, 1)
@@ -516,6 +536,23 @@ end
 function Module:Initialize()
     if SetCVar then
         SetCVar("nameplateShowEnemies", 1)
+    end
+
+    if CVarCallbackRegistry
+        and CVarCallbackRegistry.SetCVarBitfieldMask
+        and Enum
+        and Enum.NamePlateInfoDisplay
+        and Enum.NamePlateInfoDisplay.CurrentHealthPercent
+    then
+        local index = Enum.NamePlateInfoDisplay.CurrentHealthPercent
+        local mask = bit and bit.lshift and bit.lshift(1, index - 1)
+
+        if mask then
+            CVarCallbackRegistry:SetCVarBitfieldMask(
+                "nameplateInfoDisplay",
+                mask
+            )
+        end
     end
 
     UI:RegisterEvent("NAME_PLATE_UNIT_ADDED", function(_, unit)
