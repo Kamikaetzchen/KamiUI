@@ -10,7 +10,7 @@ local defaults = {
     padding = 6,
     spacing = 18,
     fontSize = 12,
-    background = { 0.005, 0.008, 0.015, 0.95 },
+    background = { 0.005, 0.008, 0.015, 0.60 },
     bottomBorder = { 0.55, 0.42, 0.16, 1 },
     text = { 0.82, 0.82, 0.82, 1 },
 }
@@ -171,7 +171,7 @@ local function CreatePanel()
     local bottomBorder = frame:CreateTexture(nil, "ARTWORK")
     bottomBorder:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 0, 0)
     bottomBorder:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", 0, 0)
-    bottomBorder:SetHeight(1)
+    bottomBorder:SetHeight(2)
     bottomBorder:SetColorTexture(unpack(defaults.bottomBorder))
 
     local location = CreateText(frame, "LEFT")
