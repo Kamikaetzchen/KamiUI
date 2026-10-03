@@ -115,6 +115,26 @@ local function PositionHeaderIndicators()
     end
 end
 
+local function EnableMouseWheelZoom()
+    if Minimap.KamiMouseWheelZoom then
+        return
+    end
+
+    Minimap:EnableMouseWheel(true)
+    Minimap:HookScript("OnMouseWheel", function(_, delta)
+        local zoom = Minimap:GetZoom()
+        local maxZoom = Minimap:GetZoomLevels() - 1
+
+        if delta > 0 then
+            Minimap:SetZoom(math.min(maxZoom, zoom + 1))
+        elseif delta < 0 then
+            Minimap:SetZoom(math.max(0, zoom - 1))
+        end
+    end)
+
+    Minimap.KamiMouseWheelZoom = true
+end
+
 local function StyleMinimap()
     Minimap:SetSize(defaults.size, defaults.size)
 
@@ -130,6 +150,7 @@ local function StyleMinimap()
     -- Keep the map square. The Blizzard ring/chrome is hidden separately.
     Minimap:SetMaskTexture("Interface\\Buttons\\WHITE8X8")
 
+    EnableMouseWheelZoom()
     HideBlizzardChrome()
     PositionHeaderIndicators()
     CreateBorder()
