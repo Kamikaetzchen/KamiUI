@@ -104,12 +104,11 @@ function UF:GetPowerColor(unit)
     local b = color.b or color[3]
 
     if powerToken == "MANA" then
-        local grayMix = 0.12
-        local gray = (r + g + b) / 3
+        local whiteMix = 0.15
 
-        r = r * (1 - grayMix) + gray * grayMix
-        g = g * (1 - grayMix) + gray * grayMix
-        b = b * (1 - grayMix) + gray * grayMix
+        r = r * (1 - whiteMix) + whiteMix
+        g = g * (1 - whiteMix) + whiteMix
+        b = b * (1 - whiteMix) + whiteMix
     end
 
     return r * self.powerColorMultiplier,
