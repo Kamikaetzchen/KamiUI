@@ -1759,7 +1759,7 @@ eventFrame:SetScript("OnEvent", function(_, event)
 
         Module:Show()
 
-        local bagsModule = UI:GetModule and UI:GetModule("Bags")
+        local bagsModule = UI.GetModule and UI:GetModule("Bags")
 
         if bagsModule
             and bagsModule.frame
