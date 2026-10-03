@@ -84,39 +84,74 @@ local function GetLinenBagIcon()
     return "Interface\\Icons\\INV_Misc_Bag_07"
 end
 
+local function GetContainerNumSlotsCompat(bag)
+    if C_Container and C_Container.GetContainerNumSlots then
+        return C_Container.GetContainerNumSlots(bag) or 0
+    elseif GetContainerNumSlots then
+        return GetContainerNumSlots(bag) or 0
+    end
+
+    return 0
+end
+
+local function IsContainerSlotUsed(bag, slot)
+    if C_Container and C_Container.GetContainerItemInfo then
+        return C_Container.GetContainerItemInfo(bag, slot) ~= nil
+    elseif GetContainerItemInfo then
+        return GetContainerItemInfo(bag, slot) ~= nil
+    end
+
+    return false
+end
+
+local function GetBagSlotUsage(bag)
+    local total = GetContainerNumSlotsCompat(bag)
+    local used = 0
+
+    for slot = 1, total do
+        if IsContainerSlotUsed(bag, slot) then
+            used = used + 1
+        end
+    end
+
+    return used, total
+end
+
 local function GetBagUsage()
     local used = 0
     local total = 0
 
     for bag = 0, NUM_BAG_SLOTS or 4 do
-        local slots
-
-        if C_Container and C_Container.GetContainerNumSlots then
-            slots = C_Container.GetContainerNumSlots(bag)
-        elseif GetContainerNumSlots then
-            slots = GetContainerNumSlots(bag)
-        end
-
-        slots = slots or 0
-        total = total + slots
-
-        for slot = 1, slots do
-            local info
-
-            if C_Container and C_Container.GetContainerItemInfo then
-                info = C_Container.GetContainerItemInfo(bag, slot)
-            elseif GetContainerItemInfo then
-                local texture = GetContainerItemInfo(bag, slot)
-                info = texture and true or nil
-            end
-
-            if info then
-                used = used + 1
-            end
-        end
+        local bagUsed, bagTotal = GetBagSlotUsage(bag)
+        used = used + bagUsed
+        total = total + bagTotal
     end
 
     return used, total
+end
+
+local function GetBagName(bag)
+    if bag == 0 then
+        return BACKPACK_TOOLTIP or "Backpack"
+    end
+
+    local inventoryID
+
+    if C_Container and C_Container.ContainerIDToInventoryID then
+        inventoryID = C_Container.ContainerIDToInventoryID(bag)
+    elseif ContainerIDToInventoryID then
+        inventoryID = ContainerIDToInventoryID(bag)
+    end
+
+    if inventoryID and GetInventoryItemLink then
+        local link = GetInventoryItemLink("player", inventoryID)
+
+        if link then
+            return link
+        end
+    end
+
+    return string.format("Bag %d", bag)
 end
 
 local function GetDurabilityPercent()
@@ -185,15 +220,249 @@ local function GetMovementSpeed()
     return math.floor((speed / 7) * 100 + 0.5), false
 end
 
-local function GetLatency()
+local function GetLatencies()
     if not GetNetStats then
-        return 0
+        return 0, 0
     end
 
     local _, _, home, world = GetNetStats()
 
-    return math.max(home or 0, world or 0)
+    return home or 0, world or 0
 end
+
+local function GetLatency()
+    local home, world = GetLatencies()
+
+    return math.max(home, world)
+end
+
+local function GetMoneyDB()
+    KamiUIInfoPanelDB = KamiUIInfoPanelDB or {}
+    KamiUIInfoPanelDB.characters = KamiUIInfoPanelDB.characters or {}
+
+    return KamiUIInfoPanelDB.characters
+end
+
+local function UpdateCharacterMoney()
+    if not GetMoney then
+        return
+    end
+
+    local name = UnitName("player")
+
+    if not name or name == "" then
+        return
+    end
+
+    local realm = GetRealmName and GetRealmName() or ""
+    local key = string.format("%s:%s", realm, name)
+    local characters = GetMoneyDB()
+
+    characters[key] = {
+        name = name,
+        realm = realm,
+        money = GetMoney() or 0,
+    }
+end
+
+local function PrepareTooltip(owner, title)
+    GameTooltip:SetOwner(owner, "ANCHOR_BOTTOM")
+    GameTooltip:ClearLines()
+    GameTooltip:AddLine(title, 1, 0.82, 0)
+end
+
+local function HideTooltip(owner)
+    if GameTooltip:IsOwned(owner) then
+        GameTooltip:Hide()
+    end
+end
+
+local function ShowBagsTooltip(owner)
+    PrepareTooltip(owner, "Bags")
+
+    local totalUsed = 0
+    local totalSlots = 0
+
+    for bag = 0, NUM_BAG_SLOTS or 4 do
+        local used, total = GetBagSlotUsage(bag)
+
+        if total > 0 then
+            GameTooltip:AddDoubleLine(
+                GetBagName(bag),
+                string.format("%d / %d", used, total),
+                1, 1, 1,
+                0.82, 0.82, 0.82
+            )
+
+            totalUsed = totalUsed + used
+            totalSlots = totalSlots + total
+        end
+    end
+
+    GameTooltip:AddLine(" ")
+    GameTooltip:AddDoubleLine(
+        "Total",
+        string.format("%d / %d", totalUsed, totalSlots),
+        1, 0.82, 0,
+        1, 1, 1
+    )
+    GameTooltip:Show()
+end
+
+local function GetDurabilityColor(percent)
+    if percent >= 75 then
+        return 0.2, 1.0, 0.2
+    elseif percent >= 40 then
+        return 1.0, 0.82, 0
+    end
+
+    return 1.0, 0.2, 0.2
+end
+
+local function ShowDurabilityTooltip(owner)
+    PrepareTooltip(owner, "Durability")
+
+    local currentTotal = 0
+    local maximumTotal = 0
+
+    for slot = 1, 18 do
+        local current, maximum = GetInventoryItemDurability(slot)
+
+        if current and maximum and maximum > 0 then
+            local percent = math.floor((current / maximum) * 100 + 0.5)
+            local r, g, b = GetDurabilityColor(percent)
+            local item = GetInventoryItemLink("player", slot)
+                or string.format("Slot %d", slot)
+
+            GameTooltip:AddDoubleLine(
+                item,
+                string.format("%d%%", percent),
+                1, 1, 1,
+                r, g, b
+            )
+
+            currentTotal = currentTotal + current
+            maximumTotal = maximumTotal + maximum
+        end
+    end
+
+    if maximumTotal > 0 then
+        local totalPercent = math.floor(
+            (currentTotal / maximumTotal) * 100 + 0.5
+        )
+        local r, g, b = GetDurabilityColor(totalPercent)
+
+        GameTooltip:AddLine(" ")
+        GameTooltip:AddDoubleLine(
+            "Total",
+            string.format("%d%%", totalPercent),
+            1, 0.82, 0,
+            r, g, b
+        )
+    end
+
+    GameTooltip:Show()
+end
+
+local function ShowGoldTooltip(owner)
+    UpdateCharacterMoney()
+    PrepareTooltip(owner, "Gold")
+
+    local currentRealm = GetRealmName and GetRealmName() or ""
+    local entries = {}
+    local total = 0
+
+    for _, character in pairs(GetMoneyDB()) do
+        entries[#entries + 1] = character
+        total = total + (character.money or 0)
+    end
+
+    table.sort(entries, function(left, right)
+        if left.name == right.name then
+            return (left.realm or "") < (right.realm or "")
+        end
+
+        return (left.name or "") < (right.name or "")
+    end)
+
+    for _, character in ipairs(entries) do
+        local name = character.name or "Unknown"
+
+        if character.realm and character.realm ~= ""
+            and character.realm ~= currentRealm then
+            name = string.format("%s - %s", name, character.realm)
+        end
+
+        GameTooltip:AddDoubleLine(
+            name,
+            FormatMoney(character.money or 0),
+            1, 1, 1,
+            1, 1, 1
+        )
+    end
+
+    GameTooltip:AddLine(" ")
+    GameTooltip:AddDoubleLine(
+        "Total",
+        FormatMoney(total),
+        1, 0.82, 0,
+        1, 1, 1
+    )
+    GameTooltip:Show()
+end
+
+local function ShowLatencyTooltip(owner)
+    PrepareTooltip(owner, "Latency")
+
+    local home, world = GetLatencies()
+
+    GameTooltip:AddDoubleLine(
+        "Home",
+        string.format("%d ms", home),
+        1, 1, 1,
+        0.82, 0.82, 0.82
+    )
+    GameTooltip:AddDoubleLine(
+        "World",
+        string.format("%d ms", world),
+        1, 1, 1,
+        0.82, 0.82, 0.82
+    )
+    GameTooltip:Show()
+end
+
+local function ShowClockTooltip(owner)
+    PrepareTooltip(owner, "Time")
+
+    local serverHour = 0
+    local serverMinute = 0
+
+    if GetGameTime then
+        serverHour, serverMinute = GetGameTime()
+    end
+
+    GameTooltip:AddDoubleLine(
+        "Local",
+        date("%H:%M"),
+        1, 1, 1,
+        0.82, 0.82, 0.82
+    )
+    GameTooltip:AddDoubleLine(
+        "Server",
+        string.format("%02d:%02d", serverHour, serverMinute),
+        1, 1, 1,
+        0.82, 0.82, 0.82
+    )
+    GameTooltip:Show()
+end
+
+local tooltipHandlers = {
+    bags = ShowBagsTooltip,
+    durability = ShowDurabilityTooltip,
+    gold = ShowGoldTooltip,
+    latency = ShowLatencyTooltip,
+    clock = ShowClockTooltip,
+}
 
 local function CreateText(parent, width)
     local text = parent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
@@ -367,11 +636,25 @@ local function CreatePanel()
         bar:SetColorTexture(unpack(defaults.text))
     end
 
+    local hoverFrames = {}
+
+    for key, showTooltip in pairs(tooltipHandlers) do
+        local hover = CreateFrame("Frame", nil, content)
+        hover:SetSize(slotWidths[key], defaults.height)
+        hover:SetPoint("CENTER", texts[key], "CENTER", 0, 0)
+        hover:SetFrameLevel(content:GetFrameLevel() + 10)
+        hover:EnableMouse(true)
+        hover:SetScript("OnEnter", showTooltip)
+        hover:SetScript("OnLeave", HideTooltip)
+        hoverFrames[key] = hover
+    end
+
     Module.frame = frame
     Module.content = content
     Module.texts = texts
     Module.levelupArrow = levelupArrow
     Module.latencySignal = signal
+    Module.hoverFrames = hoverFrames
 end
 
 local function ResetSession()
@@ -488,11 +771,13 @@ end
 
 function Module:Initialize()
     ResetSession()
+    UpdateCharacterMoney()
     CreatePanel()
     self:Refresh()
 
     UI:RegisterEvent("PLAYER_ENTERING_WORLD", function()
         C_Timer.After(0, function()
+            UpdateCharacterMoney()
             Module:Refresh()
         end)
     end)
@@ -517,6 +802,7 @@ function Module:Initialize()
     end)
 
     UI:RegisterEvent("PLAYER_MONEY", function()
+        UpdateCharacterMoney()
         Module:Refresh()
     end)
 
