@@ -2008,6 +2008,89 @@ local function CreateSkillsPane(frame)
     end)
 end
 
+local function SetOuterTabBackground(tab, r, g, b, a)
+    for _, texture in ipairs(tab.backgrounds or {}) do
+        texture:SetColorTexture(r, g, b, a)
+    end
+end
+
+local function CreateOuterTabVisual(tab)
+    local backgrounds = {}
+
+    local upper = tab:CreateTexture(nil, "BACKGROUND")
+    upper:SetPoint("TOPLEFT", tab, "TOPLEFT", 0, 0)
+    upper:SetPoint("TOPRIGHT", tab, "TOPRIGHT", 0, 0)
+    upper:SetPoint("BOTTOM", tab, "BOTTOM", 0, 3)
+    backgrounds[#backgrounds + 1] = upper
+
+    for row = 0, 2 do
+        local inset = 3 - row
+        local strip = tab:CreateTexture(nil, "BACKGROUND")
+        strip:SetPoint("BOTTOMLEFT", tab, "BOTTOMLEFT", inset, row)
+        strip:SetPoint("BOTTOMRIGHT", tab, "BOTTOMRIGHT", -inset, row)
+        strip:SetHeight(1)
+        backgrounds[#backgrounds + 1] = strip
+    end
+
+    tab.backgrounds = backgrounds
+
+    local borders = {}
+
+    local top = tab:CreateTexture(nil, "OVERLAY")
+    top:SetPoint("TOPLEFT")
+    top:SetPoint("TOPRIGHT")
+    top:SetHeight(1)
+    top:SetColorTexture(unpack(colors.border))
+    borders[1] = top
+
+    local bottom = tab:CreateTexture(nil, "OVERLAY")
+    bottom:SetPoint("BOTTOMLEFT", tab, "BOTTOMLEFT", 3, 0)
+    bottom:SetPoint("BOTTOMRIGHT", tab, "BOTTOMRIGHT", -3, 0)
+    bottom:SetHeight(1)
+    bottom:SetColorTexture(unpack(colors.border))
+    borders[2] = bottom
+
+    local left = tab:CreateTexture(nil, "OVERLAY")
+    left:SetPoint("TOPLEFT")
+    left:SetPoint("BOTTOMLEFT", tab, "BOTTOMLEFT", 0, 3)
+    left:SetWidth(1)
+    left:SetColorTexture(unpack(colors.border))
+    borders[3] = left
+
+    local right = tab:CreateTexture(nil, "OVERLAY")
+    right:SetPoint("TOPRIGHT")
+    right:SetPoint("BOTTOMRIGHT", tab, "BOTTOMRIGHT", 0, 3)
+    right:SetWidth(1)
+    right:SetColorTexture(unpack(colors.border))
+    borders[4] = right
+
+    for step = 1, 3 do
+        local leftChamfer = tab:CreateTexture(nil, "OVERLAY")
+        leftChamfer:SetPoint(
+            "BOTTOMLEFT",
+            tab,
+            "BOTTOMLEFT",
+            step - 1,
+            3 - step
+        )
+        leftChamfer:SetSize(1, 1)
+        leftChamfer:SetColorTexture(unpack(colors.border))
+
+        local rightChamfer = tab:CreateTexture(nil, "OVERLAY")
+        rightChamfer:SetPoint(
+            "BOTTOMRIGHT",
+            tab,
+            "BOTTOMRIGHT",
+            -(step - 1),
+            3 - step
+        )
+        rightChamfer:SetSize(1, 1)
+        rightChamfer:SetColorTexture(unpack(colors.border))
+    end
+
+    tab.borders = borders
+end
+
 SetOuterPage = function(frame, page)
     if page ~= "reputation" and page ~= "skills" then
         page = "character"
@@ -2057,7 +2140,8 @@ SetOuterPage = function(frame, page)
 
         if tab.enabled then
             tab:SetAlpha(1)
-            tab.background:SetColorTexture(
+            SetOuterTabBackground(
+                tab,
                 active and 0.12 or 0.06,
                 active and 0.12 or 0.06,
                 active and 0.14 or 0.07,
@@ -2075,16 +2159,14 @@ end
 
 local function LayoutOuterTabs(frame)
     local tabWidth = 80
-    local tabCount = #(frame.tabs or {})
-    local totalWidth = tabWidth * tabCount
 
     for index, tab in ipairs(frame.tabs or {}) do
         tab:ClearAllPoints()
         tab:SetPoint(
             "TOPLEFT",
             frame,
-            "BOTTOM",
-            -totalWidth / 2 + (index - 1) * tabWidth,
+            "BOTTOMLEFT",
+            20 + (index - 1) * tabWidth,
             1
         )
     end
@@ -2655,25 +2737,21 @@ local function CreateFrameUI()
         tab:SetHighlightFontObject("GameFontHighlightSmall")
         tab:SetText(definition.label)
 
-        local bg = tab:CreateTexture(nil, "BACKGROUND")
-        bg:SetAllPoints()
-        bg:SetColorTexture(
+        CreateOuterTabVisual(tab)
+        SetOuterTabBackground(
+            tab,
             definition.enabled and 0.08 or 0.03,
             definition.enabled and 0.08 or 0.03,
             definition.enabled and 0.10 or 0.04,
             0.95
         )
 
-        local borders = CreateBorder(tab, colors.border)
-
-        if index > 1 then
-            borders[3]:Hide()
+        if index > 1 and tab.borders and tab.borders[3] then
+            tab.borders[3]:Hide()
         end
 
         tab.page = definition.page
-        tab.borders = borders
         tab.enabled = definition.enabled == true
-        tab.background = bg
 
         if definition.enabled then
             tab:SetScript("OnClick", function(self)
