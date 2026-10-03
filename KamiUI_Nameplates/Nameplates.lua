@@ -453,18 +453,13 @@ local function UpdateIdentity(data)
     end
 
     local index = GetRaidTargetIndex and GetRaidTargetIndex(data.unit)
+    local valid = false
 
-    if index ~= nil and SetRaidTargetIconTexture then
-        SetRaidTargetIconTexture(data.raidMarker, index)
+    if SetRaidTargetIconTexture then
+        valid = pcall(SetRaidTargetIconTexture, data.raidMarker, index)
     end
 
-    if secretwrap then
-        data.raidMarker:SetShown(secretwrap(index ~= nil))
-    elseif CanAccessValue(index) then
-        data.raidMarker:SetShown(index ~= nil)
-    else
-        data.raidMarker:Hide()
-    end
+    data.raidMarker:SetShown(valid)
 end
 
 local function UpdateCast(data)
