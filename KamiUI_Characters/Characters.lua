@@ -106,13 +106,15 @@ local function UpdateCurrentCharacter()
     local db = EnsureDatabase()
     local key = GetCurrentCharacterKey()
     local firstName, surname, fullName = GetCurrentCharacterNames()
-    local _, classFile = UnitClass("player")
+    local className, classFile = UnitClass("player")
     local character = db.data[key] or {}
 
     character.name = fullName
     character.firstName = firstName
     character.surname = surname
+    character.className = className
     character.classFile = classFile
+    character.level = UnitLevel and UnitLevel("player") or character.level or 0
     character.realm = GetRealmName and GetRealmName() or ""
     character.money = GetMoney and GetMoney() or character.money or 0
     character.updated = time and time() or 0
@@ -167,6 +169,29 @@ end
 
 function Module:UpdateCurrentCharacter()
     return UpdateCurrentCharacter()
+end
+
+function Module:GetViewedCharacter()
+    local currentKey = GetCurrentCharacterKey()
+    local key = self.viewCharacterKey or currentKey
+
+    return key, EnsureDatabase().data[key], key == currentKey
+end
+
+function Module:SetViewedCharacter(key)
+    local currentKey = GetCurrentCharacterKey()
+
+    self.viewCharacterKey = key == currentKey and nil or key
+
+    if self.frame then
+        self.frame.page = "character"
+
+        if self.frame.characterMenu then
+            self.frame.characterMenu:Hide()
+        end
+
+        self:Refresh()
+    end
 end
 
 local function SavePosition(frame)
@@ -283,6 +308,39 @@ local function GetSlotID(slotKey)
     return GetInventorySlotInfo(slotKey)
 end
 
+local function SaveCurrentEquipmentSnapshot()
+    local _, character = UpdateCurrentCharacter()
+
+    if not character then
+        return
+    end
+
+    character.equipment = character.equipment or {}
+
+    for _, definition in ipairs(SLOT_LAYOUT) do
+        local slotID = GetSlotID(definition.key)
+        local texture = slotID
+            and GetInventoryItemTexture
+            and GetInventoryItemTexture("player", slotID)
+        local link = slotID
+            and GetInventoryItemLink
+            and GetInventoryItemLink("player", slotID)
+        local quality = slotID
+            and GetInventoryItemQuality
+            and GetInventoryItemQuality("player", slotID)
+
+        if texture or link then
+            character.equipment[definition.key] = {
+                icon = texture,
+                link = link,
+                quality = quality,
+            }
+        else
+            character.equipment[definition.key] = nil
+        end
+    end
+end
+
 local function TrimTitleLabel(title)
     if not title or title == "" then
         return "No Title"
@@ -395,9 +453,19 @@ local function CreateEquipmentSlot(parent, definition)
             return
         end
 
+        local _, _, isCurrent = Module:GetViewedCharacter()
+
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
 
-        if GameTooltip:SetInventoryItem("player", self.slotID) then
+        if isCurrent then
+            if GameTooltip:SetInventoryItem("player", self.slotID) then
+                GameTooltip:Show()
+            else
+                GameTooltip:SetText(self.slotKey)
+                GameTooltip:Show()
+            end
+        elseif self.cachedLink then
+            GameTooltip:SetHyperlink(self.cachedLink)
             GameTooltip:Show()
         else
             GameTooltip:SetText(self.slotKey)
@@ -410,7 +478,9 @@ local function CreateEquipmentSlot(parent, definition)
     end)
 
     button:SetScript("OnClick", function(self, mouseButton)
-        if not self.slotID then
+        local _, _, isCurrent = Module:GetViewedCharacter()
+
+        if not isCurrent or not self.slotID then
             return
         end
 
@@ -422,13 +492,17 @@ local function CreateEquipmentSlot(parent, definition)
     end)
 
     button:SetScript("OnDragStart", function(self)
-        if self.slotID then
+        local _, _, isCurrent = Module:GetViewedCharacter()
+
+        if isCurrent and self.slotID then
             PickupInventoryItem(self.slotID)
         end
     end)
 
     button:SetScript("OnReceiveDrag", function(self)
-        if self.slotID then
+        local _, _, isCurrent = Module:GetViewedCharacter()
+
+        if isCurrent and self.slotID then
             PickupInventoryItem(self.slotID)
         end
     end)
@@ -503,6 +577,7 @@ local function UpdateEquipmentSlot(button)
     local slotID = button.slotID
 
     if not slotID then
+        button.cachedLink = nil
         button.icon:SetTexture(nil)
         button.label:Show()
         SetBorderColor(button, colors.emptyBorder)
@@ -510,11 +585,29 @@ local function UpdateEquipmentSlot(button)
         return
     end
 
-    local texture = GetInventoryItemTexture("player", slotID)
-    local link = GetInventoryItemLink("player", slotID)
-    local quality = GetInventoryItemQuality
-        and GetInventoryItemQuality("player", slotID)
+    local _, character, isCurrent = Module:GetViewedCharacter()
+    local texture
+    local link
+    local quality
 
+    if isCurrent then
+        texture = GetInventoryItemTexture("player", slotID)
+        link = GetInventoryItemLink("player", slotID)
+        quality = GetInventoryItemQuality
+            and GetInventoryItemQuality("player", slotID)
+    else
+        local item = character
+            and character.equipment
+            and character.equipment[button.slotKey]
+
+        if item then
+            texture = item.icon
+            link = item.link
+            quality = item.quality
+        end
+    end
+
+    button.cachedLink = link
     button.icon:SetTexture(texture)
     button.label:SetShown(not texture)
     SetBorderColor(button, colors.emptyBorder)
@@ -530,9 +623,23 @@ local SetSidebarMode
 local SetOuterPage
 
 local function UpdatePlayerInfo(frame)
-    local name = GetTitledPlayerName()
-    local level = UnitLevel("player") or 0
-    local className, classFile = UnitClass("player")
+    local _, character, isCurrent = Module:GetViewedCharacter()
+    local name
+    local level
+    local className
+    local classFile
+
+    if isCurrent then
+        name = GetTitledPlayerName()
+        level = UnitLevel("player") or 0
+        className, classFile = UnitClass("player")
+    else
+        name = character and character.name or "Unknown"
+        level = character and character.level or 0
+        className = character and character.className or ""
+        classFile = character and character.classFile
+    end
+
     local classColor = classFile
         and RAID_CLASS_COLORS
         and RAID_CLASS_COLORS[classFile]
@@ -548,12 +655,30 @@ local function UpdatePlayerInfo(frame)
         string.format(
             "Level %d %s",
             level,
-            className or ""
+            className or classFile or ""
         )
     )
 
-    if frame.model and frame.model.SetUnit then
-        frame.model:SetUnit("player")
+    if frame.model then
+        if isCurrent and frame.model.SetUnit then
+            frame.model:Show()
+            frame.model:SetUnit("player")
+
+            if frame.offlineLabel then
+                frame.offlineLabel:Hide()
+            end
+        else
+            if frame.model.ClearModel then
+                frame.model:ClearModel()
+            end
+
+            frame.model:Hide()
+
+            if frame.offlineLabel then
+                frame.offlineLabel:SetText("Cached character")
+                frame.offlineLabel:Show()
+            end
+        end
     end
 end
 
@@ -562,6 +687,7 @@ function Module:Refresh()
         return
     end
 
+    SaveCurrentEquipmentSnapshot()
     UpdatePlayerInfo(self.frame)
 
     for _, button in ipairs(self.frame.equipmentSlots or {}) do
@@ -588,6 +714,8 @@ function Module:Show()
         return
     end
 
+    self.viewCharacterKey = nil
+    self.frame.page = "character"
     self:Refresh()
     self.frame:Show()
 end
@@ -775,6 +903,19 @@ local function UpdateStatsPane(frame)
     end
 
     local rows = pane.rows
+    local _, _, isCurrent = Module:GetViewedCharacter()
+
+    if not isCurrent then
+        for _, row in pairs(rows) do
+            if row.value then
+                row.value:SetText("-")
+            end
+        end
+
+        rows.health.label:SetText("Health")
+        rows.power.label:SetText("Power")
+        return
+    end
     local health = UnitHealthMax and UnitHealthMax("player")
     local power = UnitPowerMax and UnitPowerMax("player")
     local powerName = "Power"
@@ -1003,6 +1144,14 @@ SetSidebarMode = function(frame, mode)
         return
     end
 
+    local _, _, isCurrent = Module:GetViewedCharacter()
+
+    if not isCurrent and mode == "equipment" then
+        mode = "stats"
+    end
+
+    sidebar.equipmentTab:SetEnabled(isCurrent)
+    sidebar.equipmentTab:SetAlpha(isCurrent and 1 or 0.35)
     sidebar.mode = mode
     sidebar.statsPane:SetShown(mode == "stats")
     sidebar.equipmentPane:SetShown(mode == "equipment")
@@ -2272,7 +2421,11 @@ local function CreateOuterTabVisual(tab)
 end
 
 SetOuterPage = function(frame, page)
-    if page ~= "reputation" and page ~= "skills" then
+    local _, _, isCurrent = Module:GetViewedCharacter()
+
+    if not isCurrent then
+        page = "character"
+    elseif page ~= "reputation" and page ~= "skills" then
         page = "character"
     end
 
@@ -2297,8 +2450,8 @@ SetOuterPage = function(frame, page)
     if page == "character" then
         UpdatePlayerInfo(frame)
         frame.details:Show()
-        frame.titleButton:Show()
-        frame.titleArrow:Show()
+        frame.titleButton:SetShown(isCurrent)
+        frame.titleArrow:SetShown(isCurrent)
     elseif page == "reputation" then
         frame.name:SetText("Reputation")
         frame.name:SetTextColor(0.88, 0.72, 0.16)
@@ -2317,8 +2470,12 @@ SetOuterPage = function(frame, page)
 
     for _, tab in ipairs(frame.tabs or {}) do
         local active = tab.page == page
+        local available = tab.enabled
+            and (isCurrent or tab.page == "character")
 
-        if tab.enabled then
+        tab:SetEnabled(available)
+
+        if available then
             tab:SetAlpha(1)
             SetOuterTabBackground(
                 tab,
@@ -2772,6 +2929,145 @@ local function CreateFrameUI()
     headerBackground:SetAllPoints()
     headerBackground:SetColorTexture(0.00, 0.00, 0.00, 0.45)
 
+    local characterButton = CreateFrame("Button", nil, header)
+    characterButton:SetSize(22, 22)
+    characterButton:SetPoint("TOPLEFT", header, "TOPLEFT", 4, -4)
+    characterButton:SetFrameLevel(header:GetFrameLevel() + 10)
+
+    local characterIcon = characterButton:CreateTexture(nil, "ARTWORK")
+    characterIcon:SetAllPoints()
+    characterIcon:SetTexture("Interface\\Icons\\INV_Misc_GroupLooking")
+    characterIcon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
+    characterButton.icon = characterIcon
+    frame.characterButton = characterButton
+
+    local characterMenu = CreateFrame(
+        "Frame",
+        nil,
+        frame,
+        "BackdropTemplate"
+    )
+    characterMenu:SetPoint(
+        "TOPLEFT",
+        header,
+        "BOTTOMLEFT",
+        3,
+        -2
+    )
+    characterMenu:SetWidth(210)
+    characterMenu:SetFrameLevel(frame:GetFrameLevel() + 30)
+    characterMenu:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8X8",
+        edgeFile = "Interface\\Buttons\\WHITE8X8",
+        edgeSize = 1,
+    })
+    characterMenu:SetBackdropColor(0, 0, 0, 0.94)
+    characterMenu:SetBackdropBorderColor(unpack(colors.border))
+    characterMenu.buttons = {}
+    characterMenu:Hide()
+    frame.characterMenu = characterMenu
+
+    local function RebuildCharacterMenu()
+        local characters = Module:GetSortedCharacters()
+        local height = 8
+
+        for index, entry in ipairs(characters) do
+            local button = characterMenu.buttons[index]
+
+            if not button then
+                button = CreateFrame("Button", nil, characterMenu)
+                button:SetHeight(20)
+                button:SetPoint(
+                    "TOPLEFT",
+                    characterMenu,
+                    "TOPLEFT",
+                    4,
+                    -(4 + (index - 1) * 20)
+                )
+                button:SetPoint(
+                    "TOPRIGHT",
+                    characterMenu,
+                    "TOPRIGHT",
+                    -4,
+                    -(4 + (index - 1) * 20)
+                )
+
+                local text = button:CreateFontString(
+                    nil,
+                    "OVERLAY",
+                    "GameFontNormalSmall"
+                )
+                text:SetPoint("LEFT", 3, 0)
+                text:SetPoint("RIGHT", -3, 0)
+                text:SetJustifyH("LEFT")
+                button.text = text
+
+                local highlight = button:CreateTexture(nil, "HIGHLIGHT")
+                highlight:SetAllPoints()
+                highlight:SetColorTexture(1, 1, 1, 0.08)
+
+                characterMenu.buttons[index] = button
+            end
+
+            local character = entry.character
+            local label = character.name or "Unknown"
+            local classColor = character.classFile
+                and RAID_CLASS_COLORS
+                and RAID_CLASS_COLORS[character.classFile]
+
+            if classColor then
+                label = string.format(
+                    "|cff%02x%02x%02x%s|r",
+                    math.floor(classColor.r * 255 + 0.5),
+                    math.floor(classColor.g * 255 + 0.5),
+                    math.floor(classColor.b * 255 + 0.5),
+                    label
+                )
+            end
+
+            if character.realm
+                and character.realm ~= ""
+                and character.realm ~= GetRealmName()
+            then
+                label = label .. " - " .. character.realm
+            end
+
+            button.text:SetText(label)
+            button.characterKey = entry.key
+            button:SetScript("OnClick", function(self)
+                Module:SetViewedCharacter(self.characterKey)
+            end)
+            button:Show()
+
+            height = height + 20
+        end
+
+        for index = #characters + 1, #characterMenu.buttons do
+            characterMenu.buttons[index]:Hide()
+        end
+
+        characterMenu:SetHeight(math.max(28, height))
+    end
+
+    characterButton:SetScript("OnClick", function()
+        if characterMenu:IsShown() then
+            characterMenu:Hide()
+        else
+            RebuildCharacterMenu()
+            characterMenu:Show()
+        end
+    end)
+
+    characterButton:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText("Characters")
+        GameTooltip:Show()
+    end)
+
+    characterButton:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
+
     local name = header:CreateFontString(nil, "OVERLAY")
     name:SetPoint("TOP", header, "TOP", 0, -5)
     name:SetFont("Fonts\\FRIZQT__.TTF", 13, "OUTLINE")
@@ -2932,15 +3228,18 @@ local function CreateFrameUI()
         titleMenu:Show()
     end)
 
-    local close = CreateFrame("Button", nil, frame)
+    local close = CreateFrame("Button", nil, header)
     close:SetSize(22, 22)
     close:SetPoint("TOPRIGHT", header, "TOPRIGHT", -3, -3)
+    close:SetFrameLevel(header:GetFrameLevel() + 10)
+    close:RegisterForClicks("LeftButtonUp")
     close:SetNormalFontObject("GameFontNormal")
     close:SetHighlightFontObject("GameFontHighlight")
     close:SetText("x")
     close:SetScript("OnClick", function()
         Module:Hide()
     end)
+    frame.close = close
 
     local modelPanel = CreateFrame("Frame", nil, characterPane, "BackdropTemplate")
     modelPanel:SetPoint("TOP", characterPane, "TOP", 0, -54)
@@ -2968,6 +3267,17 @@ local function CreateFrameUI()
     end
 
     frame.model = model
+
+    local offlineLabel = modelPanel:CreateFontString(
+        nil,
+        "OVERLAY",
+        "GameFontNormalSmall"
+    )
+    offlineLabel:SetPoint("CENTER", modelPanel, "CENTER", 0, 0)
+    offlineLabel:SetTextColor(0.60, 0.60, 0.64)
+    offlineLabel:SetText("Cached character")
+    offlineLabel:Hide()
+    frame.offlineLabel = offlineLabel
 
     frame.equipmentSlots = {}
     frame.equipmentByKey = {}
@@ -3038,6 +3348,10 @@ local function CreateFrameUI()
 
         if frame.titleMenu then
             frame.titleMenu:Hide()
+        end
+
+        if frame.characterMenu then
+            frame.characterMenu:Hide()
         end
     end)
 
