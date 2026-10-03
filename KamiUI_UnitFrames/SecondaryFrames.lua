@@ -46,16 +46,25 @@ local function CreateUnitFrame(name, unit)
     powerBackground:SetColorTexture(0.08, 0.08, 0.08, 1)
 
     local nameText = health:CreateFontString(nil, "OVERLAY")
-    nameText:SetFont(fontPath, UF:GetBarFontSize(HEALTH_HEIGHT), fontFlags)
+    nameText:SetFont(
+        fontPath,
+        math.max(1, UF:GetBarFontSize(HEALTH_HEIGHT) - 1),
+        fontFlags
+    )
     nameText:SetPoint("LEFT", 2, 0)
     nameText:SetWidth(92)
     nameText:SetJustifyH("LEFT")
+    UF:ConfigureNameText(nameText)
     nameText:SetTextColor(1, 1, 1)
     nameText:SetShadowColor(0, 0, 0, 1)
     nameText:SetShadowOffset(1, -1)
 
     local healthText = health:CreateFontString(nil, "OVERLAY")
-    healthText:SetFont(fontPath, UF:GetBarFontSize(HEALTH_HEIGHT), fontFlags)
+    healthText:SetFont(
+        fontPath,
+        math.max(1, UF:GetBarFontSize(HEALTH_HEIGHT) - 1),
+        fontFlags
+    )
     healthText:SetPoint("RIGHT", -2, 0)
     healthText:SetJustifyH("RIGHT")
     healthText:SetTextColor(1, 1, 1)
@@ -107,7 +116,7 @@ local function UpdateFrame(frame)
     r, g, b = UF:GetPowerColor(unit)
     frame.power:SetStatusBarColor(r, g, b)
 
-    frame.nameText:SetText(UF:GetUnitDisplayName(unit))
+    UF:SetUnitDisplayName(frame.nameText, unit)
 end
 
 local targetTarget = CreateUnitFrame("KamiUITargetTargetFrame", "targettarget")
