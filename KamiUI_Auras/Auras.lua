@@ -86,17 +86,27 @@ local function InitializeAuraButton(button, color, useDispelColor)
     icon:SetPoint("LEFT")
     icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
 
-    local bar = CreateFrame("StatusBar", nil, button)
-    bar:SetSize(defaults.width - defaults.iconSize, defaults.height)
-    bar:SetPoint("LEFT", icon, "RIGHT", 0, 0)
+    -- Put the duration bar in its own alpha container. The AuraContainer's
+    -- dispel-type binding recolors the status texture with SetVertexColor(),
+    -- including an opaque alpha value, so applying alpha directly to the
+    -- texture is not stable. Parent alpha survives those secure color updates.
+    local barContainer = CreateFrame("Frame", nil, button)
+    barContainer:SetSize(defaults.width - defaults.iconSize, defaults.height)
+    barContainer:SetPoint("LEFT", icon, "RIGHT", 0, 0)
+    barContainer:SetAlpha(defaults.barAlpha)
+
+    local bar = CreateFrame("StatusBar", nil, barContainer)
+    bar:SetAllPoints()
     bar:SetStatusBarTexture("Interface\\Buttons\\WHITE8X8")
     bar:SetStatusBarColor(color[1], color[2], color[3], 1)
 
     local statusTexture = bar:GetStatusBarTexture()
-    statusTexture:SetAlpha(defaults.barAlpha)
 
-    local background = bar:CreateTexture(nil, "BACKGROUND")
-    background:SetAllPoints()
+    -- Keep the dark row background outside the alpha container so only the
+    -- colored duration fill gets the same transparency as normal buff bars.
+    local background = button:CreateTexture(nil, "BACKGROUND")
+    background:SetPoint("TOPLEFT", barContainer, "TOPLEFT")
+    background:SetPoint("BOTTOMRIGHT", barContainer, "BOTTOMRIGHT")
     background:SetColorTexture(
         defaults.backgroundColor[1],
         defaults.backgroundColor[2],
