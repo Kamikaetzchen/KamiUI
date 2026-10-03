@@ -239,10 +239,22 @@ local function GetThreatEntry(unit)
         return
     end
 
-    local name = UnitName(unit)
+    local firstName, surname = UnitName(unit)
 
-    if not CanAccessValue(name) or not name or name == "" then
+    if not CanAccessValue(firstName)
+        or not firstName
+        or firstName == ""
+    then
         return
+    end
+
+    local name = firstName
+
+    if surname
+        and CanAccessValue(surname)
+        and surname ~= ""
+    then
+        name = firstName .. " " .. surname
     end
 
     local r, g, b = GetUnitColor(unit)
