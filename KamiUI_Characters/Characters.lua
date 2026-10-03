@@ -2063,6 +2063,10 @@ SetOuterPage = function(frame, page)
                 active and 0.14 or 0.07,
                 0.95
             )
+
+            if tab.borders and tab.borders[1] then
+                tab.borders[1]:SetShown(not active)
+            end
         else
             tab:SetAlpha(0.45)
         end
@@ -2070,14 +2074,18 @@ SetOuterPage = function(frame, page)
 end
 
 local function LayoutOuterTabs(frame)
+    local tabWidth = 80
+    local tabCount = #(frame.tabs or {})
+    local totalWidth = tabWidth * tabCount
+
     for index, tab in ipairs(frame.tabs or {}) do
         tab:ClearAllPoints()
         tab:SetPoint(
-            "RIGHT",
+            "TOPLEFT",
             frame,
-            "RIGHT",
-            72,
-            92 - (index - 1) * 24
+            "BOTTOM",
+            -totalWidth / 2 + (index - 1) * tabWidth,
+            1
         )
     end
 end
@@ -2641,14 +2649,8 @@ local function CreateFrameUI()
 
     for index, definition in ipairs(tabs) do
         local tab = CreateFrame("Button", nil, frame)
-        tab:SetSize(72, 20)
-        tab:SetPoint(
-            "RIGHT",
-            frame,
-            "RIGHT",
-            72,
-            92 - (index - 1) * 24
-        )
+        tab:SetSize(80, 22)
+        tab:SetFrameLevel(frame:GetFrameLevel() + 2)
         tab:SetNormalFontObject("GameFontNormalSmall")
         tab:SetHighlightFontObject("GameFontHighlightSmall")
         tab:SetText(definition.label)
@@ -2662,9 +2664,14 @@ local function CreateFrameUI()
             0.95
         )
 
-        CreateBorder(tab, colors.border)
+        local borders = CreateBorder(tab, colors.border)
+
+        if index > 1 then
+            borders[3]:Hide()
+        end
 
         tab.page = definition.page
+        tab.borders = borders
         tab.enabled = definition.enabled == true
         tab.background = bg
 
