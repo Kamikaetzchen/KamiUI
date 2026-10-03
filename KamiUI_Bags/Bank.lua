@@ -422,36 +422,14 @@ local function StyleItemButton(button)
 
     button.KamiBorders = { top, bottom, left, right }
 
-    local rarityTop = button:CreateTexture(nil, "BORDER", nil, 1)
-    rarityTop:SetPoint("TOPLEFT", button, "TOPLEFT", 1, -1)
-    rarityTop:SetPoint("TOPRIGHT", button, "TOPRIGHT", -1, -1)
-    rarityTop:SetHeight(1)
-
-    local rarityBottom = button:CreateTexture(nil, "BORDER", nil, 1)
-    rarityBottom:SetPoint("BOTTOMLEFT", button, "BOTTOMLEFT", 1, 1)
-    rarityBottom:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", -1, 1)
-    rarityBottom:SetHeight(1)
-
-    local rarityLeft = button:CreateTexture(nil, "BORDER", nil, 1)
-    rarityLeft:SetPoint("TOPLEFT", button, "TOPLEFT", 1, -1)
-    rarityLeft:SetPoint("BOTTOMLEFT", button, "BOTTOMLEFT", 1, 1)
-    rarityLeft:SetWidth(1)
-
-    local rarityRight = button:CreateTexture(nil, "BORDER", nil, 1)
-    rarityRight:SetPoint("TOPRIGHT", button, "TOPRIGHT", -1, -1)
-    rarityRight:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", -1, 1)
-    rarityRight:SetWidth(1)
-
-    button.KamiRarityBorders = {
-        rarityTop,
-        rarityBottom,
-        rarityLeft,
-        rarityRight,
-    }
-
-    for _, border in ipairs(button.KamiRarityBorders) do
-        border:Hide()
-    end
+    local rarityGlow = button:CreateTexture(nil, "OVERLAY", nil, 1)
+    rarityGlow:SetPoint("TOPLEFT", button, "TOPLEFT", -2, 2)
+    rarityGlow:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", 2, -2)
+    rarityGlow:SetTexture("Interface\\Buttons\\UI-ActionButton-Border")
+    rarityGlow:SetBlendMode("ADD")
+    rarityGlow:SetAlpha(0.45)
+    rarityGlow:Hide()
+    button.KamiRarityGlow = rarityGlow
 
     local icon = button.icon or button.Icon
 
@@ -477,17 +455,25 @@ local function StyleItemButton(button)
 end
 
 local function UpdateRarityBorder(button, quality)
-    local color = quality ~= nil
-        and ITEM_QUALITY_COLORS
+    local glow = button.KamiRarityGlow
+
+    if not glow then
+        return
+    end
+
+    if quality == nil or quality <= 1 then
+        glow:Hide()
+        return
+    end
+
+    local color = ITEM_QUALITY_COLORS
         and ITEM_QUALITY_COLORS[quality]
 
-    for _, border in ipairs(button.KamiRarityBorders or {}) do
-        if color then
-            border:SetColorTexture(color.r, color.g, color.b, 1)
-            border:Show()
-        else
-            border:Hide()
-        end
+    if color then
+        glow:SetVertexColor(color.r, color.g, color.b, 1)
+        glow:Show()
+    else
+        glow:Hide()
     end
 end
 
