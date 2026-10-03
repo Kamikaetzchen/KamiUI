@@ -4,6 +4,6 @@
 ## Author: Kami Katze
 ## Version: 0.1.0
 ## RequiredDeps: KamiUI
-## SavedVariables: KamiUIInfoPanelDB
+## OptionalDeps: KamiUI_Characters
 
 InfoPanel.lua
