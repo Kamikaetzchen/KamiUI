@@ -169,6 +169,7 @@ local function HideNativePlateArt(unitFrame)
         "classificationIndicator",
         "ClassificationFrame",
         "AurasFrame",
+        "LevelFrame",
     }) do
         local object = unitFrame[key]
 
@@ -356,6 +357,10 @@ local function UpdatePlate(data)
     if not unit or not UnitExists(unit) then
         return
     end
+
+    -- Blizzard can re-show/reconfigure these when a recycled nameplate gets a
+    -- new unit or on mouseover. Keep our replacements authoritative.
+    HideNativePlateArt(data.root)
 
     -- Never feed UnitHealth/UnitHealthMax back into Blizzard's native
     -- TextStatusBar. On Forever those values can be secret, and touching the
