@@ -1573,6 +1573,26 @@ UI:RegisterCommand(
     "Reset bag position"
 )
 
+UI:RegisterCommand(
+    "bags",
+    "dbreset",
+    function()
+        local db = EnsureDatabase()
+
+        db.characters = {}
+        Module.viewCharacterKey = nil
+
+        SaveCurrentCharacter()
+
+        if Module.frame then
+            Module:Rebuild()
+        end
+
+        UI:Print("Bag database reset")
+    end,
+    "Reset cached character inventories"
+)
+
 local function AddCharacterCountsToTooltip(tooltip, data)
     if not tooltip then
         return
