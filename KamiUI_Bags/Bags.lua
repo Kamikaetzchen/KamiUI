@@ -2013,14 +2013,22 @@ local function AddCharacterCountsToTooltip(tooltip, data)
         local g = color and color.g or 0.65
         local b = color and color.b or 0.90
 
-        tooltip:AddDoubleLine(
-            line.name,
-            string.format(
+        local countText
+
+        if line.bankCount > 0 then
+            countText = string.format(
                 "%d (Bags: %d, Bank: %d)",
                 line.count,
                 line.bagCount,
                 line.bankCount
-            ),
+            )
+        else
+            countText = tostring(line.bagCount)
+        end
+
+        tooltip:AddDoubleLine(
+            line.name,
+            countText,
             r,
             g,
             b,
