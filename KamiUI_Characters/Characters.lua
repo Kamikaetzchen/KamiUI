@@ -11,12 +11,51 @@ local SLOT_SIZE = 40
 local SLOT_GAP = 4
 
 local colors = {
-    background = { 0.015, 0.015, 0.020, 0.94 },
-    panel = { 0.025, 0.025, 0.035, 0.90 },
-    slot = { 0.025, 0.025, 0.025, 0.95 },
-    border = { 0.18, 0.18, 0.20, 1.00 },
+    background = { 0.345, 0.000, 0.447, 0.25 },
+    panel = { 0.02, 0.02, 0.02, 0.55 },
+    slot = { 0.02, 0.02, 0.02, 0.55 },
+    border = { 0.20, 0.16, 0.24, 1.00 },
     emptyBorder = { 0.22, 0.22, 0.24, 1.00 },
 }
+
+local function EnsureDatabase()
+    KamiUIDB = KamiUIDB or {}
+    KamiUIDB.characters = KamiUIDB.characters or {}
+
+    return KamiUIDB.characters
+end
+
+local function SavePosition(frame)
+    local frameX, frameY = frame:GetCenter()
+    local parentX, parentY = UIParent:GetCenter()
+
+    if not frameX or not frameY or not parentX or not parentY then
+        return
+    end
+
+    EnsureDatabase().position = {
+        x = frameX - parentX,
+        y = frameY - parentY,
+    }
+end
+
+local function ApplySavedPosition(frame)
+    local position = EnsureDatabase().position
+
+    frame:ClearAllPoints()
+
+    if position then
+        frame:SetPoint(
+            "CENTER",
+            UIParent,
+            "CENTER",
+            position.x or 0,
+            position.y or 0
+        )
+    else
+        frame:SetPoint("CENTER", UIParent, "CENTER", 0, 10)
+    end
+end
 
 local SLOT_LAYOUT = {
     -- left column
@@ -129,6 +168,16 @@ local function CreateEquipmentSlot(parent, definition)
     button.label = label
 
     button.KamiBorders = CreateBorder(button, colors.emptyBorder)
+
+    local rarityGlow = button:CreateTexture(nil, "OVERLAY", nil, 1)
+    rarityGlow:SetPoint("CENTER", button, "CENTER", 1, 0)
+    rarityGlow:SetSize(SLOT_SIZE + 26, SLOT_SIZE + 26)
+    rarityGlow:SetTexture("Interface\\Buttons\\UI-ActionButton-Border")
+    rarityGlow:SetBlendMode("ADD")
+    rarityGlow:SetAlpha(0.45)
+    rarityGlow:Hide()
+    button.KamiRarityGlow = rarityGlow
+
     button.slotKey = definition.key
     button.slotID = GetSlotID(definition.key)
 
@@ -214,6 +263,29 @@ local function LayoutEquipmentSlot(button, definition, frame)
     end
 end
 
+local function UpdateRarityGlow(button, quality)
+    local glow = button.KamiRarityGlow
+
+    if not glow then
+        return
+    end
+
+    if quality == nil or quality <= 1 then
+        glow:Hide()
+        return
+    end
+
+    local color = ITEM_QUALITY_COLORS
+        and ITEM_QUALITY_COLORS[quality]
+
+    if color then
+        glow:SetVertexColor(color.r, color.g, color.b, 1)
+        glow:Show()
+    else
+        glow:Hide()
+    end
+end
+
 local function UpdateEquipmentSlot(button)
     local slotID = button.slotID
 
@@ -221,28 +293,23 @@ local function UpdateEquipmentSlot(button)
         button.icon:SetTexture(nil)
         button.label:Show()
         SetBorderColor(button, colors.emptyBorder)
+        UpdateRarityGlow(button, nil)
         return
     end
 
     local texture = GetInventoryItemTexture("player", slotID)
     local link = GetInventoryItemLink("player", slotID)
+    local quality
 
     button.icon:SetTexture(texture)
     button.label:SetShown(not texture)
+    SetBorderColor(button, colors.emptyBorder)
 
     if link and GetItemInfo then
-        local _, _, quality = GetItemInfo(link)
-        local color = quality
-            and ITEM_QUALITY_COLORS
-            and ITEM_QUALITY_COLORS[quality]
-
-        if color then
-            SetBorderColor(button, { color.r, color.g, color.b, 1 })
-            return
-        end
+        _, _, quality = GetItemInfo(link)
     end
 
-    SetBorderColor(button, colors.emptyBorder)
+    UpdateRarityGlow(button, quality)
 end
 
 local function UpdatePlayerInfo(frame)
@@ -321,9 +388,9 @@ local function CreateFrameUI()
     )
 
     frame:SetSize(FRAME_WIDTH, FRAME_HEIGHT)
-    frame:SetPoint("CENTER", UIParent, "CENTER", 0, 10)
     frame:SetFrameStrata("HIGH")
     frame:SetClampedToScreen(true)
+    frame:SetMovable(true)
     frame:EnableMouse(true)
     frame:Hide()
 
@@ -339,10 +406,19 @@ local function CreateFrameUI()
     header:SetPoint("TOPLEFT", 1, -1)
     header:SetPoint("TOPRIGHT", -1, -1)
     header:SetHeight(54)
+    header:EnableMouse(true)
+    header:RegisterForDrag("LeftButton")
+    header:SetScript("OnDragStart", function()
+        frame:StartMoving()
+    end)
+    header:SetScript("OnDragStop", function()
+        frame:StopMovingOrSizing()
+        SavePosition(frame)
+    end)
 
     local headerBackground = header:CreateTexture(nil, "BACKGROUND")
     headerBackground:SetAllPoints()
-    headerBackground:SetColorTexture(0.02, 0.02, 0.03, 0.96)
+    headerBackground:SetColorTexture(0.02, 0.02, 0.03, 0.55)
 
     local name = header:CreateFontString(nil, "OVERLAY")
     name:SetPoint("TOP", 0, -9)
@@ -469,12 +545,14 @@ local function CreateFrameUI()
         end
     end)
 
+    ApplySavedPosition(frame)
     tinsert(UISpecialFrames, frame:GetName())
 
     return frame
 end
 
 function Module:Initialize()
+    EnsureDatabase()
     self.frame = CreateFrameUI()
     self:Refresh()
 
