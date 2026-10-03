@@ -1758,6 +1758,20 @@ eventFrame:SetScript("OnEvent", function(_, event)
         end
 
         Module:Show()
+
+        local bagsModule = UI:GetModule and UI:GetModule("Bags")
+
+        if bagsModule
+            and bagsModule.frame
+            and not bagsModule.frame:IsShown()
+        then
+            bagsModule:Show()
+        elseif _G.KamiUIBagFrame and not _G.KamiUIBagFrame:IsShown() then
+            if OpenAllBags then
+                OpenAllBags()
+            end
+        end
+
         return
     end
 
