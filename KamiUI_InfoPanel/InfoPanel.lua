@@ -47,6 +47,16 @@ local function FormatNumber(value)
     return tostring(value or 0)
 end
 
+local function FormatXPPerHour(value)
+    value = math.max(0, value or 0)
+
+    if value >= 1000 then
+        return string.format("%.1fk", value / 1000)
+    end
+
+    return tostring(value)
+end
+
 local function FormatMoney(copper)
     copper = math.max(0, copper or 0)
 
@@ -451,7 +461,7 @@ function Module:Refresh()
     end
     self.texts.xp:SetText(string.format(
         "|TInterface\\Icons\\xp_icon:13:13:0:2:64:64:4:60:4:60|t %s/h",
-        FormatNumber(xpPerHour)
+        FormatXPPerHour(xpPerHour)
     ))
     self.texts.levelup:SetText(string.format("     %s", timeToLevel))
 
