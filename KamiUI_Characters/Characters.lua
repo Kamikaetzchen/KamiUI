@@ -387,6 +387,8 @@ local function UpdateEquipmentSlot(button)
     UpdateRarityGlow(button, quality)
 end
 
+local SetSidebarMode
+
 local function UpdatePlayerInfo(frame)
     local name = GetTitledPlayerName()
     local level = UnitLevel("player") or 0
@@ -677,7 +679,7 @@ local function UpdateEquipmentPane(frame)
     pane.save:SetEnabled(hasSelection)
 end
 
-local function SetSidebarMode(frame, mode)
+SetSidebarMode = function(frame, mode)
     local sidebar = frame.sidebar
 
     if not sidebar then
