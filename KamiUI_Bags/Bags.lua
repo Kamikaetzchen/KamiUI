@@ -134,9 +134,43 @@ end
 local function GetBagFamilyColor(bagID)
     local keyring = KEYRING_CONTAINER
         or (Enum and Enum.BagIndex and Enum.BagIndex.Keyring)
+
+    if bagID == keyring then
+        return bagFamilyColors.keyring
+    end
+
+    local inventoryID = GetBagInventoryID(bagID)
+
+    if inventoryID then
+        local link = GetInventoryItemLink("player", inventoryID)
+
+        if link and GetItemInfoInstant then
+            local _, _, _, _, _, classID, subClassID =
+                GetItemInfoInstant(link)
+
+            if classID == 11 then
+                if subClassID == 2 then
+                    return bagFamilyColors.arrows
+                elseif subClassID == 3 then
+                    return bagFamilyColors.bullets
+                end
+            elseif classID == 1 then
+                if subClassID == 1 then
+                    return bagFamilyColors.soul
+                elseif subClassID == 2 then
+                    return bagFamilyColors.herbs
+                elseif subClassID == 6 then
+                    return bagFamilyColors.mining
+                elseif subClassID == 7 then
+                    return bagFamilyColors.leather
+                end
+            end
+        end
+    end
+
     local _, family = GetContainerNumFreeSlots(bagID)
 
-    return GetBagFamilyColorFromMask(family, bagID == keyring)
+    return GetBagFamilyColorFromMask(family, false)
 end
 
 local function AddUniqueBag(bags, seen, bagID)
@@ -1441,6 +1475,10 @@ UI:RegisterCommand(
 )
 
 local function AddCharacterCountsToTooltip(tooltip)
+    if not tooltip or type(tooltip.GetItem) ~= "function" then
+        return
+    end
+
     local _, link = tooltip:GetItem()
 
     if not link then
