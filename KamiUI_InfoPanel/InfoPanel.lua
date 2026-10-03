@@ -19,6 +19,7 @@ local slotOrder = {
     "location",
     "speed",
     "xp",
+    "levelup",
     "bags",
     "durability",
     "gold",
@@ -30,6 +31,7 @@ local slotWidths = {
     location = 210,
     speed = 52,
     xp = 78,
+    levelup = 72,
     bags = 52,
     durability = 52,
     gold = 112,
@@ -308,6 +310,30 @@ local function CreatePanel()
 
     texts.location:SetJustifyH("CENTER")
 
+    local levelupArrow = CreateFrame("Frame", nil, content)
+    levelupArrow:SetSize(12, 12)
+    levelupArrow:SetPoint("LEFT", texts.levelup, "LEFT", 0, 1)
+
+    local arrowColor = { 0.2, 0.9, 0.3, 1 }
+
+    local arrowStem = levelupArrow:CreateLine(nil, "OVERLAY")
+    arrowStem:SetThickness(2)
+    arrowStem:SetColorTexture(unpack(arrowColor))
+    arrowStem:SetStartPoint("BOTTOM", levelupArrow, 0, 1)
+    arrowStem:SetEndPoint("TOP", levelupArrow, 0, -2)
+
+    local arrowLeft = levelupArrow:CreateLine(nil, "OVERLAY")
+    arrowLeft:SetThickness(2)
+    arrowLeft:SetColorTexture(unpack(arrowColor))
+    arrowLeft:SetStartPoint("TOP", levelupArrow, 0, -2)
+    arrowLeft:SetEndPoint("LEFT", levelupArrow, 2, -1)
+
+    local arrowRight = levelupArrow:CreateLine(nil, "OVERLAY")
+    arrowRight:SetThickness(2)
+    arrowRight:SetColorTexture(unpack(arrowColor))
+    arrowRight:SetStartPoint("TOP", levelupArrow, 0, -2)
+    arrowRight:SetEndPoint("RIGHT", levelupArrow, -2, -1)
+
     local signal = CreateFrame("Frame", nil, content)
     signal:SetSize(12, 12)
     signal:SetPoint("LEFT", texts.latency, "LEFT", 0, 2)
@@ -330,6 +356,7 @@ local function CreatePanel()
     Module.frame = frame
     Module.content = content
     Module.texts = texts
+    Module.levelupArrow = levelupArrow
     Module.latencySignal = signal
 end
 
@@ -365,6 +392,35 @@ local function GetXPPerHour()
     return math.floor((xp / elapsed) * 3600 + 0.5)
 end
 
+local function GetTimeToLevel(xpPerHour)
+    if not xpPerHour or xpPerHour <= 0 then
+        return "--"
+    end
+
+    local currentXP = UnitXP("player") or 0
+    local maxXP = UnitXPMax("player") or 0
+
+    if maxXP <= 0 or currentXP >= maxXP then
+        return "--"
+    end
+
+    local remainingXP = maxXP - currentXP
+    local seconds = math.floor((remainingXP / xpPerHour) * 3600 + 0.5)
+
+    if seconds < 60 then
+        return "<1m"
+    end
+
+    local hours = math.floor(seconds / 3600)
+    local minutes = math.floor((seconds % 3600) / 60)
+
+    if hours > 0 then
+        return string.format("%dh %dm", hours, minutes)
+    end
+
+    return string.format("%dm", minutes)
+end
+
 function Module:Refresh()
     CreatePanel()
 
@@ -373,6 +429,7 @@ function Module:Refresh()
     local movement = GetMovementSpeed()
     local latency = GetLatency()
     local xpPerHour = GetXPPerHour()
+    local timeToLevel = GetTimeToLevel(xpPerHour)
 
     self.texts.location:SetText(string.format(
         "|TInterface\\Icons\\icon_treasuremap:13:13:0:2:64:64:4:60:4:60|t %s",
@@ -386,6 +443,8 @@ function Module:Refresh()
         "|TInterface\\Icons\\xp_icon:13:13:0:2:64:64:4:60:4:60|t %s/h",
         FormatNumber(xpPerHour)
     ))
+    self.texts.levelup:SetText(string.format("     %s", timeToLevel))
+
     local bagIcon = GetLinenBagIcon()
         or "Interface\\Icons\\INV_Misc_Bag_07"
 
