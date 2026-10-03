@@ -19,7 +19,7 @@ local TARGET_WIDTH = 100
 local TARGET_HEIGHT = 13
 local TARGET_HEALTH_HEIGHT = 11
 
-local PARTY_SPACING = 31
+local PARTY_SPACING = 41
 local PARTY_TOP_OFFSET = 145
 
 local fontPath, _, fontFlags = GameFontNormalSmall:GetFont()
@@ -105,6 +105,7 @@ local function CreatePartyMember(index)
     local nameText = CreateText(health, HEALTH_HEIGHT, "LEFT")
     nameText:SetPoint("LEFT", 3, 0)
     nameText:SetWidth(92)
+    UF:ConfigureNameText(nameText)
 
     local healthText = CreateText(health, HEALTH_HEIGHT, "RIGHT")
     healthText:SetPoint("RIGHT", -3, 0)
@@ -158,6 +159,7 @@ local function CreatePartyPet(index, ownerFrame)
     local nameText = CreateText(health, PET_HEALTH_HEIGHT, "LEFT")
     nameText:SetPoint("LEFT", 2, 0)
     nameText:SetWidth(54)
+    UF:ConfigureNameText(nameText)
 
     local healthText = CreateText(health, PET_HEALTH_HEIGHT, "RIGHT")
     healthText:SetPoint("RIGHT", -2, 0)
@@ -199,6 +201,7 @@ local function CreatePartyTarget(index, petFrame, ownerFrame)
     local nameText = CreateText(health, TARGET_HEALTH_HEIGHT, "LEFT")
     nameText:SetPoint("LEFT", 2, 0)
     nameText:SetPoint("RIGHT", -2, 0)
+    UF:ConfigureNameText(nameText)
 
     frame.health = health
     frame.nameText = nameText
@@ -234,7 +237,7 @@ local function UpdateMain(frame)
     r, g, b = UF:GetPowerColor(unit)
     frame.power:SetStatusBarColor(r, g, b)
 
-    frame.nameText:SetText(UF:GetUnitDisplayName(unit))
+    UF:SetUnitDisplayName(frame.nameText, unit)
     frame.portrait:SetUnit(unit)
 end
 
@@ -265,7 +268,7 @@ local function UpdatePet(frame)
     r, g, b = UF:GetPowerColor(unit)
     frame.power:SetStatusBarColor(r, g, b)
 
-    frame.nameText:SetText(UF:GetUnitDisplayName(unit))
+    UF:SetUnitDisplayName(frame.nameText, unit)
 end
 
 local function UpdateTarget(frame)
@@ -283,7 +286,7 @@ local function UpdateTarget(frame)
 
     local r, g, b = UF:GetUnitColor(unit)
     frame.health:SetStatusBarColor(r, g, b)
-    frame.nameText:SetText(UF:GetUnitDisplayName(unit))
+    UF:SetUnitDisplayName(frame.nameText, unit)
 end
 
 local function UpdateGroup(index)
