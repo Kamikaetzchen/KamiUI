@@ -104,7 +104,7 @@ local function CreatePartyMember(index)
 
     local nameText = CreateText(health, HEALTH_HEIGHT, "LEFT")
     nameText:SetPoint("LEFT", 3, 0)
-    nameText:SetWidth(92)
+    nameText:SetWidth(112)
     UF:ConfigureNameText(nameText)
 
     local healthText = CreateText(health, HEALTH_HEIGHT, "RIGHT")
@@ -158,7 +158,7 @@ local function CreatePartyPet(index, ownerFrame)
 
     local nameText = CreateText(health, PET_HEALTH_HEIGHT, "LEFT")
     nameText:SetPoint("LEFT", 2, 0)
-    nameText:SetWidth(54)
+    nameText:SetWidth(64)
     UF:ConfigureNameText(nameText)
 
     local healthText = CreateText(health, PET_HEALTH_HEIGHT, "RIGHT")
