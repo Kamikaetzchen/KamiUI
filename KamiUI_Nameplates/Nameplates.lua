@@ -329,32 +329,6 @@ local function UpdateAuras(data)
     end
 end
 
-local function NeutralizeHealthSelection(data)
-    local health = data.nativeHealth
-
-    if health.SetShouldUseSelectedBorder then
-        health:SetShouldUseSelectedBorder(false)
-    end
-
-    if health.selectedBorder then
-        health.selectedBorder:SetAlpha(0)
-        health.selectedBorder:Hide()
-    end
-
-    if health.deselectedOverlay then
-        health.deselectedOverlay:SetAlpha(0)
-        health.deselectedOverlay:Hide()
-    end
-
-    health:SetAlpha(1)
-
-    local texture = health:GetStatusBarTexture()
-
-    if texture then
-        texture:SetAlpha(1)
-    end
-end
-
 local function StyleNativeHealthBar(data)
     local health = data.nativeHealth
 
@@ -371,16 +345,12 @@ local function StyleNativeHealthBar(data)
         data.healthBorder = CreateBorder(health)
     end
 
-    NeutralizeHealthSelection(data)
+    if health.selectedBorder then
+        health.selectedBorder:SetAlpha(0)
+    end
 
-    if not data.selectionHooked
-        and hooksecurefunc
-        and health.UpdateSelectionBorder
-    then
-        data.selectionHooked = true
-        hooksecurefunc(health, "UpdateSelectionBorder", function()
-            NeutralizeHealthSelection(data)
-        end)
+    if health.deselectedOverlay then
+        health.deselectedOverlay:SetAlpha(0)
     end
 
     if health.Text then
@@ -506,12 +476,10 @@ local function UpdatePlate(data)
 
     if data.nativeHealth.selectedBorder then
         data.nativeHealth.selectedBorder:SetAlpha(0)
-        data.nativeHealth.selectedBorder:Hide()
     end
 
     if data.nativeHealth.deselectedOverlay then
         data.nativeHealth.deselectedOverlay:SetAlpha(0)
-        data.nativeHealth.deselectedOverlay:Hide()
     end
 
     if data.nativeCast then
