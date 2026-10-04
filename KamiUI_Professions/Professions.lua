@@ -1428,39 +1428,104 @@ local function FindCachedProfession(character, professionInfo)
     return bestMatch
 end
 
-local function GetRecipeItemInfo(itemID)
-    if not itemID
-        or not C_Item
-        or not C_Item.GetItemSpell
-        or not C_TradeSkillUI
-        or not C_TradeSkillUI.GetProfessionInfoByRecipeID
-    then
+local function NormalizeRecipeName(name)
+    if type(name) ~= "string" or name == "" then
         return nil
     end
 
-    local _, spellID = C_Item.GetItemSpell(itemID)
+    name = string.gsub(name, "^%s+", "")
+    name = string.gsub(name, "%s+$", "")
 
-    if not spellID then
-        return nil
-    end
-
-    local ok, professionInfo = pcall(
-        C_TradeSkillUI.GetProfessionInfoByRecipeID,
-        spellID
-    )
-
-    if not ok
-        or not professionInfo
-        or not professionInfo.professionID
-        or professionInfo.professionID == 0
-    then
-        return nil
-    end
-
-    return spellID, professionInfo
+    return string.lower(name)
 end
 
-local function GetRecipeRequiredSkill(itemID)
+local function GetRecipeNameFromItem(itemID)
+    if not itemID
+        or not C_Item
+        or not C_Item.GetItemNameByID
+    then
+        return nil
+    end
+
+    local itemName = C_Item.GetItemNameByID(itemID)
+
+    if not itemName then
+        return nil
+    end
+
+    local recipeName = string.match(
+        itemName,
+        "^[^:]+:%s*(.+)$"
+    )
+
+    return recipeName
+end
+
+local function IsRecipeLearningItem(itemID)
+    if not itemID
+        or not TooltipUtil
+        or not TooltipUtil.FindLinesFromGetter
+        or not Enum.TooltipDataLineType
+        or not Enum.TooltipDataLineType.ItemSpellTriggerLearn
+    then
+        return false
+    end
+
+    local lines = TooltipUtil.FindLinesFromGetter(
+        { Enum.TooltipDataLineType.ItemSpellTriggerLearn },
+        "GetItemByID",
+        itemID
+    )
+
+    return lines and #lines > 0 or false
+end
+
+local function GetRecipeItemInfo(itemID)
+    if not itemID then
+        return nil
+    end
+
+    local recipeID
+    local professionInfo
+
+    if C_Item
+        and C_Item.GetItemSpell
+        and C_TradeSkillUI
+        and C_TradeSkillUI.GetProfessionInfoByRecipeID
+    then
+        local _, spellID = C_Item.GetItemSpell(itemID)
+
+        if spellID then
+            local ok, info = pcall(
+                C_TradeSkillUI.GetProfessionInfoByRecipeID,
+                spellID
+            )
+
+            if ok
+                and info
+                and info.professionID
+                and info.professionID ~= 0
+            then
+                recipeID = spellID
+                professionInfo = info
+            end
+        end
+    end
+
+    local recipeName = GetRecipeNameFromItem(itemID)
+
+    if not recipeID then
+        if not recipeName
+            or not IsRecipeLearningItem(itemID)
+        then
+            return nil
+        end
+    end
+
+    return recipeID, professionInfo, recipeName
+end
+
+local function GetRecipeRequirementInfo(itemID)
     if not TooltipUtil
         or not TooltipUtil.FindLinesFromGetter
         or not Enum.TooltipDataLineType
@@ -1485,7 +1550,52 @@ local function GetRecipeRequiredSkill(itemID)
                 "(%d+)%D*$"
             )
 
-            return required and tonumber(required) or nil
+            return required and tonumber(required) or nil,
+                line.leftText
+        end
+    end
+end
+
+local function FindCachedProfessionByRequirement(
+    character,
+    requirementText
+)
+    if not character or type(requirementText) ~= "string" then
+        return nil
+    end
+
+    local requirement =
+        string.lower(requirementText)
+
+    for _, profession in pairs(character.professions or {}) do
+        local professionName = profession.professionName
+
+        if professionName
+            and string.find(
+                requirement,
+                string.lower(professionName),
+                1,
+                true
+            )
+        then
+            return profession
+        end
+    end
+end
+
+local function FindCachedRecipeByName(profession, recipeName)
+    local normalizedName = NormalizeRecipeName(recipeName)
+
+    if not profession or not normalizedName then
+        return nil
+    end
+
+    for _, recipe in pairs(profession.recipes or {}) do
+        if type(recipe) == "table"
+            and NormalizeRecipeName(recipe.name)
+                == normalizedName
+        then
+            return recipe
         end
     end
 end
@@ -1511,9 +1621,10 @@ function Module:AddRecipeCharacterTooltip(tooltip, tooltipData)
         end
     end
 
-    local recipeID, professionInfo = GetRecipeItemInfo(itemID)
+    local recipeID, professionInfo, recipeName =
+        GetRecipeItemInfo(itemID)
 
-    if not recipeID then
+    if not recipeID and not recipeName then
         return
     end
 
@@ -1522,20 +1633,44 @@ function Module:AddRecipeCharacterTooltip(tooltip, tooltipData)
         return
     end
 
-    local requiredSkill = GetRecipeRequiredSkill(itemID)
+    local requiredSkill, requirementText =
+        GetRecipeRequirementInfo(itemID)
     local known = {}
     local canLearn = {}
     local needsSkill = {}
 
     for _, entry in ipairs(characters:GetSortedCharacters()) do
         local character = entry.character
-        local profession =
-            FindCachedProfession(character, professionInfo)
+        local profession
+
+        if professionInfo then
+            profession =
+                FindCachedProfession(character, professionInfo)
+        end
+
+        if not profession and requirementText then
+            profession =
+                FindCachedProfessionByRequirement(
+                    character,
+                    requirementText
+                )
+        end
 
         if HasCompleteRecipeCache(profession) then
             local name = character.name or "Unknown"
-            local recipe = profession.recipes
-                and profession.recipes[recipeID]
+            local recipe
+
+            if recipeID and profession.recipes then
+                recipe = profession.recipes[recipeID]
+            end
+
+            if not recipe and recipeName then
+                recipe =
+                    FindCachedRecipeByName(
+                        profession,
+                        recipeName
+                    )
+            end
 
             if recipe then
                 known[#known + 1] = name
