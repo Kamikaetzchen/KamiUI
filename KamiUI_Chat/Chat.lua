@@ -491,6 +491,24 @@ local function AttachBackend(key, backend)
     end
 end
 
+local function DisableEditBox(editBox)
+    if not editBox then
+        return
+    end
+
+    editBox:SetAlpha(0)
+
+    if editBox.EnableMouse then
+        editBox:EnableMouse(false)
+    end
+
+    if editBox.ClearFocus and editBox:HasFocus() then
+        editBox:ClearFocus()
+    end
+
+    editBox:Hide()
+end
+
 local function StyleEditBox(frame)
     local editBox = frame and frame.editBox
 
@@ -501,6 +519,9 @@ local function StyleEditBox(frame)
     if editBox.SetIgnoreParentAlpha then
         editBox:SetIgnoreParentAlpha(true)
     end
+
+    local focused = editBox.HasFocus and editBox:HasFocus()
+    editBox:SetAlpha(focused and 1 or 0)
 
     editBox:ClearAllPoints()
     editBox:SetPoint("TOPLEFT", Module.inputPanel, "TOPLEFT", 0, 0)
@@ -534,17 +555,22 @@ local function StyleEditBox(frame)
     if not editBox.KamiUIInputHooked then
         editBox.KamiUIInputHooked = true
 
-        editBox:HookScript("OnEditFocusGained", function()
+        editBox:HookScript("OnEditFocusGained", function(self)
+            self:SetAlpha(1)
             Module.inputPanel:Show()
         end)
 
-        editBox:HookScript("OnEditFocusLost", function()
-            C_Timer.After(0, function()
-                for _, backend in pairs(Module.backends) do
-                    local other = backend and backend.editBox
+        editBox:HookScript("OnEditFocusLost", function(self)
+            self:SetAlpha(0)
 
-                    if other and other.HasFocus and other:HasFocus() then
-                        return
+            C_Timer.After(0, function()
+                for key, backend in pairs(Module.backends) do
+                    if key ~= "combat" then
+                        local other = backend and backend.editBox
+
+                        if other and other.HasFocus and other:HasFocus() then
+                            return
+                        end
                     end
                 end
 
@@ -562,6 +588,10 @@ local function HideBackendFrame(frame)
     frame:SetAlpha(0)
     frame:SetFading(false)
     frame:EnableMouse(false)
+
+    if frame.EnableMouseWheel then
+        frame:EnableMouseWheel(false)
+    end
 
     HideObject(frame.Background)
     HideObject(frame.ScrollBar)
@@ -647,12 +677,35 @@ local function HideStockChatUI()
     HideObject(TextToSpeechButton)
     HideObject(QuickJoinToastButton)
 
-    for index = 1, NUM_CHAT_WINDOWS do
-        HideBackendFrame(_G["ChatFrame" .. index])
+    local managedInputFrames = {}
+
+    for _, config in ipairs(leftTabs) do
+        local backend = Module.backends[config.key]
+
+        if backend then
+            managedInputFrames[backend] = true
+        end
     end
 
-    for _, backend in pairs(Module.backends) do
-        StyleEditBox(backend)
+    for index = 1, NUM_CHAT_WINDOWS do
+        local frame = _G["ChatFrame" .. index]
+
+        HideBackendFrame(frame)
+
+        if frame
+            and frame.editBox
+            and not managedInputFrames[frame]
+        then
+            DisableEditBox(frame.editBox)
+        end
+    end
+
+    for _, config in ipairs(leftTabs) do
+        local backend = Module.backends[config.key]
+
+        if backend then
+            StyleEditBox(backend)
+        end
     end
 end
 
@@ -671,6 +724,15 @@ function Module:SelectTab(key)
     end
 
     SELECTED_CHAT_FRAME = backend
+
+    for _, config in ipairs(leftTabs) do
+        local otherBackend = self.backends[config.key]
+        local editBox = otherBackend and otherBackend.editBox
+
+        if editBox and editBox.EnableMouse then
+            editBox:EnableMouse(config.key == key)
+        end
+    end
 
     if ChatFrameUtil and ChatFrameUtil.SetLastActiveWindow then
         ChatFrameUtil.SetLastActiveWindow(backend.editBox)
