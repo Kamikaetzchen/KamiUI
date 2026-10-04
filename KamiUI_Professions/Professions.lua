@@ -1789,7 +1789,8 @@ local function CreateCharacterBrowser(frame)
         -2
     )
     menu:SetWidth(210)
-    menu:SetFrameLevel(frame:GetFrameLevel() + 100)
+    menu:SetFrameStrata("TOOLTIP")
+    menu:SetFrameLevel(200)
     menu:SetBackdrop({
         bgFile = "Interface\\Buttons\\WHITE8X8",
         edgeFile = "Interface\\Buttons\\WHITE8X8",
@@ -1809,11 +1810,12 @@ local function CreateCharacterBrowser(frame)
     )
     pane:SetPoint("TOPLEFT", frame, "TOPLEFT", 1, -33)
     pane:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -1, 1)
-    pane:SetFrameLevel(frame:GetFrameLevel() + 40)
+    pane:SetFrameStrata("DIALOG")
+    pane:SetFrameLevel(100)
     pane:SetBackdrop({
         bgFile = "Interface\\Buttons\\WHITE8X8",
     })
-    pane:SetBackdropColor(0.015, 0.018, 0.025, 0.99)
+    pane:SetBackdropColor(0.015, 0.018, 0.025, 1.00)
     pane:EnableMouse(true)
     pane:Hide()
     frame.KamiCachedProfessionPane = pane
@@ -1923,6 +1925,19 @@ local function CreateCharacterBrowser(frame)
 
             if entry.key == viewedKey then
                 label = "> " .. label
+            end
+
+            local classColor =
+                Palette:GetClassColor(character.classFile)
+
+            if classColor then
+                label = string.format(
+                    "|cff%02x%02x%02x%s|r",
+                    math.floor((classColor.r or classColor[1]) * 255 + 0.5),
+                    math.floor((classColor.g or classColor[2]) * 255 + 0.5),
+                    math.floor((classColor.b or classColor[3]) * 255 + 0.5),
+                    label
+                )
             end
 
             button.text:SetText(label)
