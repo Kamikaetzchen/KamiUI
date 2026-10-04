@@ -1617,6 +1617,12 @@ function Module:AddRecipeCharacterTooltip(tooltip, tooltipData)
 
         if HasCompleteRecipeCache(profession) then
             local name = character.name or "Unknown"
+            local skill = profession.skillLevel or 0
+            local nameWithSkill = string.format(
+                "%s (%d)",
+                name,
+                skill
+            )
             local recipe =
                 FindCachedRecipeByName(
                     profession,
@@ -1624,10 +1630,8 @@ function Module:AddRecipeCharacterTooltip(tooltip, tooltipData)
                 )
 
             if recipe then
-                known[#known + 1] = name
+                known[#known + 1] = nameWithSkill
             else
-                local skill = profession.skillLevel or 0
-
                 if requiredSkill and skill < requiredSkill then
                     needsSkill[#needsSkill + 1] = string.format(
                         "%s (%d/%d)",
@@ -1636,7 +1640,7 @@ function Module:AddRecipeCharacterTooltip(tooltip, tooltipData)
                         requiredSkill
                     )
                 else
-                    canLearn[#canLearn + 1] = name
+                    canLearn[#canLearn + 1] = nameWithSkill
                 end
             end
         end
