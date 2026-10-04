@@ -222,10 +222,10 @@ local function HideButtonTextures(button)
     end
 
     local textures = {
-        button:GetNormalTexture(),
-        button:GetPushedTexture(),
-        button:GetHighlightTexture(),
-        button:GetDisabledTexture(),
+        button.GetNormalTexture and button:GetNormalTexture(),
+        button.GetPushedTexture and button:GetPushedTexture(),
+        button.GetHighlightTexture and button:GetHighlightTexture(),
+        button.GetDisabledTexture and button:GetDisabledTexture(),
     }
 
     for _, texture in ipairs(textures) do
