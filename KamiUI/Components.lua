@@ -278,6 +278,7 @@ function Components:ClearButtonArt(button)
     for _, key in ipairs({
         "Left",
         "Middle",
+        "Center",
         "Right",
         "Top",
         "Bottom",
