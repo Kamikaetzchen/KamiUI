@@ -179,6 +179,7 @@ local rows = {}
 local viewPopup
 local sessionPopup
 local updateQueued = false
+local blizzardDamageMeterSink
 
 local state = {
     view = "damage",
@@ -930,12 +931,17 @@ local function ApplyPosition()
     )
 end
 
-local function HideBlizzardDamageMeter()
-    C_Timer.After(0, function()
-        if DamageMeter then
-            DamageMeter:Hide()
-        end
-    end)
+local function SuppressBlizzardDamageMeter()
+    if not blizzardDamageMeterSink then
+        blizzardDamageMeterSink = CreateFrame("Frame", nil, UIParent)
+        blizzardDamageMeterSink:Hide()
+    end
+
+    if DamageMeter
+        and DamageMeter:GetParent() ~= blizzardDamageMeterSink
+    then
+        DamageMeter:SetParent(blizzardDamageMeterSink)
+    end
 end
 
 local function CreateColumnHeader()
@@ -1103,7 +1109,7 @@ function Module:Initialize()
 
     CreateFrameUI()
     QueueUpdate()
-    HideBlizzardDamageMeter()
+    SuppressBlizzardDamageMeter()
 
     UI:RegisterBottomInsetCallback(function()
         ApplyPosition()
@@ -1111,18 +1117,12 @@ function Module:Initialize()
 
     UI:RegisterEvent("PLAYER_ENTERING_WORLD", function()
         QueueUpdate()
-        HideBlizzardDamageMeter()
+        SuppressBlizzardDamageMeter()
     end)
-
-    UI:RegisterEvent("PLAYER_LEVEL_CHANGED", HideBlizzardDamageMeter)
-    UI:RegisterEvent("GROUP_JOINED", HideBlizzardDamageMeter)
-    UI:RegisterEvent("GROUP_LEFT", HideBlizzardDamageMeter)
-    UI:RegisterEvent("PLAYER_REGEN_DISABLED", HideBlizzardDamageMeter)
-    UI:RegisterEvent("PLAYER_REGEN_ENABLED", HideBlizzardDamageMeter)
 
     UI:RegisterEvent("ADDON_LOADED", function(_, addonName)
         if addonName == "Blizzard_DamageMeter" then
-            HideBlizzardDamageMeter()
+            SuppressBlizzardDamageMeter()
         end
     end)
 
