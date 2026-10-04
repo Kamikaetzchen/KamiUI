@@ -91,6 +91,25 @@ function Provider:GetSection()
         items[#items + 1] = GetQuestData(questID)
     end
 
+    table.sort(items, function(left, right)
+        local leftLevel = tonumber(left.level) or 0
+        local rightLevel = tonumber(right.level) or 0
+
+        if leftLevel <= 0 then
+            leftLevel = math.huge
+        end
+
+        if rightLevel <= 0 then
+            rightLevel = math.huge
+        end
+
+        if leftLevel == rightLevel then
+            return (left.title or "") < (right.title or "")
+        end
+
+        return leftLevel < rightLevel
+    end)
+
     return {
         title = "Quests",
         items = items,
