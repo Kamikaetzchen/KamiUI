@@ -366,12 +366,18 @@ local function GetTitledPlayerName()
     return name
 end
 
+local UpdateEquipmentIgnoreOverlays
+
 local function CreateEquipmentSlot(parent, definition)
     local button = CreateFrame("Button", nil, parent)
     local slotSize = definition.size or SLOT_SIZE
 
     button:SetSize(slotSize, slotSize)
-    button:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    button:RegisterForClicks(
+        "LeftButtonUp",
+        "RightButtonUp",
+        "MiddleButtonUp"
+    )
     button:RegisterForDrag("LeftButton")
 
     local background = button:CreateTexture(nil, "BACKGROUND")
@@ -402,6 +408,17 @@ local function CreateEquipmentSlot(parent, definition)
     rarityGlow:SetAlpha(0.45)
     rarityGlow:Hide()
     button.KamiRarityGlow = rarityGlow
+
+    local ignoreOverlay = button:CreateTexture(nil, "OVERLAY", nil, 3)
+    ignoreOverlay:SetPoint("CENTER")
+    ignoreOverlay:SetSize(
+        math.max(16, math.floor(slotSize * 0.62)),
+        math.max(16, math.floor(slotSize * 0.62))
+    )
+    ignoreOverlay:SetTexture("Interface\\Buttons\\UI-GroupLoot-Pass-Up")
+    ignoreOverlay:SetAlpha(0.95)
+    ignoreOverlay:Hide()
+    button.KamiIgnoreOverlay = ignoreOverlay
 
     button.slotKey = definition.key
     button.slotID = GetSlotID(definition.key)
@@ -446,6 +463,41 @@ local function CreateEquipmentSlot(parent, definition)
             PickupInventoryItem(self.slotID)
         elseif mouseButton == "RightButton" then
             UseInventoryItem(self.slotID)
+        elseif mouseButton == "MiddleButton" then
+            local frame = self:GetParent()
+                and self:GetParent():GetParent()
+
+            if not frame
+                or not frame.sidebar
+                or frame.sidebar.mode ~= "equipment"
+                or not C_EquipmentSet
+                or not C_EquipmentSet.IsSlotIgnoredForSave
+            then
+                return
+            end
+
+            local ignored = SafeCall(
+                C_EquipmentSet.IsSlotIgnoredForSave,
+                self.slotID
+            )
+
+            if ignored then
+                if C_EquipmentSet.UnignoreSlotForSave then
+                    SafeCall(
+                        C_EquipmentSet.UnignoreSlotForSave,
+                        self.slotID
+                    )
+                end
+            elseif C_EquipmentSet.IgnoreSlotForSave then
+                SafeCall(
+                    C_EquipmentSet.IgnoreSlotForSave,
+                    self.slotID
+                )
+            end
+
+            if UpdateEquipmentIgnoreOverlays then
+                UpdateEquipmentIgnoreOverlays(frame)
+            end
         end
     end)
 
@@ -466,6 +518,34 @@ local function CreateEquipmentSlot(parent, definition)
     end)
 
     return button
+end
+
+UpdateEquipmentIgnoreOverlays = function(frame)
+    if not frame then
+        return
+    end
+
+    local _, _, isCurrent = Module:GetViewedCharacter()
+    local show = isCurrent
+        and frame.sidebar
+        and frame.sidebar.mode == "equipment"
+        and C_EquipmentSet
+        and C_EquipmentSet.IsSlotIgnoredForSave
+
+    for _, button in ipairs(frame.equipmentSlots or {}) do
+        local ignored = false
+
+        if show and button.slotID then
+            ignored = SafeCall(
+                C_EquipmentSet.IsSlotIgnoredForSave,
+                button.slotID
+            ) == true
+        end
+
+        if button.KamiIgnoreOverlay then
+            button.KamiIgnoreOverlay:SetShown(ignored)
+        end
+    end
 end
 
 local BOTTOM_SLOT_X = {
@@ -1537,6 +1617,10 @@ SetSidebarMode = function(frame, mode)
         UpdateStatsPane(frame)
     else
         UpdateEquipmentPane(frame)
+    end
+
+    if UpdateEquipmentIgnoreOverlays then
+        UpdateEquipmentIgnoreOverlays(frame)
     end
 end
 
