@@ -3033,6 +3033,223 @@ local function LayoutNativeCharacterPage(frame, page, nativeFrame)
     end
 end
 
+local function HideNativeHeaderTextures(row, keepTexture)
+    if row.KamiHeaderTexturesHidden then
+        return
+    end
+
+    row.KamiHeaderTexturesHidden = true
+
+    for index = 1, select("#", row:GetRegions()) do
+        local region = select(index, row:GetRegions())
+
+        if region
+            and region.IsObjectType
+            and region:IsObjectType("Texture")
+            and region ~= keepTexture
+        then
+            region:SetAlpha(0)
+        end
+    end
+end
+
+local function HideNativeToggleTextures(button)
+    if not button then
+        return
+    end
+
+    local normal = button:GetNormalTexture()
+    local pushed = button:GetPushedTexture()
+    local highlight = button:GetHighlightTexture()
+
+    if normal then
+        normal:SetAlpha(0)
+    end
+
+    if pushed then
+        pushed:SetAlpha(0)
+    end
+
+    if highlight then
+        highlight:SetAlpha(0)
+    end
+end
+
+local function EnsureNativeHeaderBackground(row)
+    if row.KamiHeaderBackground then
+        return row.KamiHeaderBackground
+    end
+
+    local background = row:CreateTexture(nil, "BACKGROUND", nil, 7)
+    background:SetAllPoints()
+    background:SetColorTexture(1, 1, 1, 0.055)
+    row.KamiHeaderBackground = background
+
+    return background
+end
+
+local function StyleNativeHeader(
+    row,
+    label,
+    text,
+    collapsed,
+    indent,
+    refresh
+)
+    if not row or not label then
+        return
+    end
+
+    HideNativeHeaderTextures(row, row.StateIcon)
+    EnsureNativeHeaderBackground(row)
+
+    if row.StateIcon then
+        row.StateIcon:SetAlpha(0)
+    end
+
+    if row.ToggleCollapseButton then
+        HideNativeToggleTextures(row.ToggleCollapseButton)
+    end
+
+    label:ClearAllPoints()
+    label:SetPoint("LEFT", row, "LEFT", indent or 6, 0)
+    label:SetPoint("RIGHT", row, "RIGHT", -6, 0)
+    label:SetJustifyH("LEFT")
+    label:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+    label:SetTextColor(0.88, 0.72, 0.16)
+    label:SetText(
+        string.format(
+            "%s %s",
+            collapsed and "+" or "-",
+            text or ""
+        )
+    )
+
+    if refresh and not row.KamiHeaderClickHooked then
+        row.KamiHeaderClickHooked = true
+        row:HookScript("OnClick", function()
+            C_Timer.After(0, refresh)
+        end)
+    end
+
+    if refresh
+        and row.ToggleCollapseButton
+        and not row.ToggleCollapseButton.KamiHeaderClickHooked
+    then
+        row.ToggleCollapseButton.KamiHeaderClickHooked = true
+        row.ToggleCollapseButton:HookScript("OnClick", function()
+            C_Timer.After(0, refresh)
+        end)
+    end
+end
+
+local function StyleNativeEntry(row, name, value)
+    if not row then
+        return
+    end
+
+    if name then
+        name:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+        name:SetTextColor(0.92, 0.92, 0.94)
+    end
+
+    if value then
+        value:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+        value:SetTextColor(0.90, 0.90, 0.92)
+    end
+
+    local highlight = row.Content
+        and row.Content.BackgroundHighlight
+
+    if highlight and highlight.TextureRegions then
+        for _, texture in ipairs(highlight.TextureRegions) do
+            texture:SetVertexColor(1, 1, 1)
+        end
+    end
+end
+
+local function StyleNativeCharacterPageList(frame, page, nativeFrame)
+    local scrollBox = nativeFrame and nativeFrame.ScrollBox
+
+    if not scrollBox or not scrollBox.ForEachFrame then
+        return
+    end
+
+    local function Refresh()
+        if nativeFrame:IsShown() then
+            StyleNativeCharacterPageList(frame, page, nativeFrame)
+        end
+    end
+
+    scrollBox:ForEachFrame(function(row)
+        local data = row.elementData
+
+        if page == "currency" then
+            if data and data.isHeader then
+                local collapsed = not data.isHeaderExpanded
+
+                if row.Name then
+                    StyleNativeHeader(
+                        row,
+                        row.Name,
+                        data.name,
+                        collapsed,
+                        6,
+                        Refresh
+                    )
+                elseif row.Text then
+                    StyleNativeHeader(
+                        row,
+                        row.Text,
+                        data.name,
+                        collapsed,
+                        14,
+                        Refresh
+                    )
+                end
+            elseif row.Content then
+                StyleNativeEntry(
+                    row,
+                    row.Content.Name,
+                    row.Content.Count
+                )
+            end
+        elseif page == "statistics" then
+            if data and data.isCategory then
+                local collapsed = row.treeNode
+                    and row.treeNode.IsCollapsed
+                    and row.treeNode:IsCollapsed()
+
+                if row.Name then
+                    StyleNativeHeader(
+                        row,
+                        row.Name,
+                        data.name,
+                        collapsed == true,
+                        6,
+                        Refresh
+                    )
+                elseif row.Content and row.Content.Name then
+                    StyleNativeHeader(
+                        row,
+                        row.Content.Name,
+                        data.name,
+                        collapsed == true,
+                        14,
+                        Refresh
+                    )
+                end
+            elseif row.Content then
+                StyleNativeEntry(
+                    row,
+                    row.Content.Name,
+                    row.Content.Value
+                )
+            end
+        end
+    end)
+end
+
 local function EnsureNativeCharacterPage(frame, page)
     local config = nativeCharacterPages[page]
 
@@ -3056,6 +3273,38 @@ local function EnsureNativeCharacterPage(frame, page)
 
     LayoutNativeCharacterPage(frame, page, nativeFrame)
     frame.nativePages[page] = nativeFrame
+
+    if (page == "currency" or page == "statistics")
+        and not nativeFrame.KamiListStyleHooked
+        and hooksecurefunc
+        and nativeFrame.Update
+    then
+        nativeFrame.KamiListStyleHooked = true
+
+        hooksecurefunc(nativeFrame, "Update", function(self)
+            C_Timer.After(0, function()
+                if self:IsShown() then
+                    StyleNativeCharacterPageList(
+                        frame,
+                        page,
+                        self
+                    )
+                end
+            end)
+        end)
+    end
+
+    if page == "currency" or page == "statistics" then
+        C_Timer.After(0, function()
+            if nativeFrame:IsShown() then
+                StyleNativeCharacterPageList(
+                    frame,
+                    page,
+                    nativeFrame
+                )
+            end
+        end)
+    end
 
     return nativeFrame
 end
