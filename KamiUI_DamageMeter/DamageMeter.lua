@@ -306,22 +306,32 @@ local function CreateRow(index)
         "GameFontNormalSmall"
     )
     name:SetPoint("LEFT", icon, "RIGHT", 4, 0)
-    name:SetPoint("RIGHT", row, "RIGHT", -92, 0)
+    name:SetPoint("RIGHT", row, "RIGHT", -142, 0)
     name:SetJustifyH("LEFT")
     name:SetWordWrap(false)
+
+    local rate = overlay:CreateFontString(
+        nil,
+        "OVERLAY",
+        "GameFontNormalSmall"
+    )
+    rate:SetPoint("RIGHT", row, "RIGHT", -6, 0)
+    rate:SetWidth(54)
+    rate:SetJustifyH("RIGHT")
 
     local value = overlay:CreateFontString(
         nil,
         "OVERLAY",
         "GameFontNormalSmall"
     )
-    value:SetPoint("RIGHT", row, "RIGHT", -6, 0)
-    value:SetWidth(82)
+    value:SetPoint("RIGHT", rate, "LEFT", -8, 0)
+    value:SetWidth(72)
     value:SetJustifyH("RIGHT")
 
     Styles:ApplyText(indexText, defaults.fontSize, Palette.muted)
     Styles:ApplyText(name, defaults.fontSize, Palette.text)
     Styles:ApplyText(value, defaults.fontSize, Palette.text)
+    Styles:ApplyText(rate, defaults.fontSize, Palette.muted)
 
     local separator = row:CreateTexture(nil, "OVERLAY")
     separator:SetPoint("BOTTOMLEFT")
@@ -334,6 +344,7 @@ local function CreateRow(index)
     row.icon = icon
     row.name = name
     row.value = value
+    row.rate = rate
     row:Hide()
 
     rows[index] = row
@@ -356,13 +367,21 @@ local function UpdateRows()
         if source then
             local r, g, b = GetClassColor(source.classFilename)
             local primaryValue
+            local secondaryValue
 
             if state.damageType == DamageMeterType.Dps
                 or state.damageType == DamageMeterType.Hps
             then
                 primaryValue = source.amountPerSecond
+                secondaryValue = source.totalAmount
             else
                 primaryValue = source.totalAmount
+
+                if state.damageType == DamageMeterType.DamageDone
+                    or state.damageType == DamageMeterType.HealingDone
+                then
+                    secondaryValue = source.amountPerSecond
+                end
             end
 
             row.bar:SetMinMaxValues(0, session.maxAmount)
@@ -371,6 +390,14 @@ local function UpdateRows()
 
             row.name:SetText(source.name)
             row.value:SetText(primaryValue)
+
+            if secondaryValue ~= nil then
+                row.rate:SetText(secondaryValue)
+                row.rate:Show()
+            else
+                row.rate:SetText("")
+                row.rate:Hide()
+            end
 
             local iconID = source.specIconID
             if iconID and iconID ~= 0 then
