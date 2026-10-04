@@ -694,7 +694,9 @@ itemDragFrame:SetScript("OnUpdate", function(self)
                 and y >= bottom
                 and y <= bottom + height
             then
-                local bagID = button:GetParent():GetID()
+                local bagID = button.GetBagID
+                    and button:GetBagID()
+                    or button:GetParent():GetID()
                 local slotID = button:GetID()
 
                 C_Container.PickupContainerItem(bagID, slotID)
@@ -723,7 +725,9 @@ itemDragFrame:SetScript("OnUpdate", function(self)
                     and y >= bottom
                     and y <= bottom + height
                 then
-                    local bagID = button:GetParent():GetID()
+                    local bagID = button.GetBagID
+                        and button:GetBagID()
+                        or button:GetParent():GetID()
                     local slotID = button:GetID()
 
                     C_Container.PickupContainerItem(bagID, slotID)
@@ -762,8 +766,13 @@ local function CreateItemButton(content, carrier)
 end
 
 local function UpdateItemButton(button, bagID, slotID, family)
+    if button.SetBagID then
+        button:SetBagID(bagID)
+    elseif button.SetAttribute then
+        button:SetAttribute("bagid", bagID)
+    end
+
     button:SetID(slotID)
-    button.bagID = bagID
 
     local color = GetBagFamilyColorFromMask(family)
 
@@ -923,8 +932,12 @@ function Module:SetBagSlotHighlight(bagID, shown)
             button.KamiBagHighlight = highlight
         end
 
+        local buttonBagID = button.GetBagID
+            and button:GetBagID()
+            or button.bagID
+
         button.KamiBagHighlight:SetShown(
-            shown and button.bagID == bagID
+            shown and buttonBagID == bagID
         )
     end
 end
