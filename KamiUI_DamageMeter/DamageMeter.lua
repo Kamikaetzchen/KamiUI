@@ -930,6 +930,14 @@ local function ApplyPosition()
     )
 end
 
+local function HideBlizzardDamageMeter()
+    C_Timer.After(0, function()
+        if DamageMeter then
+            DamageMeter:Hide()
+        end
+    end)
+end
+
 local function CreateColumnHeader()
     local header = CreateFrame("Frame", nil, frame)
     header:SetPoint(
@@ -1095,12 +1103,29 @@ function Module:Initialize()
 
     CreateFrameUI()
     QueueUpdate()
+    HideBlizzardDamageMeter()
 
     UI:RegisterBottomInsetCallback(function()
         ApplyPosition()
     end)
 
-    UI:RegisterEvent("PLAYER_ENTERING_WORLD", QueueUpdate)
+    UI:RegisterEvent("PLAYER_ENTERING_WORLD", function()
+        QueueUpdate()
+        HideBlizzardDamageMeter()
+    end)
+
+    UI:RegisterEvent("PLAYER_LEVEL_CHANGED", HideBlizzardDamageMeter)
+    UI:RegisterEvent("GROUP_JOINED", HideBlizzardDamageMeter)
+    UI:RegisterEvent("GROUP_LEFT", HideBlizzardDamageMeter)
+    UI:RegisterEvent("PLAYER_REGEN_DISABLED", HideBlizzardDamageMeter)
+    UI:RegisterEvent("PLAYER_REGEN_ENABLED", HideBlizzardDamageMeter)
+
+    UI:RegisterEvent("ADDON_LOADED", function(_, addonName)
+        if addonName == "Blizzard_DamageMeter" then
+            HideBlizzardDamageMeter()
+        end
+    end)
+
     UI:RegisterEvent("DAMAGE_METER_COMBAT_SESSION_UPDATED", QueueUpdate)
     UI:RegisterEvent("DAMAGE_METER_CURRENT_SESSION_UPDATED", QueueUpdate)
 
