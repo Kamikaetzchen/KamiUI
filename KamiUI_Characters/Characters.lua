@@ -1636,15 +1636,19 @@ local function UpdateEquipmentPane(frame)
                     row.name:SetTextColor(0.92, 0.92, 0.94)
                 end
 
+                local isSelected = pane.selectedSetID == row.setID
+
                 if isEquipped then
-                    row.background:SetColorTexture(0.10, 0.52, 0.18, 0.26)
+                    if isSelected then
+                        row.background:SetColorTexture(0.14, 0.64, 0.24, 0.38)
+                    else
+                        row.background:SetColorTexture(0.10, 0.52, 0.18, 0.26)
+                    end
                 else
                     row.background:SetColorTexture(1, 1, 1, 0.04)
                 end
 
-                row.selected:SetShown(
-                    pane.selectedSetID == row.setID and not isEquipped
-                )
+                row.selected:SetShown(isSelected and not isEquipped)
                 row.isEquipped = isEquipped == true
                 row:Show()
             else
