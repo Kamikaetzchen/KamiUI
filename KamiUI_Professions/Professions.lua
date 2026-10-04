@@ -229,18 +229,21 @@ local function StyleRankBar(
 
     local rankText = bar.Rank and bar.Rank.Text
 
-    if bar.Rank and rankTextYOffset ~= 0 then
+    if bar.Rank then
         bar.Rank:ClearAllPoints()
-        bar.Rank:SetPoint(
-            "CENTER",
-            bar,
-            "CENTER",
-            0,
-            rankTextYOffset - 2
-        )
+        bar.Rank:SetPoint("CENTER", bar, "CENTER", 0, -2)
     end
 
     if rankText then
+        rankText:ClearAllPoints()
+        rankText:SetPoint(
+            "CENTER",
+            bar.Rank,
+            "CENTER",
+            0,
+            rankTextYOffset
+        )
+        rankText:SetHeight(rankFontSize + 2)
         StyleFont(rankText, rankFontSize, colors.text)
     end
 end
@@ -830,7 +833,18 @@ local function CreateProfessionBottomTabs(frame)
                 frame:RightTabSelected(source)
             end
 
-            if source.CastProfessionSpell then
+            local alreadySelected = Professions
+                and Professions.IsSelectedProfession
+                and Professions.IsSelectedProfession(source.skillLine)
+
+            if alreadySelected
+                and EventRegistry
+                and EventRegistry.TriggerEvent
+            then
+                EventRegistry:TriggerEvent(
+                    "Professions.ShowSelectedCraftingPage"
+                )
+            elseif source.CastProfessionSpell then
                 source:CastProfessionSpell()
             end
         end)
