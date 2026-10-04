@@ -195,6 +195,7 @@ local function CreatePopupButton(parent)
     button:SetHeight(defaults.popupRowHeight)
 
     Components:StyleButton(button, {
+        text = " ",
         backgroundColor = Palette.panel,
         backgroundAlpha = 0.55,
         textRole = "normal",
@@ -462,6 +463,8 @@ local function BuildViewPopup()
         y = y - 17
 
         for _, damageType in ipairs(group.types) do
+            local selectedType = damageType
+
             buttonIndex = buttonIndex + 1
             local button = viewPopup.buttons[buttonIndex]
 
@@ -475,15 +478,15 @@ local function BuildViewPopup()
             button:SetPoint("TOPRIGHT", viewPopup, "TOPRIGHT", -4, y)
             SetButtonText(
                 button,
-                TYPE_LABELS[damageType] or tostring(damageType)
+                TYPE_LABELS[selectedType] or tostring(selectedType)
             )
             SetPopupButtonState(
                 button,
-                state.damageType == damageType
+                state.damageType == selectedType
             )
 
             button:SetScript("OnClick", function()
-                state.damageType = damageType
+                state.damageType = selectedType
                 viewPopup:Hide()
                 QueueUpdate()
             end)
@@ -545,6 +548,7 @@ local function BuildSessionPopup()
     local y = -4
 
     for index, entry in ipairs(entries) do
+        local selectedEntry = entry
         local button = sessionPopup.buttons[index]
 
         if not button then
@@ -556,22 +560,22 @@ local function BuildSessionPopup()
         button:SetPoint("TOPLEFT", sessionPopup, "TOPLEFT", 4, y)
         button:SetPoint("TOPRIGHT", sessionPopup, "TOPRIGHT", -4, y)
 
-        SetButtonText(button, entry.text)
+        SetButtonText(button, selectedEntry.text)
 
         local active
-        if entry.sessionID then
-            active = state.sessionID == entry.sessionID
+        if selectedEntry.sessionID then
+            active = state.sessionID == selectedEntry.sessionID
         else
             active =
                 state.sessionID == nil
-                and state.sessionType == entry.sessionType
+                and state.sessionType == selectedEntry.sessionType
         end
 
         SetPopupButtonState(button, active)
 
         button:SetScript("OnClick", function()
-            state.sessionID = entry.sessionID
-            state.sessionType = entry.sessionType
+            state.sessionID = selectedEntry.sessionID
+            state.sessionType = selectedEntry.sessionType
                 or DamageMeterSessionType.Overall
             sessionPopup:Hide()
             QueueUpdate()
