@@ -71,6 +71,62 @@ local function TryReceiveDragOnMouseFocus()
     return false
 end
 
+local function IsPointInsideFrame(frame, cursorX, cursorY)
+    if not frame or not frame:IsShown() then
+        return false
+    end
+
+    local scale = frame:GetEffectiveScale()
+    local x = cursorX / scale
+    local y = cursorY / scale
+    local left, bottom, width, height = frame:GetRect()
+
+    return left
+        and bottom
+        and x >= left
+        and x <= left + width
+        and y >= bottom
+        and y <= bottom + height
+end
+
+local function TryDropOnSendMail(cursorX, cursorY)
+    if not ClickSendMailItemButton
+        or not SendMailFrame
+        or not SendMailFrame:IsShown()
+    then
+        return false
+    end
+
+    local attachments = SendMailFrame.SendMailAttachments
+
+    if attachments then
+        for index, button in ipairs(attachments) do
+            if IsPointInsideFrame(button, cursorX, cursorY) then
+                ClickSendMailItemButton(index)
+                return not CursorHasItem or not CursorHasItem()
+            end
+        end
+    else
+        local maxAttachments = ATTACHMENTS_MAX_SEND or 12
+
+        for index = 1, maxAttachments do
+            local button = _G["SendMailAttachment" .. index]
+
+            if IsPointInsideFrame(button, cursorX, cursorY) then
+                ClickSendMailItemButton(index)
+                return not CursorHasItem or not CursorHasItem()
+            end
+        end
+    end
+
+    if IsPointInsideFrame(_G.SendMailPackageButton, cursorX, cursorY) then
+        ClickSendMailItemButton()
+        return not CursorHasItem or not CursorHasItem()
+    end
+
+    return false
+end
+
 local function TryDropOnActionBar(cursorX, cursorY)
     if InCombatLockdown and InCombatLockdown() then
         return false
@@ -135,6 +191,10 @@ itemDragFrame:SetScript("OnUpdate", function(self)
     end
 
     local cursorX, cursorY = GetCursorPosition()
+
+    if TryDropOnSendMail(cursorX, cursorY) then
+        return
+    end
 
     if TryDropOnActionBar(cursorX, cursorY) then
         return
