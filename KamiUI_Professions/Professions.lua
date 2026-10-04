@@ -1481,48 +1481,13 @@ local function IsRecipeLearningItem(itemID)
 end
 
 local function GetRecipeItemInfo(itemID)
-    if not itemID then
+    if not itemID
+        or not IsRecipeLearningItem(itemID)
+    then
         return nil
     end
 
-    local recipeID
-    local professionInfo
-
-    if C_Item
-        and C_Item.GetItemSpell
-        and C_TradeSkillUI
-        and C_TradeSkillUI.GetProfessionInfoByRecipeID
-    then
-        local _, spellID = C_Item.GetItemSpell(itemID)
-
-        if spellID then
-            local ok, info = pcall(
-                C_TradeSkillUI.GetProfessionInfoByRecipeID,
-                spellID
-            )
-
-            if ok
-                and info
-                and info.professionID
-                and info.professionID ~= 0
-            then
-                recipeID = spellID
-                professionInfo = info
-            end
-        end
-    end
-
-    local recipeName = GetRecipeNameFromItem(itemID)
-
-    if not recipeID then
-        if not recipeName
-            or not IsRecipeLearningItem(itemID)
-        then
-            return nil
-        end
-    end
-
-    return recipeID, professionInfo, recipeName
+    return GetRecipeNameFromItem(itemID)
 end
 
 local function GetRecipeRequirementInfo(itemID)
@@ -1621,10 +1586,9 @@ function Module:AddRecipeCharacterTooltip(tooltip, tooltipData)
         end
     end
 
-    local recipeID, professionInfo, recipeName =
-        GetRecipeItemInfo(itemID)
+    local recipeName = GetRecipeItemInfo(itemID)
 
-    if not recipeID and not recipeName then
+    if not recipeName then
         return
     end
 
@@ -1643,12 +1607,7 @@ function Module:AddRecipeCharacterTooltip(tooltip, tooltipData)
         local character = entry.character
         local profession
 
-        if professionInfo then
-            profession =
-                FindCachedProfession(character, professionInfo)
-        end
-
-        if not profession and requirementText then
+        if requirementText then
             profession =
                 FindCachedProfessionByRequirement(
                     character,
@@ -1658,19 +1617,11 @@ function Module:AddRecipeCharacterTooltip(tooltip, tooltipData)
 
         if HasCompleteRecipeCache(profession) then
             local name = character.name or "Unknown"
-            local recipe
-
-            if recipeID and profession.recipes then
-                recipe = profession.recipes[recipeID]
-            end
-
-            if not recipe and recipeName then
-                recipe =
-                    FindCachedRecipeByName(
-                        profession,
-                        recipeName
-                    )
-            end
+            local recipe =
+                FindCachedRecipeByName(
+                    profession,
+                    recipeName
+                )
 
             if recipe then
                 known[#known + 1] = name
