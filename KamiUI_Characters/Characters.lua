@@ -3125,7 +3125,11 @@ local function StyleNativeHeader(
         )
     )
 
-    if refresh and not row.KamiHeaderClickHooked then
+    if refresh
+        and row.IsObjectType
+        and row:IsObjectType("Button")
+        and not row.KamiHeaderClickHooked
+    then
         row.KamiHeaderClickHooked = true
         row:HookScript("OnClick", function()
             C_Timer.After(0, refresh)
