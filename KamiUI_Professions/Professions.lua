@@ -1317,15 +1317,6 @@ function Module:Attach()
             end)
         end
 
-        local book = frame.BookPage
-
-        if book and book.Update then
-            hooksecurefunc(book, "Update", function()
-                C_Timer.After(0, function()
-                    StyleBookPage(frame)
-                end)
-            end)
-        end
     end
 
     ApplySavedPosition(frame)
