@@ -19,6 +19,9 @@ local CRAFTING_FILL_Y_OFFSET = 3
 local OVERVIEW_FILL_X_OFFSET = -2
 local OVERVIEW_FILL_Y_OFFSET = 3
 
+local RECIPE_CATEGORY_INSET = 2
+local RECIPE_ROW_INSET = 8
+
 local function EnsureDatabase()
     KamiUIDB = KamiUIDB or {}
     KamiUIDB.professions = KamiUIDB.professions or {}
@@ -146,6 +149,37 @@ local function StyleRankBar(
     end
 end
 
+local function StyleCategoryRankBar(bar)
+    if not bar then
+        return
+    end
+
+    if bar.SetStatusBarTexture then
+        bar:SetStatusBarTexture("Interface\\Buttons\\WHITE8X8")
+    end
+
+    if bar.SetStatusBarColor then
+        bar:SetStatusBarColor(0.24, 0.42, 0.72, 0.55)
+    end
+
+    Styles:HideRegion(bar.BorderLeft)
+    Styles:HideRegion(bar.BorderMid)
+    Styles:HideRegion(bar.BorderRight)
+
+    Styles:EnsureBackground(
+        bar,
+        "KamiCategoryRankBackground",
+        Palette.panelStrong,
+        "BACKGROUND",
+        -7
+    )
+    Styles:CreateBorder(bar, "KamiCategoryRankBorder")
+
+    if bar.Rank then
+        Styles:ApplyText(bar.Rank, 8, Palette.text)
+    end
+end
+
 local function StyleProfessionSpellButton(button)
     if not button then
         return
@@ -268,6 +302,10 @@ local function HideButtonTextures(button)
     }
 
     for _, texture in ipairs(textures) do
+        if texture and texture.SetColorTexture then
+            texture:SetColorTexture(0, 0, 0, 0)
+        end
+
         Styles:HideRegion(texture)
     end
 end
@@ -285,9 +323,25 @@ function Module:ApplyRecipeCategoryVisual(row)
     end
 
     background:ClearAllPoints()
-    background:SetPoint("TOPLEFT", row, "TOPLEFT", 6, 0)
-    background:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", -6, 0)
-    Styles:SetColor(background, { 1, 1, 1, 0.055 })
+    background:SetPoint(
+        "TOPLEFT",
+        row,
+        "TOPLEFT",
+        RECIPE_CATEGORY_INSET,
+        0
+    )
+    background:SetPoint(
+        "BOTTOMRIGHT",
+        row,
+        "BOTTOMRIGHT",
+        -RECIPE_CATEGORY_INSET,
+        0
+    )
+    Styles:SetColor(
+        background,
+        Palette.white,
+        Styles.State.sectionAlpha
+    )
 
     HideButtonTextures(row)
 
@@ -315,17 +369,21 @@ function Module:ApplyRecipeCategoryVisual(row)
         "TOPLEFT",
         row,
         "TOPLEFT",
-        6,
+        RECIPE_CATEGORY_INSET,
         0
     )
     row.KamiCategoryHighlight:SetPoint(
         "BOTTOMRIGHT",
         row,
         "BOTTOMRIGHT",
-        -6,
+        -RECIPE_CATEGORY_INSET,
         0
     )
-    Styles:SetColor(row.KamiCategoryHighlight, { 1, 1, 1, 0.04 })
+    Styles:SetColor(
+        row.KamiCategoryHighlight,
+        Palette.white,
+        Styles.State.hoverAlpha
+    )
 
     local text = GetHeaderText(row)
 
@@ -345,7 +403,7 @@ function Module:ApplyRecipeCategoryVisual(row)
     end
 
     if row.RankBar then
-        StyleRankBar(row.RankBar)
+        StyleCategoryRankBar(row.RankBar)
     end
 end
 
@@ -433,9 +491,24 @@ function Module:StyleRecipeRow(row, node)
 
     if not background then
         background = row:CreateTexture(nil, "BACKGROUND", nil, -6)
-        background:SetAllPoints()
         row.KamiDifficultyBackground = background
     end
+
+    background:ClearAllPoints()
+    background:SetPoint(
+        "TOPLEFT",
+        row,
+        "TOPLEFT",
+        RECIPE_ROW_INSET,
+        0
+    )
+    background:SetPoint(
+        "BOTTOMRIGHT",
+        row,
+        "BOTTOMRIGHT",
+        -RECIPE_ROW_INSET,
+        0
+    )
 
     Styles:SetColor(background, backgroundColor, backgroundAlpha)
 
@@ -471,14 +544,50 @@ function Module:StyleRecipeRow(row, node)
 
     if row.SelectedOverlay then
         row.SelectedOverlay:ClearAllPoints()
-        row.SelectedOverlay:SetAllPoints()
-        row.SelectedOverlay:SetColorTexture(1, 1, 1, 0.10)
+        row.SelectedOverlay:SetPoint(
+            "TOPLEFT",
+            row,
+            "TOPLEFT",
+            RECIPE_ROW_INSET,
+            0
+        )
+        row.SelectedOverlay:SetPoint(
+            "BOTTOMRIGHT",
+            row,
+            "BOTTOMRIGHT",
+            -RECIPE_ROW_INSET,
+            0
+        )
+        row.SelectedOverlay:SetColorTexture(
+            1,
+            1,
+            1,
+            Styles.State.selectedAlpha
+        )
     end
 
     if row.HighlightOverlay then
         row.HighlightOverlay:ClearAllPoints()
-        row.HighlightOverlay:SetAllPoints()
-        row.HighlightOverlay:SetColorTexture(1, 1, 1, 0.06)
+        row.HighlightOverlay:SetPoint(
+            "TOPLEFT",
+            row,
+            "TOPLEFT",
+            RECIPE_ROW_INSET,
+            0
+        )
+        row.HighlightOverlay:SetPoint(
+            "BOTTOMRIGHT",
+            row,
+            "BOTTOMRIGHT",
+            -RECIPE_ROW_INSET,
+            0
+        )
+        row.HighlightOverlay:SetColorTexture(
+            1,
+            1,
+            1,
+            Styles.State.hoverAlpha
+        )
     end
 end
 
