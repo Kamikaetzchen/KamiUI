@@ -2714,113 +2714,250 @@ end
 
 local nativeCharacterPages = {
     pvp = {
-        addons = { "Blizzard_PVPUI" },
-        subframes = { "PVPFrame", "HonorFrame" },
+        frameName = "PVPRankFrame",
+        title = "Player vs. Player",
     },
     currency = {
-        addons = { "Blizzard_TokenUI" },
-        subframes = { "TokenFrame", "CurrencyFrame" },
+        addon = "Blizzard_TokenUI",
+        frameName = "TokenFrame",
+        title = "Currency",
     },
     statistics = {
-        addons = { "Blizzard_AchievementUI" },
-        subframes = { "StatisticsFrame" },
+        addon = "Blizzard_Statistics",
+        frameName = "StatisticsFrame",
+        title = "Statistics",
     },
 }
 
-local function LoadNativePageAddons(config)
-    if not config or not config.addons then
+local function LoadNativePageAddon(config)
+    if not config or not config.addon or _G[config.frameName] then
         return
     end
 
-    for _, addonName in ipairs(config.addons) do
-        if C_AddOns and C_AddOns.LoadAddOn then
-            pcall(C_AddOns.LoadAddOn, addonName)
-        elseif LoadAddOn then
-            pcall(LoadAddOn, addonName)
+    if C_AddOns and C_AddOns.LoadAddOn then
+        pcall(C_AddOns.LoadAddOn, config.addon)
+    elseif LoadAddOn then
+        pcall(LoadAddOn, config.addon)
+    end
+end
+
+local function LayoutNativeCharacterPage(frame, page, nativeFrame)
+    local leftPane = frame.nativeLeftPane
+    local rightPane = frame.nativeRightPane
+
+    nativeFrame:ClearAllPoints()
+    nativeFrame:SetAllPoints(frame.nativePane)
+
+    if page == "pvp" then
+        if nativeFrame.SeasonTimerField then
+            nativeFrame.SeasonTimerField:ClearAllPoints()
+            nativeFrame.SeasonTimerField:SetPoint(
+                "TOPRIGHT",
+                leftPane,
+                "TOPRIGHT",
+                -8,
+                -8
+            )
+        end
+
+        if nativeFrame.MainInfoFrame then
+            nativeFrame.MainInfoFrame:ClearAllPoints()
+            nativeFrame.MainInfoFrame:SetPoint(
+                "TOPLEFT",
+                leftPane,
+                "TOPLEFT",
+                0,
+                -18
+            )
+            nativeFrame.MainInfoFrame:SetPoint(
+                "BOTTOMRIGHT",
+                leftPane,
+                "BOTTOMRIGHT",
+                0,
+                0
+            )
+        end
+
+        if nativeFrame.DetailFrame then
+            nativeFrame.DetailFrame:ClearAllPoints()
+            nativeFrame.DetailFrame:SetPoint(
+                "TOPLEFT",
+                rightPane,
+                "TOPLEFT",
+                7,
+                -8
+            )
+            nativeFrame.DetailFrame:SetPoint(
+                "BOTTOMRIGHT",
+                rightPane,
+                "BOTTOMRIGHT",
+                -7,
+                8
+            )
+        end
+    elseif page == "currency" then
+        if nativeFrame.ScrollBox then
+            nativeFrame.ScrollBox:ClearAllPoints()
+            nativeFrame.ScrollBox:SetPoint(
+                "TOPLEFT",
+                leftPane,
+                "TOPLEFT",
+                8,
+                -8
+            )
+            nativeFrame.ScrollBox:SetPoint(
+                "BOTTOMRIGHT",
+                leftPane,
+                "BOTTOMRIGHT",
+                -22,
+                8
+            )
+        end
+
+        if nativeFrame.ScrollBar and nativeFrame.ScrollBox then
+            nativeFrame.ScrollBar:ClearAllPoints()
+            nativeFrame.ScrollBar:SetPoint(
+                "TOPLEFT",
+                nativeFrame.ScrollBox,
+                "TOPRIGHT",
+                4,
+                -2
+            )
+            nativeFrame.ScrollBar:SetPoint(
+                "BOTTOMLEFT",
+                nativeFrame.ScrollBox,
+                "BOTTOMRIGHT",
+                4,
+                4
+            )
+        end
+
+        if nativeFrame.LoadingSpinner then
+            nativeFrame.LoadingSpinner:ClearAllPoints()
+            nativeFrame.LoadingSpinner:SetPoint("CENTER", leftPane)
+        end
+
+        if nativeFrame.DetailFrame then
+            nativeFrame.DetailFrame:ClearAllPoints()
+            nativeFrame.DetailFrame:SetPoint(
+                "TOPLEFT",
+                rightPane,
+                "TOPLEFT",
+                7,
+                -8
+            )
+            nativeFrame.DetailFrame:SetPoint(
+                "BOTTOMRIGHT",
+                rightPane,
+                "BOTTOMRIGHT",
+                -7,
+                8
+            )
+        end
+    elseif page == "statistics" then
+        if nativeFrame.ScrollBox then
+            nativeFrame.ScrollBox:ClearAllPoints()
+            nativeFrame.ScrollBox:SetPoint(
+                "TOPLEFT",
+                leftPane,
+                "TOPLEFT",
+                8,
+                -8
+            )
+            nativeFrame.ScrollBox:SetPoint(
+                "BOTTOMRIGHT",
+                leftPane,
+                "BOTTOMRIGHT",
+                -22,
+                8
+            )
+        end
+
+        if nativeFrame.ScrollBar and nativeFrame.ScrollBox then
+            nativeFrame.ScrollBar:ClearAllPoints()
+            nativeFrame.ScrollBar:SetPoint(
+                "TOPLEFT",
+                nativeFrame.ScrollBox,
+                "TOPRIGHT",
+                4,
+                -2
+            )
+            nativeFrame.ScrollBar:SetPoint(
+                "BOTTOMLEFT",
+                nativeFrame.ScrollBox,
+                "BOTTOMRIGHT",
+                4,
+                4
+            )
         end
     end
 end
 
-local function ShowNativeCharacterSubframe(config)
-    if not config
-        or not CharacterFrame
-        or not CharacterFrame_ShowSubFrame
-    then
-        return false
-    end
-
-    for _, frameName in ipairs(config.subframes or {}) do
-        if _G[frameName] then
-            if ShowUIPanel then
-                ShowUIPanel(CharacterFrame)
-            else
-                CharacterFrame:Show()
-            end
-
-            CharacterFrame_ShowSubFrame(frameName)
-            return true
-        end
-    end
-
-    return false
-end
-
-local function OpenNativeCharacterPage(page)
+local function EnsureNativeCharacterPage(frame, page)
     local config = nativeCharacterPages[page]
 
     if not config then
-        return
+        return nil
     end
 
-    LoadNativePageAddons(config)
+    LoadNativePageAddon(config)
 
-    if Module.frame then
-        Module.frame:Hide()
+    local nativeFrame = _G[config.frameName]
+
+    if not nativeFrame then
+        return nil
     end
 
-    if ShowNativeCharacterSubframe(config) then
-        return
+    if nativeFrame:GetParent() ~= frame.nativePane then
+        nativeFrame:SetParent(frame.nativePane)
+        nativeFrame:SetFrameStrata(frame:GetFrameStrata())
+        nativeFrame:SetFrameLevel(frame.nativePane:GetFrameLevel() + 1)
     end
 
-    if page == "pvp" and TogglePVPFrame then
-        TogglePVPFrame()
-        return
-    elseif page == "currency" and ToggleCharacter and _G.TokenFrame then
-        ToggleCharacter("TokenFrame")
-        return
-    elseif page == "statistics" then
-        if ToggleAchievementFrame then
-            ToggleAchievementFrame()
+    LayoutNativeCharacterPage(frame, page, nativeFrame)
+    frame.nativePages[page] = nativeFrame
 
-            if _G.AchievementFrameStats then
-                if _G.AchievementFrameAchievements then
-                    _G.AchievementFrameAchievements:Hide()
-                end
+    return nativeFrame
+end
 
-                _G.AchievementFrameStats:Show()
-            end
-
-            return
+local function HideNativeCharacterPages(frame, exceptPage)
+    for page, nativeFrame in pairs(frame.nativePages or {}) do
+        if page ~= exceptPage and nativeFrame then
+            nativeFrame:Hide()
         end
     end
-
-    if Module.frame then
-        Module.frame:Show()
-    end
-
-    UI:Print("Blizzard " .. page .. " page is unavailable")
 end
 
 SetOuterPage = function(frame, page)
     local _, _, isCurrent = Module:GetViewedCharacter()
+    local validPages = {
+        character = true,
+        reputation = true,
+        skills = true,
+        pvp = true,
+        currency = true,
+        statistics = true,
+    }
 
-    if not isCurrent then
-        page = "character"
-    elseif page ~= "reputation" and page ~= "skills" then
+    if not isCurrent or not validPages[page] then
         page = "character"
     end
 
+    local nativePage = nativeCharacterPages[page]
+    local nativeFrame
+
+    if nativePage then
+        nativeFrame = EnsureNativeCharacterPage(frame, page)
+
+        if not nativeFrame then
+            UI:Print("Blizzard " .. page .. " page is unavailable")
+            page = "character"
+            nativePage = nil
+        end
+    end
+
     frame.page = page
+    HideNativeCharacterPages(frame, nativePage and page or nil)
 
     if frame.characterPane then
         frame.characterPane:SetShown(page == "character")
@@ -2838,6 +2975,14 @@ SetOuterPage = function(frame, page)
         frame.skillsPane:SetShown(page == "skills")
     end
 
+    if frame.nativePane then
+        frame.nativePane:SetShown(nativePage ~= nil)
+    end
+
+    if nativeFrame then
+        nativeFrame:Show()
+    end
+
     if page == "character" then
         UpdatePlayerInfo(frame)
         frame.details:Show()
@@ -2850,13 +2995,19 @@ SetOuterPage = function(frame, page)
         frame.titleButton:Hide()
         frame.titleArrow:Hide()
         UpdateReputationPane(frame)
-    else
+    elseif page == "skills" then
         frame.name:SetText("Skills")
         frame.name:SetTextColor(0.88, 0.72, 0.16)
         frame.details:Hide()
         frame.titleButton:Hide()
         frame.titleArrow:Hide()
         UpdateSkillsPane(frame)
+    elseif nativePage then
+        frame.name:SetText(nativePage.title)
+        frame.name:SetTextColor(0.88, 0.72, 0.16)
+        frame.details:Hide()
+        frame.titleButton:Hide()
+        frame.titleArrow:Hide()
     end
 
     for _, tab in ipairs(frame.tabs or {}) do
@@ -3436,6 +3587,63 @@ local function CreateFrameUI()
     characterPane:SetWidth(CHARACTER_WIDTH - 1)
     frame.characterPane = characterPane
 
+    local nativePane = CreateFrame("Frame", nil, frame)
+    nativePane:SetPoint(
+        "TOPLEFT",
+        frame,
+        "TOPLEFT",
+        1,
+        -HEADER_HEIGHT
+    )
+    nativePane:SetPoint(
+        "BOTTOMRIGHT",
+        frame,
+        "BOTTOMRIGHT",
+        -1,
+        1
+    )
+    nativePane:SetFrameLevel(frame:GetFrameLevel() + 1)
+    nativePane:Hide()
+    frame.nativePane = nativePane
+    frame.nativePages = {}
+
+    local nativeRightWidth = 210
+
+    local nativeLeftPane = CreateFrame("Frame", nil, nativePane)
+    nativeLeftPane:SetPoint("TOPLEFT")
+    nativeLeftPane:SetPoint("BOTTOMLEFT")
+    nativeLeftPane:SetWidth(FRAME_WIDTH - nativeRightWidth - 2)
+    frame.nativeLeftPane = nativeLeftPane
+
+    local nativeRightPane = CreateFrame("Frame", nil, nativePane)
+    nativeRightPane:SetPoint(
+        "TOPLEFT",
+        nativeLeftPane,
+        "TOPRIGHT",
+        1,
+        0
+    )
+    nativeRightPane:SetPoint("BOTTOMRIGHT")
+    frame.nativeRightPane = nativeRightPane
+
+    local nativeDivider = nativePane:CreateTexture(nil, "OVERLAY")
+    nativeDivider:SetPoint(
+        "TOPLEFT",
+        nativeLeftPane,
+        "TOPRIGHT",
+        0,
+        0
+    )
+    nativeDivider:SetPoint(
+        "BOTTOMLEFT",
+        nativeLeftPane,
+        "BOTTOMRIGHT",
+        0,
+        0
+    )
+    nativeDivider:SetWidth(1)
+    nativeDivider:SetColorTexture(unpack(colors.border))
+
     local header = CreateFrame("Frame", nil, frame)
     header:SetPoint("TOPLEFT", frame, "TOPLEFT", 1, -1)
     header:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -1, -1)
@@ -3818,7 +4026,7 @@ local function CreateFrameUI()
         { label = "Character", page = "character", enabled = true },
         { label = "Reputation", page = "reputation", enabled = true },
         { label = "Skills", page = "skills", enabled = true },
-        { label = "PvP", page = "pvp", enabled = true, native = true },
+        { label = "PvP", page = "pvp", enabled = true },
         {
             label = "Currency",
             page = "currency",
@@ -3858,15 +4066,10 @@ local function CreateFrameUI()
 
         tab.page = definition.page
         tab.enabled = definition.enabled == true
-        tab.native = definition.native == true
 
         if definition.enabled then
             tab:SetScript("OnClick", function(self)
-                if self.native then
-                    OpenNativeCharacterPage(self.page)
-                else
-                    SetOuterPage(frame, self.page)
-                end
+                SetOuterPage(frame, self.page)
             end)
         else
             tab:SetAlpha(0.45)
