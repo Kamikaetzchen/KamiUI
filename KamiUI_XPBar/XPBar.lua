@@ -15,9 +15,6 @@ local defaults = {
     dividerColor = { 0, 0, 0, 0.9 },
 }
 
-local hookedNativeBars = setmetatable({}, { __mode = "k" })
-local managerHooksInstalled = false
-
 local function HideNativeDividers(container)
     local pool = container and container.HorizontalDividersPool
 
@@ -59,40 +56,22 @@ local function HideNativeXPBar()
                     bar:EnableMouse(false)
                 end
 
-                if not hookedNativeBars[bar] then
-                    hookedNativeBars[bar] = true
-
-                    bar:HookScript("OnShow", function(self)
-                        self:SetAlpha(0)
-
-                        if self.EnableMouse then
-                            self:EnableMouse(false)
-                        end
-                    end)
-                end
             end
         end
 
     end
 
-    if not managerHooksInstalled then
-        managerHooksInstalled = true
+end
 
-        if StatusTrackingBarManager.UpdateBarsShown then
-            hooksecurefunc(
-                StatusTrackingBarManager,
-                "UpdateBarsShown",
-                HideNativeXPBar
-            )
-        end
+local function ScheduleNativeXPBarHide()
+    HideNativeXPBar()
 
-        if StatusTrackingBarManager.UpdateBarVisuals then
-            hooksecurefunc(
-                StatusTrackingBarManager,
-                "UpdateBarVisuals",
-                HideNativeXPBar
-            )
-        end
+    if not C_Timer or not C_Timer.After then
+        return
+    end
+
+    for _, delay in ipairs({ 0, 0.25, 1.0 }) do
+        C_Timer.After(delay, HideNativeXPBar)
     end
 end
 
@@ -311,6 +290,7 @@ function Module:Initialize()
     UI:RegisterEvent("PLAYER_ENTERING_WORLD", function()
         C_Timer.After(0, function()
             Module:Refresh()
+            ScheduleNativeXPBarHide()
         end)
     end)
 
@@ -338,6 +318,7 @@ function Module:Initialize()
         if addonName == "Blizzard_StatusTrackingBar" then
             C_Timer.After(0, function()
                 Module:Refresh()
+                ScheduleNativeXPBarHide()
             end)
         end
     end)
