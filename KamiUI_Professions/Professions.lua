@@ -327,6 +327,21 @@ local function HideButtonTextures(button)
     Components:ClearButtonArt(button)
 end
 
+local function HideTextureByAtlas(frame, atlasName)
+    if not frame or not frame.GetRegions then
+        return
+    end
+
+    for _, region in ipairs({ frame:GetRegions() }) do
+        if region
+            and region.GetAtlas
+            and region:GetAtlas() == atlasName
+        then
+            HideNativeRegion(region)
+        end
+    end
+end
+
 function Module:ApplyRecipeCategoryVisual(row)
     if not row then
         return
@@ -640,10 +655,14 @@ local function StyleOutputButton(button)
         return
     end
 
+    Components:ClearButtonArt(button)
+
     for _, key in ipairs({
         "Background",
         "Border",
         "IconBorder",
+        "IconOverlay",
+        "IconOverlay2",
         "CountShadow",
         "SlotBackground",
     }) do
@@ -687,6 +706,24 @@ local function StyleOutputButton(button)
         -7
     )
     Styles:CreateBorder(button, "KamiOutputBorder")
+
+    if not button.KamiOutputHighlight then
+        local highlight = button:CreateTexture(nil, "HIGHLIGHT")
+        highlight:SetPoint("TOPLEFT", button, "TOPLEFT", 1, -1)
+        highlight:SetPoint(
+            "BOTTOMRIGHT",
+            button,
+            "BOTTOMRIGHT",
+            -1,
+            1
+        )
+        Styles:SetColor(
+            highlight,
+            Palette.white,
+            Styles.State.hoverAlpha
+        )
+        button.KamiOutputHighlight = highlight
+    end
 end
 
 local function StyleSchematicForm(form)
@@ -768,6 +805,11 @@ local function StyleCraftingPage(frame)
     if not page then
         return
     end
+
+    HideTextureByAtlas(
+        page,
+        "Profession-Background-Template2"
+    )
 
     StyleRecipeList(page.RecipeList)
     StyleSchematicForm(page.SchematicForm)
@@ -1115,6 +1157,37 @@ function Module:Attach()
         end
 
         self.recipeHooksInstalled = true
+    end
+
+    if not self.craftingPageHooksInstalled
+        and ProfessionsCraftingPageMixin
+    then
+        self.craftingPageHooksInstalled = true
+
+        for _, method in ipairs({
+            "Refresh",
+            "OnShow",
+            "ValidateControls",
+        }) do
+            if ProfessionsCraftingPageMixin[method] then
+                hooksecurefunc(
+                    ProfessionsCraftingPageMixin,
+                    method,
+                    function()
+                        C_Timer.After(0, function()
+                            local professionsFrame =
+                                _G.ProfessionsFrame
+
+                            if professionsFrame then
+                                StyleCraftingPage(
+                                    professionsFrame
+                                )
+                            end
+                        end)
+                    end
+                )
+            end
+        end
     end
 
     if not self.schematicHooksInstalled

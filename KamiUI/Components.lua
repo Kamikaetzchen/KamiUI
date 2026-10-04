@@ -395,6 +395,8 @@ function Components:StyleButton(button, options)
     button.KamiButtonOptions = options
 
     function button:RefreshKamiButtonStyle()
+        Components:ClearButtonArt(self)
+
         local config = self.KamiButtonOptions or {}
         local enabled = not self.IsEnabled or self:IsEnabled()
         local label = self.GetFontString
@@ -429,6 +431,18 @@ function Components:StyleButton(button, options)
         button:HookScript("OnDisable", function(self)
             self:RefreshKamiButtonStyle()
         end)
+
+        button:HookScript("OnShow", function(self)
+            self:RefreshKamiButtonStyle()
+        end)
+
+        button:HookScript("OnMouseDown", function(self)
+            self:RefreshKamiButtonStyle()
+        end)
+
+        button:HookScript("OnMouseUp", function(self)
+            self:RefreshKamiButtonStyle()
+        end)
     end
 
     button:RefreshKamiButtonStyle()
@@ -443,17 +457,21 @@ function Components:StyleInput(input, options)
 
     options = options or {}
 
-    for _, key in ipairs({
-        "Left",
-        "Middle",
-        "Right",
-        "FocusLeft",
-        "FocusMiddle",
-        "FocusMid",
-        "FocusRight",
-    }) do
-        NeutralizeTexture(input[key])
+    local function ClearNativeInputArt()
+        for _, key in ipairs({
+            "Left",
+            "Middle",
+            "Right",
+            "FocusLeft",
+            "FocusMiddle",
+            "FocusMid",
+            "FocusRight",
+        }) do
+            NeutralizeTexture(input[key])
+        end
     end
+
+    ClearNativeInputArt()
 
     Styles:EnsureBackground(
         input,
@@ -480,6 +498,22 @@ function Components:StyleInput(input, options)
             "muted",
             Palette.muted
         )
+    end
+
+    if not input.KamiInputStyleHooked then
+        input.KamiInputStyleHooked = true
+
+        for _, script in ipairs({
+            "OnShow",
+            "OnEnable",
+            "OnDisable",
+            "OnEditFocusGained",
+            "OnEditFocusLost",
+        }) do
+            input:HookScript(script, function()
+                ClearNativeInputArt()
+            end)
+        end
     end
 
     return input
