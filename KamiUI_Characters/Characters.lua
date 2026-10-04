@@ -4031,13 +4031,11 @@ local function CreateFrameUI()
             label = "Currency",
             page = "currency",
             enabled = true,
-            native = true,
         },
         {
             label = "Statistics",
             page = "statistics",
             enabled = true,
-            native = true,
         },
     }
 
