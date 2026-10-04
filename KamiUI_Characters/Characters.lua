@@ -1879,13 +1879,7 @@ local function CreateReputationPane(frame)
     scrollbar:SetWidth(6)
     scrollbar:SetMinMaxValues(0, 0)
     scrollbar:SetValueStep(20)
-    scrollbar:SetThumbTexture("Interface\\Buttons\\WHITE8X8")
-    local thumb = scrollbar:GetThumbTexture()
-
-    if thumb then
-        thumb:SetWidth(6)
-        thumb:SetColorTexture(0.45, 0.45, 0.48, 0.65)
-    end
+    local _, thumb = Components:StyleScrollBar(scrollbar)
 
     scrollbar:SetScript("OnValueChanged", function(_, value)
         list:SetVerticalScroll(value or 0)
@@ -2540,13 +2534,7 @@ local function CreateSkillsPane(frame)
     scrollbar:SetWidth(6)
     scrollbar:SetMinMaxValues(0, 0)
     scrollbar:SetValueStep(20)
-    scrollbar:SetThumbTexture("Interface\\Buttons\\WHITE8X8")
-    local thumb = scrollbar:GetThumbTexture()
-
-    if thumb then
-        thumb:SetWidth(6)
-        thumb:SetColorTexture(0.45, 0.45, 0.48, 0.65)
-    end
+    local _, thumb = Components:StyleScrollBar(scrollbar)
 
     scrollbar:SetScript("OnValueChanged", function(_, value)
         list:SetVerticalScroll(value or 0)
@@ -2884,6 +2872,12 @@ local function LayoutNativeCharacterPage(frame, page, nativeFrame)
                 4
             )
         end
+    end
+
+    if (page == "currency" or page == "statistics")
+        and nativeFrame.ScrollBar
+    then
+        Components:StyleScrollBar(nativeFrame.ScrollBar)
     end
 end
 
@@ -3382,17 +3376,7 @@ local function CreateSidebar(frame)
         statsScrollbar:SetObeyStepOnDrag(false)
     end
 
-    local scrollTrack = statsScrollbar:CreateTexture(nil, "BACKGROUND")
-    scrollTrack:SetAllPoints()
-    scrollTrack:SetColorTexture(1, 1, 1, 0.05)
-
-    statsScrollbar:SetThumbTexture("Interface\\Buttons\\WHITE8X8")
-    local scrollThumb = statsScrollbar:GetThumbTexture()
-
-    if scrollThumb then
-        scrollThumb:SetWidth(6)
-        scrollThumb:SetColorTexture(0.45, 0.45, 0.48, 0.65)
-    end
+    local _, scrollThumb = Components:StyleScrollBar(statsScrollbar)
 
     statsScrollbar:SetScript("OnValueChanged", function(_, value)
         statsPane:SetVerticalScroll(value or 0)
