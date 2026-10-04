@@ -1285,38 +1285,6 @@ function Module:Attach()
             end)
         end)
 
-        if frame.Refresh then
-            hooksecurefunc(frame, "Refresh", function()
-                C_Timer.After(0, function()
-                    Module:RefreshStyle()
-                end)
-            end)
-        end
-
-        if frame.RefreshRightTabs then
-            hooksecurefunc(frame, "RefreshRightTabs", function()
-                C_Timer.After(0, function()
-                    StyleRightTabs(frame)
-                end)
-            end)
-        end
-
-        if frame.RightTabSelected then
-            hooksecurefunc(frame, "RightTabSelected", function()
-                C_Timer.After(0, function()
-                    StyleRightTabs(frame)
-                end)
-            end)
-        end
-
-        if frame.SelectBookPage then
-            hooksecurefunc(frame, "SelectBookPage", function()
-                C_Timer.After(0, function()
-                    Module:RefreshStyle()
-                end)
-            end)
-        end
-
     end
 
     ApplySavedPosition(frame)
