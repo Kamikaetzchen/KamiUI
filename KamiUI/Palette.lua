@@ -36,6 +36,11 @@ Palette.gold = { 0.88, 0.72, 0.16, 1.00 }
 Palette.highlight = { 1.00, 0.82, 0.00, 1.00 }
 Palette.success = { 0.32, 0.86, 0.38, 1.00 }
 
+Palette.scrollbar = {
+    track = { 1.00, 1.00, 1.00, 0.05 },
+    thumb = { 0.45, 0.45, 0.48, 0.65 },
+}
+
 Palette.difficulty = {
     trivial = { 0.72, 0.72, 0.72, 1.00 },
     easy = { 0.20, 0.78, 0.24, 1.00 },
