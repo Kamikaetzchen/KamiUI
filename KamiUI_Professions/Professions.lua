@@ -1664,9 +1664,9 @@ function Module:AddRecipeCharacterTooltip(tooltip, tooltipData)
     if #canLearn > 0 then
         tooltip:AddLine(
             "Can learn: " .. JoinCharacterNames(canLearn),
-            0.35,
-            0.75,
             1.00,
+            0.82,
+            0.00,
             true
         )
     end
@@ -1675,8 +1675,8 @@ function Module:AddRecipeCharacterTooltip(tooltip, tooltipData)
         tooltip:AddLine(
             "Higher skill: " .. JoinCharacterNames(needsSkill),
             1.00,
-            0.75,
-            0.25,
+            0.20,
+            0.20,
             true
         )
     end
