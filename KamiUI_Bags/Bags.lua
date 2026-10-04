@@ -2012,32 +2012,6 @@ local function CreateFrameUI()
         GameTooltip:Hide()
     end)
 
-    frame:EnableKeyboard(true)
-
-    if frame.SetPropagateKeyboardInput then
-        frame:SetPropagateKeyboardInput(true)
-    end
-
-    frame:SetScript("OnKeyDown", function(self, key)
-        if key ~= "ESCAPE" then
-            if self.SetPropagateKeyboardInput then
-                self:SetPropagateKeyboardInput(true)
-            end
-
-            return
-        end
-
-        if self.SetPropagateKeyboardInput then
-            self:SetPropagateKeyboardInput(false)
-        end
-
-        if search:IsShown() then
-            CloseSearch(true)
-        else
-            Module:Hide()
-        end
-    end)
-
     ApplySavedPosition(frame)
 
     tinsert(UISpecialFrames, frame:GetName())
