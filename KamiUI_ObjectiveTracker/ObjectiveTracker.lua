@@ -8,9 +8,15 @@ Module.providers = {}
 Module.providerOrder = {}
 
 local PANEL_WIDTH = 300
+local COLLAPSED_WIDTH = 120
 local HEADER_HEIGHT = 24
 local CONTENT_PADDING = 6
 local SECTION_HEADER_HEIGHT = 20
+local SECTION_INDENT = 10
+local QUEST_INDENT = 14
+local QUEST_LEVEL_WIDTH = 34
+local QUEST_TITLE_GAP = 5
+local OBJECTIVE_INDENT = 52
 local QUEST_SPACING = 4
 local OBJECTIVE_SPACING = 1
 
@@ -182,14 +188,28 @@ local function CreateQuestRow(parent)
 
     local level = row:CreateFontString(nil, "OVERLAY")
     level:SetPoint("TOPLEFT", row, "TOPLEFT", 0, -1)
-    level:SetWidth(34)
+    level:SetWidth(QUEST_LEVEL_WIDTH)
     level:SetJustifyH("RIGHT")
     level:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
     row.level = level
 
     local title = row:CreateFontString(nil, "OVERLAY")
-    title:SetPoint("TOPLEFT", level, "TOPRIGHT", 5, 0)
-    title:SetWidth(PANEL_WIDTH - (CONTENT_PADDING * 2) - 41)
+    title:SetPoint(
+        "TOPLEFT",
+        level,
+        "TOPRIGHT",
+        QUEST_TITLE_GAP,
+        0
+    )
+    title:SetWidth(
+        PANEL_WIDTH
+            - SECTION_INDENT
+            - QUEST_INDENT
+            - QUEST_LEVEL_WIDTH
+            - QUEST_TITLE_GAP
+            - CONTENT_PADDING
+            - 4
+    )
     title:SetJustifyH("LEFT")
     title:SetJustifyV("TOP")
     title:SetWordWrap(true)
@@ -219,8 +239,15 @@ local function GetObjectiveFont(row, index)
     end
 
     text = row:CreateFontString(nil, "OVERLAY")
-    text:SetPoint("LEFT", row, "LEFT", 39, 0)
-    text:SetWidth(PANEL_WIDTH - (CONTENT_PADDING * 2) - 41)
+    text:SetPoint("LEFT", row, "LEFT", OBJECTIVE_INDENT, 0)
+    text:SetWidth(
+        PANEL_WIDTH
+            - SECTION_INDENT
+            - QUEST_INDENT
+            - OBJECTIVE_INDENT
+            - CONTENT_PADDING
+            - 4
+    )
     text:SetJustifyH("LEFT")
     text:SetJustifyV("TOP")
     text:SetWordWrap(true)
@@ -232,8 +259,20 @@ end
 
 local function UpdateQuestRow(row, item, y)
     row:ClearAllPoints()
-    row:SetPoint("TOPLEFT", row:GetParent(), "TOPLEFT", CONTENT_PADDING, -y)
-    row:SetWidth(PANEL_WIDTH - (CONTENT_PADDING * 2))
+    row:SetPoint(
+        "TOPLEFT",
+        row:GetParent(),
+        "TOPLEFT",
+        QUEST_INDENT,
+        -y
+    )
+    row:SetWidth(
+        PANEL_WIDTH
+            - SECTION_INDENT
+            - QUEST_INDENT
+            - CONTENT_PADDING
+            - 2
+    )
     row.questID = item.questID
 
     local level = tonumber(item.level) or 0
@@ -254,7 +293,7 @@ local function UpdateQuestRow(row, item, y)
             "TOPLEFT",
             row,
             "TOPLEFT",
-            39,
+            OBJECTIVE_INDENT,
             -(titleHeight + OBJECTIVE_SPACING)
         )
 
@@ -379,6 +418,7 @@ function Module:SetMinimized(minimized)
 
     self.frame.content:SetShown(not db.minimized)
     self.frame.toggle:SetText(db.minimized and "+" or "-")
+    self.frame:SetWidth(db.minimized and COLLAPSED_WIDTH or PANEL_WIDTH)
 
     if db.minimized then
         self.frame:SetHeight(HEADER_HEIGHT)
@@ -399,11 +439,13 @@ function Module:Refresh()
     end
 
     if EnsureDatabase().minimized then
+        frame:SetWidth(COLLAPSED_WIDTH)
         frame:SetHeight(HEADER_HEIGHT)
         frame.content:Hide()
         return
     end
 
+    frame:SetWidth(PANEL_WIDTH)
     frame.content:Show()
 
     local y = 0
@@ -423,8 +465,14 @@ function Module:Refresh()
             end
 
             section:ClearAllPoints()
-            section:SetPoint("TOPLEFT", frame.content, "TOPLEFT", 0, -y)
-            section:SetWidth(PANEL_WIDTH - 2)
+            section:SetPoint(
+                "TOPLEFT",
+                frame.content,
+                "TOPLEFT",
+                SECTION_INDENT,
+                -y
+            )
+            section:SetWidth(PANEL_WIDTH - SECTION_INDENT - 2)
             section.header.title:SetText(data.title or id)
             section:Show()
 
