@@ -11,7 +11,7 @@ local defaults = {
     leftWidth = 500,
     combatWidth = 450,
     height = 220,
-    tabHeight = 28,
+    tabHeight = 22,
     inputHeight = 24,
     fontSize = 14,
     padding = 4,
@@ -219,12 +219,22 @@ local function CreateDisplay(name, parent)
     frame:EnableMouseWheel(true)
 
     frame:SetScript("OnMouseWheel", function(self, delta)
-        if IsShiftKeyDown() and delta < 0 then
-            self:ScrollToBottom()
+        if IsShiftKeyDown() then
+            if delta > 0 then
+                self:ScrollToTop()
+            else
+                self:ScrollToBottom()
+            end
+
             return
         end
 
-        self:ScrollByAmount(delta * 3)
+        local offset = self:GetScrollOffset() or 0
+        local maximum = self:GetMaxScrollRange() or 0
+        local nextOffset = offset + delta * 3
+
+        nextOffset = math.max(0, math.min(maximum, nextOffset))
+        self:SetScrollOffset(nextOffset)
     end)
 
     frame:SetScript("OnHyperlinkClick", function(self, link, text, button)
@@ -296,39 +306,116 @@ local function EnsureDisplays()
     end
 end
 
+local function SetTabBackground(tab, r, g, b, a)
+    for _, texture in ipairs(tab.backgrounds or {}) do
+        texture:SetColorTexture(r, g, b, a)
+    end
+end
+
+local function CreateTabVisual(tab)
+    local chamfer = 4
+    local backgrounds = {}
+
+    local lower = tab:CreateTexture(nil, "BACKGROUND")
+    lower:SetPoint("BOTTOMLEFT", tab, "BOTTOMLEFT", 0, 0)
+    lower:SetPoint("BOTTOMRIGHT", tab, "BOTTOMRIGHT", 0, 0)
+    lower:SetPoint("TOP", tab, "TOP", 0, -chamfer)
+    backgrounds[#backgrounds + 1] = lower
+
+    for row = 0, chamfer - 1 do
+        local inset = chamfer - row
+        local strip = tab:CreateTexture(nil, "BACKGROUND")
+        strip:SetPoint("TOPLEFT", tab, "TOPLEFT", inset, -row)
+        strip:SetPoint("TOPRIGHT", tab, "TOPRIGHT", -inset, -row)
+        strip:SetHeight(1)
+        backgrounds[#backgrounds + 1] = strip
+    end
+
+    tab.backgrounds = backgrounds
+
+    local borders = {}
+
+    local top = tab:CreateTexture(nil, "OVERLAY")
+    top:SetPoint("TOPLEFT", tab, "TOPLEFT", chamfer, 0)
+    top:SetPoint("TOPRIGHT", tab, "TOPRIGHT", -chamfer, 0)
+    top:SetHeight(1)
+    top:SetColorTexture(unpack(defaults.border))
+    borders[1] = top
+
+    local bottom = tab:CreateTexture(nil, "OVERLAY")
+    bottom:SetPoint("BOTTOMLEFT")
+    bottom:SetPoint("BOTTOMRIGHT")
+    bottom:SetHeight(1)
+    bottom:SetColorTexture(unpack(defaults.border))
+    borders[2] = bottom
+
+    local left = tab:CreateTexture(nil, "OVERLAY")
+    left:SetPoint("TOPLEFT", tab, "TOPLEFT", 0, -chamfer)
+    left:SetPoint("BOTTOMLEFT")
+    left:SetWidth(1)
+    left:SetColorTexture(unpack(defaults.border))
+    borders[3] = left
+
+    local right = tab:CreateTexture(nil, "OVERLAY")
+    right:SetPoint("TOPRIGHT", tab, "TOPRIGHT", 0, -chamfer)
+    right:SetPoint("BOTTOMRIGHT")
+    right:SetWidth(1)
+    right:SetColorTexture(unpack(defaults.border))
+    borders[4] = right
+
+    for step = 1, chamfer do
+        local leftChamfer = tab:CreateTexture(nil, "OVERLAY")
+        leftChamfer:SetPoint(
+            "TOPLEFT",
+            tab,
+            "TOPLEFT",
+            step - 1,
+            -(chamfer - step)
+        )
+        leftChamfer:SetSize(1, 1)
+        leftChamfer:SetColorTexture(unpack(defaults.border))
+
+        local rightChamfer = tab:CreateTexture(nil, "OVERLAY")
+        rightChamfer:SetPoint(
+            "TOPRIGHT",
+            tab,
+            "TOPRIGHT",
+            -(step - 1),
+            -(chamfer - step)
+        )
+        rightChamfer:SetSize(1, 1)
+        rightChamfer:SetColorTexture(unpack(defaults.border))
+    end
+
+    tab.borders = borders
+
+    local highlight = tab:CreateTexture(nil, "HIGHLIGHT")
+    highlight:SetPoint("TOPLEFT", tab, "TOPLEFT", chamfer, -1)
+    highlight:SetPoint("BOTTOMRIGHT", tab, "BOTTOMRIGHT", -chamfer, 1)
+    highlight:SetColorTexture(1, 1, 1, 0.06)
+end
+
 local function CreateTab(index, config)
     local button = CreateFrame(
         "Button",
         "KamiUIChatTab" .. index,
-        Module.tabPanel,
-        "BackdropTemplate"
+        Module.tabPanel
     )
 
     button:SetFrameStrata("DIALOG")
     button:SetFrameLevel(Module.tabPanel:GetFrameLevel() + 1)
     button:SetSize(defaults.leftWidth / #leftTabs, defaults.tabHeight)
-    button:SetBackdrop({
-        bgFile = "Interface\\Buttons\\WHITE8X8",
-        edgeFile = "Interface\\Buttons\\WHITE8X8",
-        edgeSize = 1,
-    })
-    button:SetBackdropBorderColor(unpack(defaults.border))
+    button:SetNormalFontObject("GameFontNormalSmall")
+    button:SetHighlightFontObject("GameFontHighlightSmall")
+    button:SetText(config.label)
 
-    local text = button:CreateFontString(
-        nil,
-        "OVERLAY",
-        "GameFontNormal"
-    )
-    text:SetPoint("CENTER")
+    CreateTabVisual(button)
+    SetTabBackground(button, 0, 0, 0, 0.40)
 
-    local font, _, flags = GameFontNormal:GetFont()
-    if font then
-        text:SetFont(font, defaults.fontSize, flags)
+    if index > 1 and button.borders and button.borders[3] then
+        button.borders[3]:Hide()
     end
 
-    text:SetText(config.label)
-
-    button.text = text
     button.key = config.key
     button:SetScript("OnClick", function(self)
         Module:SelectTab(self.key)
@@ -373,13 +460,28 @@ end
 local function UpdateTabStyles()
     for _, config in ipairs(leftTabs) do
         local tab = Module.tabs[config.key]
+        local active = config.key == Module.selectedTab
 
-        if config.key == Module.selectedTab then
-            tab:SetBackdropColor(unpack(defaults.tabSelectedBackground))
-            tab.text:SetTextColor(1, 1, 1)
-        else
-            tab:SetBackdropColor(unpack(defaults.tabBackground))
-            tab.text:SetTextColor(0.72, 0.72, 0.72)
+        SetTabBackground(
+            tab,
+            active and 0.04 or 0.00,
+            active and 0.04 or 0.00,
+            active and 0.05 or 0.00,
+            active and 0.55 or 0.40
+        )
+
+        local text = tab:GetFontString()
+
+        if text then
+            if active then
+                text:SetTextColor(1.00, 0.82, 0.00)
+            else
+                text:SetTextColor(0.72, 0.72, 0.72)
+            end
+        end
+
+        if tab.borders and tab.borders[2] then
+            tab.borders[2]:SetShown(not active)
         end
     end
 end
