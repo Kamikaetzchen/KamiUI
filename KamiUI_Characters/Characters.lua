@@ -4273,10 +4273,12 @@ local function CreateFrameUI()
     LayoutOuterTabs(frame)
 
     frame:SetScript("OnShow", function()
+        PlaySound(SOUNDKIT.IG_CHARACTER_INFO_OPEN)
         Module:Refresh()
     end)
 
     frame:SetScript("OnHide", function()
+        PlaySound(SOUNDKIT.IG_CHARACTER_INFO_CLOSE)
         GameTooltip:Hide()
 
         if frame.titleMenu then
