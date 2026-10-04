@@ -67,15 +67,23 @@ local function CreateBorder(parent)
 end
 
 local function SavePosition(frame)
-    local point, _, relativePoint, x, y = frame:GetPoint(1)
+    local right = frame:GetRight()
+    local top = frame:GetTop()
+    local parentRight = UIParent:GetRight()
+    local parentTop = UIParent:GetTop()
 
-    if not point then
+    if not right or not top or not parentRight or not parentTop then
         return
     end
 
+    local x = right - parentRight
+    local y = top - parentTop
+
+    frame:ClearAllPoints()
+    frame:SetPoint("TOPRIGHT", UIParent, "TOPRIGHT", x, y)
+
     EnsureDatabase().position = {
-        point = point,
-        relativePoint = relativePoint,
+        anchor = "TOPRIGHT",
         x = x,
         y = y,
     }
@@ -86,7 +94,15 @@ local function ApplySavedPosition(frame)
 
     frame:ClearAllPoints()
 
-    if position then
+    if position and position.anchor == "TOPRIGHT" then
+        frame:SetPoint(
+            "TOPRIGHT",
+            UIParent,
+            "TOPRIGHT",
+            position.x or -40,
+            position.y or -160
+        )
+    elseif position then
         frame:SetPoint(
             position.point or "TOPRIGHT",
             UIParent,
@@ -94,6 +110,7 @@ local function ApplySavedPosition(frame)
             position.x or -40,
             position.y or -160
         )
+        Module.positionNeedsMigration = true
     else
         frame:SetPoint("TOPRIGHT", UIParent, "TOPRIGHT", -40, -160)
     end
@@ -577,6 +594,11 @@ function Module:Initialize()
     HideBlizzardTracker()
     self:SetMinimized(EnsureDatabase().minimized)
     self:Refresh()
+
+    if self.positionNeedsMigration then
+        self.positionNeedsMigration = nil
+        SavePosition(self.frame)
+    end
 
     for _, event in ipairs({
         "PLAYER_ENTERING_WORLD",
