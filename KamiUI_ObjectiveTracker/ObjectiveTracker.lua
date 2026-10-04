@@ -12,8 +12,9 @@ local COLLAPSED_WIDTH = 120
 local HEADER_HEIGHT = 24
 local CONTENT_PADDING = 6
 local SECTION_HEADER_HEIGHT = 20
-local SECTION_INDENT = 10
-local QUEST_INDENT = 14
+local HEADER_INDENT = 2
+local SECTION_INDENT = 4
+local QUEST_INDENT = 2
 local QUEST_LEVEL_WIDTH = 34
 local QUEST_TITLE_GAP = 5
 local OBJECTIVE_INDENT = 52
@@ -380,7 +381,7 @@ local function CreateSection(parent, id)
     background:SetColorTexture(unpack(colors.section))
 
     local toggle = header:CreateFontString(nil, "OVERLAY")
-    toggle:SetPoint("LEFT", header, "LEFT", 6, 0)
+    toggle:SetPoint("LEFT", header, "LEFT", 0, 0)
     toggle:SetWidth(10)
     toggle:SetJustifyH("CENTER")
     toggle:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
@@ -617,7 +618,7 @@ local function CreateFrameUI()
 
     local toggle = CreateFrame("Button", nil, header)
     toggle:SetSize(18, 18)
-    toggle:SetPoint("LEFT", header, "LEFT", 4, 0)
+    toggle:SetPoint("LEFT", header, "LEFT", HEADER_INDENT, 0)
     toggle:SetNormalFontObject("GameFontNormal")
     toggle:SetHighlightFontObject("GameFontHighlight")
     toggle:SetText("-")
