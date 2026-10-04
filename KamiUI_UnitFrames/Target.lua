@@ -294,7 +294,10 @@ local function OnTargetEvent(event, unit)
     if event == "PLAYER_TARGET_CHANGED" then
         UpdateAll()
     elseif unit == "target" then
-        if event == "UNIT_HEALTH" or event == "UNIT_MAXHEALTH" then
+        if event == "UNIT_HEALTH"
+            or event == "UNIT_MAXHEALTH"
+            or event == "UNIT_FACTION"
+        then
             UpdateHealth()
         elseif event == "UNIT_POWER_UPDATE"
             or event == "UNIT_POWER_FREQUENT"
@@ -328,6 +331,7 @@ end)
 UI:RegisterEvent("PLAYER_TARGET_CHANGED", OnTargetEvent)
 UI:RegisterEvent("UNIT_HEALTH", OnTargetEvent)
 UI:RegisterEvent("UNIT_MAXHEALTH", OnTargetEvent)
+UI:RegisterEvent("UNIT_FACTION", OnTargetEvent)
 UI:RegisterEvent("UNIT_POWER_UPDATE", OnTargetEvent)
 UI:RegisterEvent("UNIT_POWER_FREQUENT", OnTargetEvent)
 UI:RegisterEvent("UNIT_MAXPOWER", OnTargetEvent)

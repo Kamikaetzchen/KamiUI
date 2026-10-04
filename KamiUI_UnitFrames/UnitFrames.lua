@@ -29,6 +29,12 @@ function UF:CanAccessValue(value)
 end
 
 function UF:GetUnitColor(unit)
+    local tapDenied = UnitIsTapDenied and UnitIsTapDenied(unit)
+
+    if self:CanAccessValue(tapDenied) and tapDenied then
+        return 0.35, 0.35, 0.35
+    end
+
     if unit == "pet" and C_PetInfo and C_PetInfo.GetPetHappiness then
         local happiness = C_PetInfo.GetPetHappiness()
 
