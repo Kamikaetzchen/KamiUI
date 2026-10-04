@@ -5,11 +5,14 @@ local Module = UI:NewModule("Characters")
 Module.name = "KamiUI_Characters"
 Module.version = "0.2.0"
 
-local CHARACTER_WIDTH = 323
-local SIDEBAR_WIDTH = 165
-local SPLIT_WIDTH = CHARACTER_WIDTH - 2
+local LEFT_PANE_WIDTH = 360
+local RIGHT_PANE_WIDTH = 210
+local FRAME_WIDTH = LEFT_PANE_WIDTH + RIGHT_PANE_WIDTH
+
+local CHARACTER_WIDTH = LEFT_PANE_WIDTH
+local SIDEBAR_WIDTH = RIGHT_PANE_WIDTH
+local SPLIT_WIDTH = LEFT_PANE_WIDTH - 2
 local LIST_CONTENT_WIDTH = SPLIT_WIDTH - 14
-local FRAME_WIDTH = CHARACTER_WIDTH + SIDEBAR_WIDTH
 local FRAME_HEIGHT = 420
 local HEADER_HEIGHT = 40
 local SLOT_SIZE = 36
@@ -3607,12 +3610,10 @@ local function CreateFrameUI()
     frame.nativePane = nativePane
     frame.nativePages = {}
 
-    local nativeRightWidth = 210
-
     local nativeLeftPane = CreateFrame("Frame", nil, nativePane)
     nativeLeftPane:SetPoint("TOPLEFT")
     nativeLeftPane:SetPoint("BOTTOMLEFT")
-    nativeLeftPane:SetWidth(FRAME_WIDTH - nativeRightWidth - 2)
+    nativeLeftPane:SetWidth(LEFT_PANE_WIDTH - 2)
     frame.nativeLeftPane = nativeLeftPane
 
     local nativeRightPane = CreateFrame("Frame", nil, nativePane)
