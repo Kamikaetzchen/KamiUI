@@ -1633,12 +1633,7 @@ function Module:AddRecipeCharacterTooltip(tooltip, tooltipData)
                 known[#known + 1] = nameWithSkill
             else
                 if requiredSkill and skill < requiredSkill then
-                    needsSkill[#needsSkill + 1] = string.format(
-                        "%s (%d/%d)",
-                        name,
-                        skill,
-                        requiredSkill
-                    )
+                    needsSkill[#needsSkill + 1] = nameWithSkill
                 else
                     canLearn[#canLearn + 1] = nameWithSkill
                 end
