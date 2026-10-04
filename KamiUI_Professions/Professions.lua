@@ -91,7 +91,9 @@ function Module:SnapshotProfessionSkills()
 
     local professionIndexes = { GetProfessions() }
 
-    for _, professionIndex in ipairs(professionIndexes) do
+    for slot = 1, 5 do
+        local professionIndex = professionIndexes[slot]
+
         if professionIndex then
             local name,
                 icon,
