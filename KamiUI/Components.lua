@@ -245,6 +245,345 @@ function Components:SetTabState(tab, active, enabled)
     tab:SetAlpha(enabled and 1 or Styles.State.disabledAlpha)
 end
 
+local function NeutralizeTexture(texture)
+    if not texture then
+        return
+    end
+
+    if texture.SetColorTexture then
+        pcall(
+            texture.SetColorTexture,
+            texture,
+            0,
+            0,
+            0,
+            0
+        )
+    end
+
+    if texture.SetAlpha then
+        texture:SetAlpha(0)
+    end
+end
+
+function Components:ClearButtonArt(button)
+    if not button then
+        return
+    end
+
+    for _, key in ipairs({
+        "Left",
+        "Middle",
+        "Right",
+        "Top",
+        "Bottom",
+        "TopLeft",
+        "TopRight",
+        "BottomLeft",
+        "BottomRight",
+        "Background",
+        "Border",
+        "NormalTexture",
+        "PushedTexture",
+        "HighlightTexture",
+        "DisabledTexture",
+    }) do
+        NeutralizeTexture(button[key])
+    end
+
+    local textureMethods = {
+        { "SetNormalTexture", "GetNormalTexture" },
+        { "SetPushedTexture", "GetPushedTexture" },
+        { "SetHighlightTexture", "GetHighlightTexture" },
+        { "SetDisabledTexture", "GetDisabledTexture" },
+    }
+
+    for _, methods in ipairs(textureMethods) do
+        local setter = button[methods[1]]
+        local getter = button[methods[2]]
+
+        if setter then
+            pcall(
+                setter,
+                button,
+                "Interface\\Buttons\\WHITE8X8"
+            )
+        end
+
+        if getter then
+            local ok, texture = pcall(getter, button)
+
+            if ok then
+                NeutralizeTexture(texture)
+            end
+        end
+    end
+end
+
+function Components:StyleButton(button, options)
+    if not button then
+        return nil
+    end
+
+    options = options or {}
+    self:ClearButtonArt(button)
+
+    local background = button.KamiButtonBackground
+
+    if not background then
+        background = button:CreateTexture(
+            nil,
+            "BACKGROUND",
+            nil,
+            -7
+        )
+        background:SetAllPoints()
+        button.KamiButtonBackground = background
+    end
+
+    Styles:SetColor(
+        background,
+        options.backgroundColor or Palette.panelStrong,
+        options.backgroundAlpha
+    )
+
+    Styles:CreateBorder(button, {
+        key = "KamiButtonBorder",
+        color = options.borderColor or Palette.border,
+    })
+
+    local highlight = button.KamiButtonHighlight
+
+    if not highlight then
+        highlight = button:CreateTexture(nil, "HIGHLIGHT")
+        highlight:SetAllPoints()
+        button.KamiButtonHighlight = highlight
+    end
+
+    Styles:SetColor(
+        highlight,
+        Palette.white,
+        options.hoverAlpha or Styles.State.hoverAlpha
+    )
+
+    local text = button.GetFontString
+        and button:GetFontString()
+        or button.Text
+
+    if options.text then
+        if text and button.SetText then
+            button:SetText(options.text)
+        elseif not button.KamiButtonText then
+            local customText = button:CreateFontString(
+                nil,
+                "OVERLAY"
+            )
+            customText:SetPoint("CENTER")
+            customText:SetText(options.text)
+            button.KamiButtonText = customText
+        else
+            button.KamiButtonText:SetText(options.text)
+        end
+    end
+
+    button.KamiButtonOptions = options
+
+    function button:RefreshKamiButtonStyle()
+        local config = self.KamiButtonOptions or {}
+        local enabled = not self.IsEnabled or self:IsEnabled()
+        local label = self.GetFontString
+            and self:GetFontString()
+            or self.Text
+            or self.KamiButtonText
+
+        if label then
+            Styles:ApplyText(
+                label,
+                config.textRole or "normal",
+                enabled
+                    and (config.textColor or Palette.text)
+                    or (config.disabledTextColor or Palette.muted)
+            )
+        end
+
+        self:SetAlpha(
+            enabled
+                and 1
+                or Styles.State.disabledAlpha
+        )
+    end
+
+    if not button.KamiButtonStateHooked then
+        button.KamiButtonStateHooked = true
+
+        button:HookScript("OnEnable", function(self)
+            self:RefreshKamiButtonStyle()
+        end)
+
+        button:HookScript("OnDisable", function(self)
+            self:RefreshKamiButtonStyle()
+        end)
+    end
+
+    button:RefreshKamiButtonStyle()
+
+    return button
+end
+
+function Components:StyleInput(input, options)
+    if not input then
+        return nil
+    end
+
+    options = options or {}
+
+    for _, key in ipairs({
+        "Left",
+        "Middle",
+        "Right",
+        "FocusLeft",
+        "FocusMiddle",
+        "FocusMid",
+        "FocusRight",
+    }) do
+        NeutralizeTexture(input[key])
+    end
+
+    Styles:EnsureBackground(
+        input,
+        "KamiInputBackground",
+        options.backgroundColor or Palette.panelStrong,
+        "BACKGROUND",
+        -7
+    )
+
+    Styles:CreateBorder(input, {
+        key = "KamiInputBorder",
+        color = options.borderColor or Palette.border,
+    })
+
+    Styles:ApplyText(
+        input,
+        options.textRole or "normal",
+        options.textColor or Palette.text
+    )
+
+    if input.Instructions then
+        Styles:ApplyText(
+            input.Instructions,
+            "muted",
+            Palette.muted
+        )
+    end
+
+    return input
+end
+
+local function ConfigureCheckboxTexture(
+    texture,
+    button,
+    size,
+    color,
+    alpha
+)
+    if not texture then
+        return
+    end
+
+    texture:ClearAllPoints()
+    texture:SetPoint("CENTER", button, "CENTER", 0, 0)
+    texture:SetSize(size, size)
+    Styles:SetColor(texture, color, alpha)
+end
+
+function Components:StyleCheckbox(button, options)
+    if not button then
+        return nil
+    end
+
+    options = options or {}
+    local texturePath = "Interface\\Buttons\\WHITE8X8"
+
+    local function SetTexture(setterName, getterName, size, color, alpha)
+        local setter = button[setterName]
+        local getter = button[getterName]
+
+        if not setter or not getter then
+            return
+        end
+
+        pcall(setter, button, texturePath)
+
+        local ok, texture = pcall(getter, button)
+
+        if ok then
+            ConfigureCheckboxTexture(
+                texture,
+                button,
+                size,
+                color,
+                alpha
+            )
+        end
+    end
+
+    SetTexture(
+        "SetNormalTexture",
+        "GetNormalTexture",
+        14,
+        options.backgroundColor or Palette.panelStrong
+    )
+    SetTexture(
+        "SetPushedTexture",
+        "GetPushedTexture",
+        14,
+        Palette.white,
+        0.08
+    )
+    SetTexture(
+        "SetHighlightTexture",
+        "GetHighlightTexture",
+        14,
+        Palette.white,
+        options.hoverAlpha or Styles.State.hoverAlpha
+    )
+    SetTexture(
+        "SetDisabledTexture",
+        "GetDisabledTexture",
+        14,
+        Palette.panelStrong,
+        Styles.State.disabledAlpha
+    )
+    SetTexture(
+        "SetCheckedTexture",
+        "GetCheckedTexture",
+        8,
+        options.checkedColor or Palette.gold
+    )
+
+    if not button.KamiCheckboxBorder then
+        local border = CreateFrame("Frame", nil, button)
+        border:SetSize(14, 14)
+        border:SetPoint("CENTER")
+        border:SetFrameLevel(button:GetFrameLevel() + 1)
+        border:EnableMouse(false)
+        Styles:CreateBorder(border)
+        button.KamiCheckboxBorder = border
+    end
+
+    local label = button.text or button.Text
+
+    if label then
+        Styles:ApplyText(
+            label,
+            options.textRole or "normal",
+            options.textColor or Palette.muted
+        )
+    end
+
+    return button
+end
+
 function Components:CreateSection(parent, options)
     options = options or {}
 

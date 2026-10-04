@@ -289,25 +289,42 @@ local function GetHeaderText(row)
     return row.ButtonText or row.Text or row.Label
 end
 
-local function HideButtonTextures(button)
-    if not button then
+local function HideNativeRegion(region)
+    if not region then
         return
     end
 
-    local textures = {
-        button.GetNormalTexture and button:GetNormalTexture(),
-        button.GetPushedTexture and button:GetPushedTexture(),
-        button.GetHighlightTexture and button:GetHighlightTexture(),
-        button.GetDisabledTexture and button:GetDisabledTexture(),
-    }
-
-    for _, texture in ipairs(textures) do
-        if texture and texture.SetColorTexture then
-            texture:SetColorTexture(0, 0, 0, 0)
-        end
-
-        Styles:HideRegion(texture)
+    if region.SetColorTexture then
+        pcall(
+            region.SetColorTexture,
+            region,
+            0,
+            0,
+            0,
+            0
+        )
     end
+
+    if region.SetAlpha then
+        region:SetAlpha(0)
+    end
+
+    if region.Hide then
+        region:Hide()
+    end
+
+    if region.HookScript and not region.KamiProfessionsHideHooked then
+        region.KamiProfessionsHideHooked = true
+
+        region:HookScript("OnShow", function(self)
+            self:SetAlpha(0)
+            self:Hide()
+        end)
+    end
+end
+
+local function HideButtonTextures(button)
+    Components:ClearButtonArt(button)
 end
 
 function Module:ApplyRecipeCategoryVisual(row)
@@ -345,25 +362,33 @@ function Module:ApplyRecipeCategoryVisual(row)
 
     HideButtonTextures(row)
 
-    Styles:HideRegion(row.LeftPiece)
-    Styles:HideRegion(row.CenterPiece)
-    Styles:HideRegion(row.RightPiece)
-    Styles:HideRegion(row.CollapseIcon)
-    Styles:HideRegion(row.CollapseIconAlphaAdd)
+    HideNativeRegion(row.LeftPiece)
+    HideNativeRegion(row.CenterPiece)
+    HideNativeRegion(row.RightPiece)
+    HideNativeRegion(row.CollapseIcon)
+    HideNativeRegion(row.CollapseIconAlphaAdd)
 
     local collapse = row.GetCollapseButton
         and row:GetCollapseButton()
         or row.CollapseButton
 
-    if collapse then
-        collapse:Hide()
+    HideNativeRegion(collapse)
+
+    if row.SetHighlightTexture and row.GetHighlightTexture then
+        pcall(
+            row.SetHighlightTexture,
+            row,
+            "Interface\\Buttons\\WHITE8X8"
+        )
+        row.KamiCategoryHighlight = row:GetHighlightTexture()
     end
 
     if not row.KamiCategoryHighlight then
-        local highlight = row:CreateTexture(nil, "HIGHLIGHT")
-        row.KamiCategoryHighlight = highlight
+        row.KamiCategoryHighlight =
+            row:CreateTexture(nil, "HIGHLIGHT")
     end
 
+    row.KamiCategoryHighlight:SetAlpha(1)
     row.KamiCategoryHighlight:ClearAllPoints()
     row.KamiCategoryHighlight:SetPoint(
         "TOPLEFT",
@@ -421,23 +446,6 @@ function Module:StyleRecipeCategory(row, node)
 
     row.KamiCategoryName = categoryInfo.name or ""
     row.KamiCollapsed = node:IsCollapsed()
-
-    if not row.KamiOriginalUpdateCollapsedState then
-        row.KamiOriginalUpdateCollapsedState =
-            row.UpdateCollapsedState
-
-        row.UpdateCollapsedState = function(self, collapsed)
-            if self.KamiOriginalUpdateCollapsedState then
-                self.KamiOriginalUpdateCollapsedState(
-                    self,
-                    collapsed
-                )
-            end
-
-            self.KamiCollapsed = collapsed
-            Module:ApplyRecipeCategoryVisual(self)
-        end
-    end
 
     if not row.KamiHoverRestyleHooked then
         row.KamiHoverRestyleHooked = true
@@ -596,25 +604,89 @@ local function StyleRecipeList(recipeList)
         return
     end
 
-    if recipeList.Background then
-        Styles:SetColor(recipeList.Background, Palette.panel)
-    else
-        Styles:EnsureBackground(
-            recipeList,
-            "KamiBackground",
-            Palette.panel
-        )
-    end
+    HideNativeRegion(recipeList.Background)
+    HideNativeRegion(recipeList.BackgroundNineSlice)
 
-    if recipeList.BackgroundNineSlice then
-        recipeList.BackgroundNineSlice:Hide()
-    end
-
+    Styles:EnsureBackground(
+        recipeList,
+        "KamiRecipeListBackground",
+        Palette.panel
+    )
     Styles:CreateBorder(recipeList, "KamiRecipeListBorder")
 
     if recipeList.SearchBox then
-        Styles:ApplyText(recipeList.SearchBox.Instructions, 9, Palette.muted)
+        Components:StyleInput(recipeList.SearchBox, {
+            backgroundColor = Palette.panelStrong,
+        })
+
+        Styles:ApplyText(
+            recipeList.SearchBox.Instructions,
+            9,
+            Palette.muted
+        )
     end
+
+    if recipeList.FilterDropdown then
+        Components:StyleButton(recipeList.FilterDropdown, {
+            backgroundColor = Palette.panelStrong,
+        })
+    end
+
+    Styles:ApplyText(recipeList.NoResultsText, 9, Palette.muted)
+end
+
+local function StyleOutputButton(button)
+    if not button then
+        return
+    end
+
+    for _, key in ipairs({
+        "Background",
+        "Border",
+        "IconBorder",
+        "CountShadow",
+        "SlotBackground",
+    }) do
+        HideNativeRegion(button[key])
+    end
+
+    local icon = button.Icon
+        or button.icon
+        or button.IconTexture
+
+    if icon then
+        if icon.RemoveMaskTexture then
+            if button.IconMask then
+                pcall(
+                    icon.RemoveMaskTexture,
+                    icon,
+                    button.IconMask
+                )
+            end
+
+            if button.CircleMask then
+                pcall(
+                    icon.RemoveMaskTexture,
+                    icon,
+                    button.CircleMask
+                )
+            end
+        end
+
+        icon:ClearAllPoints()
+        icon:SetPoint("TOPLEFT", button, "TOPLEFT", 2, -2)
+        icon:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", -2, 2)
+        icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
+    end
+
+    Styles:EnsureBackground(
+        button,
+        "KamiOutputBackground",
+        Palette.panelStrong,
+        "BACKGROUND",
+        -7
+    )
+    Styles:CreateBorder(button, "KamiOutputBorder")
 end
 
 local function StyleSchematicForm(form)
@@ -622,22 +694,72 @@ local function StyleSchematicForm(form)
         return
     end
 
-    if form.NineSlice then
-        form.NineSlice:Hide()
-    end
+    HideNativeRegion(form.NineSlice)
+    HideNativeRegion(form.Background)
+    HideNativeRegion(form.MinimalBackground)
+    HideNativeRegion(form.Bg)
 
-    if form.Background then
-        Styles:SetColor(form.Background, Palette.panel)
-        form.Background:Show()
-    else
-        Styles:EnsureBackground(form, "KamiBackground", Palette.panel)
-    end
-
+    Styles:EnsureBackground(
+        form,
+        "KamiSchematicBackground",
+        Palette.panel
+    )
     Styles:CreateBorder(form, "KamiSchematicBorder")
 
+    Styles:ApplyText(form.OutputText, 13, Palette.text)
+    Styles:ApplyText(form.OutputSubText, 9, Palette.muted)
     Styles:ApplyText(form.Description, 9, Palette.text)
     Styles:ApplyText(form.RequiredTools, 8, Palette.muted)
     Styles:ApplyText(form.RecraftingRequiredTools, 8, Palette.muted)
+    Styles:ApplyText(form.Cooldown, 8)
+    Styles:ApplyText(form.MinimizedCooldown, 8)
+
+    for _, container in ipairs({
+        form.Reagents,
+        form.OptionalReagents,
+        form.FinishingReagents,
+    }) do
+        if container then
+            Styles:ApplyText(
+                container.Label,
+                "sectionTitle",
+                Palette.gold
+            )
+        end
+    end
+
+    StyleOutputButton(form.OutputIcon)
+
+    Components:StyleCheckbox(form.TrackRecipeCheckbox, {
+        textColor = Palette.muted,
+    })
+    Components:StyleCheckbox(form.AllocateBestQualityCheckbox, {
+        textColor = Palette.muted,
+    })
+end
+
+local function StyleQuantityInput(input)
+    if not input then
+        return
+    end
+
+    Components:StyleInput(input, {
+        backgroundColor = Palette.panelStrong,
+    })
+
+    if input.DecrementButton then
+        Components:StyleButton(input.DecrementButton, {
+            text = "-",
+            backgroundColor = Palette.panelStrong,
+        })
+    end
+
+    if input.IncrementButton then
+        Components:StyleButton(input.IncrementButton, {
+            text = "+",
+            backgroundColor = Palette.panelStrong,
+        })
+    end
 end
 
 local function StyleCraftingPage(frame)
@@ -649,6 +771,18 @@ local function StyleCraftingPage(frame)
 
     StyleRecipeList(page.RecipeList)
     StyleSchematicForm(page.SchematicForm)
+
+    Components:StyleButton(page.CreateButton, {
+        backgroundColor = Palette.panelStrong,
+    })
+    Components:StyleButton(page.CreateAllButton, {
+        backgroundColor = Palette.panelStrong,
+    })
+    Components:StyleButton(page.ViewGuildCraftersButton, {
+        backgroundColor = Palette.panelStrong,
+    })
+    StyleQuantityInput(page.CreateMultipleInputBox)
+
     StyleRankBar(
         page.RankBar,
         CRAFTING_FILL_X_OFFSET,
@@ -955,7 +1089,57 @@ function Module:Attach()
             )
         end
 
+        if ProfessionsRecipeListCategoryMixin then
+            for _, method in ipairs({
+                "OnEnter",
+                "OnLeave",
+                "SetCollapseState",
+                "UpdateCollapsedState",
+            }) do
+                if ProfessionsRecipeListCategoryMixin[method] then
+                    hooksecurefunc(
+                        ProfessionsRecipeListCategoryMixin,
+                        method,
+                        function(row, collapsed)
+                            if type(collapsed) == "boolean" then
+                                row.KamiCollapsed = collapsed
+                            end
+
+                            C_Timer.After(0, function()
+                                Module:ApplyRecipeCategoryVisual(row)
+                            end)
+                        end
+                    )
+                end
+            end
+        end
+
         self.recipeHooksInstalled = true
+    end
+
+    if not self.schematicHooksInstalled
+        and ProfessionsRecipeSchematicFormMixin
+    then
+        self.schematicHooksInstalled = true
+
+        for _, method in ipairs({
+            "Init",
+            "Refresh",
+            "Update",
+            "OnShow",
+        }) do
+            if ProfessionsRecipeSchematicFormMixin[method] then
+                hooksecurefunc(
+                    ProfessionsRecipeSchematicFormMixin,
+                    method,
+                    function(form)
+                        C_Timer.After(0, function()
+                            StyleSchematicForm(form)
+                        end)
+                    end
+                )
+            end
+        end
     end
 
     if not self.frameHooksInstalled then
