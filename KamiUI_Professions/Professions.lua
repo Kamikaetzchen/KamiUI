@@ -20,9 +20,12 @@ local CRAFTING_RANK_X = 110
 local CRAFTING_RANK_Y = -38
 local CRAFTING_LINK_GAP = 10
 
--- Tweak these if the colored fill itself needs nudging inside its bar.
-local RANK_FILL_X_OFFSET = -5
-local RANK_FILL_Y_OFFSET = 3
+-- The crafting bar and the overview bars use different Blizzard anchors,
+-- so keep their fill offsets separate.
+local CRAFTING_FILL_X_OFFSET = -5
+local CRAFTING_FILL_Y_OFFSET = 3
+local OVERVIEW_FILL_X_OFFSET = -2
+local OVERVIEW_FILL_Y_OFFSET = 3
 
 local function EnsureDatabase()
     KamiUIDB = KamiUIDB or {}
@@ -167,12 +170,17 @@ local function StyleFont(fontString, size, color)
     end
 end
 
-local function StyleRankBar(bar)
+local function StyleRankBar(bar, fillXOffset, fillYOffset)
     if not bar then
         return
     end
 
+    fillXOffset = fillXOffset or 0
+    fillYOffset = fillYOffset or 0
+
     if bar.Background then
+        bar.Background:ClearAllPoints()
+        bar.Background:SetAllPoints(bar)
         SetColor(bar.Background, { 0, 0, 0, 0.62 })
     end
 
@@ -200,8 +208,8 @@ local function StyleRankBar(bar)
                 anchor.point,
                 anchor.relativeTo,
                 anchor.relativePoint,
-                anchor.x + RANK_FILL_X_OFFSET,
-                anchor.y + RANK_FILL_Y_OFFSET
+                anchor.x + fillXOffset,
+                anchor.y + fillYOffset
             )
         end
     end
@@ -261,7 +269,11 @@ local function StyleProfessionCard(card)
     StyleFont(card.missingHeader, 10, colors.gold)
     StyleFont(card.missingText, 8, colors.muted)
 
-    StyleRankBar(card.StatusBar)
+    StyleRankBar(
+        card.StatusBar,
+        OVERVIEW_FILL_X_OFFSET,
+        OVERVIEW_FILL_Y_OFFSET
+    )
 
     if card.StatusBar then
         card.StatusBar:ClearAllPoints()
@@ -602,7 +614,11 @@ local function StyleCraftingPage(frame)
 
     StyleRecipeList(page.RecipeList)
     StyleSchematicForm(page.SchematicForm)
-    StyleRankBar(page.RankBar)
+    StyleRankBar(
+        page.RankBar,
+        CRAFTING_FILL_X_OFFSET,
+        CRAFTING_FILL_Y_OFFSET
+    )
 
     if page.RankBar then
         page.RankBar:ClearAllPoints()
