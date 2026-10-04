@@ -40,30 +40,37 @@ local CATEGORIES = {
         columns = {
             {
                 label = "Damage",
+                tooltip = DAMAGE_METER_TYPE_DAMAGE_DONE or "Damage Done",
                 width = 48,
                 kind = "total",
                 type = DamageMeterType.DamageDone,
             },
             {
                 label = "DPS",
+                tooltip = DAMAGE_METER_TYPE_DPS or "DPS",
                 width = 48,
                 kind = "rate",
                 type = DamageMeterType.DamageDone,
             },
             {
                 label = "Taken",
+                tooltip = DAMAGE_METER_TYPE_DAMAGE_TAKEN or "Damage Taken",
                 width = 48,
                 kind = "source",
                 type = DamageMeterType.DamageTaken,
             },
             {
                 label = "Avoid",
+                tooltip = DAMAGE_METER_TYPE_AVOIDABLE_DAMAGE_TAKEN
+                    or "Avoidable Damage Taken",
                 width = 48,
                 kind = "source",
                 type = DamageMeterType.AvoidableDamageTaken,
             },
             {
                 label = "Enemy",
+                tooltip = DAMAGE_METER_TYPE_ENEMY_DAMAGE_TAKEN
+                    or "Enemy Damage Taken",
                 width = 48,
                 kind = "source",
                 type = DamageMeterType.EnemyDamageTaken,
@@ -77,18 +84,21 @@ local CATEGORIES = {
         columns = {
             {
                 label = "Healing",
+                tooltip = DAMAGE_METER_TYPE_HEALING_DONE or "Healing Done",
                 width = 76,
                 kind = "total",
                 type = DamageMeterType.HealingDone,
             },
             {
                 label = "HPS",
+                tooltip = DAMAGE_METER_TYPE_HPS or "HPS",
                 width = 76,
                 kind = "rate",
                 type = DamageMeterType.HealingDone,
             },
             {
                 label = "Absorb",
+                tooltip = DAMAGE_METER_TYPE_ABSORBS or "Absorbs",
                 width = 76,
                 kind = "source",
                 type = DamageMeterType.Absorbs,
@@ -102,18 +112,21 @@ local CATEGORIES = {
         columns = {
             {
                 label = "Interrupt",
+                tooltip = DAMAGE_METER_TYPE_INTERRUPTS or "Interrupts",
                 width = 76,
                 kind = "source",
                 type = DamageMeterType.Interrupts,
             },
             {
                 label = "Dispel",
+                tooltip = DAMAGE_METER_TYPE_DISPELS or "Dispels",
                 width = 76,
                 kind = "source",
                 type = DamageMeterType.Dispels,
             },
             {
                 label = "Deaths",
+                tooltip = DAMAGE_METER_TYPE_DEATHS or "Deaths",
                 width = 76,
                 kind = "source",
                 type = DamageMeterType.Deaths,
@@ -149,13 +162,19 @@ local function CreateVerticalSeparator(parent)
     return separator
 end
 
-local function CreateFlatButton(parent, text, width)
+local function CreateFlatButton(parent, text, width, options)
     local button = CreateFrame("Button", nil, parent)
     button:SetSize(width, defaults.headerHeight - 2)
 
+    options = options or {}
+
     Components:StyleButton(button, {
         text = text,
-        backgroundColor = Palette.panelStrong,
+        backgroundColor =
+            options.backgroundColor or Palette.panelStrong,
+        backgroundAlpha = options.backgroundAlpha,
+        borderColor = options.borderColor,
+        textColor = options.textColor,
         textRole = "normal",
     })
 
@@ -433,6 +452,8 @@ local function LayoutColumns()
     for columnIndex = 1, 5 do
         local column = category.columns[columnIndex]
         local headerText = frame.columnHeader.values[columnIndex]
+        local headerHitbox =
+            frame.columnHeader.hitboxes[columnIndex]
         local headerSeparator =
             frame.columnHeader.separators[columnIndex]
 
@@ -473,10 +494,32 @@ local function LayoutColumns()
             headerText:SetText(column.label)
             headerText:Show()
 
+            headerHitbox:ClearAllPoints()
+            headerHitbox:SetPoint(
+                "TOPLEFT",
+                frame.columnHeader,
+                "TOPLEFT",
+                x,
+                0
+            )
+            headerHitbox:SetPoint(
+                "BOTTOMLEFT",
+                frame.columnHeader,
+                "BOTTOMLEFT",
+                x,
+                0
+            )
+            headerHitbox:SetWidth(column.width)
+            headerHitbox.tooltipText =
+                column.tooltip or column.label
+            headerHitbox:Show()
+
             x = x + column.width
         else
             headerSeparator:Hide()
             headerText:Hide()
+            headerHitbox.tooltipText = nil
+            headerHitbox:Hide()
         end
     end
 
@@ -883,6 +926,7 @@ local function CreateColumnHeader()
     header.name = name
     header.values = {}
     header.separators = {}
+    header.hitboxes = {}
 
     for columnIndex = 1, 5 do
         local text = header:CreateFontString(
@@ -893,7 +937,23 @@ local function CreateColumnHeader()
         text:SetJustifyH("RIGHT")
         Styles:ApplyText(text, defaults.fontSize, Palette.gold)
 
+        local hitbox = CreateFrame("Button", nil, header)
+        hitbox:SetFrameLevel(header:GetFrameLevel() + 5)
+        hitbox:SetScript("OnEnter", function(self)
+            if not self.tooltipText then
+                return
+            end
+
+            GameTooltip:SetOwner(self, "ANCHOR_TOP")
+            GameTooltip:SetText(self.tooltipText)
+            GameTooltip:Show()
+        end)
+        hitbox:SetScript("OnLeave", function()
+            GameTooltip:Hide()
+        end)
+
         header.values[columnIndex] = text
+        header.hitboxes[columnIndex] = hitbox
         header.separators[columnIndex] =
             CreateVerticalSeparator(header)
     end
@@ -939,7 +999,17 @@ local function CreateFrameUI()
     minimizeButton:SetPoint("RIGHT", header, "RIGHT", 0, 0)
     minimizeButton:SetScript("OnClick", ToggleMinimized)
 
-    local resetButton = CreateFlatButton(header, "Reset", 44)
+    local resetButton = CreateFlatButton(
+        header,
+        "Reset",
+        44,
+        {
+            backgroundColor = { 0.30, 0.035, 0.045, 1.00 },
+            backgroundAlpha = 0.90,
+            borderColor = { 0.52, 0.08, 0.10, 1.00 },
+            textColor = { 1.00, 0.74, 0.74, 1.00 },
+        }
+    )
     resetButton:SetPoint("RIGHT", minimizeButton, "LEFT", -2, 0)
     resetButton:SetScript("OnClick", ResetData)
 
