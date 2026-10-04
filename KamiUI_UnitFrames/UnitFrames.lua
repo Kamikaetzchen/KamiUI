@@ -203,9 +203,13 @@ function UF:SetUnitDisplayName(fontString, unit)
 
     local width = fontString:GetWidth()
 
-    if not width or width <= 0
-        or fontString:GetStringWidth() <= width
-    then
+    if not self:CanAccessValue(width) or not width or width <= 0 then
+        return
+    end
+
+    local stringWidth = fontString:GetStringWidth()
+
+    if not self:CanAccessValue(stringWidth) or stringWidth <= width then
         return
     end
 
@@ -224,7 +228,14 @@ function UF:SetUnitDisplayName(fontString, unit)
             prefix .. string.sub(name, 1, length) .. "..."
         )
 
-        if fontString:GetStringWidth() <= width then
+        stringWidth = fontString:GetStringWidth()
+
+        if not self:CanAccessValue(stringWidth) then
+            fontString:SetText(display)
+            return
+        end
+
+        if stringWidth <= width then
             return
         end
     end
