@@ -12,7 +12,6 @@ local defaults = {
 }
 
 local layoutQueued = false
-local damageMeterHooked = false
 
 local function ClearPoints(frame)
     if frame.ClearAllPointsBase then
@@ -70,33 +69,19 @@ local function QueueLayout()
     end)
 end
 
-local function HookDamageMeter()
-    if not DamageMeter or damageMeterHooked then
-        return
-    end
-
-    damageMeterHooked = true
-
-    -- Keep addon bookkeeping off Blizzard's frame object; writing custom state
-    -- onto it is unnecessary taint.
-    if DamageMeter.ApplySystemAnchor then
-        hooksecurefunc(DamageMeter, "ApplySystemAnchor", QueueLayout)
-    end
-end
-
 function Module:Initialize()
-    HookDamageMeter()
     self:Apply()
 
     UI:RegisterBottomInsetCallback(function()
-        Module:Apply()
+        QueueLayout()
     end)
 
     UI:RegisterEvent("PLAYER_ENTERING_WORLD", function()
-        C_Timer.After(0, function()
-            HookDamageMeter()
-            Module:Apply()
-        end)
+        QueueLayout()
+    end)
+
+    UI:RegisterEvent("PLAYER_LEVEL_CHANGED", function()
+        QueueLayout()
     end)
 
     UI:RegisterEvent("PLAYER_REGEN_ENABLED", function()
@@ -105,10 +90,7 @@ function Module:Initialize()
 
     UI:RegisterEvent("ADDON_LOADED", function(_, addonName)
         if addonName == "Blizzard_DamageMeter" then
-            C_Timer.After(0, function()
-                HookDamageMeter()
-                Module:Apply()
-            end)
+            QueueLayout()
         end
     end)
 end
