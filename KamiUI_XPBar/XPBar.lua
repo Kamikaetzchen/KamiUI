@@ -16,7 +16,6 @@ local defaults = {
 }
 
 local hookedNativeBars = setmetatable({}, { __mode = "k" })
-local hookedContainers = setmetatable({}, { __mode = "k" })
 local managerHooksInstalled = false
 
 local function HideNativeDividers(container)
@@ -74,37 +73,6 @@ local function HideNativeXPBar()
             end
         end
 
-        if not hookedContainers[container] then
-            hookedContainers[container] = true
-
-            if container.ApplyPendingBarToShow then
-                hooksecurefunc(
-                    container,
-                    "ApplyPendingBarToShow",
-                    HideNativeXPBar
-                )
-            end
-
-            if container.UpdateShownState then
-                hooksecurefunc(
-                    container,
-                    "UpdateShownState",
-                    HideNativeXPBar
-                )
-            end
-
-            if container.UpdateDividers then
-                hooksecurefunc(container, "UpdateDividers", function(self)
-                    local currentBar = self.GetShownBar
-                        and self:GetShownBar()
-                        or nil
-
-                    if currentBar and currentBar.isExpBar then
-                        HideNativeDividers(self)
-                    end
-                end)
-            end
-        end
     end
 
     if not managerHooksInstalled then
