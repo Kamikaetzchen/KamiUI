@@ -546,7 +546,7 @@ function Components:StyleScrollBar(scrollbar, options)
     local nativeThumb = nativeTrack and nativeTrack.Thumb
 
     if nativeTrack and nativeThumb then
-        for _, texture in ipairs({
+        for _, texture in pairs({
             nativeTrack.Begin,
             nativeTrack.Middle,
             nativeTrack.End,
