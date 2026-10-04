@@ -6,77 +6,118 @@ local Components = UI.Components
 local Module = UI:NewModule("DamageMeter")
 
 Module.name = "KamiUI_DamageMeter"
-Module.version = "0.2.0"
+Module.version = "0.3.0"
 
 local defaults = {
     width = 400,
     height = 240,
     headerHeight = 20,
-    rowHeight = 20,
+    columnHeaderHeight = 17,
+    rowHeight = 18,
     maxRows = 11,
-    fontSize = 10,
+    fontSize = 9,
     backgroundAlpha = 0.82,
     rowAlpha = 0.32,
     barAlpha = 0.55,
-    popupWidth = 230,
+    popupWidth = 150,
     popupRowHeight = 20,
 }
 
 local DamageMeterType = Enum.DamageMeterType
 local DamageMeterSessionType = Enum.DamageMeterSessionType
 
-local TYPE_LABELS = {
-    [DamageMeterType.DamageDone] =
-        DAMAGE_METER_TYPE_DAMAGE_DONE or "Damage Done",
-    [DamageMeterType.Dps] =
-        DAMAGE_METER_TYPE_DPS or "DPS",
-    [DamageMeterType.HealingDone] =
-        DAMAGE_METER_TYPE_HEALING_DONE or "Healing Done",
-    [DamageMeterType.Hps] =
-        DAMAGE_METER_TYPE_HPS or "HPS",
-    [DamageMeterType.Absorbs] =
-        DAMAGE_METER_TYPE_ABSORBS or "Absorbs",
-    [DamageMeterType.Interrupts] =
-        DAMAGE_METER_TYPE_INTERRUPTS or "Interrupts",
-    [DamageMeterType.Dispels] =
-        DAMAGE_METER_TYPE_DISPELS or "Dispels",
-    [DamageMeterType.DamageTaken] =
-        DAMAGE_METER_TYPE_DAMAGE_TAKEN or "Damage Taken",
-    [DamageMeterType.AvoidableDamageTaken] =
-        DAMAGE_METER_TYPE_AVOIDABLE_DAMAGE_TAKEN
-        or "Avoidable Damage Taken",
-    [DamageMeterType.Deaths] =
-        DAMAGE_METER_TYPE_DEATHS or "Deaths",
-    [DamageMeterType.EnemyDamageTaken] =
-        DAMAGE_METER_TYPE_ENEMY_DAMAGE_TAKEN
-        or "Enemy Damage Taken",
+local CATEGORY_ORDER = {
+    "damage",
+    "healing",
+    "actions",
 }
 
-local TYPE_GROUPS = {
-    {
-        name = DAMAGE_METER_CATEGORY_DAMAGE or "Damage",
-        types = {
-            DamageMeterType.DamageDone,
-            DamageMeterType.Dps,
-            DamageMeterType.DamageTaken,
-            DamageMeterType.AvoidableDamageTaken,
-            DamageMeterType.EnemyDamageTaken,
+local CATEGORIES = {
+    damage = {
+        label = DAMAGE_METER_CATEGORY_DAMAGE or "Damage",
+        primaryType = DamageMeterType.DamageDone,
+        nameWidth = 158,
+        columns = {
+            {
+                label = "Damage",
+                width = 48,
+                kind = "total",
+                type = DamageMeterType.DamageDone,
+            },
+            {
+                label = "DPS",
+                width = 48,
+                kind = "rate",
+                type = DamageMeterType.DamageDone,
+            },
+            {
+                label = "Taken",
+                width = 48,
+                kind = "source",
+                type = DamageMeterType.DamageTaken,
+            },
+            {
+                label = "Avoid",
+                width = 48,
+                kind = "source",
+                type = DamageMeterType.AvoidableDamageTaken,
+            },
+            {
+                label = "Enemy",
+                width = 48,
+                kind = "source",
+                type = DamageMeterType.EnemyDamageTaken,
+            },
         },
     },
-    {
-        name = DAMAGE_METER_CATEGORY_HEALING or "Healing",
-        types = {
-            DamageMeterType.HealingDone,
-            DamageMeterType.Hps,
-            DamageMeterType.Absorbs,
+    healing = {
+        label = DAMAGE_METER_CATEGORY_HEALING or "Healing",
+        primaryType = DamageMeterType.HealingDone,
+        nameWidth = 170,
+        columns = {
+            {
+                label = "Healing",
+                width = 76,
+                kind = "total",
+                type = DamageMeterType.HealingDone,
+            },
+            {
+                label = "HPS",
+                width = 76,
+                kind = "rate",
+                type = DamageMeterType.HealingDone,
+            },
+            {
+                label = "Absorb",
+                width = 76,
+                kind = "source",
+                type = DamageMeterType.Absorbs,
+            },
         },
     },
-    {
-        name = DAMAGE_METER_CATEGORY_ACTIONS or "Actions",
-        types = {
-            DamageMeterType.Interrupts,
-            DamageMeterType.Dispels,
-            DamageMeterType.Deaths,
+    actions = {
+        label = DAMAGE_METER_CATEGORY_ACTIONS or "Actions",
+        primaryType = DamageMeterType.Interrupts,
+        nameWidth = 170,
+        columns = {
+            {
+                label = "Interrupt",
+                width = 76,
+                kind = "source",
+                type = DamageMeterType.Interrupts,
+            },
+            {
+                label = "Dispel",
+                width = 76,
+                kind = "source",
+                type = DamageMeterType.Dispels,
+            },
+            {
+                label = "Deaths",
+                width = 76,
+                kind = "source",
+                type = DamageMeterType.Deaths,
+            },
         },
     },
 }
@@ -88,7 +129,7 @@ local sessionPopup
 local updateQueued = false
 
 local state = {
-    damageType = DamageMeterType.DamageDone,
+    category = "damage",
     sessionType = DamageMeterSessionType.Overall,
     sessionID = nil,
     minimized = false,
@@ -99,6 +140,13 @@ local function CreateBackground(parent, alpha)
     background:SetAllPoints()
     background:SetColorTexture(0.02, 0.02, 0.025, alpha)
     return background
+end
+
+local function CreateVerticalSeparator(parent)
+    local separator = parent:CreateTexture(nil, "OVERLAY")
+    separator:SetWidth(1)
+    separator:SetColorTexture(0.16, 0.16, 0.18, 0.85)
+    return separator
 end
 
 local function CreateFlatButton(parent, text, width)
@@ -178,16 +226,8 @@ local function CreatePopup(parent, width)
     Styles:CreateBorder(popup, Palette.border)
 
     popup.buttons = {}
-    popup.labels = {}
 
     return popup
-end
-
-local function CreatePopupLabel(parent)
-    local label = parent:CreateFontString(nil, "OVERLAY")
-    label:SetJustifyH("LEFT")
-    Styles:ApplyText(label, "sectionTitle")
-    return label
 end
 
 local function CreatePopupButton(parent)
@@ -212,10 +252,14 @@ local function CreatePopupButton(parent)
     return button
 end
 
+local function GetCategory()
+    return CATEGORIES[state.category] or CATEGORIES.damage
+end
+
 local function UpdateViewButton()
     SetButtonText(
         frame.viewButton,
-        (TYPE_LABELS[state.damageType] or "Damage") .. "  v"
+        GetCategory().label .. "  v"
     )
 end
 
@@ -243,18 +287,48 @@ local function UpdateSessionButton()
     SetButtonText(frame.sessionButton, GetSessionLabel() .. "  v")
 end
 
-local function GetCombatSession()
+local function GetCombatSession(damageType)
     if state.sessionID then
         return C_DamageMeter.GetCombatSessionFromID(
             state.sessionID,
-            state.damageType
+            damageType
         )
     end
 
     return C_DamageMeter.GetCombatSessionFromType(
         state.sessionType,
-        state.damageType
+        damageType
     )
+end
+
+local function GetCombatSessionSource(source, damageType)
+    if state.sessionID then
+        return C_DamageMeter.GetCombatSessionSourceFromID(
+            state.sessionID,
+            damageType,
+            source.sourceGUID,
+            source.sourceCreatureID
+        )
+    end
+
+    return C_DamageMeter.GetCombatSessionSourceFromType(
+        state.sessionType,
+        damageType,
+        source.sourceGUID,
+        source.sourceCreatureID
+    )
+end
+
+local function CreateColumnText(parent)
+    local text = parent:CreateFontString(
+        nil,
+        "OVERLAY",
+        "GameFontNormalSmall"
+    )
+    text:SetJustifyH("RIGHT")
+    text:SetWordWrap(false)
+    Styles:ApplyText(text, defaults.fontSize, Palette.text)
+    return text
 end
 
 local function CreateRow(index)
@@ -264,7 +338,13 @@ local function CreateRow(index)
     row:SetPoint("RIGHT", frame.body, "RIGHT", -1, 0)
 
     if index == 1 then
-        row:SetPoint("TOP", frame.body, "TOP", 0, -1)
+        row:SetPoint(
+            "TOP",
+            frame.columnHeader,
+            "BOTTOM",
+            0,
+            0
+        )
     else
         row:SetPoint("TOP", rows[index - 1], "BOTTOM", 0, 0)
     end
@@ -290,13 +370,14 @@ local function CreateRow(index)
         "OVERLAY",
         "GameFontNormalSmall"
     )
-    indexText:SetPoint("LEFT", row, "LEFT", 5, 0)
-    indexText:SetWidth(18)
+    indexText:SetPoint("LEFT", row, "LEFT", 4, 0)
+    indexText:SetWidth(17)
     indexText:SetJustifyH("RIGHT")
     indexText:SetText(index .. ".")
+    Styles:ApplyText(indexText, defaults.fontSize, Palette.muted)
 
     local icon = overlay:CreateTexture(nil, "ARTWORK")
-    icon:SetSize(16, 16)
+    icon:SetSize(14, 14)
     icon:SetPoint("LEFT", indexText, "RIGHT", 4, 0)
     icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
 
@@ -306,48 +387,155 @@ local function CreateRow(index)
         "GameFontNormalSmall"
     )
     name:SetPoint("LEFT", icon, "RIGHT", 4, 0)
-    name:SetPoint("RIGHT", row, "RIGHT", -142, 0)
     name:SetJustifyH("LEFT")
     name:SetWordWrap(false)
-
-    local rate = overlay:CreateFontString(
-        nil,
-        "OVERLAY",
-        "GameFontNormalSmall"
-    )
-    rate:SetPoint("RIGHT", row, "RIGHT", -6, 0)
-    rate:SetWidth(54)
-    rate:SetJustifyH("RIGHT")
-
-    local value = overlay:CreateFontString(
-        nil,
-        "OVERLAY",
-        "GameFontNormalSmall"
-    )
-    value:SetPoint("RIGHT", rate, "LEFT", -8, 0)
-    value:SetWidth(72)
-    value:SetJustifyH("RIGHT")
-
-    Styles:ApplyText(indexText, defaults.fontSize, Palette.muted)
     Styles:ApplyText(name, defaults.fontSize, Palette.text)
-    Styles:ApplyText(value, defaults.fontSize, Palette.text)
-    Styles:ApplyText(rate, defaults.fontSize, Palette.muted)
-
-    local separator = row:CreateTexture(nil, "OVERLAY")
-    separator:SetPoint("BOTTOMLEFT")
-    separator:SetPoint("BOTTOMRIGHT")
-    separator:SetHeight(1)
-    separator:SetColorTexture(0, 0, 0, 0.75)
 
     row.background = background
     row.bar = bar
     row.icon = icon
     row.name = name
-    row.value = value
-    row.rate = rate
-    row:Hide()
+    row.values = {}
+    row.separators = {}
 
+    for columnIndex = 1, 5 do
+        row.values[columnIndex] = CreateColumnText(overlay)
+        row.separators[columnIndex] = CreateVerticalSeparator(overlay)
+    end
+
+    local bottom = row:CreateTexture(nil, "OVERLAY")
+    bottom:SetPoint("BOTTOMLEFT")
+    bottom:SetPoint("BOTTOMRIGHT")
+    bottom:SetHeight(1)
+    bottom:SetColorTexture(0, 0, 0, 0.75)
+
+    row:Hide()
     rows[index] = row
+end
+
+local function LayoutColumns()
+    local category = GetCategory()
+    local nameWidth = category.nameWidth
+
+    frame.columnHeader.name:ClearAllPoints()
+    frame.columnHeader.name:SetPoint(
+        "LEFT",
+        frame.columnHeader,
+        "LEFT",
+        5,
+        0
+    )
+    frame.columnHeader.name:SetWidth(nameWidth - 5)
+    frame.columnHeader.name:SetJustifyH("LEFT")
+
+    local x = nameWidth
+
+    for columnIndex = 1, 5 do
+        local column = category.columns[columnIndex]
+        local headerText = frame.columnHeader.values[columnIndex]
+        local headerSeparator =
+            frame.columnHeader.separators[columnIndex]
+
+        if column then
+            headerSeparator:ClearAllPoints()
+            headerSeparator:SetPoint(
+                "TOPLEFT",
+                frame.columnHeader,
+                "TOPLEFT",
+                x,
+                0
+            )
+            headerSeparator:SetPoint(
+                "BOTTOMLEFT",
+                frame.columnHeader,
+                "BOTTOMLEFT",
+                x,
+                0
+            )
+            headerSeparator:Show()
+
+            headerText:ClearAllPoints()
+            headerText:SetPoint(
+                "TOPLEFT",
+                frame.columnHeader,
+                "TOPLEFT",
+                x + 3,
+                0
+            )
+            headerText:SetPoint(
+                "BOTTOMLEFT",
+                frame.columnHeader,
+                "BOTTOMLEFT",
+                x + 3,
+                0
+            )
+            headerText:SetWidth(column.width - 6)
+            headerText:SetText(column.label)
+            headerText:Show()
+
+            x = x + column.width
+        else
+            headerSeparator:Hide()
+            headerText:Hide()
+        end
+    end
+
+    for _, row in ipairs(rows) do
+        row.name:ClearAllPoints()
+        row.name:SetPoint("LEFT", row.icon, "RIGHT", 4, 0)
+        row.name:SetWidth(nameWidth - 45)
+
+        local rowX = nameWidth
+
+        for columnIndex = 1, 5 do
+            local column = category.columns[columnIndex]
+            local value = row.values[columnIndex]
+            local separator = row.separators[columnIndex]
+
+            if column then
+                separator:ClearAllPoints()
+                separator:SetPoint(
+                    "TOPLEFT",
+                    row,
+                    "TOPLEFT",
+                    rowX,
+                    0
+                )
+                separator:SetPoint(
+                    "BOTTOMLEFT",
+                    row,
+                    "BOTTOMLEFT",
+                    rowX,
+                    0
+                )
+                separator:Show()
+
+                value:ClearAllPoints()
+                value:SetPoint(
+                    "TOPLEFT",
+                    row,
+                    "TOPLEFT",
+                    rowX + 3,
+                    0
+                )
+                value:SetPoint(
+                    "BOTTOMLEFT",
+                    row,
+                    "BOTTOMLEFT",
+                    rowX + 3,
+                    0
+                )
+                value:SetWidth(column.width - 6)
+                value:Show()
+
+                rowX = rowX + column.width
+            else
+                separator:Hide()
+                value:SetText("")
+                value:Hide()
+            end
+        end
+    end
 end
 
 local function HideRows()
@@ -356,8 +544,30 @@ local function HideRows()
     end
 end
 
+local function SetSourceColumnValue(row, columnIndex, source, column)
+    local value = row.values[columnIndex]
+
+    if column.kind == "total" then
+        value:SetText(source.totalAmount)
+        return
+    end
+
+    if column.kind == "rate" then
+        value:SetText(source.amountPerSecond)
+        return
+    end
+
+    local sessionSource = GetCombatSessionSource(
+        source,
+        column.type
+    )
+
+    value:SetText(sessionSource.totalAmount)
+end
+
 local function UpdateRows()
-    local session = GetCombatSession()
+    local category = GetCategory()
+    local session = GetCombatSession(category.primaryType)
     local sources = session.combatSources
 
     for index = 1, defaults.maxRows do
@@ -366,37 +576,20 @@ local function UpdateRows()
 
         if source then
             local r, g, b = GetClassColor(source.classFilename)
-            local primaryValue
-            local secondaryValue
-
-            if state.damageType == DamageMeterType.Dps
-                or state.damageType == DamageMeterType.Hps
-            then
-                primaryValue = source.amountPerSecond
-                secondaryValue = source.totalAmount
-            else
-                primaryValue = source.totalAmount
-
-                if state.damageType == DamageMeterType.DamageDone
-                    or state.damageType == DamageMeterType.HealingDone
-                then
-                    secondaryValue = source.amountPerSecond
-                end
-            end
 
             row.bar:SetMinMaxValues(0, session.maxAmount)
-            row.bar:SetValue(primaryValue)
+            row.bar:SetValue(source.totalAmount)
             row.bar:SetStatusBarColor(r, g, b, 1)
 
             row.name:SetText(source.name)
-            row.value:SetText(primaryValue)
 
-            if secondaryValue ~= nil then
-                row.rate:SetText(secondaryValue)
-                row.rate:Show()
-            else
-                row.rate:SetText("")
-                row.rate:Hide()
+            for columnIndex, column in ipairs(category.columns) do
+                SetSourceColumnValue(
+                    row,
+                    columnIndex,
+                    source,
+                    column
+                )
             end
 
             local iconID = source.specIconID
@@ -429,6 +622,7 @@ local function Update()
 
     UpdateViewButton()
     UpdateSessionButton()
+    LayoutColumns()
 
     if not state.minimized then
         UpdateRows()
@@ -466,71 +660,46 @@ local function BuildViewPopup()
         button:Hide()
     end
 
-    for _, label in ipairs(viewPopup.labels) do
-        label:Hide()
-    end
+    local y = -4
 
-    local y = -5
-    local buttonIndex = 0
-    local labelIndex = 0
+    for index, categoryKey in ipairs(CATEGORY_ORDER) do
+        local selectedCategory = categoryKey
+        local button = viewPopup.buttons[index]
 
-    for _, group in ipairs(TYPE_GROUPS) do
-        labelIndex = labelIndex + 1
-        local label = viewPopup.labels[labelIndex]
-
-        if not label then
-            label = CreatePopupLabel(viewPopup)
-            viewPopup.labels[labelIndex] = label
+        if not button then
+            button = CreatePopupButton(viewPopup)
+            viewPopup.buttons[index] = button
         end
 
-        label:ClearAllPoints()
-        label:SetPoint("TOPLEFT", viewPopup, "TOPLEFT", 7, y)
-        label:SetText(group.name)
-        label:Show()
-        y = y - 17
+        button:ClearAllPoints()
+        button:SetPoint("TOPLEFT", viewPopup, "TOPLEFT", 4, y)
+        button:SetPoint("TOPRIGHT", viewPopup, "TOPRIGHT", -4, y)
 
-        for _, damageType in ipairs(group.types) do
-            local selectedType = damageType
+        SetButtonText(
+            button,
+            CATEGORIES[selectedCategory].label
+        )
+        SetPopupButtonState(
+            button,
+            state.category == selectedCategory
+        )
 
-            buttonIndex = buttonIndex + 1
-            local button = viewPopup.buttons[buttonIndex]
+        button:SetScript("OnClick", function()
+            state.category = selectedCategory
+            viewPopup:Hide()
+            QueueUpdate()
+        end)
 
-            if not button then
-                button = CreatePopupButton(viewPopup)
-                viewPopup.buttons[buttonIndex] = button
-            end
-
-            button:ClearAllPoints()
-            button:SetPoint("TOPLEFT", viewPopup, "TOPLEFT", 4, y)
-            button:SetPoint("TOPRIGHT", viewPopup, "TOPRIGHT", -4, y)
-            SetButtonText(
-                button,
-                TYPE_LABELS[selectedType] or tostring(selectedType)
-            )
-            SetPopupButtonState(
-                button,
-                state.damageType == selectedType
-            )
-
-            button:SetScript("OnClick", function()
-                state.damageType = selectedType
-                viewPopup:Hide()
-                QueueUpdate()
-            end)
-
-            button:Show()
-            y = y - defaults.popupRowHeight
-        end
-
-        y = y - 3
+        button:Show()
+        y = y - defaults.popupRowHeight
     end
 
-    viewPopup:SetHeight(-y + 3)
+    viewPopup:SetHeight(-y + 4)
 end
 
 local function BuildSessionPopup()
     if not sessionPopup then
-        sessionPopup = CreatePopup(frame, defaults.popupWidth)
+        sessionPopup = CreatePopup(frame, 230)
         sessionPopup:SetPoint(
             "BOTTOMRIGHT",
             frame.header,
@@ -542,10 +711,6 @@ local function BuildSessionPopup()
 
     for _, button in ipairs(sessionPopup.buttons) do
         button:Hide()
-    end
-
-    for _, label in ipairs(sessionPopup.labels) do
-        label:Hide()
     end
 
     local entries = {
@@ -659,9 +824,11 @@ local function ToggleMinimized()
 
     if state.minimized then
         frame.body:Hide()
+        frame.columnHeader:Hide()
         frame:SetHeight(defaults.headerHeight)
         SetButtonText(frame.minimizeButton, "+")
     else
+        frame.columnHeader:Show()
         frame.body:Show()
         frame:SetHeight(defaults.height)
         SetButtonText(frame.minimizeButton, "-")
@@ -682,6 +849,62 @@ local function ApplyPosition()
         0,
         UI:GetBottomInset()
     )
+end
+
+local function CreateColumnHeader()
+    local header = CreateFrame("Frame", nil, frame)
+    header:SetPoint(
+        "TOPLEFT",
+        frame.header,
+        "BOTTOMLEFT",
+        0,
+        0
+    )
+    header:SetPoint(
+        "TOPRIGHT",
+        frame.header,
+        "BOTTOMRIGHT",
+        0,
+        0
+    )
+    header:SetHeight(defaults.columnHeaderHeight)
+
+    local background = CreateBackground(header, 0.72)
+    Styles:SetColor(background, Palette.panelStrong, 0.72)
+
+    local name = header:CreateFontString(
+        nil,
+        "OVERLAY",
+        "GameFontNormalSmall"
+    )
+    name:SetText("Name")
+    Styles:ApplyText(name, defaults.fontSize, Palette.muted)
+
+    header.name = name
+    header.values = {}
+    header.separators = {}
+
+    for columnIndex = 1, 5 do
+        local text = header:CreateFontString(
+            nil,
+            "OVERLAY",
+            "GameFontNormalSmall"
+        )
+        text:SetJustifyH("RIGHT")
+        Styles:ApplyText(text, defaults.fontSize, Palette.gold)
+
+        header.values[columnIndex] = text
+        header.separators[columnIndex] =
+            CreateVerticalSeparator(header)
+    end
+
+    local bottom = header:CreateTexture(nil, "OVERLAY")
+    bottom:SetPoint("BOTTOMLEFT")
+    bottom:SetPoint("BOTTOMRIGHT")
+    bottom:SetHeight(1)
+    Styles:SetColor(bottom, Palette.border)
+
+    frame.columnHeader = header
 end
 
 local function CreateFrameUI()
@@ -724,26 +947,35 @@ local function CreateFrameUI()
     sessionButton:SetPoint("RIGHT", resetButton, "LEFT", -2, 0)
     sessionButton:SetScript("OnClick", ToggleSessionPopup)
 
-    local viewButton = CreateFlatButton(header, "Damage Done  v", 1)
+    local viewButton = CreateFlatButton(header, "Damage  v", 1)
     viewButton:SetPoint("LEFT", header, "LEFT", 0, 0)
     viewButton:SetPoint("RIGHT", sessionButton, "LEFT", -2, 0)
     viewButton:SetScript("OnClick", ToggleViewPopup)
 
-    local body = CreateFrame("Frame", nil, frame)
-    body:SetPoint("TOPLEFT", header, "BOTTOMLEFT", 0, 0)
-    body:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -1, 1)
-
     frame.header = header
-    frame.body = body
     frame.viewButton = viewButton
     frame.sessionButton = sessionButton
     frame.resetButton = resetButton
     frame.minimizeButton = minimizeButton
 
+    CreateColumnHeader()
+
+    local body = CreateFrame("Frame", nil, frame)
+    body:SetPoint(
+        "TOPLEFT",
+        frame.columnHeader,
+        "BOTTOMLEFT",
+        0,
+        0
+    )
+    body:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -1, 1)
+    frame.body = body
+
     for index = 1, defaults.maxRows do
         CreateRow(index)
     end
 
+    LayoutColumns()
     ApplyPosition()
 end
 
