@@ -376,9 +376,15 @@ function Components:StyleButton(button, options)
         elseif not button.KamiButtonText then
             local customText = button:CreateFontString(
                 nil,
-                "OVERLAY"
+                "OVERLAY",
+                "GameFontNormalSmall"
             )
             customText:SetPoint("CENTER")
+            Styles:ApplyText(
+                customText,
+                options.textRole or "normal",
+                options.textColor or Palette.text
+            )
             customText:SetText(options.text)
             button.KamiButtonText = customText
         else
