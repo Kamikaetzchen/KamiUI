@@ -264,6 +264,10 @@ local function NeutralizeTexture(texture)
     if texture.SetAlpha then
         texture:SetAlpha(0)
     end
+
+    if texture.Hide then
+        texture:Hide()
+    end
 end
 
 function Components:ClearButtonArt(button)

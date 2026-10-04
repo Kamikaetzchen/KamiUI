@@ -327,6 +327,56 @@ local function HideButtonTextures(button)
     Components:ClearButtonArt(button)
 end
 
+local function HideFrameArt(frame)
+    if not frame then
+        return
+    end
+
+    if frame.GetRegions then
+        for _, region in ipairs({ frame:GetRegions() }) do
+            HideNativeRegion(region)
+        end
+    end
+
+    if frame.GetChildren then
+        for _, child in ipairs({ frame:GetChildren() }) do
+            HideFrameArt(child)
+        end
+    end
+
+    HideNativeRegion(frame)
+end
+
+local function IsKamiInputTexture(input, region)
+    if region == input.KamiInputBackground then
+        return true
+    end
+
+    for _, edge in ipairs(input.KamiInputBorder or {}) do
+        if region == edge then
+            return true
+        end
+    end
+
+    return false
+end
+
+local function HideNativeInputTextures(input)
+    if not input or not input.GetRegions then
+        return
+    end
+
+    for _, region in ipairs({ input:GetRegions() }) do
+        if region
+            and region.IsObjectType
+            and region:IsObjectType("Texture")
+            and not IsKamiInputTexture(input, region)
+        then
+            HideNativeRegion(region)
+        end
+    end
+end
+
 local function HideTextureByAtlas(frame, atlasName)
     if not frame or not frame.GetRegions then
         return
@@ -731,7 +781,7 @@ local function StyleSchematicForm(form)
         return
     end
 
-    HideNativeRegion(form.NineSlice)
+    HideFrameArt(form.NineSlice)
     HideNativeRegion(form.Background)
     HideNativeRegion(form.MinimalBackground)
     HideNativeRegion(form.Bg)
@@ -780,9 +830,13 @@ local function StyleQuantityInput(input)
         return
     end
 
+    HideNativeInputTextures(input)
+
     Components:StyleInput(input, {
         backgroundColor = Palette.panelStrong,
     })
+
+    HideNativeInputTextures(input)
 
     if input.DecrementButton then
         Components:StyleButton(input.DecrementButton, {
