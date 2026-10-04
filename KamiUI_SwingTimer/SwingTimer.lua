@@ -196,60 +196,11 @@ local function QueueLayout()
     end)
 end
 
-local function HookFrame(frame)
-    if not frame or frame.KamiLayoutHooked then
-        return
-    end
-
-    frame.KamiLayoutHooked = true
-
-    frame:HookScript("OnShow", function(self)
-        -- Never call Blizzard's HasAppropriateWeapon()/ShouldBeShown() here:
-        -- weapon speeds are secret values in combat and doing so from addon
-        -- execution taints the comparison. Blizzard already decides whether
-        -- the timer should show; we only suppress ranged for non-hunters and
-        -- hide all timers outside combat.
-        if self == SwingTimerRangedFrame and not ShouldShowRangedTimer() then
-            self:Hide()
-            return
-        end
-
-        if not UnitAffectingCombat("player") then
-            self:Hide()
-            return
-        end
-
-        QueueLayout()
-    end)
-
-    for _, method in ipairs({
-        "ApplySystemAnchor",
-        "UpdateFramePositions",
-        "UpdateSystemSettingScale",
-        "UpdateSystemSettingWidth",
-        "UpdateSystemSettingHeight",
-    }) do
-        if frame[method] then
-            hooksecurefunc(frame, method, QueueLayout)
-        end
-    end
-end
-
-local function HookFrames()
-    HookFrame(SwingTimerMainHandFrame)
-    HookFrame(SwingTimerOffHandFrame)
-    HookFrame(SwingTimerRangedFrame)
-end
-
 function Module:Initialize()
-    HookFrames()
     self:Apply()
 
     UI:RegisterEvent("PLAYER_ENTERING_WORLD", function()
-        C_Timer.After(0, function()
-            HookFrames()
-            Module:Apply()
-        end)
+        QueueLayout()
     end)
 
     UI:RegisterEvent("WEAPON_SLOT_CHANGED", function()
@@ -262,16 +213,21 @@ function Module:Initialize()
         end
     end)
 
+    UI:RegisterEvent("PLAYER_REGEN_DISABLED", function()
+        QueueLayout()
+    end)
+
     UI:RegisterEvent("PLAYER_REGEN_ENABLED", function()
         HideOutOfCombatFrames()
     end)
 
+    UI:RegisterEvent("PLAYER_LEVEL_CHANGED", function()
+        QueueLayout()
+    end)
+
     UI:RegisterEvent("ADDON_LOADED", function(_, addonName)
         if addonName == "Blizzard_SwingTimer" then
-            C_Timer.After(0, function()
-                HookFrames()
-                Module:Apply()
-            end)
+            QueueLayout()
         end
     end)
 end
