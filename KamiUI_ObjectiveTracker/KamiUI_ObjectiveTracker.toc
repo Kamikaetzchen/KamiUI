@@ -1,0 +1,10 @@
+## Interface: 16001
+## Title: KamiUI - ObjectiveTracker
+## Notes: Compact objective tracker for KamiUI
+## Author: Kami Katze
+## Version: 0.1.0
+## RequiredDeps: KamiUI
+## OptionalDeps: Blizzard_ObjectiveTracker
+
+ObjectiveTracker.lua
+Quests.lua
