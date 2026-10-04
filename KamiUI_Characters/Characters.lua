@@ -490,6 +490,10 @@ local function CreateEquipmentSlot(parent, definition)
 
             self.KamiIgnoreForSave = not ignored
 
+            if frame.sidebar and frame.sidebar.equipmentPane then
+                frame.sidebar.equipmentPane.ignoreDirty = true
+            end
+
             if self.KamiIgnoreForSave then
                 if C_EquipmentSet.IgnoreSlotForSave then
                     SafeCall(
@@ -582,6 +586,7 @@ LoadEquipmentIgnoreState = function(frame, setID)
 
     if frame.sidebar and frame.sidebar.equipmentPane then
         frame.sidebar.equipmentPane.loadedIgnoreSetID = setID
+        frame.sidebar.equipmentPane.ignoreDirty = false
     end
 
     ApplyEquipmentIgnoreState(frame)
@@ -1668,8 +1673,31 @@ local function UpdateEquipmentPane(frame)
         selectedEquipped = isEquipped == true
     end
 
-    pane.equip:SetEnabled(hasSelection and not selectedEquipped)
-    pane.save:SetEnabled(hasSelection and not selectedEquipped)
+    local equipEnabled = hasSelection and not selectedEquipped
+    local saveEnabled = hasSelection
+        and (not selectedEquipped or pane.ignoreDirty == true)
+
+    pane.equip:SetEnabled(equipEnabled)
+    pane.save:SetEnabled(saveEnabled)
+
+    local equipText = pane.equip:GetFontString()
+    local saveText = pane.save:GetFontString()
+
+    if equipText then
+        if equipEnabled then
+            equipText:SetTextColor(1.00, 0.82, 0.00)
+        else
+            equipText:SetTextColor(0.45, 0.45, 0.48)
+        end
+    end
+
+    if saveText then
+        if saveEnabled then
+            saveText:SetTextColor(1.00, 0.82, 0.00)
+        else
+            saveText:SetTextColor(0.45, 0.45, 0.48)
+        end
+    end
 end
 
 SetSidebarMode = function(frame, mode)
@@ -3949,6 +3977,7 @@ local function CreateSidebar(frame)
             end
 
             SafeCall(C_EquipmentSet.SaveEquipmentSet, setID)
+            equipmentPane.ignoreDirty = false
 
             C_Timer.After(0, function()
                 if LoadEquipmentIgnoreState then
