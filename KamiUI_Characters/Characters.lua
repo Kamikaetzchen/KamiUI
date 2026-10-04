@@ -2712,6 +2712,105 @@ local function CreateOuterTabVisual(tab)
     tab.borders = borders
 end
 
+local nativeCharacterPages = {
+    pvp = {
+        addons = { "Blizzard_PVPUI" },
+        subframes = { "PVPFrame", "HonorFrame" },
+    },
+    currency = {
+        addons = { "Blizzard_TokenUI" },
+        subframes = { "TokenFrame", "CurrencyFrame" },
+    },
+    statistics = {
+        addons = { "Blizzard_AchievementUI" },
+        subframes = { "StatisticsFrame" },
+    },
+}
+
+local function LoadNativePageAddons(config)
+    if not config or not config.addons then
+        return
+    end
+
+    for _, addonName in ipairs(config.addons) do
+        if C_AddOns and C_AddOns.LoadAddOn then
+            pcall(C_AddOns.LoadAddOn, addonName)
+        elseif LoadAddOn then
+            pcall(LoadAddOn, addonName)
+        end
+    end
+end
+
+local function ShowNativeCharacterSubframe(config)
+    if not config
+        or not CharacterFrame
+        or not CharacterFrame_ShowSubFrame
+    then
+        return false
+    end
+
+    for _, frameName in ipairs(config.subframes or {}) do
+        if _G[frameName] then
+            if ShowUIPanel then
+                ShowUIPanel(CharacterFrame)
+            else
+                CharacterFrame:Show()
+            end
+
+            CharacterFrame_ShowSubFrame(frameName)
+            return true
+        end
+    end
+
+    return false
+end
+
+local function OpenNativeCharacterPage(page)
+    local config = nativeCharacterPages[page]
+
+    if not config then
+        return
+    end
+
+    LoadNativePageAddons(config)
+
+    if Module.frame then
+        Module.frame:Hide()
+    end
+
+    if ShowNativeCharacterSubframe(config) then
+        return
+    end
+
+    if page == "pvp" and TogglePVPFrame then
+        TogglePVPFrame()
+        return
+    elseif page == "currency" and ToggleCharacter and _G.TokenFrame then
+        ToggleCharacter("TokenFrame")
+        return
+    elseif page == "statistics" then
+        if ToggleAchievementFrame then
+            ToggleAchievementFrame()
+
+            if _G.AchievementFrameStats then
+                if _G.AchievementFrameAchievements then
+                    _G.AchievementFrameAchievements:Hide()
+                end
+
+                _G.AchievementFrameStats:Show()
+            end
+
+            return
+        end
+    end
+
+    if Module.frame then
+        Module.frame:Show()
+    end
+
+    UI:Print("Blizzard " .. page .. " page is unavailable")
+end
+
 SetOuterPage = function(frame, page)
     local _, _, isCurrent = Module:GetViewedCharacter()
 
@@ -2787,7 +2886,7 @@ SetOuterPage = function(frame, page)
 end
 
 local function LayoutOuterTabs(frame)
-    local tabWidth = 80
+    local tabWidth = 76
 
     for index, tab in ipairs(frame.tabs or {}) do
         tab:ClearAllPoints()
@@ -3719,13 +3818,26 @@ local function CreateFrameUI()
         { label = "Character", page = "character", enabled = true },
         { label = "Reputation", page = "reputation", enabled = true },
         { label = "Skills", page = "skills", enabled = true },
+        { label = "PvP", page = "pvp", enabled = true, native = true },
+        {
+            label = "Currency",
+            page = "currency",
+            enabled = true,
+            native = true,
+        },
+        {
+            label = "Statistics",
+            page = "statistics",
+            enabled = true,
+            native = true,
+        },
     }
 
     frame.tabs = {}
 
     for index, definition in ipairs(tabs) do
         local tab = CreateFrame("Button", nil, frame)
-        tab:SetSize(80, 22)
+        tab:SetSize(76, 22)
         tab:SetFrameLevel(frame:GetFrameLevel() + 2)
         tab:SetNormalFontObject("GameFontNormalSmall")
         tab:SetHighlightFontObject("GameFontHighlightSmall")
@@ -3746,10 +3858,15 @@ local function CreateFrameUI()
 
         tab.page = definition.page
         tab.enabled = definition.enabled == true
+        tab.native = definition.native == true
 
         if definition.enabled then
             tab:SetScript("OnClick", function(self)
-                SetOuterPage(frame, self.page)
+                if self.native then
+                    OpenNativeCharacterPage(self.page)
+                else
+                    SetOuterPage(frame, self.page)
+                end
             end)
         else
             tab:SetAlpha(0.45)
