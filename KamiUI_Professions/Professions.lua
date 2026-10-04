@@ -428,7 +428,7 @@ function Module:StyleRecipeRow(row, node)
         row.SkillUps:SetWidth(0)
     end
 
-    StyleFont(row.Label, 9, colors.text)
+    StyleFont(row.Label, 9)
     StyleFont(row.Count, 9, colors.muted)
 
     if row.SelectedOverlay then
