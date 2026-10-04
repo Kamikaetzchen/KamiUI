@@ -21,8 +21,8 @@ local CRAFTING_RANK_Y = -38
 local CRAFTING_LINK_GAP = 10
 
 -- Tweak these if the colored fill itself needs nudging inside its bar.
-local RANK_FILL_X_OFFSET = 0
-local RANK_FILL_Y_OFFSET = 0
+local RANK_FILL_X_OFFSET = -5
+local RANK_FILL_Y_OFFSET = 3
 
 local function EnsureDatabase()
     KamiUIDB = KamiUIDB or {}
