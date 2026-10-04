@@ -8,9 +8,9 @@ Module.version = "0.1.0"
 local defaults = {
     height = UI.defaults.layout.xpBarHeight,
     segments = 20,
-    background = { 0.005, 0.008, 0.015, 1 },
-    restedColor = { 0.025, 0.09, 0.24, 1 },
-    xpColor = { 0.075, 0.27, 0.72, 1 },
+    background = { 0.10, 0.10, 0.12, 0.50 },
+    restedColor = { 0.08, 0.32, 0.72, 1 },
+    xpColor = { 0.45, 0.16, 0.62, 1 },
     borderColor = { 0, 0, 0, 1 },
     dividerColor = { 0, 0, 0, 0.9 },
 }
