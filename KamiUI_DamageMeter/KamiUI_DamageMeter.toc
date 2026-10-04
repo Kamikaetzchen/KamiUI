@@ -1,8 +1,8 @@
 ## Interface: 16001
 ## Title: KamiUI - DamageMeter
-## Notes: Damage meter layout module for KamiUI
+## Notes: Custom damage meter powered by C_DamageMeter
 ## Author: Kami Katze
-## Version: 0.1.0
+## Version: 0.2.0
 ## RequiredDeps: KamiUI
 
 DamageMeter.lua
