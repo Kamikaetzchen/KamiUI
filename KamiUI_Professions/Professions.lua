@@ -1262,6 +1262,235 @@ local function StyleCloseButton(button)
 end
 
 
+
+local function FindCachedProfession(character, professionInfo)
+    if not character or not professionInfo then
+        return nil
+    end
+
+    local professions = character.professions or {}
+    local exact = professions[professionInfo.professionID]
+
+    if exact then
+        return exact
+    end
+
+    local parentProfessionID = professionInfo.parentProfessionID
+    if not parentProfessionID then
+        return nil
+    end
+
+    local parent = professions[parentProfessionID]
+    if parent then
+        return parent
+    end
+
+    local bestMatch
+
+    for _, profession in pairs(professions) do
+        if profession.parentProfessionID == parentProfessionID then
+            if not bestMatch
+                or (profession.skillLevel or 0)
+                    > (bestMatch.skillLevel or 0)
+            then
+                bestMatch = profession
+            end
+        end
+    end
+
+    return bestMatch
+end
+
+local function GetRecipeItemInfo(itemID)
+    if not itemID
+        or not C_Item
+        or not C_Item.GetItemSpell
+        or not C_TradeSkillUI
+        or not C_TradeSkillUI.GetProfessionInfoByRecipeID
+    then
+        return nil
+    end
+
+    local _, spellID = C_Item.GetItemSpell(itemID)
+
+    if not spellID then
+        return nil
+    end
+
+    local ok, professionInfo = pcall(
+        C_TradeSkillUI.GetProfessionInfoByRecipeID,
+        spellID
+    )
+
+    if not ok
+        or not professionInfo
+        or not professionInfo.professionID
+        or professionInfo.professionID == 0
+    then
+        return nil
+    end
+
+    return spellID, professionInfo
+end
+
+local function GetRecipeRequiredSkill(itemID)
+    if not TooltipUtil
+        or not TooltipUtil.FindLinesFromGetter
+        or not Enum.TooltipDataLineType
+        or not Enum.TooltipDataUsageRequirementType
+    then
+        return nil
+    end
+
+    local lines = TooltipUtil.FindLinesFromGetter(
+        { Enum.TooltipDataLineType.UsageRequirement },
+        "GetItemByID",
+        itemID
+    )
+
+    for _, line in ipairs(lines or {}) do
+        if line.requirementType
+                == Enum.TooltipDataUsageRequirementType.Skill
+            and line.leftText
+        then
+            local required = string.match(
+                line.leftText,
+                "(%d+)%D*$"
+            )
+
+            return required and tonumber(required) or nil
+        end
+    end
+end
+
+local function JoinCharacterNames(entries)
+    local names = {}
+
+    for _, entry in ipairs(entries) do
+        names[#names + 1] = entry
+    end
+
+    return table.concat(names, ", ")
+end
+
+function Module:AddRecipeCharacterTooltip(tooltip, tooltipData)
+    local itemID = tooltipData and tooltipData.id
+
+    if not itemID and tooltip and tooltip.GetItem then
+        local _, itemLink = tooltip:GetItem()
+
+        if itemLink then
+            itemID = C_Item.GetItemInfoInstant(itemLink)
+        end
+    end
+
+    local recipeID, professionInfo = GetRecipeItemInfo(itemID)
+
+    if not recipeID then
+        return
+    end
+
+    local characters = GetCharactersModule()
+    if not characters then
+        return
+    end
+
+    local requiredSkill = GetRecipeRequiredSkill(itemID)
+    local known = {}
+    local canLearn = {}
+    local needsSkill = {}
+
+    for _, entry in ipairs(characters:GetSortedCharacters()) do
+        local character = entry.character
+        local profession =
+            FindCachedProfession(character, professionInfo)
+
+        if profession then
+            local name = character.name or "Unknown"
+            local recipe = profession.recipes
+                and profession.recipes[recipeID]
+
+            if recipe then
+                known[#known + 1] = name
+            else
+                local skill = profession.skillLevel or 0
+
+                if requiredSkill and skill < requiredSkill then
+                    needsSkill[#needsSkill + 1] = string.format(
+                        "%s (%d/%d)",
+                        name,
+                        skill,
+                        requiredSkill
+                    )
+                else
+                    canLearn[#canLearn + 1] = name
+                end
+            end
+        end
+    end
+
+    if #known == 0
+        and #canLearn == 0
+        and #needsSkill == 0
+    then
+        return
+    end
+
+    tooltip:AddLine(" ")
+
+    if #known > 0 then
+        tooltip:AddLine(
+            "Known: " .. JoinCharacterNames(known),
+            0.35,
+            0.90,
+            0.45,
+            true
+        )
+    end
+
+    if #canLearn > 0 then
+        tooltip:AddLine(
+            "Can learn: " .. JoinCharacterNames(canLearn),
+            0.35,
+            0.75,
+            1.00,
+            true
+        )
+    end
+
+    if #needsSkill > 0 then
+        tooltip:AddLine(
+            "Higher skill: " .. JoinCharacterNames(needsSkill),
+            1.00,
+            0.75,
+            0.25,
+            true
+        )
+    end
+end
+
+function Module:InstallRecipeTooltipHook()
+    if self.recipeTooltipHookInstalled
+        or not TooltipDataProcessor
+        or not TooltipDataProcessor.AddTooltipPostCall
+        or not Enum.TooltipDataType
+    then
+        return
+    end
+
+    self.recipeTooltipHookInstalled = true
+
+    TooltipDataProcessor.AddTooltipPostCall(
+        Enum.TooltipDataType.Item,
+        function(tooltip, tooltipData)
+            Module:AddRecipeCharacterTooltip(
+                tooltip,
+                tooltipData
+            )
+        end
+    )
+end
+
 local function CreateCachedProfessionRow(parent)
     local row = CreateFrame("Frame", nil, parent)
     row:SetHeight(20)
@@ -1953,6 +2182,8 @@ function Module:Attach()
 end
 
 function Module:Initialize()
+    self:InstallRecipeTooltipHook()
+
     if _G.ProfessionsFrame then
         self:Attach()
     end
@@ -1966,6 +2197,7 @@ function Module:Initialize()
     end)
 
     UI:RegisterEvent("PLAYER_ENTERING_WORLD", function()
+        Module:InstallRecipeTooltipHook()
         Module:SnapshotProfessionSkills()
     end)
 
