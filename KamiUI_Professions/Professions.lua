@@ -170,13 +170,21 @@ local function StyleFont(fontString, size, color)
     end
 end
 
-local function StyleRankBar(bar, fillXOffset, fillYOffset)
+local function StyleRankBar(
+    bar,
+    fillXOffset,
+    fillYOffset,
+    rankTextYOffset,
+    rankFontSize
+)
     if not bar then
         return
     end
 
     fillXOffset = fillXOffset or 0
     fillYOffset = fillYOffset or 0
+    rankTextYOffset = rankTextYOffset or 0
+    rankFontSize = rankFontSize or 9
 
     if bar.Background then
         bar.Background:ClearAllPoints()
@@ -221,8 +229,19 @@ local function StyleRankBar(bar, fillXOffset, fillYOffset)
 
     local rankText = bar.Rank and bar.Rank.Text
 
+    if bar.Rank and rankTextYOffset ~= 0 then
+        bar.Rank:ClearAllPoints()
+        bar.Rank:SetPoint(
+            "CENTER",
+            bar,
+            "CENTER",
+            0,
+            rankTextYOffset - 2
+        )
+    end
+
     if rankText then
-        StyleFont(rankText, 9, colors.text)
+        StyleFont(rankText, rankFontSize, colors.text)
     end
 end
 
@@ -272,7 +291,9 @@ local function StyleProfessionCard(card)
     StyleRankBar(
         card.StatusBar,
         OVERVIEW_FILL_X_OFFSET,
-        OVERVIEW_FILL_Y_OFFSET
+        OVERVIEW_FILL_Y_OFFSET,
+        2,
+        10
     )
 
     if card.StatusBar then
@@ -617,7 +638,9 @@ local function StyleCraftingPage(frame)
     StyleRankBar(
         page.RankBar,
         CRAFTING_FILL_X_OFFSET,
-        CRAFTING_FILL_Y_OFFSET
+        CRAFTING_FILL_Y_OFFSET,
+        2,
+        10
     )
 
     if page.RankBar then
@@ -789,11 +812,6 @@ local function CreateProfessionBottomTabs(frame)
             tab.borders[3]:Hide()
         end
 
-        local highlight = tab:CreateTexture(nil, "HIGHLIGHT")
-        highlight:SetPoint("TOPLEFT", tab, "TOPLEFT", 1, -1)
-        highlight:SetPoint("BOTTOMRIGHT", tab, "BOTTOMRIGHT", -1, 4)
-        highlight:SetColorTexture(1, 1, 1, 0.08)
-
         tab:SetScript("OnClick", function(self)
             local source = self.sourceTab
 
@@ -808,16 +826,12 @@ local function CreateProfessionBottomTabs(frame)
                 return
             end
 
-            if source.Click then
-                source:Click("LeftButton")
-            else
-                if frame.RightTabSelected then
-                    frame:RightTabSelected(source)
-                end
+            if frame.RightTabSelected then
+                frame:RightTabSelected(source)
+            end
 
-                if source.CastProfessionSpell then
-                    source:CastProfessionSpell()
-                end
+            if source.CastProfessionSpell then
+                source:CastProfessionSpell()
             end
         end)
 
