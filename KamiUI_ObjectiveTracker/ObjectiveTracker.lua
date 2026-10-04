@@ -73,23 +73,47 @@ local function CreateBorder(parent)
 end
 
 local function SavePosition(frame)
-    local right = frame:GetRight()
+    local centerX = frame:GetCenter()
+    local parentCenterX = UIParent:GetCenter()
     local top = frame:GetTop()
-    local parentRight = UIParent:GetRight()
     local parentTop = UIParent:GetTop()
 
-    if not right or not top or not parentRight or not parentTop then
+    if not centerX or not parentCenterX or not top or not parentTop then
         return
     end
 
-    local x = right - parentRight
+    local anchor
+    local x
+
+    if centerX < parentCenterX then
+        local left = frame:GetLeft()
+        local parentLeft = UIParent:GetLeft()
+
+        if not left or not parentLeft then
+            return
+        end
+
+        anchor = "TOPLEFT"
+        x = left - parentLeft
+    else
+        local right = frame:GetRight()
+        local parentRight = UIParent:GetRight()
+
+        if not right or not parentRight then
+            return
+        end
+
+        anchor = "TOPRIGHT"
+        x = right - parentRight
+    end
+
     local y = top - parentTop
 
     frame:ClearAllPoints()
-    frame:SetPoint("TOPRIGHT", UIParent, "TOPRIGHT", x, y)
+    frame:SetPoint(anchor, UIParent, anchor, x, y)
 
     EnsureDatabase().position = {
-        anchor = "TOPRIGHT",
+        anchor = anchor,
         x = x,
         y = y,
     }
@@ -100,12 +124,15 @@ local function ApplySavedPosition(frame)
 
     frame:ClearAllPoints()
 
-    if position and position.anchor == "TOPRIGHT" then
+    if position
+        and (position.anchor == "TOPLEFT"
+            or position.anchor == "TOPRIGHT")
+    then
         frame:SetPoint(
-            "TOPRIGHT",
+            position.anchor,
             UIParent,
-            "TOPRIGHT",
-            position.x or -40,
+            position.anchor,
+            position.x or 0,
             position.y or -160
         )
     elseif position then
