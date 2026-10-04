@@ -8,6 +8,8 @@ local Module = UI:NewModule("Professions")
 Module.name = "KamiUI_Professions"
 Module.version = "0.2.0"
 
+local RECIPE_CACHE_VERSION = 2
+
 local CRAFTING_RANK_X = 110
 local CRAFTING_RANK_Y = -38
 local CRAFTING_LINK_GAP = 10
@@ -135,7 +137,8 @@ function Module:SnapshotCurrentProfession()
     if not C_TradeSkillUI
         or not C_TradeSkillUI.GetBaseProfessionInfo
         or not C_TradeSkillUI.GetChildProfessionInfo
-        or not C_TradeSkillUI.GetProfessionSpells
+        or not C_TradeSkillUI.GetFilteredRecipeIDs
+        or not C_TradeSkillUI.GetRecipeInfo
     then
         return
     end
@@ -180,8 +183,6 @@ function Module:SnapshotCurrentProfession()
         professionInfo.professionName
         or baseInfo.professionName
         or saved.professionName
-    saved.expansionName =
-        professionInfo.expansionName or saved.expansionName
     saved.skillLevel =
         professionInfo.skillLevel or saved.skillLevel or 0
     saved.maxSkillLevel =
@@ -190,32 +191,93 @@ function Module:SnapshotCurrentProfession()
         professionInfo.skillModifier or saved.skillModifier or 0
     saved.updated = time and time() or 0
 
-    local ok, knownSpells = pcall(
-        C_TradeSkillUI.GetProfessionSpells,
-        baseInfo.professionID,
-        professionID
+    local ok, filteredRecipeIDs = pcall(
+        C_TradeSkillUI.GetFilteredRecipeIDs
     )
 
-    if ok and type(knownSpells) == "table" then
-        local recipes = {}
+    if not ok or type(filteredRecipeIDs) ~= "table" then
+        professions[professionID] = saved
+        return
+    end
 
-        for _, recipeID in ipairs(knownSpells) do
+    local discoveredRecipes = {}
+
+    for _, recipeID in ipairs(filteredRecipeIDs) do
+        local belongsToSkillLine = true
+
+        if C_TradeSkillUI.IsRecipeInSkillLine then
+            belongsToSkillLine =
+                C_TradeSkillUI.IsRecipeInSkillLine(
+                    recipeID,
+                    professionID
+                )
+        end
+
+        if belongsToSkillLine then
             local recipeInfo =
-                C_TradeSkillUI.GetRecipeInfo
-                and C_TradeSkillUI.GetRecipeInfo(recipeID)
+                C_TradeSkillUI.GetRecipeInfo(recipeID)
+
+            if recipeInfo
+                and Professions
+                and Professions.GetFirstRecipe
+            then
+                recipeInfo =
+                    Professions.GetFirstRecipe(recipeInfo)
+            end
 
             if recipeInfo and recipeInfo.learned then
-                recipes[recipeInfo.recipeID or recipeID] = {
+                local learnedRecipeID =
+                    recipeInfo.recipeID or recipeID
+
+                discoveredRecipes[learnedRecipeID] = {
                     name = recipeInfo.name,
                     icon = recipeInfo.icon,
                 }
             end
         end
+    end
 
-        saved.recipes = recipes
+    local frame = _G.ProfessionsFrame
+    local recipeList = frame
+        and frame.CraftingPage
+        and frame.CraftingPage.RecipeList
+    local searchBox = recipeList and recipeList.SearchBox
+    local searching =
+        searchBox
+        and searchBox.HasText
+        and searchBox:HasText()
+        or false
+
+    local defaultFilters = true
+
+    if Professions
+        and Professions.IsUsingDefaultFilters
+    then
+        local okFilters, result = pcall(
+            Professions.IsUsingDefaultFilters,
+            true
+        )
+
+        defaultFilters = okFilters and result == true
+    end
+
+    local completeSnapshot =
+        not searching and defaultFilters
+
+    if completeSnapshot then
+        saved.recipes = discoveredRecipes
         saved.recipesCached = true
+        saved.recipeCacheVersion = RECIPE_CACHE_VERSION
     else
         saved.recipes = saved.recipes or {}
+
+        for recipeID, recipe in pairs(discoveredRecipes) do
+            saved.recipes[recipeID] = recipe
+        end
+
+        if saved.recipeCacheVersion ~= RECIPE_CACHE_VERSION then
+            saved.recipesCached = false
+        end
     end
 
     professions[professionID] = saved
@@ -1286,6 +1348,12 @@ end
 
 
 
+local function HasCompleteRecipeCache(profession)
+    return profession
+        and profession.recipesCached == true
+        and profession.recipeCacheVersion == RECIPE_CACHE_VERSION
+end
+
 local function FindCachedProfession(character, professionInfo)
     if not character or not professionInfo then
         return nil
@@ -1428,7 +1496,7 @@ function Module:AddRecipeCharacterTooltip(tooltip, tooltipData)
         local profession =
             FindCachedProfession(character, professionInfo)
 
-        if profession and profession.recipesCached then
+        if HasCompleteRecipeCache(profession) then
             local name = character.name or "Unknown"
             local recipe = profession.recipes
                 and profession.recipes[recipeID]
@@ -1664,7 +1732,7 @@ local function RebuildCachedProfessionPane(frame)
                 profession.professionID
                 or profession.professionName
             local recipesCached =
-                profession.recipesCached == true
+                HasCompleteRecipeCache(profession)
             local canExpand =
                 recipesCached and #recipes > 0
             local expanded =
