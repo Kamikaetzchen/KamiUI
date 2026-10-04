@@ -366,6 +366,7 @@ local function GetTitledPlayerName()
     return name
 end
 
+local SafeCall
 local UpdateEquipmentIgnoreOverlays
 
 local function CreateEquipmentSlot(parent, definition)
@@ -807,7 +808,7 @@ local function FormatStatValue(value, suffix)
     return string.format("%.0f", value)
 end
 
-local function SafeCall(func, ...)
+SafeCall = function(func, ...)
     if not func then
         return nil
     end
