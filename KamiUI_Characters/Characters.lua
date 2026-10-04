@@ -855,11 +855,14 @@ local function SetReputationOptionState(option, checked, enabled)
     end
 end
 
+local ShowStatTooltip
+
 local function CreateSidebarRow(parent, y)
     local row = CreateFrame("Frame", nil, parent)
     row:SetPoint("TOPLEFT", parent, "TOPLEFT", 8, y)
     row:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -8, y)
     row:SetHeight(18)
+    row:EnableMouse(true)
 
     local label = row:CreateFontString(nil, "OVERLAY")
     label:SetPoint("LEFT", 0, 0)
@@ -872,6 +875,20 @@ local function CreateSidebarRow(parent, y)
     value:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
     value:SetTextColor(0.90, 0.90, 0.92)
     row.value = value
+
+    local highlight = row:CreateTexture(nil, "HIGHLIGHT")
+    highlight:SetAllPoints()
+    highlight:SetColorTexture(1, 1, 1, 0.04)
+
+    row:SetScript("OnEnter", function(self)
+        if ShowStatTooltip then
+            ShowStatTooltip(self)
+        end
+    end)
+
+    row:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
 
     return row
 end
@@ -1014,6 +1031,313 @@ local function UpdateStatsPane(frame)
     end
 end
 
+local function GetAccessibleNumber(value)
+    if CanAccessValue(value) and type(value) == "number" then
+        return value
+    end
+
+    return nil
+end
+
+local function GetEffectiveStat(statID)
+    local _, effective = SafeCall(UnitStat, "player", statID)
+
+    return GetAccessibleNumber(effective)
+end
+
+local function AddTooltipDetail(text)
+    if text and text ~= "" then
+        GameTooltip:AddLine(text, 0.82, 0.82, 0.84, true)
+    end
+end
+
+local function AddStatContribution(label, value, suffix)
+    value = GetAccessibleNumber(value)
+
+    if value == nil then
+        return
+    end
+
+    local formatString = suffix and "%.2f%s" or "%.0f"
+    local text = string.format(formatString, value, suffix or "")
+
+    GameTooltip:AddDoubleLine(
+        label,
+        text,
+        0.72, 0.72, 0.75,
+        0.95, 0.95, 0.97
+    )
+end
+
+local resistanceDescriptions = {
+    fire = "Reduces damage taken from Fire spells.",
+    nature = "Reduces damage taken from Nature spells.",
+    frost = "Reduces damage taken from Frost spells.",
+    shadow = "Reduces damage taken from Shadow spells.",
+    arcane = "Reduces damage taken from Arcane spells.",
+}
+
+ShowStatTooltip = function(row)
+    local key = row.statKey
+
+    if not key then
+        return
+    end
+
+    local _, _, isCurrent = Module:GetViewedCharacter()
+
+    if not isCurrent then
+        return
+    end
+
+    GameTooltip:SetOwner(row, "ANCHOR_LEFT")
+    GameTooltip:SetText(
+        row.label:GetText() or key,
+        1.00,
+        0.82,
+        0.00
+    )
+    GameTooltip:AddDoubleLine(
+        "Current",
+        row.value:GetText() or "-",
+        0.72, 0.72, 0.75,
+        1.00, 1.00, 1.00
+    )
+
+    if key == "health" then
+        AddTooltipDetail(
+            "Your maximum health. Damage reduces health until it reaches zero."
+        )
+    elseif key == "power" then
+        AddTooltipDetail(
+            "The maximum amount of your current class resource."
+        )
+    elseif key == "moveSpeed" then
+        AddTooltipDetail(
+            "Current movement speed relative to normal running speed."
+        )
+    elseif key == "strength" or key == "agility" then
+        local statID = key == "strength" and 1 or 2
+        local effective = GetEffectiveStat(statID)
+        local attackPower = effective
+            and GetAttackPowerForStat
+            and SafeCall(GetAttackPowerForStat, statID, effective)
+
+        AddStatContribution("Attack Power", attackPower)
+
+        if key == "agility" and effective then
+            local armorPerAgility = GetAccessibleNumber(ARMOR_PER_AGILITY)
+                or 2
+            AddStatContribution(
+                "Armor",
+                effective * armorPerAgility
+            )
+
+            local crit = GetCritChanceFromAgility
+                and SafeCall(GetCritChanceFromAgility, "player")
+
+            if crit == nil and GetCritChanceFromStat then
+                crit = SafeCall(GetCritChanceFromStat, 2)
+            end
+
+            AddStatContribution("Critical Strike", crit, "%")
+
+            local dodge = GetDodgeChanceFromAttribute
+                and SafeCall(GetDodgeChanceFromAttribute)
+            AddStatContribution("Dodge", dodge, "%")
+        end
+    elseif key == "stamina" then
+        local stamina = GetEffectiveStat(3)
+
+        if stamina then
+            local baseStamina = math.min(20, stamina)
+            local extraStamina = math.max(0, stamina - baseStamina)
+            local healthPerStamina =
+                GetAccessibleNumber(HEALTH_PER_STAMINA) or 10
+            local health = baseStamina
+                + extraStamina * healthPerStamina
+            local modifier = GetUnitMaxHealthModifier
+                and SafeCall(GetUnitMaxHealthModifier, "player")
+
+            modifier = GetAccessibleNumber(modifier) or 1
+            AddStatContribution(
+                "Health from Stamina",
+                health * modifier
+            )
+        end
+    elseif key == "intellect" then
+        local intellect = GetEffectiveStat(4)
+        local _, powerToken = UnitPowerType("player")
+
+        if intellect
+            and CanAccessValue(powerToken)
+            and powerToken == "MANA"
+        then
+            local baseIntellect = math.min(20, intellect)
+            local extraIntellect = math.max(0, intellect - baseIntellect)
+            local manaPerIntellect =
+                GetAccessibleNumber(MANA_PER_INTELLECT) or 15
+            local mana = baseIntellect
+                + extraIntellect * manaPerIntellect
+
+            AddStatContribution("Mana from Intellect", mana)
+        end
+
+        local crit = GetSpellCritChanceFromIntellect
+            and SafeCall(GetSpellCritChanceFromIntellect, "player")
+
+        if crit == nil and GetSpellCritChanceFromStat then
+            crit = SafeCall(GetSpellCritChanceFromStat, 4)
+        end
+
+        AddStatContribution("Spell Critical Strike", crit, "%")
+    elseif key == "spirit" then
+        local healthRegen = GetHealthRegenFromSpirit
+            and SafeCall(GetHealthRegenFromSpirit)
+
+        if healthRegen == nil and GetUnitHealthRegenRateFromSpirit then
+            healthRegen = SafeCall(
+                GetUnitHealthRegenRateFromSpirit,
+                "player"
+            )
+        end
+
+        AddStatContribution("Health Regen / sec", healthRegen)
+
+        local manaRegen = GetManaRegenFromSpirit
+            and SafeCall(GetManaRegenFromSpirit)
+
+        if manaRegen == nil and GetUnitManaRegenRateFromSpirit then
+            manaRegen = SafeCall(
+                GetUnitManaRegenRateFromSpirit,
+                "player"
+            )
+        end
+
+        manaRegen = GetAccessibleNumber(manaRegen)
+
+        if manaRegen then
+            AddStatContribution("Mana Regen / 5 sec", manaRegen * 5)
+        end
+    elseif key == "attackPower" then
+        local baseAP, posAP, negAP = SafeCall(UnitAttackPower, "player")
+        baseAP = GetAccessibleNumber(baseAP)
+        posAP = GetAccessibleNumber(posAP)
+        negAP = GetAccessibleNumber(negAP)
+
+        if baseAP and posAP and negAP then
+            local totalAP = baseAP + posAP + negAP
+            local divisor =
+                GetAccessibleNumber(ATTACK_POWER_MAGIC_NUMBER) or 14
+
+            AddStatContribution(
+                "Weapon DPS from Attack Power",
+                math.max(0, totalAP) / divisor
+            )
+        end
+    elseif key == "crit" then
+        AddTooltipDetail(
+            "Chance for melee attacks to deal critical damage."
+        )
+
+        if CR_CRIT_MELEE and GetCombatRating then
+            AddStatContribution(
+                "Critical Strike Rating",
+                SafeCall(GetCombatRating, CR_CRIT_MELEE)
+            )
+        end
+    elseif key == "hit" then
+        AddTooltipDetail(
+            "Increases your chance to hit with melee attacks."
+        )
+
+        if CR_HIT_MELEE and GetCombatRating then
+            AddStatContribution(
+                "Melee Hit Rating",
+                SafeCall(GetCombatRating, CR_HIT_MELEE)
+            )
+        end
+    elseif key == "armor" then
+        local _, armor = SafeCall(UnitArmor, "player")
+        armor = GetAccessibleNumber(armor)
+
+        if armor then
+            local level = UnitLevel("player") or 1
+            local reduction
+
+            if PaperDollFrame_GetArmorReduction then
+                reduction = SafeCall(
+                    PaperDollFrame_GetArmorReduction,
+                    armor,
+                    level
+                )
+            end
+
+            reduction = GetAccessibleNumber(reduction)
+
+            if reduction == nil then
+                reduction = armor / (armor + 400 + 85 * level) * 100
+            end
+
+            AddStatContribution(
+                "Physical Damage Reduction",
+                reduction,
+                "%"
+            )
+            AddTooltipDetail(
+                "Damage reduction is shown against an attacker of your level."
+            )
+        end
+    elseif key == "dodge" then
+        AddTooltipDetail(
+            "Chance to completely avoid an incoming melee attack."
+        )
+
+        if CR_DODGE and GetCombatRating then
+            AddStatContribution(
+                "Dodge Rating",
+                SafeCall(GetCombatRating, CR_DODGE)
+            )
+        end
+    elseif key == "parry" then
+        AddTooltipDetail(
+            "Chance to parry an incoming melee attack."
+        )
+
+        if CR_PARRY and GetCombatRating then
+            AddStatContribution(
+                "Parry Rating",
+                SafeCall(GetCombatRating, CR_PARRY)
+            )
+        end
+    elseif key == "block" then
+        AddTooltipDetail(
+            "Chance to block an incoming melee attack while using a shield."
+        )
+
+        if GetShieldBlock then
+            AddStatContribution(
+                "Block Value",
+                SafeCall(GetShieldBlock)
+            )
+        end
+
+        if CR_BLOCK and GetCombatRating then
+            AddStatContribution(
+                "Block Rating",
+                SafeCall(GetCombatRating, CR_BLOCK)
+            )
+        end
+    elseif resistanceDescriptions[key] then
+        AddTooltipDetail(resistanceDescriptions[key])
+        AddTooltipDetail(
+            "Effectiveness depends on the attacker's level and your resistance."
+        )
+    end
+
+    GameTooltip:Show()
+end
+
 local function UpdateEquipmentPane(frame)
     local pane = frame.sidebar and frame.sidebar.equipmentPane
 
@@ -1031,6 +1355,21 @@ local function UpdateEquipmentPane(frame)
     end
 
     pane.setIDs = ids
+
+    if pane.pendingSetName
+        and C_EquipmentSet
+        and C_EquipmentSet.GetEquipmentSetID
+    then
+        local pendingID = SafeCall(
+            C_EquipmentSet.GetEquipmentSetID,
+            pane.pendingSetName
+        )
+
+        if pendingID then
+            pane.selectedSetID = pendingID
+            pane.pendingSetName = nil
+        end
+    end
 
     for index = 1, math.max(#ids, #pane.rows) do
         local row = pane.rows[index]
@@ -2748,6 +3087,7 @@ local function CreateSidebar(frame)
             row.label:SetText(data.label)
             row.value:SetText("-")
             row.section = currentSection
+            row.statKey = data.key
             data.frame = row
             statsPane.rows[data.key] = row
         end
@@ -2823,11 +3163,144 @@ local function CreateSidebar(frame)
     sidebar.equipmentPane = equipmentPane
 
     local empty = equipmentPane:CreateFontString(nil, "OVERLAY")
-    empty:SetPoint("TOP", 0, -12)
+    empty:SetPoint("TOPLEFT", equipmentPane, "TOPLEFT", 8, -10)
     empty:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
     empty:SetTextColor(0.55, 0.55, 0.58)
     empty:SetText("Equipment Sets")
     equipmentPane.empty = empty
+
+    local newSet = CreateFrame("Button", nil, equipmentPane)
+    newSet:SetSize(44, 18)
+    newSet:SetPoint("TOPRIGHT", equipmentPane, "TOPRIGHT", -6, -5)
+    newSet:SetNormalFontObject("GameFontNormalSmall")
+    newSet:SetHighlightFontObject("GameFontHighlightSmall")
+    newSet:SetText("New")
+
+    local newBackground = newSet:CreateTexture(nil, "BACKGROUND")
+    newBackground:SetAllPoints()
+    newBackground:SetColorTexture(1, 1, 1, 0.10)
+    CreateBorder(newSet, colors.border)
+
+    local newHighlight = newSet:CreateTexture(nil, "HIGHLIGHT")
+    newHighlight:SetAllPoints()
+    newHighlight:SetColorTexture(1, 1, 1, 0.10)
+    equipmentPane.newSet = newSet
+
+    local createDialog = CreateFrame(
+        "Frame",
+        nil,
+        equipmentPane,
+        "BackdropTemplate"
+    )
+    createDialog:SetSize(145, 78)
+    createDialog:SetPoint("CENTER", equipmentPane, "CENTER", 0, 12)
+    createDialog:SetFrameLevel(equipmentPane:GetFrameLevel() + 20)
+    createDialog:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8X8",
+        edgeFile = "Interface\\Buttons\\WHITE8X8",
+        edgeSize = 1,
+    })
+    createDialog:SetBackdropColor(0, 0, 0, 0.96)
+    createDialog:SetBackdropBorderColor(unpack(colors.border))
+    createDialog:Hide()
+    equipmentPane.createDialog = createDialog
+
+    local dialogTitle = createDialog:CreateFontString(
+        nil,
+        "OVERLAY",
+        "GameFontNormalSmall"
+    )
+    dialogTitle:SetPoint("TOP", 0, -7)
+    dialogTitle:SetText("New Equipment Set")
+
+    local nameInput = CreateFrame(
+        "EditBox",
+        nil,
+        createDialog,
+        "InputBoxTemplate"
+    )
+    nameInput:SetSize(125, 20)
+    nameInput:SetPoint("TOP", dialogTitle, "BOTTOM", 0, -6)
+    nameInput:SetAutoFocus(false)
+    nameInput:SetMaxLetters(31)
+    createDialog.nameInput = nameInput
+
+    local createButton = CreateFrame("Button", nil, createDialog)
+    createButton:SetSize(56, 18)
+    createButton:SetPoint("BOTTOMLEFT", createDialog, "BOTTOMLEFT", 9, 7)
+    createButton:SetNormalFontObject("GameFontNormalSmall")
+    createButton:SetHighlightFontObject("GameFontHighlightSmall")
+    createButton:SetText("Create")
+
+    local createBackground = createButton:CreateTexture(nil, "BACKGROUND")
+    createBackground:SetAllPoints()
+    createBackground:SetColorTexture(1, 1, 1, 0.12)
+    CreateBorder(createButton, colors.border)
+
+    local createHighlight = createButton:CreateTexture(nil, "HIGHLIGHT")
+    createHighlight:SetAllPoints()
+    createHighlight:SetColorTexture(1, 1, 1, 0.10)
+
+    local cancelButton = CreateFrame("Button", nil, createDialog)
+    cancelButton:SetSize(56, 18)
+    cancelButton:SetPoint("BOTTOMRIGHT", createDialog, "BOTTOMRIGHT", -9, 7)
+    cancelButton:SetNormalFontObject("GameFontNormalSmall")
+    cancelButton:SetHighlightFontObject("GameFontHighlightSmall")
+    cancelButton:SetText("Cancel")
+
+    local cancelBackground = cancelButton:CreateTexture(nil, "BACKGROUND")
+    cancelBackground:SetAllPoints()
+    cancelBackground:SetColorTexture(1, 1, 1, 0.08)
+    CreateBorder(cancelButton, colors.border)
+
+    local cancelHighlight = cancelButton:CreateTexture(nil, "HIGHLIGHT")
+    cancelHighlight:SetAllPoints()
+    cancelHighlight:SetColorTexture(1, 1, 1, 0.08)
+
+    local function CloseCreateDialog()
+        nameInput:ClearFocus()
+        createDialog:Hide()
+    end
+
+    local function CreateEquipmentSet()
+        local name = nameInput:GetText() or ""
+
+        if strtrim then
+            name = strtrim(name)
+        else
+            name = name:gsub("^%s+", ""):gsub("%s+$", "")
+        end
+
+        if name == ""
+            or not C_EquipmentSet
+            or not C_EquipmentSet.CreateEquipmentSet
+        then
+            return
+        end
+
+        equipmentPane.pendingSetName = name
+        SafeCall(C_EquipmentSet.CreateEquipmentSet, name)
+        CloseCreateDialog()
+
+        C_Timer.After(0, function()
+            UpdateEquipmentPane(frame)
+        end)
+    end
+
+    newSet:SetScript("OnClick", function()
+        nameInput:SetText("")
+        createDialog:Show()
+        nameInput:SetFocus()
+    end)
+
+    createButton:SetScript("OnClick", CreateEquipmentSet)
+    cancelButton:SetScript("OnClick", CloseCreateDialog)
+    nameInput:SetScript("OnEnterPressed", CreateEquipmentSet)
+    nameInput:SetScript("OnEscapePressed", CloseCreateDialog)
+
+    equipmentPane:SetScript("OnHide", function()
+        CloseCreateDialog()
+    end)
 
     local equip = CreateFrame("Button", nil, equipmentPane)
     equip:SetSize(66, 20)
