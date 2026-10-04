@@ -187,6 +187,24 @@ local state = {
     minimized = false,
 }
 
+local meterFontPath, _, meterFontFlags =
+    GameFontNormalSmall:GetFont()
+
+local function ApplyMeterText(fontString, size, color)
+    if not fontString then
+        return
+    end
+
+    fontString:SetFont(
+        meterFontPath,
+        size or defaults.fontSize,
+        meterFontFlags
+    )
+    Styles:SetTextColor(fontString, color or Palette.text)
+    fontString:SetShadowColor(0, 0, 0, 1)
+    fontString:SetShadowOffset(1, -1)
+end
+
 local function CreateBackground(parent, alpha)
     local background = parent:CreateTexture(nil, "BACKGROUND")
     background:SetAllPoints()
@@ -216,6 +234,12 @@ local function CreateFlatButton(parent, text, width, options)
         textColor = options.textColor,
         textRole = "normal",
     })
+
+    ApplyMeterText(
+        button:GetFontString() or button.KamiButtonText,
+        defaults.fontSize,
+        options.textColor or Palette.text
+    )
 
     return button
 end
@@ -301,6 +325,7 @@ local function CreatePopupButton(parent)
 
     local text = button:GetFontString() or button.KamiButtonText
     if text then
+        ApplyMeterText(text, defaults.fontSize, Palette.text)
         text:ClearAllPoints()
         text:SetPoint("LEFT", button, "LEFT", 7, 0)
         text:SetPoint("RIGHT", button, "RIGHT", -7, 0)
@@ -367,7 +392,7 @@ local function CreateColumnText(parent)
     )
     text:SetJustifyH("RIGHT")
     text:SetWordWrap(false)
-    Styles:ApplyText(text, defaults.fontSize, Palette.text)
+    ApplyMeterText(text, defaults.fontSize, Palette.text)
     return text
 end
 
@@ -414,7 +439,7 @@ local function CreateRow(index)
     indexText:SetWidth(17)
     indexText:SetJustifyH("RIGHT")
     indexText:SetText(index .. ".")
-    Styles:ApplyText(indexText, defaults.fontSize, Palette.muted)
+    ApplyMeterText(indexText, defaults.fontSize, Palette.muted)
 
     local icon = overlay:CreateTexture(nil, "ARTWORK")
     icon:SetSize(14, 14)
@@ -429,7 +454,7 @@ local function CreateRow(index)
     name:SetPoint("LEFT", icon, "RIGHT", 4, 0)
     name:SetJustifyH("LEFT")
     name:SetWordWrap(false)
-    Styles:ApplyText(name, defaults.fontSize, Palette.text)
+    ApplyMeterText(name, defaults.fontSize, Palette.text)
 
     row.background = background
     row.bar = bar
@@ -612,7 +637,7 @@ local function SetSourceColumnValue(row, columnIndex, source, column)
     local value = row.values[columnIndex]
 
     if column.kind == "rate" then
-        value:SetText(source.amountPerSecond)
+        value:SetFormattedText("%.1f", source.amountPerSecond)
     else
         value:SetText(source.totalAmount)
     end
@@ -932,7 +957,7 @@ local function CreateColumnHeader()
         "GameFontNormalSmall"
     )
     name:SetText("Name")
-    Styles:ApplyText(name, defaults.fontSize, Palette.muted)
+    ApplyMeterText(name, defaults.fontSize, Palette.muted)
 
     header.name = name
     header.values = {}
@@ -946,7 +971,7 @@ local function CreateColumnHeader()
             "GameFontNormalSmall"
         )
         text:SetJustifyH("RIGHT")
-        Styles:ApplyText(text, defaults.fontSize, Palette.gold)
+        ApplyMeterText(text, defaults.fontSize, Palette.gold)
 
         local hitbox = CreateFrame("Button", nil, header)
         hitbox:SetFrameLevel(header:GetFrameLevel() + 5)
