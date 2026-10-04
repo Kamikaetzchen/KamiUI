@@ -1285,6 +1285,43 @@ ShowStatTooltip = function(row)
     GameTooltip:Show()
 end
 
+local function OpenEquipmentSetPopup(frame, setID, setName)
+    if not GearManagerPopupFrame
+        or not IconSelectorPopupFrameModes
+    then
+        return false
+    end
+
+    GearManagerPopupFrame:SetParent(frame)
+    GearManagerPopupFrame:SetFrameStrata("DIALOG")
+    GearManagerPopupFrame:SetFrameLevel(frame:GetFrameLevel() + 40)
+    GearManagerPopupFrame:SetClampedToScreen(true)
+    GearManagerPopupFrame:ClearAllPoints()
+    GearManagerPopupFrame:SetPoint(
+        "TOPLEFT",
+        frame,
+        "TOPRIGHT",
+        4,
+        0
+    )
+
+    if setID then
+        GearManagerPopupFrame.mode =
+            IconSelectorPopupFrameModes.Edit
+        GearManagerPopupFrame.setID = setID
+        GearManagerPopupFrame.origName = setName or ""
+    else
+        GearManagerPopupFrame.mode =
+            IconSelectorPopupFrameModes.New
+        GearManagerPopupFrame.setID = nil
+        GearManagerPopupFrame.origName = ""
+    end
+
+    GearManagerPopupFrame:Show()
+
+    return true
+end
+
 local function UpdateEquipmentPane(frame)
     local pane = frame.sidebar and frame.sidebar.equipmentPane
 
@@ -1326,6 +1363,7 @@ local function UpdateEquipmentPane(frame)
             row:SetPoint("TOPLEFT", pane, "TOPLEFT", 6, -(34 + (index - 1) * 28))
             row:SetPoint("TOPRIGHT", pane, "TOPRIGHT", -6, -(34 + (index - 1) * 28))
             row:SetHeight(26)
+            row:RegisterForDrag("LeftButton")
 
             local bg = row:CreateTexture(nil, "BACKGROUND")
             bg:SetAllPoints()
@@ -1338,9 +1376,96 @@ local function UpdateEquipmentPane(frame)
             icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
             row.icon = icon
 
+            local edit = CreateFrame("Button", nil, row)
+            edit:SetSize(16, 16)
+            edit:SetPoint("RIGHT", row, "RIGHT", -19, 0)
+
+            local editTexture = edit:CreateTexture(nil, "ARTWORK")
+            editTexture:SetAllPoints()
+            editTexture:SetTexture("Interface\\WorldMap\\GEAR_64GREY")
+            editTexture:SetAlpha(0.55)
+            edit.texture = editTexture
+            row.edit = edit
+
+            edit:SetScript("OnEnter", function(self)
+                self.texture:SetAlpha(1)
+                GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+                GameTooltip:SetText(
+                    EQUIPMENT_SET_SETTINGS or "Edit equipment set"
+                )
+                GameTooltip:Show()
+            end)
+
+            edit:SetScript("OnLeave", function(self)
+                self.texture:SetAlpha(0.55)
+                GameTooltip:Hide()
+            end)
+
+            edit:SetScript("OnClick", function(self)
+                local owner = self:GetParent()
+
+                if owner.setID then
+                    OpenEquipmentSetPopup(
+                        frame,
+                        owner.setID,
+                        owner.setName
+                    )
+                end
+            end)
+
+            local delete = CreateFrame("Button", nil, row)
+            delete:SetSize(14, 14)
+            delete:SetPoint("RIGHT", row, "RIGHT", -2, 0)
+
+            local deleteTexture = delete:CreateTexture(nil, "ARTWORK")
+            deleteTexture:SetAllPoints()
+            deleteTexture:SetTexture(
+                "Interface\\Buttons\\UI-GroupLoot-Pass-Up"
+            )
+            deleteTexture:SetAlpha(0.55)
+            delete.texture = deleteTexture
+            row.delete = delete
+
+            delete:SetScript("OnEnter", function(self)
+                self.texture:SetAlpha(1)
+                GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+                GameTooltip:SetText(DELETE or "Delete")
+                GameTooltip:Show()
+            end)
+
+            delete:SetScript("OnLeave", function(self)
+                self.texture:SetAlpha(0.55)
+                GameTooltip:Hide()
+            end)
+
+            delete:SetScript("OnClick", function(self)
+                local owner = self:GetParent()
+
+                if not owner.setID or not StaticPopup_Show then
+                    return
+                end
+
+                local dialog = StaticPopup_Show(
+                    "CONFIRM_DELETE_EQUIPMENT_SET",
+                    owner.setName or "",
+                    nil,
+                    owner.setID
+                )
+
+                if not dialog and UIErrorsFrame then
+                    UIErrorsFrame:AddMessage(
+                        ERR_CLIENT_LOCKED_OUT or "Unable to delete set",
+                        1.0,
+                        0.1,
+                        0.1,
+                        1.0
+                    )
+                end
+            end)
+
             local name = row:CreateFontString(nil, "OVERLAY")
             name:SetPoint("LEFT", icon, "RIGHT", 5, 0)
-            name:SetPoint("RIGHT", row, "RIGHT", -4, 0)
+            name:SetPoint("RIGHT", edit, "LEFT", -4, 0)
             name:SetJustifyH("LEFT")
             name:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
             row.name = name
@@ -1361,6 +1486,15 @@ local function UpdateEquipmentPane(frame)
                     SafeCall(C_EquipmentSet.UseEquipmentSet, self.setID)
                 elseif EquipmentManager_EquipSet then
                     SafeCall(EquipmentManager_EquipSet, self.setID)
+                end
+            end)
+
+            row:SetScript("OnDragStart", function(self)
+                if self.setID
+                    and C_EquipmentSet
+                    and C_EquipmentSet.PickupEquipmentSet
+                then
+                    C_EquipmentSet.PickupEquipmentSet(self.setID)
                 end
             end)
 
@@ -1393,8 +1527,9 @@ local function UpdateEquipmentPane(frame)
                     SafeCall(C_EquipmentSet.GetEquipmentSetInfo, setID)
 
                 row.setID = actualID or setID
+                row.setName = name or "Set"
                 row.icon:SetTexture(icon)
-                row.name:SetText(name or "Set")
+                row.name:SetText(row.setName)
 
                 if numLost and numLost > 0 then
                     row.name:SetTextColor(1.0, 0.28, 0.28)
@@ -1414,6 +1549,8 @@ local function UpdateEquipmentPane(frame)
                 row.isEquipped = isEquipped == true
                 row:Show()
             else
+                row.setID = nil
+                row.setName = nil
                 row:Hide()
             end
         end
@@ -3485,6 +3622,10 @@ local function CreateSidebar(frame)
     end
 
     newSet:SetScript("OnClick", function()
+        if OpenEquipmentSetPopup(frame) then
+            return
+        end
+
         nameInput:SetText("")
         createDialog:Show()
         nameInput:SetFocus()
