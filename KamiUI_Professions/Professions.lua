@@ -678,6 +678,7 @@ local function StyleRecipeList(recipeList)
         Palette.panel
     )
     Styles:CreateBorder(recipeList, "KamiRecipeListBorder")
+    Components:StyleScrollBar(recipeList.ScrollBar)
 
     if recipeList.SearchBox then
         Components:StyleInput(recipeList.SearchBox, {
@@ -781,7 +782,12 @@ local function StyleSchematicForm(form)
         return
     end
 
+    if form.NineSlice then
+        form.NineSlice:ClearAllPoints()
+    end
+
     HideFrameArt(form.NineSlice)
+    HideTextureByAtlas(form, "common-insideframe")
     HideNativeRegion(form.Background)
     HideNativeRegion(form.MinimalBackground)
     HideNativeRegion(form.Bg)
