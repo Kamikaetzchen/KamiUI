@@ -221,11 +221,10 @@ local function CreateDisplay(name, parent)
     frame:SetScript("OnMouseWheel", function(self, delta)
         if IsShiftKeyDown() and delta < 0 then
             self:ScrollToBottom()
-        elseif delta > 0 then
-            self:ScrollUp()
-        else
-            self:ScrollDown()
+            return
         end
+
+        self:ScrollByAmount(delta * 3)
     end)
 
     frame:SetScript("OnHyperlinkClick", function(self, link, text, button)
