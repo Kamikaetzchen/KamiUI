@@ -117,10 +117,23 @@ local function StyleRankBar(bar)
         return
     end
 
+    bar:SetHeight(17)
+
     if bar.Background then
         bar.Background:ClearAllPoints()
         bar.Background:SetAllPoints()
         SetColor(bar.Background, { 0, 0, 0, 0.62 })
+    end
+
+    if bar.Fill then
+        bar.Fill:ClearAllPoints()
+        bar.Fill:SetPoint("TOPLEFT", bar, "TOPLEFT", 1, -1)
+        bar.Fill:SetPoint("BOTTOMRIGHT", bar, "BOTTOMRIGHT", -1, 1)
+    end
+
+    if bar.Mask and bar.Fill then
+        bar.Mask:ClearAllPoints()
+        bar.Mask:SetAllPoints(bar.Fill)
     end
 
     HideRegion(bar.Border)
@@ -180,6 +193,28 @@ local function StyleProfessionCard(card)
 
     StyleRankBar(card.StatusBar)
 
+    if card.StatusBar then
+        card.StatusBar:ClearAllPoints()
+
+        if card.isPrimary then
+            card.StatusBar:SetPoint(
+                "RIGHT",
+                card,
+                "RIGHT",
+                -41,
+                2
+            )
+        else
+            card.StatusBar:SetPoint(
+                "TOP",
+                card,
+                "TOP",
+                -1,
+                -45
+            )
+        end
+    end
+
     for _, button in ipairs(card.spellButtons or {}) do
         StyleProfessionSpellButton(button)
     end
@@ -238,19 +273,61 @@ function Module:ApplyRecipeCategoryVisual(row)
         return
     end
 
-    EnsureBackground(
-        row,
-        "KamiCategoryBackground",
-        { 1, 1, 1, 0.055 }
-    )
+    local background = row.KamiCategoryBackground
+
+    if not background then
+        background = row:CreateTexture(nil, "BACKGROUND", nil, -7)
+        row.KamiCategoryBackground = background
+    end
+
+    background:ClearAllPoints()
+    background:SetPoint("TOPLEFT", row, "TOPLEFT", 6, 0)
+    background:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", -6, 0)
+    SetColor(background, { 1, 1, 1, 0.055 })
 
     HideButtonTextures(row)
+
+    if row.SetNormalTexture then
+        row:SetNormalTexture(nil)
+    end
+
+    if row.SetPushedTexture then
+        row:SetPushedTexture(nil)
+    end
+
+    if row.SetHighlightTexture then
+        row:SetHighlightTexture(nil)
+    end
 
     local collapse = row.GetCollapseButton
         and row:GetCollapseButton()
         or row.CollapseButton
 
-    HideButtonTextures(collapse)
+    if collapse then
+        collapse:Hide()
+    end
+
+    if not row.KamiCategoryHighlight then
+        local highlight = row:CreateTexture(nil, "HIGHLIGHT")
+        row.KamiCategoryHighlight = highlight
+    end
+
+    row.KamiCategoryHighlight:ClearAllPoints()
+    row.KamiCategoryHighlight:SetPoint(
+        "TOPLEFT",
+        row,
+        "TOPLEFT",
+        6,
+        0
+    )
+    row.KamiCategoryHighlight:SetPoint(
+        "BOTTOMRIGHT",
+        row,
+        "BOTTOMRIGHT",
+        -6,
+        0
+    )
+    SetColor(row.KamiCategoryHighlight, { 1, 1, 1, 0.04 })
 
     local text = GetHeaderText(row)
 
@@ -309,20 +386,61 @@ function Module:StyleRecipeCategory(row, node)
     Module:ApplyRecipeCategoryVisual(row)
 end
 
-function Module:StyleRecipeRow(row)
+function Module:StyleRecipeRow(row, node)
     if not row then
         return
+    end
+
+    local data = node and node.GetData and node:GetData()
+    local recipeInfo = data and data.recipeInfo
+    local difficulty = recipeInfo and recipeInfo.relativeDifficulty
+    local backgroundColor = { 0.45, 0.45, 0.48, 0.10 }
+
+    if Enum
+        and Enum.TradeskillRelativeDifficulty
+        and difficulty
+    then
+        local difficulties = Enum.TradeskillRelativeDifficulty
+
+        if difficulty == difficulties.Optimal then
+            backgroundColor = { 1.00, 0.34, 0.05, 0.16 }
+        elseif difficulty == difficulties.Medium then
+            backgroundColor = { 1.00, 0.82, 0.00, 0.14 }
+        elseif difficulty == difficulties.Easy then
+            backgroundColor = { 0.20, 0.78, 0.24, 0.13 }
+        end
+    end
+
+    local background = row.KamiDifficultyBackground
+
+    if not background then
+        background = row:CreateTexture(nil, "BACKGROUND", nil, -6)
+        background:SetAllPoints()
+        row.KamiDifficultyBackground = background
+    end
+
+    SetColor(background, backgroundColor)
+
+    if row.SkillUps then
+        row.SkillUps:Hide()
+        row.SkillUps:ClearAllPoints()
+        row.SkillUps:SetPoint("LEFT", row, "LEFT", 2, 0)
+        row.SkillUps:SetWidth(0)
     end
 
     StyleFont(row.Label, 9, colors.text)
     StyleFont(row.Count, 9, colors.muted)
 
     if row.SelectedOverlay then
-        row.SelectedOverlay:SetColorTexture(1, 1, 1, 0.09)
+        row.SelectedOverlay:ClearAllPoints()
+        row.SelectedOverlay:SetAllPoints()
+        row.SelectedOverlay:SetColorTexture(1, 1, 1, 0.10)
     end
 
     if row.HighlightOverlay then
-        row.HighlightOverlay:SetColorTexture(1, 1, 1, 0.05)
+        row.HighlightOverlay:ClearAllPoints()
+        row.HighlightOverlay:SetAllPoints()
+        row.HighlightOverlay:SetColorTexture(1, 1, 1, 0.06)
     end
 end
 
@@ -386,30 +504,112 @@ local function StyleCraftingPage(frame)
     StyleSchematicForm(page.SchematicForm)
     StyleRankBar(page.RankBar)
 
+    if page.RankBar then
+        page.RankBar:ClearAllPoints()
+        page.RankBar:SetPoint(
+            "TOPLEFT",
+            page,
+            "TOPLEFT",
+            279,
+            -38
+        )
+    end
+
     if page.TutorialButton then
         page.TutorialButton:Hide()
     end
 end
 
-local function StyleRightTab(tab)
-    if not tab or tab.KamiStyled then
+local function HideNativeProfessionTab(tab)
+    if not tab then
         return
     end
 
-    tab.KamiStyled = true
+    tab:SetAlpha(0)
 
-    EnsureBackground(
-        tab,
-        "KamiBackground",
-        { 0, 0, 0, 0.55 }
-    )
-    CreateBorder(tab, "KamiTabBorder")
+    if tab.EnableMouse then
+        tab:EnableMouse(false)
+    end
+end
 
-    if tab.Icon then
-        tab.Icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
+local function SetProfessionTabVisual(tab, active)
+    if not tab or not tab.background then
+        return
     end
 
-    HideButtonTextures(tab)
+    tab.background:SetColorTexture(
+        active and 0.04 or 0.00,
+        active and 0.04 or 0.00,
+        active and 0.05 or 0.00,
+        active and 0.55 or 0.40
+    )
+end
+
+local function CreateProfessionBottomTabs(frame)
+    if frame.KamiProfessionTabs then
+        return
+    end
+
+    frame.KamiProfessionTabs = {}
+
+    for index = 1, 8 do
+        local tab = CreateFrame("Button", nil, frame)
+        tab:SetSize(76, 22)
+        tab:SetFrameLevel(frame:GetFrameLevel() + 20)
+        tab:SetNormalFontObject("GameFontNormalSmall")
+        tab:SetHighlightFontObject("GameFontHighlightSmall")
+        tab:SetPoint(
+            "TOPLEFT",
+            frame,
+            "BOTTOMLEFT",
+            20 + (index - 1) * 76,
+            1
+        )
+
+        local background = tab:CreateTexture(nil, "BACKGROUND")
+        background:SetAllPoints()
+        tab.background = background
+
+        local borders = CreateBorder(tab, "KamiProfessionTabBorder")
+
+        if index > 1 and borders and borders[3] then
+            borders[3]:Hide()
+        end
+
+        local highlight = tab:CreateTexture(nil, "HIGHLIGHT")
+        highlight:SetAllPoints()
+        highlight:SetColorTexture(1, 1, 1, 0.08)
+
+        tab:SetScript("OnClick", function(self)
+            local source = self.sourceTab
+
+            if not source then
+                return
+            end
+
+            if self.isOverview then
+                if frame.SelectBookPage then
+                    frame:SelectBookPage()
+                end
+                return
+            end
+
+            if source.Click then
+                source:Click("LeftButton")
+            else
+                if frame.RightTabSelected then
+                    frame:RightTabSelected(source)
+                end
+
+                if source.CastProfessionSpell then
+                    source:CastProfessionSpell()
+                end
+            end
+        end)
+
+        tab:Hide()
+        frame.KamiProfessionTabs[index] = tab
+    end
 end
 
 local function StyleRightTabs(frame)
@@ -417,10 +617,49 @@ local function StyleRightTabs(frame)
         return
     end
 
-    StyleRightTab(frame.ProfessionsOverviewTab)
+    CreateProfessionBottomTabs(frame)
+    HideNativeProfessionTab(frame.ProfessionsOverviewTab)
 
-    for _, tab in ipairs(frame.rightProfessionTabs or {}) do
-        StyleRightTab(tab)
+    local sources = { frame.ProfessionsOverviewTab }
+
+    for _, source in ipairs(frame.rightProfessionTabs or {}) do
+        HideNativeProfessionTab(source)
+        sources[#sources + 1] = source
+    end
+
+    for index, tab in ipairs(frame.KamiProfessionTabs or {}) do
+        local source = sources[index]
+        local visible = source
+            and (index == 1 or source:IsShown())
+
+        if visible then
+            tab.sourceTab = source
+            tab.isOverview = index == 1
+            tab:SetText(
+                index == 1
+                    and "Professions"
+                    or source.tooltipText
+                    or "Profession"
+            )
+
+            local active
+
+            if index == 1 then
+                active = frame.BookPage
+                    and frame.BookPage:IsShown()
+            else
+                active = not (
+                    frame.BookPage
+                    and frame.BookPage:IsShown()
+                ) and frame.selectedSkillLine == source.skillLine
+            end
+
+            SetProfessionTabVisual(tab, active == true)
+            tab:Show()
+        else
+            tab.sourceTab = nil
+            tab:Hide()
+        end
     end
 end
 
@@ -531,8 +770,8 @@ function Module:Attach()
             hooksecurefunc(
                 ProfessionsRecipeListRecipeMixin,
                 "Init",
-                function(row)
-                    Module:StyleRecipeRow(row)
+                function(row, node)
+                    Module:StyleRecipeRow(row, node)
                 end
             )
         end
@@ -559,6 +798,14 @@ function Module:Attach()
 
         if frame.RefreshRightTabs then
             hooksecurefunc(frame, "RefreshRightTabs", function()
+                C_Timer.After(0, function()
+                    StyleRightTabs(frame)
+                end)
+            end)
+        end
+
+        if frame.RightTabSelected then
+            hooksecurefunc(frame, "RightTabSelected", function()
                 C_Timer.After(0, function()
                     StyleRightTabs(frame)
                 end)
