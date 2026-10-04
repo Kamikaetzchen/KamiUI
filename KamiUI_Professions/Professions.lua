@@ -16,6 +16,53 @@ local colors = {
     muted = { 0.62, 0.62, 0.66, 1.00 },
 }
 
+local function EnsureDatabase()
+    KamiUIDB = KamiUIDB or {}
+    KamiUIDB.professions = KamiUIDB.professions or {}
+
+    return KamiUIDB.professions
+end
+
+local function SavePosition(frame)
+    local frameX, frameY = frame:GetCenter()
+    local parentX, parentY = UIParent:GetCenter()
+
+    if not frameX or not frameY or not parentX or not parentY then
+        return
+    end
+
+    EnsureDatabase().position = {
+        x = frameX - parentX,
+        y = frameY - parentY,
+    }
+
+    frame:ClearAllPoints()
+    frame:SetPoint(
+        "CENTER",
+        UIParent,
+        "CENTER",
+        EnsureDatabase().position.x,
+        EnsureDatabase().position.y
+    )
+end
+
+local function ApplySavedPosition(frame)
+    local position = EnsureDatabase().position
+
+    if not position then
+        return
+    end
+
+    frame:ClearAllPoints()
+    frame:SetPoint(
+        "CENTER",
+        UIParent,
+        "CENTER",
+        position.x or 0,
+        position.y or 0
+    )
+end
+
 local function SetColor(texture, color)
     if texture and texture.SetColorTexture then
         texture:SetColorTexture(
@@ -117,23 +164,8 @@ local function StyleRankBar(bar)
         return
     end
 
-    bar:SetHeight(17)
-
     if bar.Background then
-        bar.Background:ClearAllPoints()
-        bar.Background:SetAllPoints()
         SetColor(bar.Background, { 0, 0, 0, 0.62 })
-    end
-
-    if bar.Fill then
-        bar.Fill:ClearAllPoints()
-        bar.Fill:SetPoint("TOPLEFT", bar, "TOPLEFT", 1, -1)
-        bar.Fill:SetPoint("BOTTOMRIGHT", bar, "BOTTOMRIGHT", -1, 1)
-    end
-
-    if bar.Mask and bar.Fill then
-        bar.Mask:ClearAllPoints()
-        bar.Mask:SetAllPoints(bar.Fill)
     end
 
     HideRegion(bar.Border)
@@ -286,18 +318,6 @@ function Module:ApplyRecipeCategoryVisual(row)
     SetColor(background, { 1, 1, 1, 0.055 })
 
     HideButtonTextures(row)
-
-    if row.SetNormalTexture then
-        row:SetNormalTexture(nil)
-    end
-
-    if row.SetPushedTexture then
-        row:SetPushedTexture(nil)
-    end
-
-    if row.SetHighlightTexture then
-        row:SetHighlightTexture(nil)
-    end
 
     local collapse = row.GetCollapseButton
         and row:GetCollapseButton()
@@ -532,17 +552,106 @@ local function HideNativeProfessionTab(tab)
     end
 end
 
+local function SetBottomTabBackground(tab, r, g, b, a)
+    for _, texture in ipairs(tab.backgrounds or {}) do
+        texture:SetColorTexture(r, g, b, a)
+    end
+end
+
+local function CreateBottomTabVisual(tab)
+    local chamfer = 4
+    local backgrounds = {}
+
+    local upper = tab:CreateTexture(nil, "BACKGROUND")
+    upper:SetPoint("TOPLEFT", tab, "TOPLEFT", 0, 0)
+    upper:SetPoint("TOPRIGHT", tab, "TOPRIGHT", 0, 0)
+    upper:SetPoint("BOTTOM", tab, "BOTTOM", 0, chamfer)
+    backgrounds[#backgrounds + 1] = upper
+
+    for row = 0, chamfer - 1 do
+        local inset = chamfer - row
+        local strip = tab:CreateTexture(nil, "BACKGROUND")
+        strip:SetPoint("BOTTOMLEFT", tab, "BOTTOMLEFT", inset, row)
+        strip:SetPoint("BOTTOMRIGHT", tab, "BOTTOMRIGHT", -inset, row)
+        strip:SetHeight(1)
+        backgrounds[#backgrounds + 1] = strip
+    end
+
+    tab.backgrounds = backgrounds
+
+    local borders = {}
+
+    local top = tab:CreateTexture(nil, "OVERLAY")
+    top:SetPoint("TOPLEFT")
+    top:SetPoint("TOPRIGHT")
+    top:SetHeight(1)
+    SetColor(top, colors.border)
+    borders[1] = top
+
+    local bottom = tab:CreateTexture(nil, "OVERLAY")
+    bottom:SetPoint("BOTTOMLEFT", tab, "BOTTOMLEFT", chamfer, 0)
+    bottom:SetPoint("BOTTOMRIGHT", tab, "BOTTOMRIGHT", -chamfer, 0)
+    bottom:SetHeight(1)
+    SetColor(bottom, colors.border)
+    borders[2] = bottom
+
+    local left = tab:CreateTexture(nil, "OVERLAY")
+    left:SetPoint("TOPLEFT")
+    left:SetPoint("BOTTOMLEFT", tab, "BOTTOMLEFT", 0, chamfer)
+    left:SetWidth(1)
+    SetColor(left, colors.border)
+    borders[3] = left
+
+    local right = tab:CreateTexture(nil, "OVERLAY")
+    right:SetPoint("TOPRIGHT")
+    right:SetPoint("BOTTOMRIGHT", tab, "BOTTOMRIGHT", 0, chamfer)
+    right:SetWidth(1)
+    SetColor(right, colors.border)
+    borders[4] = right
+
+    for step = 1, chamfer do
+        local leftChamfer = tab:CreateTexture(nil, "OVERLAY")
+        leftChamfer:SetPoint(
+            "BOTTOMLEFT",
+            tab,
+            "BOTTOMLEFT",
+            step - 1,
+            chamfer - step
+        )
+        leftChamfer:SetSize(1, 1)
+        SetColor(leftChamfer, colors.border)
+
+        local rightChamfer = tab:CreateTexture(nil, "OVERLAY")
+        rightChamfer:SetPoint(
+            "BOTTOMRIGHT",
+            tab,
+            "BOTTOMRIGHT",
+            -(step - 1),
+            chamfer - step
+        )
+        rightChamfer:SetSize(1, 1)
+        SetColor(rightChamfer, colors.border)
+    end
+
+    tab.borders = borders
+end
+
 local function SetProfessionTabVisual(tab, active)
-    if not tab or not tab.background then
+    if not tab then
         return
     end
 
-    tab.background:SetColorTexture(
+    SetBottomTabBackground(
+        tab,
         active and 0.04 or 0.00,
         active and 0.04 or 0.00,
         active and 0.05 or 0.00,
         active and 0.55 or 0.40
     )
+
+    if tab.borders and tab.borders[1] then
+        tab.borders[1]:SetShown(not active)
+    end
 end
 
 local function CreateProfessionBottomTabs(frame)
@@ -566,18 +675,16 @@ local function CreateProfessionBottomTabs(frame)
             1
         )
 
-        local background = tab:CreateTexture(nil, "BACKGROUND")
-        background:SetAllPoints()
-        tab.background = background
+        CreateBottomTabVisual(tab)
+        SetProfessionTabVisual(tab, false)
 
-        local borders = CreateBorder(tab, "KamiProfessionTabBorder")
-
-        if index > 1 and borders and borders[3] then
-            borders[3]:Hide()
+        if index > 1 and tab.borders and tab.borders[3] then
+            tab.borders[3]:Hide()
         end
 
         local highlight = tab:CreateTexture(nil, "HIGHLIGHT")
-        highlight:SetAllPoints()
+        highlight:SetPoint("TOPLEFT", tab, "TOPLEFT", 1, -1)
+        highlight:SetPoint("BOTTOMRIGHT", tab, "BOTTOMRIGHT", -1, 4)
         highlight:SetColorTexture(1, 1, 1, 0.08)
 
         tab:SetScript("OnClick", function(self)
@@ -687,10 +794,40 @@ local function StyleCloseButton(button)
     StyleFont(button.KamiText, 12, colors.text)
 end
 
+local function ConfigureFrameDragging(frame)
+    if not frame or frame.KamiDraggingConfigured then
+        return
+    end
+
+    frame.KamiDraggingConfigured = true
+    frame:SetMovable(true)
+    frame:SetClampedToScreen(true)
+
+    local dragHandle = frame.TitleContainer or frame
+    dragHandle:EnableMouse(true)
+    dragHandle:RegisterForDrag("LeftButton")
+
+    dragHandle:HookScript("OnDragStart", function()
+        frame:StartMoving()
+    end)
+
+    dragHandle:HookScript("OnDragStop", function()
+        frame:StopMovingOrSizing()
+
+        if frame.SetUserPlaced then
+            frame:SetUserPlaced(true)
+        end
+
+        SavePosition(frame)
+    end)
+end
+
 local function StyleFrameChrome(frame)
     if not frame then
         return
     end
+
+    ConfigureFrameDragging(frame)
 
     EnsureBackground(
         frame,
@@ -784,6 +921,7 @@ function Module:Attach()
 
         frame:HookScript("OnShow", function()
             C_Timer.After(0, function()
+                ApplySavedPosition(frame)
                 Module:RefreshStyle()
             end)
         end)
@@ -831,6 +969,7 @@ function Module:Attach()
         end
     end
 
+    ApplySavedPosition(frame)
     self:RefreshStyle()
 end
 
