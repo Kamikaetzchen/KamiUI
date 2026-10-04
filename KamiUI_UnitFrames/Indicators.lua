@@ -11,6 +11,10 @@ local HEAL_PREDICTION_UNITS = {
     target = true,
     focus = true,
     pet = true,
+    party1 = true,
+    party2 = true,
+    party3 = true,
+    party4 = true,
 }
 
 
