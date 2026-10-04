@@ -5,7 +5,7 @@ local Module = UI:NewModule("Characters")
 Module.name = "KamiUI_Characters"
 Module.version = "0.2.0"
 
-local LEFT_PANE_WIDTH = 360
+local LEFT_PANE_WIDTH = 323
 local RIGHT_PANE_WIDTH = 210
 local FRAME_WIDTH = LEFT_PANE_WIDTH + RIGHT_PANE_WIDTH
 
