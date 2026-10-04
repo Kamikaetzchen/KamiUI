@@ -35,6 +35,8 @@ local function EnsureDatabase()
         db.minimized = false
     end
 
+    db.collapsedSections = db.collapsedSections or {}
+
     return db
 end
 
@@ -115,15 +117,26 @@ local function HideBlizzardTracker()
 end
 
 local function GetDifficultyColor(level)
-    if GetQuestDifficultyColor and level and level > 0 then
-        local color = GetQuestDifficultyColor(level)
+    level = tonumber(level) or 0
 
-        if color then
-            return color.r or 1, color.g or 1, color.b or 1
-        end
+    if level <= 0 then
+        return 1, 0.82, 0
     end
 
-    return 1, 0.82, 0
+    local playerLevel = UnitLevel and UnitLevel("player") or level
+    local difference = level - playerLevel
+
+    if difference >= 5 then
+        return 1.00, 0.15, 0.15
+    elseif difference >= 3 then
+        return 1.00, 0.50, 0.10
+    elseif difference >= -2 then
+        return 1.00, 0.82, 0.00
+    elseif difference >= -5 then
+        return 0.25, 0.85, 0.25
+    end
+
+    return 0.55, 0.55, 0.55
 end
 
 local function OpenQuest(questID)
@@ -269,27 +282,47 @@ local function UpdateQuestRow(row, item, y)
     return height
 end
 
-local function CreateSection(parent)
+local function CreateSection(parent, id)
     local section = CreateFrame("Frame", nil, parent)
+    section.id = id
 
-    local header = CreateFrame("Frame", nil, section)
+    local header = CreateFrame("Button", nil, section)
     header:SetPoint("TOPLEFT")
     header:SetPoint("TOPRIGHT")
     header:SetHeight(SECTION_HEADER_HEIGHT)
+    header:RegisterForClicks("LeftButtonUp")
 
     local background = header:CreateTexture(nil, "BACKGROUND")
     background:SetAllPoints()
     background:SetColorTexture(unpack(colors.section))
 
+    local toggle = header:CreateFontString(nil, "OVERLAY")
+    toggle:SetPoint("LEFT", header, "LEFT", 6, 0)
+    toggle:SetWidth(10)
+    toggle:SetJustifyH("CENTER")
+    toggle:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
+    toggle:SetTextColor(unpack(colors.gold))
+    header.toggle = toggle
+
     local title = header:CreateFontString(nil, "OVERLAY")
-    title:SetPoint("LEFT", header, "LEFT", 6, 0)
+    title:SetPoint("LEFT", toggle, "RIGHT", 4, 0)
     title:SetPoint("RIGHT", header, "RIGHT", -6, 0)
     title:SetJustifyH("LEFT")
     title:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
     title:SetTextColor(unpack(colors.gold))
     header.title = title
-    section.header = header
 
+    local highlight = header:CreateTexture(nil, "HIGHLIGHT")
+    highlight:SetAllPoints()
+    highlight:SetColorTexture(1, 1, 1, 0.04)
+
+    header:SetScript("OnClick", function()
+        local db = EnsureDatabase()
+        db.collapsedSections[id] = not db.collapsedSections[id]
+        Module:Refresh()
+    end)
+
+    section.header = header
     section.rows = {}
 
     return section
@@ -368,7 +401,7 @@ function Module:Refresh()
 
         if data and data.items and #data.items > 0 then
             if not section then
-                section = CreateSection(frame.content)
+                section = CreateSection(frame.content, id)
                 frame.sections[id] = section
             end
 
@@ -378,25 +411,34 @@ function Module:Refresh()
             section.header.title:SetText(data.title or id)
             section:Show()
 
+            local collapsed = EnsureDatabase().collapsedSections[id] == true
+            section.header.toggle:SetText(collapsed and "+" or "-")
+
             local sectionHeight = SECTION_HEADER_HEIGHT
             local rowY = SECTION_HEADER_HEIGHT + 3
 
-            for index, item in ipairs(data.items) do
-                local row = section.rows[index]
+            if collapsed then
+                for _, row in ipairs(section.rows) do
+                    row:Hide()
+                end
+            else
+                for index, item in ipairs(data.items) do
+                    local row = section.rows[index]
 
-                if not row then
-                    row = CreateQuestRow(section)
-                    section.rows[index] = row
+                    if not row then
+                        row = CreateQuestRow(section)
+                        section.rows[index] = row
+                    end
+
+                    row:Show()
+                    local rowHeight = UpdateQuestRow(row, item, rowY)
+                    rowY = rowY + rowHeight + QUEST_SPACING
+                    sectionHeight = rowY
                 end
 
-                row:Show()
-                local rowHeight = UpdateQuestRow(row, item, rowY)
-                rowY = rowY + rowHeight + QUEST_SPACING
-                sectionHeight = rowY
-            end
-
-            for index = #data.items + 1, #section.rows do
-                section.rows[index]:Hide()
+                for index = #data.items + 1, #section.rows do
+                    section.rows[index]:Hide()
+                end
             end
 
             section:SetHeight(sectionHeight)
@@ -450,18 +492,30 @@ local function CreateFrameUI()
     frame:SetBackdropColor(unpack(colors.background))
     CreateBorder(frame)
 
-    local header = CreateFrame("Frame", nil, frame)
+    local header = CreateFrame("Button", nil, frame)
     header:SetPoint("TOPLEFT", frame, "TOPLEFT", 1, -1)
     header:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -1, -1)
     header:SetHeight(HEADER_HEIGHT - 2)
-    header:EnableMouse(true)
+    header:RegisterForClicks("LeftButtonUp")
     header:RegisterForDrag("LeftButton")
-    header:SetScript("OnDragStart", function()
+    header:SetScript("OnDragStart", function(self)
+        self.dragging = true
         frame:StartMoving()
     end)
-    header:SetScript("OnDragStop", function()
+    header:SetScript("OnDragStop", function(self)
         frame:StopMovingOrSizing()
         SavePosition(frame)
+
+        C_Timer.After(0, function()
+            self.dragging = false
+        end)
+    end)
+    header:SetScript("OnClick", function(self)
+        if self.dragging then
+            return
+        end
+
+        Module:ToggleMinimized()
     end)
     frame.header = header
 
