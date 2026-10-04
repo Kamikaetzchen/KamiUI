@@ -27,8 +27,6 @@ local DamageMeterType = Enum.DamageMeterType
 local DamageMeterSessionType = Enum.DamageMeterSessionType
 
 local VIEW_ORDER = {
-    "damage",
-    "healing",
     "absorbs",
     "taken",
     "avoidable",
@@ -36,6 +34,8 @@ local VIEW_ORDER = {
     "interrupts",
     "dispels",
     "deaths",
+    "healing",
+    "damage",
 }
 
 local VIEWS = {
@@ -766,16 +766,7 @@ local function BuildSessionPopup()
         button:Hide()
     end
 
-    local entries = {
-        {
-            text = DAMAGE_METER_CURRENT_SESSION or "Current Segment",
-            sessionType = DamageMeterSessionType.Current,
-        },
-        {
-            text = DAMAGE_METER_OVERALL_SESSION or "Overall",
-            sessionType = DamageMeterSessionType.Overall,
-        },
-    }
+    local entries = {}
 
     for _, session in ipairs(
         C_DamageMeter.GetAvailableCombatSessions() or {}
@@ -785,10 +776,20 @@ local function BuildSessionPopup()
             sessionID = session.sessionID,
         }
 
-        if #entries >= 10 then
+        if #entries >= 8 then
             break
         end
     end
+
+    entries[#entries + 1] = {
+        text = DAMAGE_METER_OVERALL_SESSION or "Overall",
+        sessionType = DamageMeterSessionType.Overall,
+    }
+
+    entries[#entries + 1] = {
+        text = DAMAGE_METER_CURRENT_SESSION or "Current Segment",
+        sessionType = DamageMeterSessionType.Current,
+    }
 
     local y = -4
 
