@@ -213,6 +213,7 @@ function Module:SnapshotCurrentProfession()
         end
 
         saved.recipes = recipes
+        saved.recipesCached = true
     else
         saved.recipes = saved.recipes or {}
     end
@@ -1427,7 +1428,7 @@ function Module:AddRecipeCharacterTooltip(tooltip, tooltipData)
         local profession =
             FindCachedProfession(character, professionInfo)
 
-        if profession then
+        if profession and profession.recipesCached then
             local name = character.name or "Unknown"
             local recipe = profession.recipes
                 and profession.recipes[recipeID]
@@ -1514,7 +1515,7 @@ function Module:InstallRecipeTooltipHook()
 end
 
 local function CreateCachedProfessionRow(parent)
-    local row = CreateFrame("Frame", nil, parent)
+    local row = CreateFrame("Button", nil, parent)
     row:SetHeight(20)
 
     local background = row:CreateTexture(nil, "BACKGROUND")
@@ -1539,6 +1540,11 @@ local function CreateCachedProfessionRow(parent)
     text:SetWordWrap(false)
     row.text = text
 
+    local highlight = row:CreateTexture(nil, "HIGHLIGHT")
+    highlight:SetAllPoints()
+    highlight:SetColorTexture(1, 1, 1, 0.05)
+    row.highlight = highlight
+
     return row
 end
 
@@ -1558,8 +1564,8 @@ local function GetCachedProfessions(character)
         local rightName = right.professionName or ""
 
         if leftName == rightName then
-            return (left.expansionName or "")
-                < (right.expansionName or "")
+            return (left.professionID or 0)
+                < (right.professionID or 0)
         end
 
         return leftName < rightName
@@ -1598,6 +1604,9 @@ local function RebuildCachedProfessionPane(frame)
         return
     end
 
+    pane.expandedProfessions =
+        pane.expandedProfessions or {}
+
     local _, character = GetViewedCharacter()
 
     pane.title:SetText(
@@ -1607,6 +1616,8 @@ local function RebuildCachedProfessionPane(frame)
 
     for _, row in ipairs(pane.rows) do
         row:Hide()
+        row:SetScript("OnClick", nil)
+        row:EnableMouse(false)
     end
 
     local professions = GetCachedProfessions(character)
@@ -1625,6 +1636,8 @@ local function RebuildCachedProfessionPane(frame)
         row:ClearAllPoints()
         row:SetPoint("TOPLEFT", pane.content, "TOPLEFT", 0, -y)
         row:SetPoint("TOPRIGHT", pane.content, "TOPRIGHT", 0, -y)
+        row:SetScript("OnClick", nil)
+        row:EnableMouse(false)
         row:Show()
 
         return row
@@ -1647,6 +1660,16 @@ local function RebuildCachedProfessionPane(frame)
     else
         for _, profession in ipairs(professions) do
             local recipes = GetCachedRecipes(profession)
+            local professionKey =
+                profession.professionID
+                or profession.professionName
+            local recipesCached =
+                profession.recipesCached == true
+            local canExpand =
+                recipesCached and #recipes > 0
+            local expanded =
+                canExpand
+                and pane.expandedProfessions[professionKey] == true
             local header = AcquireRow()
 
             header:SetHeight(24)
@@ -1656,19 +1679,29 @@ local function RebuildCachedProfessionPane(frame)
             header.text:SetPoint("RIGHT", header, "RIGHT", -8, 0)
 
             local label = profession.professionName or "Profession"
-            if profession.expansionName
-                and profession.expansionName ~= ""
-                and profession.expansionName ~= label
-            then
-                label = label .. " - " .. profession.expansionName
+            local suffix
+
+            if recipesCached then
+                suffix = string.format(
+                    "%d recipes",
+                    #recipes
+                )
+            else
+                suffix = "recipes not cached"
+            end
+
+            local prefix = ""
+            if canExpand then
+                prefix = expanded and "- " or "+ "
             end
 
             label = string.format(
-                "%s  %d/%d  (%d recipes)",
+                "%s%s  %d/%d  (%s)",
+                prefix,
                 label,
                 profession.skillLevel or 0,
                 profession.maxSkillLevel or 0,
-                #recipes
+                suffix
             )
 
             header.text:SetText(label)
@@ -1679,47 +1712,71 @@ local function RebuildCachedProfessionPane(frame)
                 0.10,
                 0.92
             )
+
+            if canExpand then
+                header:EnableMouse(true)
+                header:SetScript("OnClick", function()
+                    pane.expandedProfessions[professionKey] =
+                        not pane.expandedProfessions[professionKey]
+                    RebuildCachedProfessionPane(frame)
+                end)
+            end
+
             y = y + 24
 
-            for _, recipe in ipairs(recipes) do
-                local row = AcquireRow()
+            if expanded then
+                for _, recipe in ipairs(recipes) do
+                    local row = AcquireRow()
 
-                row:SetHeight(19)
-                row.background:SetColorTexture(0, 0, 0, 0)
+                    row:SetHeight(19)
+                    row.background:SetColorTexture(0, 0, 0, 0)
 
-                if recipe.icon and recipe.icon ~= 0 then
-                    row.icon:SetTexture(recipe.icon)
-                    row.icon:Show()
-                else
-                    row.icon:SetTexture(nil)
-                    row.icon:Hide()
-                end
+                    if recipe.icon and recipe.icon ~= 0 then
+                        row.icon:SetTexture(recipe.icon)
+                        row.icon:Show()
+                    else
+                        row.icon:SetTexture(nil)
+                        row.icon:Hide()
+                    end
 
-                row.text:ClearAllPoints()
-                if row.icon:IsShown() then
+                    row.text:ClearAllPoints()
+                    if row.icon:IsShown() then
+                        row.text:SetPoint(
+                            "LEFT",
+                            row.icon,
+                            "RIGHT",
+                            6,
+                            0
+                        )
+                    else
+                        row.text:SetPoint(
+                            "LEFT",
+                            row,
+                            "LEFT",
+                            28,
+                            0
+                        )
+                    end
+
                     row.text:SetPoint(
-                        "LEFT",
-                        row.icon,
                         "RIGHT",
-                        6,
-                        0
-                    )
-                else
-                    row.text:SetPoint(
-                        "LEFT",
                         row,
-                        "LEFT",
-                        28,
+                        "RIGHT",
+                        -8,
                         0
                     )
-                end
-                row.text:SetPoint("RIGHT", row, "RIGHT", -8, 0)
-                row.text:SetText(
-                    recipe.name or ("Recipe " .. recipe.recipeID)
-                )
-                Styles:ApplyText(row.text, 9, Palette.text)
+                    row.text:SetText(
+                        recipe.name
+                        or ("Recipe " .. recipe.recipeID)
+                    )
+                    Styles:ApplyText(
+                        row.text,
+                        9,
+                        Palette.text
+                    )
 
-                y = y + 19
+                    y = y + 19
+                end
             end
 
             y = y + 5
