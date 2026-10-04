@@ -546,6 +546,10 @@ function Components:StyleScrollBar(scrollbar, options)
     local nativeThumb = nativeTrack and nativeTrack.Thumb
 
     if nativeTrack and nativeThumb then
+        -- MinimalScrollBar's thumb mixin reads the current atlas in
+        -- OnSizeChanged(). Do not replace these textures with color
+        -- textures; keeping the atlases intact avoids breaking Blizzard's
+        -- size calculations while alpha 0 removes the native art.
         for _, texture in pairs({
             nativeTrack.Begin,
             nativeTrack.Middle,
@@ -556,7 +560,9 @@ function Components:StyleScrollBar(scrollbar, options)
             scrollbar.Back and scrollbar.Back.Texture,
             scrollbar.Forward and scrollbar.Forward.Texture,
         }) do
-            NeutralizeTexture(texture)
+            if texture and texture.SetAlpha then
+                texture:SetAlpha(0)
+            end
         end
 
         nativeTrack:ClearAllPoints()
