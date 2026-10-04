@@ -159,7 +159,7 @@ local function CreateQuestRow(parent)
 
     local title = row:CreateFontString(nil, "OVERLAY")
     title:SetPoint("TOPLEFT", level, "TOPRIGHT", 5, 0)
-    title:SetPoint("RIGHT", row, "RIGHT", -2, 0)
+    title:SetWidth(PANEL_WIDTH - (CONTENT_PADDING * 2) - 41)
     title:SetJustifyH("LEFT")
     title:SetJustifyV("TOP")
     title:SetWordWrap(true)
@@ -190,7 +190,7 @@ local function GetObjectiveFont(row, index)
 
     text = row:CreateFontString(nil, "OVERLAY")
     text:SetPoint("LEFT", row, "LEFT", 39, 0)
-    text:SetPoint("RIGHT", row, "RIGHT", -2, 0)
+    text:SetWidth(PANEL_WIDTH - (CONTENT_PADDING * 2) - 41)
     text:SetJustifyH("LEFT")
     text:SetJustifyV("TOP")
     text:SetWordWrap(true)
@@ -203,7 +203,7 @@ end
 local function UpdateQuestRow(row, item, y)
     row:ClearAllPoints()
     row:SetPoint("TOPLEFT", row:GetParent(), "TOPLEFT", CONTENT_PADDING, -y)
-    row:SetPoint("RIGHT", row:GetParent(), "RIGHT", -CONTENT_PADDING, 0)
+    row:SetWidth(PANEL_WIDTH - (CONTENT_PADDING * 2))
     row.questID = item.questID
 
     local level = tonumber(item.level) or 0
@@ -228,8 +228,8 @@ local function UpdateQuestRow(row, item, y)
             -(titleHeight + OBJECTIVE_SPACING)
         )
 
-        for previous = 1, index - 1 do
-            local previousText = row.objectives[previous]
+        if index > 1 then
+            local previousText = row.objectives[index - 1]
 
             if previousText and previousText:IsShown() then
                 text:ClearAllPoints()
@@ -240,11 +240,8 @@ local function UpdateQuestRow(row, item, y)
                     0,
                     -OBJECTIVE_SPACING
                 )
-                break
             end
         end
-
-        text:SetPoint("RIGHT", row, "RIGHT", -2, 0)
         text:SetText("- " .. (objective.text or ""))
 
         if objective.finished then
@@ -377,7 +374,7 @@ function Module:Refresh()
 
             section:ClearAllPoints()
             section:SetPoint("TOPLEFT", frame.content, "TOPLEFT", 0, -y)
-            section:SetPoint("RIGHT", frame.content, "RIGHT", 0, 0)
+            section:SetWidth(PANEL_WIDTH - 2)
             section.header.title:SetText(data.title or id)
             section:Show()
 
