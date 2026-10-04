@@ -231,7 +231,8 @@ local function StyleRankBar(
 
     if bar.Rank then
         bar.Rank:ClearAllPoints()
-        bar.Rank:SetPoint("CENTER", bar, "CENTER", 0, -2)
+        bar.Rank:SetPoint("LEFT", bar, "LEFT", 0, -3)
+        bar.Rank:SetPoint("RIGHT", bar, "RIGHT", 0, -3)
     end
 
     if rankText then
@@ -245,6 +246,7 @@ local function StyleRankBar(
         )
         rankText:SetHeight(rankFontSize + 2)
         StyleFont(rankText, rankFontSize, colors.text)
+        rankText:Show()
     end
 end
 
