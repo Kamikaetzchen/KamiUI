@@ -1031,51 +1031,200 @@ local function UpdateStatsPane(frame)
     end
 end
 
-local function GetAccessibleNumber(value)
-    if CanAccessValue(value) and type(value) == "number" then
-        return value
+local statProxyParent = CreateFrame("Frame")
+statProxyParent:Hide()
+
+local statProxies = {}
+
+local primaryStatIndices = {
+    strength = 1,
+    agility = 2,
+    stamina = 3,
+    intellect = 4,
+    spirit = 5,
+}
+
+local primaryStatTokens = {
+    strength = "STRENGTH",
+    agility = "AGILITY",
+    stamina = "STAMINA",
+    intellect = "INTELLECT",
+    spirit = "SPIRIT",
+}
+
+local paperDollStatKeys = {
+    strength = { "STRENGTH", "BASE_STATS1" },
+    agility = { "AGILITY", "BASE_STATS2" },
+    stamina = { "STAMINA", "BASE_STATS3" },
+    intellect = { "INTELLECT", "BASE_STATS4" },
+    spirit = { "SPIRIT", "BASE_STATS5" },
+    moveSpeed = { "MOVESPEED", "MOVEMENT_SPEED" },
+    attackPower = { "MELEE_AP", "MELEE_ATTACK_POWER" },
+    crit = { "CRITCHANCE", "MELEE_CRIT" },
+    hit = { "HITCHANCE", "MELEE_HIT" },
+    armor = { "DEFENSES1", "ARMOR" },
+    dodge = { "DEFENSES3", "DODGE" },
+    parry = { "DEFENSES4", "PARRY" },
+    block = { "DEFENSES5", "BLOCK" },
+    fire = { "FIRE" },
+    nature = { "NATURE" },
+    frost = { "FROST" },
+    shadow = { "SHADOW" },
+    arcane = { "ARCANE" },
+}
+
+local resistanceIndices = {
+    fire = 2,
+    nature = 3,
+    frost = 4,
+    shadow = 5,
+    arcane = 6,
+}
+
+local function GetStatProxy(key)
+    local proxy = statProxies[key]
+
+    if proxy then
+        return proxy
+    end
+
+    local suffix = key:gsub("[^%w]", "")
+    local name = "KamiUICharacterStatProxy" .. suffix
+
+    proxy = CreateFrame("Frame", name, statProxyParent)
+    proxy:SetSize(1, 1)
+
+    local label = proxy:CreateFontString(name .. "Label", "OVERLAY")
+    label:SetPoint("LEFT")
+    label:Hide()
+
+    local text = proxy:CreateFontString(name .. "StatText", "OVERLAY")
+    text:SetPoint("LEFT")
+    text:Hide()
+
+    statProxies[key] = proxy
+
+    return proxy
+end
+
+local function ResetStatProxy(proxy)
+    proxy.tooltip = nil
+    proxy.tooltip2 = nil
+    proxy.tooltip3 = nil
+    proxy.tooltip4 = nil
+    proxy.tooltipSubtext = nil
+    proxy.onEnterFunc = nil
+    proxy.UpdateTooltip = nil
+end
+
+local function TryPaperDollStatInfo(proxy, key)
+    if type(PAPERDOLL_STATINFO) ~= "table" then
+        return false
+    end
+
+    for _, statKey in ipairs(paperDollStatKeys[key] or {}) do
+        local info = PAPERDOLL_STATINFO[statKey]
+
+        if info and type(info.updateFunc) == "function" then
+            local ok = pcall(info.updateFunc, proxy, "player")
+
+            if ok then
+                return true
+            end
+        end
+    end
+
+    return false
+end
+
+local function UpdateBlizzardStatProxy(proxy, key)
+    ResetStatProxy(proxy)
+
+    if TryPaperDollStatInfo(proxy, key) then
+        return true
+    end
+
+    local statIndex = primaryStatIndices[key]
+
+    if statIndex and PaperDollFrame_SetStat then
+        return pcall(PaperDollFrame_SetStat, proxy, statIndex)
+    end
+
+    if key == "moveSpeed" and PaperDollFrame_SetMovementSpeed then
+        return pcall(PaperDollFrame_SetMovementSpeed, proxy, "player")
+    elseif key == "attackPower" and PaperDollFrame_SetAttackPower then
+        return pcall(PaperDollFrame_SetAttackPower, proxy, "player")
+    elseif key == "crit" then
+        if PaperDollFrame_SetMeleeCritChance then
+            return pcall(PaperDollFrame_SetMeleeCritChance, proxy)
+        elseif PaperDollFrame_SetCritChance then
+            return pcall(PaperDollFrame_SetCritChance, proxy)
+        end
+    elseif key == "hit" and PaperDollFrame_SetRating and CR_HIT_MELEE then
+        return pcall(PaperDollFrame_SetRating, proxy, CR_HIT_MELEE)
+    elseif key == "armor" and PaperDollFrame_SetArmor then
+        return pcall(PaperDollFrame_SetArmor, proxy, "player")
+    elseif key == "dodge" and PaperDollFrame_SetDodge then
+        return pcall(PaperDollFrame_SetDodge, proxy)
+    elseif key == "parry" and PaperDollFrame_SetParry then
+        return pcall(PaperDollFrame_SetParry, proxy)
+    elseif key == "block" and PaperDollFrame_SetBlock then
+        return pcall(PaperDollFrame_SetBlock, proxy)
+    end
+
+    local resistanceIndex = resistanceIndices[key]
+
+    if resistanceIndex and PaperDollFrame_SetResistance then
+        return pcall(
+            PaperDollFrame_SetResistance,
+            proxy,
+            "player",
+            resistanceIndex
+        )
+    end
+
+    return false
+end
+
+local function AddBlizzardTooltipLine(text)
+    if type(text) == "string" and text ~= "" then
+        GameTooltip:AddLine(text, 0.82, 0.82, 0.84, true)
+        return true
+    end
+
+    return false
+end
+
+local function GetPrimaryStatFallback(key)
+    local statToken = primaryStatTokens[key]
+
+    if not statToken then
+        return nil
+    end
+
+    local _, classFile = UnitClass("player")
+
+    if type(classFile) == "string" then
+        local classText = _G[
+            string.upper(classFile)
+                .. "_"
+                .. statToken
+                .. "_TOOLTIP"
+        ]
+
+        if type(classText) == "string" then
+            return classText
+        end
+    end
+
+    local defaultText = _G["DEFAULT_" .. statToken .. "_TOOLTIP"]
+
+    if type(defaultText) == "string" then
+        return defaultText
     end
 
     return nil
 end
-
-local function GetEffectiveStat(statID)
-    local _, effective = SafeCall(UnitStat, "player", statID)
-
-    return GetAccessibleNumber(effective)
-end
-
-local function AddTooltipDetail(text)
-    if text and text ~= "" then
-        GameTooltip:AddLine(text, 0.82, 0.82, 0.84, true)
-    end
-end
-
-local function AddStatContribution(label, value, suffix)
-    value = GetAccessibleNumber(value)
-
-    if value == nil then
-        return
-    end
-
-    local formatString = suffix and "%.2f%s" or "%.0f"
-    local text = string.format(formatString, value, suffix or "")
-
-    GameTooltip:AddDoubleLine(
-        label,
-        text,
-        0.72, 0.72, 0.75,
-        0.95, 0.95, 0.97
-    )
-end
-
-local resistanceDescriptions = {
-    fire = "Reduces damage taken from Fire spells.",
-    nature = "Reduces damage taken from Nature spells.",
-    frost = "Reduces damage taken from Frost spells.",
-    shadow = "Reduces damage taken from Shadow spells.",
-    arcane = "Reduces damage taken from Arcane spells.",
-}
 
 ShowStatTooltip = function(row)
     local key = row.statKey
@@ -1090,249 +1239,44 @@ ShowStatTooltip = function(row)
         return
     end
 
+    local proxy = GetStatProxy(key)
+    local updated = UpdateBlizzardStatProxy(proxy, key)
+    local tooltip = updated and proxy.tooltip
+
     GameTooltip:SetOwner(row, "ANCHOR_LEFT")
-    GameTooltip:SetText(
-        row.label:GetText() or key,
-        1.00,
-        0.82,
-        0.00
-    )
-    GameTooltip:AddDoubleLine(
-        "Current",
-        row.value:GetText() or "-",
-        0.72, 0.72, 0.75,
-        1.00, 1.00, 1.00
-    )
 
-    if key == "health" then
-        AddTooltipDetail(
-            "Your maximum health. Damage reduces health until it reaches zero."
+    if type(tooltip) == "string" and tooltip ~= "" then
+        GameTooltip:SetText(tooltip)
+    else
+        GameTooltip:SetText(
+            row.label:GetText() or key,
+            1.00,
+            0.82,
+            0.00
         )
-    elseif key == "power" then
-        AddTooltipDetail(
-            "The maximum amount of your current class resource."
+        GameTooltip:AddDoubleLine(
+            "Current",
+            row.value:GetText() or "-",
+            0.72, 0.72, 0.75,
+            1.00, 1.00, 1.00
         )
-    elseif key == "moveSpeed" then
-        AddTooltipDetail(
-            "Current movement speed relative to normal running speed."
-        )
-    elseif key == "strength" or key == "agility" then
-        local statID = key == "strength" and 1 or 2
-        local effective = GetEffectiveStat(statID)
-        local attackPower = effective
-            and GetAttackPowerForStat
-            and SafeCall(GetAttackPowerForStat, statID, effective)
+    end
 
-        AddStatContribution("Attack Power", attackPower)
+    local addedDetail = false
 
-        if key == "agility" and effective then
-            local armorPerAgility = GetAccessibleNumber(ARMOR_PER_AGILITY)
-                or 2
-            AddStatContribution(
-                "Armor",
-                effective * armorPerAgility
-            )
-
-            local crit = GetCritChanceFromAgility
-                and SafeCall(GetCritChanceFromAgility, "player")
-
-            if crit == nil and GetCritChanceFromStat then
-                crit = SafeCall(GetCritChanceFromStat, 2)
-            end
-
-            AddStatContribution("Critical Strike", crit, "%")
-
-            local dodge = GetDodgeChanceFromAttribute
-                and SafeCall(GetDodgeChanceFromAttribute)
-            AddStatContribution("Dodge", dodge, "%")
+    for _, field in ipairs({
+        "tooltip2",
+        "tooltip3",
+        "tooltip4",
+        "tooltipSubtext",
+    }) do
+        if AddBlizzardTooltipLine(proxy[field]) then
+            addedDetail = true
         end
-    elseif key == "stamina" then
-        local stamina = GetEffectiveStat(3)
+    end
 
-        if stamina then
-            local baseStamina = math.min(20, stamina)
-            local extraStamina = math.max(0, stamina - baseStamina)
-            local healthPerStamina =
-                GetAccessibleNumber(HEALTH_PER_STAMINA) or 10
-            local health = baseStamina
-                + extraStamina * healthPerStamina
-            local modifier = GetUnitMaxHealthModifier
-                and SafeCall(GetUnitMaxHealthModifier, "player")
-
-            modifier = GetAccessibleNumber(modifier) or 1
-            AddStatContribution(
-                "Health from Stamina",
-                health * modifier
-            )
-        end
-    elseif key == "intellect" then
-        local intellect = GetEffectiveStat(4)
-        local _, powerToken = UnitPowerType("player")
-
-        if intellect
-            and CanAccessValue(powerToken)
-            and powerToken == "MANA"
-        then
-            local baseIntellect = math.min(20, intellect)
-            local extraIntellect = math.max(0, intellect - baseIntellect)
-            local manaPerIntellect =
-                GetAccessibleNumber(MANA_PER_INTELLECT) or 15
-            local mana = baseIntellect
-                + extraIntellect * manaPerIntellect
-
-            AddStatContribution("Mana from Intellect", mana)
-        end
-
-        local crit = GetSpellCritChanceFromIntellect
-            and SafeCall(GetSpellCritChanceFromIntellect, "player")
-
-        if crit == nil and GetSpellCritChanceFromStat then
-            crit = SafeCall(GetSpellCritChanceFromStat, 4)
-        end
-
-        AddStatContribution("Spell Critical Strike", crit, "%")
-    elseif key == "spirit" then
-        local healthRegen = GetHealthRegenFromSpirit
-            and SafeCall(GetHealthRegenFromSpirit)
-
-        if healthRegen == nil and GetUnitHealthRegenRateFromSpirit then
-            healthRegen = SafeCall(
-                GetUnitHealthRegenRateFromSpirit,
-                "player"
-            )
-        end
-
-        AddStatContribution("Health Regen / sec", healthRegen)
-
-        local manaRegen = GetManaRegenFromSpirit
-            and SafeCall(GetManaRegenFromSpirit)
-
-        if manaRegen == nil and GetUnitManaRegenRateFromSpirit then
-            manaRegen = SafeCall(
-                GetUnitManaRegenRateFromSpirit,
-                "player"
-            )
-        end
-
-        manaRegen = GetAccessibleNumber(manaRegen)
-
-        if manaRegen then
-            AddStatContribution("Mana Regen / 5 sec", manaRegen * 5)
-        end
-    elseif key == "attackPower" then
-        local baseAP, posAP, negAP = SafeCall(UnitAttackPower, "player")
-        baseAP = GetAccessibleNumber(baseAP)
-        posAP = GetAccessibleNumber(posAP)
-        negAP = GetAccessibleNumber(negAP)
-
-        if baseAP and posAP and negAP then
-            local totalAP = baseAP + posAP + negAP
-            local divisor =
-                GetAccessibleNumber(ATTACK_POWER_MAGIC_NUMBER) or 14
-
-            AddStatContribution(
-                "Weapon DPS from Attack Power",
-                math.max(0, totalAP) / divisor
-            )
-        end
-    elseif key == "crit" then
-        AddTooltipDetail(
-            "Chance for melee attacks to deal critical damage."
-        )
-
-        if CR_CRIT_MELEE and GetCombatRating then
-            AddStatContribution(
-                "Critical Strike Rating",
-                SafeCall(GetCombatRating, CR_CRIT_MELEE)
-            )
-        end
-    elseif key == "hit" then
-        AddTooltipDetail(
-            "Increases your chance to hit with melee attacks."
-        )
-
-        if CR_HIT_MELEE and GetCombatRating then
-            AddStatContribution(
-                "Melee Hit Rating",
-                SafeCall(GetCombatRating, CR_HIT_MELEE)
-            )
-        end
-    elseif key == "armor" then
-        local _, armor = SafeCall(UnitArmor, "player")
-        armor = GetAccessibleNumber(armor)
-
-        if armor then
-            local level = UnitLevel("player") or 1
-            local reduction
-
-            if PaperDollFrame_GetArmorReduction then
-                reduction = SafeCall(
-                    PaperDollFrame_GetArmorReduction,
-                    armor,
-                    level
-                )
-            end
-
-            reduction = GetAccessibleNumber(reduction)
-
-            if reduction == nil then
-                reduction = armor / (armor + 400 + 85 * level) * 100
-            end
-
-            AddStatContribution(
-                "Physical Damage Reduction",
-                reduction,
-                "%"
-            )
-            AddTooltipDetail(
-                "Damage reduction is shown against an attacker of your level."
-            )
-        end
-    elseif key == "dodge" then
-        AddTooltipDetail(
-            "Chance to completely avoid an incoming melee attack."
-        )
-
-        if CR_DODGE and GetCombatRating then
-            AddStatContribution(
-                "Dodge Rating",
-                SafeCall(GetCombatRating, CR_DODGE)
-            )
-        end
-    elseif key == "parry" then
-        AddTooltipDetail(
-            "Chance to parry an incoming melee attack."
-        )
-
-        if CR_PARRY and GetCombatRating then
-            AddStatContribution(
-                "Parry Rating",
-                SafeCall(GetCombatRating, CR_PARRY)
-            )
-        end
-    elseif key == "block" then
-        AddTooltipDetail(
-            "Chance to block an incoming melee attack while using a shield."
-        )
-
-        if GetShieldBlock then
-            AddStatContribution(
-                "Block Value",
-                SafeCall(GetShieldBlock)
-            )
-        end
-
-        if CR_BLOCK and GetCombatRating then
-            AddStatContribution(
-                "Block Rating",
-                SafeCall(GetCombatRating, CR_BLOCK)
-            )
-        end
-    elseif resistanceDescriptions[key] then
-        AddTooltipDetail(resistanceDescriptions[key])
-        AddTooltipDetail(
-            "Effectiveness depends on the attacker's level and your resistance."
-        )
+    if not addedDetail then
+        AddBlizzardTooltipLine(GetPrimaryStatFallback(key))
     end
 
     GameTooltip:Show()
