@@ -6,7 +6,7 @@ local Components = UI.Components
 local Module = UI:NewModule("DamageMeter")
 
 Module.name = "KamiUI_DamageMeter"
-Module.version = "0.3.0"
+Module.version = "0.4.0"
 
 local defaults = {
     width = 400,
@@ -26,110 +26,149 @@ local defaults = {
 local DamageMeterType = Enum.DamageMeterType
 local DamageMeterSessionType = Enum.DamageMeterSessionType
 
-local CATEGORY_ORDER = {
+local VIEW_ORDER = {
     "damage",
     "healing",
-    "actions",
+    "absorbs",
+    "taken",
+    "avoidable",
+    "enemyTaken",
+    "interrupts",
+    "dispels",
+    "deaths",
 }
 
-local CATEGORIES = {
+local VIEWS = {
     damage = {
-        label = DAMAGE_METER_CATEGORY_DAMAGE or "Damage",
+        label = "Damage / DPS",
         primaryType = DamageMeterType.DamageDone,
-        nameWidth = 158,
+        nameWidth = 238,
         columns = {
             {
                 label = "Damage",
                 tooltip = DAMAGE_METER_TYPE_DAMAGE_DONE or "Damage Done",
-                width = 48,
+                width = 80,
                 kind = "total",
-                type = DamageMeterType.DamageDone,
             },
             {
                 label = "DPS",
                 tooltip = DAMAGE_METER_TYPE_DPS or "DPS",
-                width = 48,
+                width = 80,
                 kind = "rate",
-                type = DamageMeterType.DamageDone,
-            },
-            {
-                label = "Taken",
-                tooltip = DAMAGE_METER_TYPE_DAMAGE_TAKEN or "Damage Taken",
-                width = 48,
-                kind = "source",
-                type = DamageMeterType.DamageTaken,
-            },
-            {
-                label = "Avoid",
-                tooltip = DAMAGE_METER_TYPE_AVOIDABLE_DAMAGE_TAKEN
-                    or "Avoidable Damage Taken",
-                width = 48,
-                kind = "source",
-                type = DamageMeterType.AvoidableDamageTaken,
-            },
-            {
-                label = "Enemy",
-                tooltip = DAMAGE_METER_TYPE_ENEMY_DAMAGE_TAKEN
-                    or "Enemy Damage Taken",
-                width = 48,
-                kind = "source",
-                type = DamageMeterType.EnemyDamageTaken,
             },
         },
     },
     healing = {
-        label = DAMAGE_METER_CATEGORY_HEALING or "Healing",
+        label = "Healing / HPS",
         primaryType = DamageMeterType.HealingDone,
-        nameWidth = 170,
+        nameWidth = 238,
         columns = {
             {
                 label = "Healing",
                 tooltip = DAMAGE_METER_TYPE_HEALING_DONE or "Healing Done",
-                width = 76,
+                width = 80,
                 kind = "total",
-                type = DamageMeterType.HealingDone,
             },
             {
                 label = "HPS",
                 tooltip = DAMAGE_METER_TYPE_HPS or "HPS",
-                width = 76,
+                width = 80,
                 kind = "rate",
-                type = DamageMeterType.HealingDone,
-            },
-            {
-                label = "Absorb",
-                tooltip = DAMAGE_METER_TYPE_ABSORBS or "Absorbs",
-                width = 76,
-                kind = "source",
-                type = DamageMeterType.Absorbs,
             },
         },
     },
-    actions = {
-        label = DAMAGE_METER_CATEGORY_ACTIONS or "Actions",
+    absorbs = {
+        label = DAMAGE_METER_TYPE_ABSORBS or "Absorbs",
+        primaryType = DamageMeterType.Absorbs,
+        nameWidth = 318,
+        columns = {
+            {
+                label = "Absorb",
+                tooltip = DAMAGE_METER_TYPE_ABSORBS or "Absorbs",
+                width = 80,
+                kind = "total",
+            },
+        },
+    },
+    taken = {
+        label = DAMAGE_METER_TYPE_DAMAGE_TAKEN or "Damage Taken",
+        primaryType = DamageMeterType.DamageTaken,
+        nameWidth = 318,
+        columns = {
+            {
+                label = "Taken",
+                tooltip = DAMAGE_METER_TYPE_DAMAGE_TAKEN or "Damage Taken",
+                width = 80,
+                kind = "total",
+            },
+        },
+    },
+    avoidable = {
+        label = DAMAGE_METER_TYPE_AVOIDABLE_DAMAGE_TAKEN
+            or "Avoidable Damage Taken",
+        primaryType = DamageMeterType.AvoidableDamageTaken,
+        nameWidth = 318,
+        columns = {
+            {
+                label = "Avoid",
+                tooltip = DAMAGE_METER_TYPE_AVOIDABLE_DAMAGE_TAKEN
+                    or "Avoidable Damage Taken",
+                width = 80,
+                kind = "total",
+            },
+        },
+    },
+    enemyTaken = {
+        label = DAMAGE_METER_TYPE_ENEMY_DAMAGE_TAKEN
+            or "Enemy Damage Taken",
+        primaryType = DamageMeterType.EnemyDamageTaken,
+        nameWidth = 318,
+        columns = {
+            {
+                label = "Enemy",
+                tooltip = DAMAGE_METER_TYPE_ENEMY_DAMAGE_TAKEN
+                    or "Enemy Damage Taken",
+                width = 80,
+                kind = "total",
+            },
+        },
+    },
+    interrupts = {
+        label = DAMAGE_METER_TYPE_INTERRUPTS or "Interrupts",
         primaryType = DamageMeterType.Interrupts,
-        nameWidth = 170,
+        nameWidth = 318,
         columns = {
             {
                 label = "Interrupt",
                 tooltip = DAMAGE_METER_TYPE_INTERRUPTS or "Interrupts",
-                width = 76,
-                kind = "source",
-                type = DamageMeterType.Interrupts,
+                width = 80,
+                kind = "total",
             },
+        },
+    },
+    dispels = {
+        label = DAMAGE_METER_TYPE_DISPELS or "Dispels",
+        primaryType = DamageMeterType.Dispels,
+        nameWidth = 318,
+        columns = {
             {
                 label = "Dispel",
                 tooltip = DAMAGE_METER_TYPE_DISPELS or "Dispels",
-                width = 76,
-                kind = "source",
-                type = DamageMeterType.Dispels,
+                width = 80,
+                kind = "total",
             },
+        },
+    },
+    deaths = {
+        label = DAMAGE_METER_TYPE_DEATHS or "Deaths",
+        primaryType = DamageMeterType.Deaths,
+        nameWidth = 318,
+        columns = {
             {
                 label = "Deaths",
                 tooltip = DAMAGE_METER_TYPE_DEATHS or "Deaths",
-                width = 76,
-                kind = "source",
-                type = DamageMeterType.Deaths,
+                width = 80,
+                kind = "total",
             },
         },
     },
@@ -142,23 +181,11 @@ local sessionPopup
 local updateQueued = false
 
 local state = {
-    category = "damage",
+    view = "damage",
     sessionType = DamageMeterSessionType.Overall,
     sessionID = nil,
     minimized = false,
 }
-
-local function CanAccessValue(value)
-    if canaccessvalue then
-        return canaccessvalue(value)
-    end
-
-    if issecretvalue then
-        return not issecretvalue(value)
-    end
-
-    return true
-end
 
 local function CreateBackground(parent, alpha)
     local background = parent:CreateTexture(nil, "BACKGROUND")
@@ -283,14 +310,14 @@ local function CreatePopupButton(parent)
     return button
 end
 
-local function GetCategory()
-    return CATEGORIES[state.category] or CATEGORIES.damage
+local function GetView()
+    return VIEWS[state.view] or VIEWS.damage
 end
 
 local function UpdateViewButton()
     SetButtonText(
         frame.viewButton,
-        GetCategory().label .. "  v"
+        GetView().label .. "  v"
     )
 end
 
@@ -329,58 +356,6 @@ local function GetCombatSession(damageType)
     return C_DamageMeter.GetCombatSessionFromType(
         state.sessionType,
         damageType
-    )
-end
-
-local function GetLocalPlayerSource(damageType)
-    local session = GetCombatSession(damageType)
-
-    for _, candidate in ipairs(session.combatSources or {}) do
-        if candidate.isLocalPlayer then
-            return candidate
-        end
-    end
-end
-
-local function GetCombatSessionSource(source, damageType)
-    -- isLocalPlayer is explicitly NeverSecret. Matching the local player
-    -- through the alternate session avoids feeding a secret GUID back into
-    -- C_DamageMeter while combat restrictions are active.
-    if source.isLocalPlayer then
-        return GetLocalPlayerSource(damageType)
-    end
-
-    local sourceGUID = source.sourceGUID
-    local sourceCreatureID = source.sourceCreatureID
-
-    if not CanAccessValue(sourceGUID) then
-        sourceGUID = nil
-    end
-
-    if not CanAccessValue(sourceCreatureID) then
-        sourceCreatureID = nil
-    end
-
-    -- Player GUIDs can be secret in combat. Without an accessible identifier
-    -- there is no safe way to correlate this row with a different meter view.
-    if sourceGUID == nil and sourceCreatureID == nil then
-        return nil
-    end
-
-    if state.sessionID then
-        return C_DamageMeter.GetCombatSessionSourceFromID(
-            state.sessionID,
-            damageType,
-            sourceGUID,
-            sourceCreatureID
-        )
-    end
-
-    return C_DamageMeter.GetCombatSessionSourceFromType(
-        state.sessionType,
-        damageType,
-        sourceGUID,
-        sourceCreatureID
     )
 end
 
@@ -479,8 +454,8 @@ local function CreateRow(index)
 end
 
 local function LayoutColumns()
-    local category = GetCategory()
-    local nameWidth = category.nameWidth
+    local view = GetView()
+    local nameWidth = view.nameWidth
 
     frame.columnHeader.name:ClearAllPoints()
     frame.columnHeader.name:SetPoint(
@@ -496,7 +471,7 @@ local function LayoutColumns()
     local x = nameWidth
 
     for columnIndex = 1, 5 do
-        local column = category.columns[columnIndex]
+        local column = view.columns[columnIndex]
         local headerText = frame.columnHeader.values[columnIndex]
         local headerHitbox =
             frame.columnHeader.hitboxes[columnIndex]
@@ -577,7 +552,7 @@ local function LayoutColumns()
         local rowX = nameWidth
 
         for columnIndex = 1, 5 do
-            local column = category.columns[columnIndex]
+            local column = view.columns[columnIndex]
             local value = row.values[columnIndex]
             local separator = row.separators[columnIndex]
 
@@ -636,31 +611,16 @@ end
 local function SetSourceColumnValue(row, columnIndex, source, column)
     local value = row.values[columnIndex]
 
-    if column.kind == "total" then
-        value:SetText(source.totalAmount)
-        return
-    end
-
     if column.kind == "rate" then
         value:SetText(source.amountPerSecond)
-        return
-    end
-
-    local sessionSource = GetCombatSessionSource(
-        source,
-        column.type
-    )
-
-    if sessionSource then
-        value:SetText(sessionSource.totalAmount)
     else
-        value:SetText("-")
+        value:SetText(source.totalAmount)
     end
 end
 
 local function UpdateRows()
-    local category = GetCategory()
-    local session = GetCombatSession(category.primaryType)
+    local view = GetView()
+    local session = GetCombatSession(view.primaryType)
     local sources = session.combatSources
 
     for index = 1, defaults.maxRows do
@@ -676,7 +636,7 @@ local function UpdateRows()
 
             row.name:SetText(source.name)
 
-            for columnIndex, column in ipairs(category.columns) do
+            for columnIndex, column in ipairs(view.columns) do
                 SetSourceColumnValue(
                     row,
                     columnIndex,
@@ -739,7 +699,7 @@ end
 
 local function BuildViewPopup()
     if not viewPopup then
-        viewPopup = CreatePopup(frame, defaults.popupWidth)
+        viewPopup = CreatePopup(frame, 230)
         viewPopup:SetPoint(
             "BOTTOMLEFT",
             frame.header,
@@ -755,8 +715,8 @@ local function BuildViewPopup()
 
     local y = -4
 
-    for index, categoryKey in ipairs(CATEGORY_ORDER) do
-        local selectedCategory = categoryKey
+    for index, viewKey in ipairs(VIEW_ORDER) do
+        local selectedView = viewKey
         local button = viewPopup.buttons[index]
 
         if not button then
@@ -770,15 +730,15 @@ local function BuildViewPopup()
 
         SetButtonText(
             button,
-            CATEGORIES[selectedCategory].label
+            VIEWS[selectedView].label
         )
         SetPopupButtonState(
             button,
-            state.category == selectedCategory
+            state.view == selectedView
         )
 
         button:SetScript("OnClick", function()
-            state.category = selectedCategory
+            state.view = selectedView
             viewPopup:Hide()
             QueueUpdate()
         end)
@@ -1115,8 +1075,6 @@ function Module:Initialize()
     end)
 
     UI:RegisterEvent("PLAYER_ENTERING_WORLD", QueueUpdate)
-    UI:RegisterEvent("PLAYER_REGEN_DISABLED", QueueUpdate)
-    UI:RegisterEvent("PLAYER_REGEN_ENABLED", QueueUpdate)
     UI:RegisterEvent("DAMAGE_METER_COMBAT_SESSION_UPDATED", QueueUpdate)
     UI:RegisterEvent("DAMAGE_METER_CURRENT_SESSION_UPDATED", QueueUpdate)
 
