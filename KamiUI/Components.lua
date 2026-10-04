@@ -524,6 +524,105 @@ function Components:StyleInput(input, options)
     return input
 end
 
+function Components:StyleScrollBar(scrollbar, options)
+    if not scrollbar then
+        return nil
+    end
+
+    options = options or {}
+
+    local width = options.width or 6
+    local trackColor = options.trackColor
+        or Palette.scrollbar.track
+    local thumbColor = options.thumbColor
+        or Palette.scrollbar.thumb
+    local thumb
+
+    if scrollbar.SetWidth then
+        scrollbar:SetWidth(width)
+    end
+
+    local nativeTrack = scrollbar.Track
+    local nativeThumb = nativeTrack and nativeTrack.Thumb
+
+    if nativeTrack and nativeThumb then
+        for _, texture in ipairs({
+            nativeTrack.Begin,
+            nativeTrack.Middle,
+            nativeTrack.End,
+            nativeThumb.Begin,
+            nativeThumb.Middle,
+            nativeThumb.End,
+            scrollbar.Back and scrollbar.Back.Texture,
+            scrollbar.Forward and scrollbar.Forward.Texture,
+        }) do
+            NeutralizeTexture(texture)
+        end
+
+        nativeTrack:ClearAllPoints()
+        nativeTrack:SetPoint("TOP", scrollbar, "TOP", 0, 0)
+        nativeTrack:SetPoint("BOTTOM", scrollbar, "BOTTOM", 0, 0)
+        nativeTrack:SetWidth(width)
+
+        local track = scrollbar.KamiScrollTrack
+
+        if not track then
+            track = nativeTrack:CreateTexture(nil, "BACKGROUND")
+            track:SetAllPoints(nativeTrack)
+            scrollbar.KamiScrollTrack = track
+        end
+
+        Styles:SetColor(track, trackColor)
+
+        nativeThumb:SetWidth(width)
+
+        thumb = scrollbar.KamiScrollThumb
+
+        if not thumb then
+            thumb = nativeThumb:CreateTexture(nil, "ARTWORK")
+            thumb:SetAllPoints(nativeThumb)
+            scrollbar.KamiScrollThumb = thumb
+        end
+
+        Styles:SetColor(thumb, thumbColor)
+    elseif scrollbar.SetThumbTexture then
+        local track = scrollbar.KamiScrollTrack
+
+        if not track then
+            track = scrollbar:CreateTexture(nil, "BACKGROUND")
+            track:SetAllPoints(scrollbar)
+            scrollbar.KamiScrollTrack = track
+        end
+
+        Styles:SetColor(track, trackColor)
+
+        scrollbar:SetThumbTexture("Interface\\Buttons\\WHITE8X8")
+        thumb = scrollbar:GetThumbTexture()
+
+        if thumb then
+            thumb:SetWidth(width)
+            Styles:SetColor(thumb, thumbColor)
+        end
+    end
+
+    if not scrollbar.KamiScrollBarStyleHooked
+        and scrollbar.HookScript
+    then
+        scrollbar.KamiScrollBarStyleHooked = true
+
+        scrollbar:HookScript("OnShow", function(self)
+            Components:StyleScrollBar(
+                self,
+                self.KamiScrollBarOptions
+            )
+        end)
+    end
+
+    scrollbar.KamiScrollBarOptions = options
+
+    return scrollbar, thumb
+end
+
 local function ConfigureCheckboxTexture(
     texture,
     button,
