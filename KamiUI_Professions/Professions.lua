@@ -16,6 +16,14 @@ local colors = {
     muted = { 0.62, 0.62, 0.66, 1.00 },
 }
 
+local CRAFTING_RANK_X = 110
+local CRAFTING_RANK_Y = -38
+local CRAFTING_LINK_GAP = 10
+
+-- Tweak these if the colored fill itself needs nudging inside its bar.
+local RANK_FILL_X_OFFSET = 0
+local RANK_FILL_Y_OFFSET = 0
+
 local function EnsureDatabase()
     KamiUIDB = KamiUIDB or {}
     KamiUIDB.professions = KamiUIDB.professions or {}
@@ -166,6 +174,36 @@ local function StyleRankBar(bar)
 
     if bar.Background then
         SetColor(bar.Background, { 0, 0, 0, 0.62 })
+    end
+
+    if bar.Fill then
+        if not bar.KamiOriginalFillAnchor then
+            local point, relativeTo, relativePoint, x, y =
+                bar.Fill:GetPoint(1)
+
+            if point then
+                bar.KamiOriginalFillAnchor = {
+                    point = point,
+                    relativeTo = relativeTo or bar,
+                    relativePoint = relativePoint,
+                    x = x or 0,
+                    y = y or 0,
+                }
+            end
+        end
+
+        local anchor = bar.KamiOriginalFillAnchor
+
+        if anchor then
+            bar.Fill:ClearAllPoints()
+            bar.Fill:SetPoint(
+                anchor.point,
+                anchor.relativeTo,
+                anchor.relativePoint,
+                anchor.x + RANK_FILL_X_OFFSET,
+                anchor.y + RANK_FILL_Y_OFFSET
+            )
+        end
     end
 
     HideRegion(bar.Border)
@@ -319,6 +357,12 @@ function Module:ApplyRecipeCategoryVisual(row)
 
     HideButtonTextures(row)
 
+    HideRegion(row.LeftPiece)
+    HideRegion(row.CenterPiece)
+    HideRegion(row.RightPiece)
+    HideRegion(row.CollapseIcon)
+    HideRegion(row.CollapseIconAlphaAdd)
+
     local collapse = row.GetCollapseButton
         and row:GetCollapseButton()
         or row.CollapseButton
@@ -403,6 +447,22 @@ function Module:StyleRecipeCategory(row, node)
         end
     end
 
+    if not row.KamiHoverRestyleHooked then
+        row.KamiHoverRestyleHooked = true
+
+        row:HookScript("OnEnter", function(self)
+            C_Timer.After(0, function()
+                Module:ApplyRecipeCategoryVisual(self)
+            end)
+        end)
+
+        row:HookScript("OnLeave", function(self)
+            C_Timer.After(0, function()
+                Module:ApplyRecipeCategoryVisual(self)
+            end)
+        end)
+    end
+
     Module:ApplyRecipeCategoryVisual(row)
 end
 
@@ -443,13 +503,33 @@ function Module:StyleRecipeRow(row, node)
 
     if row.SkillUps then
         row.SkillUps:Hide()
-        row.SkillUps:ClearAllPoints()
-        row.SkillUps:SetPoint("LEFT", row, "LEFT", 2, 0)
-        row.SkillUps:SetWidth(0)
     end
 
-    StyleFont(row.Label, 9)
-    StyleFont(row.Count, 9, colors.muted)
+    if row.Label then
+        row.Label:ClearAllPoints()
+        row.Label:SetPoint("LEFT", row, "LEFT", 10, 0)
+        row.Label:SetPoint("RIGHT", row, "RIGHT", -44, 0)
+        row.Label:SetJustifyH("LEFT")
+        row.Label:SetText(recipeInfo and recipeInfo.name or "")
+        row.Label:Show()
+        StyleFont(row.Label, 9)
+
+        if row.GetLabelColor then
+            local color = row:GetLabelColor()
+
+            if color then
+                row.Label:SetVertexColor(color:GetRGB())
+            end
+        end
+    end
+
+    if row.Count then
+        row.Count:ClearAllPoints()
+        row.Count:SetPoint("RIGHT", row, "RIGHT", -6, 0)
+        row.Count:SetJustifyH("RIGHT")
+        row.Count:SetWidth(38)
+        StyleFont(row.Count, 9, colors.muted)
+    end
 
     if row.SelectedOverlay then
         row.SelectedOverlay:ClearAllPoints()
@@ -530,8 +610,19 @@ local function StyleCraftingPage(frame)
             "TOPLEFT",
             page,
             "TOPLEFT",
-            279,
-            -38
+            CRAFTING_RANK_X,
+            CRAFTING_RANK_Y
+        )
+    end
+
+    if page.LinkButton and page.RankBar then
+        page.LinkButton:ClearAllPoints()
+        page.LinkButton:SetPoint(
+            "LEFT",
+            page.RankBar,
+            "RIGHT",
+            CRAFTING_LINK_GAP,
+            -2
         )
     end
 
