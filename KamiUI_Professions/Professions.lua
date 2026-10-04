@@ -6,7 +6,7 @@ local Components = UI.Components
 local Module = UI:NewModule("Professions")
 
 Module.name = "KamiUI_Professions"
-Module.version = "0.1.0"
+Module.version = "0.2.0"
 
 local CRAFTING_RANK_X = 110
 local CRAFTING_RANK_Y = -38
@@ -27,6 +27,195 @@ local function EnsureDatabase()
     KamiUIDB.professions = KamiUIDB.professions or {}
 
     return KamiUIDB.professions
+end
+
+local function GetCharactersModule()
+    local characters = UI:GetModule("Characters")
+
+    if characters
+        and characters.GetCurrentCharacterKey
+        and characters.GetCharacter
+        and characters.GetSortedCharacters
+    then
+        return characters
+    end
+end
+
+local function GetCurrentCharacterData()
+    local characters = GetCharactersModule()
+
+    if not characters then
+        return nil, nil
+    end
+
+    if characters.UpdateCurrentCharacter then
+        characters:UpdateCurrentCharacter()
+    end
+
+    local key = characters:GetCurrentCharacterKey()
+    return key, characters:GetCharacter(key)
+end
+
+local function GetViewedCharacter()
+    local characters = GetCharactersModule()
+
+    if not characters then
+        return nil, nil, true
+    end
+
+    local currentKey = characters:GetCurrentCharacterKey()
+    local key = Module.viewCharacterKey or currentKey
+
+    return key, characters:GetCharacter(key), key == currentKey
+end
+
+local function EnsureCharacterProfessions(character)
+    if not character then
+        return nil
+    end
+
+    character.professions = character.professions or {}
+    return character.professions
+end
+
+function Module:SnapshotProfessionSkills()
+    local _, character = GetCurrentCharacterData()
+    local professions = EnsureCharacterProfessions(character)
+
+    if not professions
+        or not GetProfessions
+        or not GetProfessionInfo
+    then
+        return
+    end
+
+    local professionIndexes = { GetProfessions() }
+
+    for _, professionIndex in ipairs(professionIndexes) do
+        if professionIndex then
+            local name,
+                icon,
+                rank,
+                maxRank,
+                _numSpells,
+                _spellOffset,
+                skillLineID,
+                rankModifier,
+                _specializationIndex,
+                _specializationOffset,
+                skillLineName =
+                GetProfessionInfo(professionIndex)
+
+            if skillLineID then
+                local saved = professions[skillLineID] or {}
+
+                saved.professionID = skillLineID
+                saved.professionName =
+                    name or skillLineName or saved.professionName
+                saved.icon = icon or saved.icon
+                saved.skillLevel = rank or saved.skillLevel or 0
+                saved.maxSkillLevel =
+                    maxRank or saved.maxSkillLevel or 0
+                saved.skillModifier =
+                    rankModifier or saved.skillModifier or 0
+                saved.recipes = saved.recipes or {}
+                saved.updated = time and time() or 0
+
+                professions[skillLineID] = saved
+            end
+        end
+    end
+end
+
+function Module:SnapshotCurrentProfession()
+    self:SnapshotProfessionSkills()
+
+    if not C_TradeSkillUI
+        or not C_TradeSkillUI.GetBaseProfessionInfo
+        or not C_TradeSkillUI.GetChildProfessionInfo
+        or not C_TradeSkillUI.GetProfessionSpells
+    then
+        return
+    end
+
+    local _, character = GetCurrentCharacterData()
+    local professions = EnsureCharacterProfessions(character)
+
+    if not professions then
+        return
+    end
+
+    local baseInfo = C_TradeSkillUI.GetBaseProfessionInfo()
+    local childInfo = C_TradeSkillUI.GetChildProfessionInfo()
+
+    if not baseInfo
+        or not baseInfo.professionID
+        or baseInfo.professionID == 0
+    then
+        return
+    end
+
+    local professionInfo = childInfo
+    if not professionInfo
+        or not professionInfo.professionID
+        or professionInfo.professionID == 0
+    then
+        professionInfo = baseInfo
+    end
+
+    local professionID = professionInfo.professionID
+    local saved = professions[professionID] or {}
+
+    saved.professionID = professionID
+    saved.parentProfessionID =
+        professionInfo.parentProfessionID
+        or (
+            baseInfo.professionID ~= professionID
+            and baseInfo.professionID
+            or nil
+        )
+    saved.professionName =
+        professionInfo.professionName
+        or baseInfo.professionName
+        or saved.professionName
+    saved.expansionName =
+        professionInfo.expansionName or saved.expansionName
+    saved.skillLevel =
+        professionInfo.skillLevel or saved.skillLevel or 0
+    saved.maxSkillLevel =
+        professionInfo.maxSkillLevel or saved.maxSkillLevel or 0
+    saved.skillModifier =
+        professionInfo.skillModifier or saved.skillModifier or 0
+    saved.updated = time and time() or 0
+
+    local ok, knownSpells = pcall(
+        C_TradeSkillUI.GetProfessionSpells,
+        baseInfo.professionID,
+        professionID
+    )
+
+    if ok and type(knownSpells) == "table" then
+        local recipes = {}
+
+        for _, recipeID in ipairs(knownSpells) do
+            local recipeInfo =
+                C_TradeSkillUI.GetRecipeInfo
+                and C_TradeSkillUI.GetRecipeInfo(recipeID)
+
+            if recipeInfo and recipeInfo.learned then
+                recipes[recipeInfo.recipeID or recipeID] = {
+                    name = recipeInfo.name,
+                    icon = recipeInfo.icon,
+                }
+            end
+        end
+
+        saved.recipes = recipes
+    else
+        saved.recipes = saved.recipes or {}
+    end
+
+    professions[professionID] = saved
 end
 
 local function SavePosition(frame)
@@ -1072,6 +1261,476 @@ local function StyleCloseButton(button)
     Styles:ApplyText(button.KamiText, 12, Palette.text)
 end
 
+
+local function CreateCachedProfessionRow(parent)
+    local row = CreateFrame("Frame", nil, parent)
+    row:SetHeight(20)
+
+    local background = row:CreateTexture(nil, "BACKGROUND")
+    background:SetAllPoints()
+    background:SetColorTexture(0, 0, 0, 0)
+    row.background = background
+
+    local icon = row:CreateTexture(nil, "ARTWORK")
+    icon:SetSize(16, 16)
+    icon:SetPoint("LEFT", row, "LEFT", 4, 0)
+    icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
+    row.icon = icon
+
+    local text = row:CreateFontString(
+        nil,
+        "OVERLAY",
+        "GameFontNormalSmall"
+    )
+    text:SetPoint("LEFT", icon, "RIGHT", 6, 0)
+    text:SetPoint("RIGHT", row, "RIGHT", -6, 0)
+    text:SetJustifyH("LEFT")
+    text:SetWordWrap(false)
+    row.text = text
+
+    return row
+end
+
+local function GetCachedProfessions(character)
+    local result = {}
+
+    for _, profession in pairs(
+        character and character.professions or {}
+    ) do
+        if profession.professionName then
+            result[#result + 1] = profession
+        end
+    end
+
+    table.sort(result, function(left, right)
+        local leftName = left.professionName or ""
+        local rightName = right.professionName or ""
+
+        if leftName == rightName then
+            return (left.expansionName or "")
+                < (right.expansionName or "")
+        end
+
+        return leftName < rightName
+    end)
+
+    return result
+end
+
+local function GetCachedRecipes(profession)
+    local result = {}
+
+    for recipeID, recipe in pairs(profession.recipes or {}) do
+        result[#result + 1] = {
+            recipeID = recipeID,
+            name = type(recipe) == "table"
+                and recipe.name
+                or nil,
+            icon = type(recipe) == "table"
+                and recipe.icon
+                or nil,
+        }
+    end
+
+    table.sort(result, function(left, right)
+        return (left.name or tostring(left.recipeID))
+            < (right.name or tostring(right.recipeID))
+    end)
+
+    return result
+end
+
+local function RebuildCachedProfessionPane(frame)
+    local pane = frame.KamiCachedProfessionPane
+
+    if not pane then
+        return
+    end
+
+    local _, character = GetViewedCharacter()
+
+    pane.title:SetText(
+        (character and character.name or "Unknown")
+        .. " - Professions"
+    )
+
+    for _, row in ipairs(pane.rows) do
+        row:Hide()
+    end
+
+    local professions = GetCachedProfessions(character)
+    local rowIndex = 0
+    local y = 0
+
+    local function AcquireRow()
+        rowIndex = rowIndex + 1
+
+        local row = pane.rows[rowIndex]
+        if not row then
+            row = CreateCachedProfessionRow(pane.content)
+            pane.rows[rowIndex] = row
+        end
+
+        row:ClearAllPoints()
+        row:SetPoint("TOPLEFT", pane.content, "TOPLEFT", 0, -y)
+        row:SetPoint("TOPRIGHT", pane.content, "TOPRIGHT", 0, -y)
+        row:Show()
+
+        return row
+    end
+
+    if #professions == 0 then
+        local row = AcquireRow()
+
+        row:SetHeight(30)
+        row.icon:Hide()
+        row.text:ClearAllPoints()
+        row.text:SetPoint("LEFT", row, "LEFT", 8, 0)
+        row.text:SetPoint("RIGHT", row, "RIGHT", -8, 0)
+        row.text:SetText(
+            "No cached profession data. Open a profession on "
+            .. "this character once."
+        )
+        Styles:ApplyText(row.text, 10, Palette.muted)
+        y = y + 30
+    else
+        for _, profession in ipairs(professions) do
+            local recipes = GetCachedRecipes(profession)
+            local header = AcquireRow()
+
+            header:SetHeight(24)
+            header.icon:Hide()
+            header.text:ClearAllPoints()
+            header.text:SetPoint("LEFT", header, "LEFT", 8, 0)
+            header.text:SetPoint("RIGHT", header, "RIGHT", -8, 0)
+
+            local label = profession.professionName or "Profession"
+            if profession.expansionName
+                and profession.expansionName ~= ""
+                and profession.expansionName ~= label
+            then
+                label = label .. " - " .. profession.expansionName
+            end
+
+            label = string.format(
+                "%s  %d/%d  (%d recipes)",
+                label,
+                profession.skillLevel or 0,
+                profession.maxSkillLevel or 0,
+                #recipes
+            )
+
+            header.text:SetText(label)
+            Styles:ApplyText(header.text, 10, Palette.gold)
+            header.background:SetColorTexture(
+                0.08,
+                0.08,
+                0.10,
+                0.92
+            )
+            y = y + 24
+
+            for _, recipe in ipairs(recipes) do
+                local row = AcquireRow()
+
+                row:SetHeight(19)
+                row.background:SetColorTexture(0, 0, 0, 0)
+
+                if recipe.icon and recipe.icon ~= 0 then
+                    row.icon:SetTexture(recipe.icon)
+                    row.icon:Show()
+                else
+                    row.icon:SetTexture(nil)
+                    row.icon:Hide()
+                end
+
+                row.text:ClearAllPoints()
+                if row.icon:IsShown() then
+                    row.text:SetPoint(
+                        "LEFT",
+                        row.icon,
+                        "RIGHT",
+                        6,
+                        0
+                    )
+                else
+                    row.text:SetPoint(
+                        "LEFT",
+                        row,
+                        "LEFT",
+                        28,
+                        0
+                    )
+                end
+                row.text:SetPoint("RIGHT", row, "RIGHT", -8, 0)
+                row.text:SetText(
+                    recipe.name or ("Recipe " .. recipe.recipeID)
+                )
+                Styles:ApplyText(row.text, 9, Palette.text)
+
+                y = y + 19
+            end
+
+            y = y + 5
+        end
+    end
+
+    for index = rowIndex + 1, #pane.rows do
+        pane.rows[index]:Hide()
+    end
+
+    pane.content:SetWidth(math.max(1, pane.scroll:GetWidth()))
+    pane.content:SetHeight(math.max(y, pane.scroll:GetHeight()))
+    pane.scroll:SetVerticalScroll(0)
+end
+
+function Module:UpdateCharacterView(frame)
+    frame = frame or _G.ProfessionsFrame
+
+    if not frame or not frame.KamiCachedProfessionPane then
+        return
+    end
+
+    local _, _, isCurrent = GetViewedCharacter()
+
+    if isCurrent then
+        frame.KamiCachedProfessionPane:Hide()
+        StyleRightTabs(frame)
+        return
+    end
+
+    for _, tab in ipairs(frame.KamiProfessionTabs or {}) do
+        tab:Hide()
+    end
+
+    RebuildCachedProfessionPane(frame)
+    frame.KamiCachedProfessionPane:Show()
+end
+
+function Module:SetViewedCharacter(key)
+    local characters = GetCharactersModule()
+
+    if not characters then
+        return
+    end
+
+    local currentKey = characters:GetCurrentCharacterKey()
+
+    self.viewCharacterKey =
+        key == currentKey and nil or key
+
+    local frame = _G.ProfessionsFrame
+    if frame and frame.KamiCharacterMenu then
+        frame.KamiCharacterMenu:Hide()
+    end
+
+    self:UpdateCharacterView(frame)
+end
+
+local function CreateCharacterBrowser(frame)
+    if frame.KamiCharacterButton then
+        return
+    end
+
+    local characterButton = CreateFrame("Button", nil, frame)
+    characterButton:SetSize(22, 22)
+    characterButton:SetPoint("TOPLEFT", frame, "TOPLEFT", 5, -5)
+    characterButton:SetFrameLevel(frame:GetFrameLevel() + 30)
+
+    local icon = characterButton:CreateTexture(nil, "ARTWORK")
+    icon:SetAllPoints()
+    icon:SetTexture("Interface\\Icons\\INV_Misc_GroupLooking")
+    icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
+    characterButton.icon = icon
+    frame.KamiCharacterButton = characterButton
+
+    local menu = CreateFrame(
+        "Frame",
+        nil,
+        frame,
+        "BackdropTemplate"
+    )
+    menu:SetPoint(
+        "TOPLEFT",
+        characterButton,
+        "BOTTOMLEFT",
+        -2,
+        -2
+    )
+    menu:SetWidth(210)
+    menu:SetFrameLevel(frame:GetFrameLevel() + 100)
+    menu:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8X8",
+        edgeFile = "Interface\\Buttons\\WHITE8X8",
+        edgeSize = 1,
+    })
+    menu:SetBackdropColor(0, 0, 0, 0.96)
+    menu:SetBackdropBorderColor(unpack(Palette.border))
+    menu.buttons = {}
+    menu:Hide()
+    frame.KamiCharacterMenu = menu
+
+    local pane = CreateFrame(
+        "Frame",
+        nil,
+        frame,
+        "BackdropTemplate"
+    )
+    pane:SetPoint("TOPLEFT", frame, "TOPLEFT", 1, -33)
+    pane:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -1, 1)
+    pane:SetFrameLevel(frame:GetFrameLevel() + 40)
+    pane:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8X8",
+    })
+    pane:SetBackdropColor(0.015, 0.018, 0.025, 0.99)
+    pane:EnableMouse(true)
+    pane:Hide()
+    frame.KamiCachedProfessionPane = pane
+
+    local title = pane:CreateFontString(
+        nil,
+        "OVERLAY",
+        "GameFontNormal"
+    )
+    title:SetPoint("TOPLEFT", pane, "TOPLEFT", 10, -8)
+    title:SetPoint("TOPRIGHT", pane, "TOPRIGHT", -10, -8)
+    title:SetJustifyH("LEFT")
+    Styles:ApplyText(title, 11, Palette.text)
+    pane.title = title
+
+    local subtitle = pane:CreateFontString(
+        nil,
+        "OVERLAY",
+        "GameFontNormalSmall"
+    )
+    subtitle:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -3)
+    subtitle:SetText("Cached character data")
+    Styles:ApplyText(subtitle, 9, Palette.muted)
+
+    local scroll = CreateFrame("ScrollFrame", nil, pane)
+    scroll:SetPoint("TOPLEFT", subtitle, "BOTTOMLEFT", 0, -8)
+    scroll:SetPoint("BOTTOMRIGHT", pane, "BOTTOMRIGHT", -10, 8)
+    scroll:EnableMouseWheel(true)
+    pane.scroll = scroll
+
+    local content = CreateFrame("Frame", nil, scroll)
+    content:SetSize(1, 1)
+    scroll:SetScrollChild(content)
+    pane.content = content
+    pane.rows = {}
+
+    scroll:SetScript("OnMouseWheel", function(self, delta)
+        local maxScroll = math.max(
+            0,
+            content:GetHeight() - self:GetHeight()
+        )
+        local nextScroll = self:GetVerticalScroll() - delta * 38
+
+        self:SetVerticalScroll(
+            math.max(0, math.min(maxScroll, nextScroll))
+        )
+    end)
+
+    local function RebuildMenu()
+        local characters = GetCharactersModule()
+
+        if not characters then
+            menu:Hide()
+            return
+        end
+
+        if characters.UpdateCurrentCharacter then
+            characters:UpdateCurrentCharacter()
+        end
+
+        local entries = characters:GetSortedCharacters()
+        local viewedKey = select(1, GetViewedCharacter())
+        local height = 8
+
+        for index, entry in ipairs(entries) do
+            local button = menu.buttons[index]
+
+            if not button then
+                button = CreateFrame("Button", nil, menu)
+                button:SetHeight(20)
+                button:SetPoint(
+                    "TOPLEFT",
+                    menu,
+                    "TOPLEFT",
+                    4,
+                    -(4 + (index - 1) * 20)
+                )
+                button:SetPoint(
+                    "TOPRIGHT",
+                    menu,
+                    "TOPRIGHT",
+                    -4,
+                    -(4 + (index - 1) * 20)
+                )
+
+                local text = button:CreateFontString(
+                    nil,
+                    "OVERLAY",
+                    "GameFontNormalSmall"
+                )
+                text:SetPoint("LEFT", 3, 0)
+                text:SetPoint("RIGHT", -3, 0)
+                text:SetJustifyH("LEFT")
+                Styles:ApplyText(text, 10, Palette.text)
+                button.text = text
+
+                local highlight =
+                    button:CreateTexture(nil, "HIGHLIGHT")
+                highlight:SetAllPoints()
+                highlight:SetColorTexture(1, 1, 1, 0.08)
+
+                menu.buttons[index] = button
+            end
+
+            local character = entry.character
+            local label = character.name or "Unknown"
+
+            if entry.key == viewedKey then
+                label = "> " .. label
+            end
+
+            button.text:SetText(label)
+            button.characterKey = entry.key
+            button:SetScript("OnClick", function(self)
+                Module:SetViewedCharacter(self.characterKey)
+            end)
+            button:Show()
+
+            height = height + 20
+        end
+
+        for index = #entries + 1, #menu.buttons do
+            menu.buttons[index]:Hide()
+        end
+
+        menu:SetHeight(math.max(28, height))
+    end
+
+    characterButton:SetScript("OnClick", function()
+        if menu:IsShown() then
+            menu:Hide()
+        else
+            RebuildMenu()
+            menu:Show()
+        end
+    end)
+
+    characterButton:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText("Characters")
+        GameTooltip:Show()
+    end)
+
+    characterButton:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
+end
+
 local function ConfigureFrameDragging(frame)
     if not frame or frame.KamiDraggingConfigured then
         return
@@ -1106,6 +1765,7 @@ local function StyleFrameChrome(frame)
     end
 
     ConfigureFrameDragging(frame)
+    CreateCharacterBrowser(frame)
 
     Styles:EnsureBackground(
         frame,
@@ -1157,6 +1817,7 @@ function Module:RefreshStyle()
     StyleBookPage(frame)
     StyleCraftingPage(frame)
     StyleRightTabs(frame)
+    self:UpdateCharacterView(frame)
 end
 
 function Module:Attach()
@@ -1304,19 +1965,29 @@ function Module:Initialize()
         end
     end)
 
+    UI:RegisterEvent("PLAYER_ENTERING_WORLD", function()
+        Module:SnapshotProfessionSkills()
+    end)
+
+    UI:RegisterEvent("SKILL_LINES_CHANGED", function()
+        Module:SnapshotProfessionSkills()
+    end)
+
     for _, event in ipairs({
+        "TRADE_SKILL_SHOW",
         "TRADE_SKILL_LIST_UPDATE",
-        "SKILL_LINES_CHANGED",
+        "NEW_RECIPE_LEARNED",
         "SPELLS_CHANGED",
     }) do
         UI:RegisterEvent(event, function()
-            local frame = _G.ProfessionsFrame
+            C_Timer.After(0, function()
+                Module:SnapshotCurrentProfession()
 
-            if frame and frame:IsShown() then
-                C_Timer.After(0, function()
+                local frame = _G.ProfessionsFrame
+                if frame and frame:IsShown() then
                     Module:RefreshStyle()
-                end)
-            end
+                end
+            end)
         end)
     end
 end
