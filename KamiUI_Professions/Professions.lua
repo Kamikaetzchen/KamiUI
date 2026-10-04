@@ -855,6 +855,24 @@ function Module:StyleRecipeRow(row, node)
     end
 end
 
+local function StyleVisibleRecipeRows(recipeList)
+    local scrollBox = recipeList and recipeList.ScrollBox
+
+    if not scrollBox or not scrollBox.ForEachFrame then
+        return
+    end
+
+    scrollBox:ForEachFrame(function(row, node)
+        local data = node and node.GetData and node:GetData()
+
+        if data and data.categoryInfo then
+            Module:StyleRecipeCategory(row, node)
+        elseif data and data.recipeInfo then
+            Module:StyleRecipeRow(row, node)
+        end
+    end)
+end
+
 local function StyleRecipeList(recipeList)
     if not recipeList then
         return
@@ -890,6 +908,7 @@ local function StyleRecipeList(recipeList)
     end
 
     Styles:ApplyText(recipeList.NoResultsText, 9, Palette.muted)
+    StyleVisibleRecipeRows(recipeList)
 end
 
 local function StyleOutputButton(button)
@@ -2073,113 +2092,60 @@ function Module:Attach()
         return
     end
 
-    if not self.recipeHooksInstalled then
-        if ProfessionsRecipeListCategoryMixin
-            and ProfessionsRecipeListCategoryMixin.Init
+    if not self.recipeScrollCallbackInstalled then
+        local recipeList = frame.CraftingPage
+            and frame.CraftingPage.RecipeList
+        local scrollBox = recipeList and recipeList.ScrollBox
+
+        if scrollBox
+            and scrollBox.RegisterCallback
+            and ScrollBoxListMixin
+            and ScrollBoxListMixin.Event
+            and ScrollBoxListMixin.Event.OnInitializedFrame
         then
-            hooksecurefunc(
-                ProfessionsRecipeListCategoryMixin,
-                "Init",
-                function(row, node)
-                    Module:StyleRecipeCategory(row, node)
-                end
-            )
-        end
+            self.recipeScrollCallbackInstalled = true
 
-        if ProfessionsRecipeListRecipeMixin
-            and ProfessionsRecipeListRecipeMixin.Init
-        then
-            hooksecurefunc(
-                ProfessionsRecipeListRecipeMixin,
-                "Init",
-                function(row, node)
-                    Module:StyleRecipeRow(row, node)
-                end
-            )
-        end
+            scrollBox:RegisterCallback(
+                ScrollBoxListMixin.Event.OnInitializedFrame,
+                function(_, row, node)
+                    local data =
+                        node and node.GetData and node:GetData()
 
-        if ProfessionsRecipeListCategoryMixin then
-            for _, method in ipairs({
-                "OnEnter",
-                "OnLeave",
-                "SetCollapseState",
-                "UpdateCollapsedState",
-            }) do
-                if ProfessionsRecipeListCategoryMixin[method] then
-                    hooksecurefunc(
-                        ProfessionsRecipeListCategoryMixin,
-                        method,
-                        function(row, collapsed)
-                            if type(collapsed) == "boolean" then
-                                row.KamiCollapsed = collapsed
-                            end
-
-                            C_Timer.After(0, function()
-                                Module:ApplyRecipeCategoryVisual(row)
-                            end)
-                        end
-                    )
-                end
-            end
-        end
-
-        self.recipeHooksInstalled = true
-    end
-
-    if not self.craftingPageHooksInstalled
-        and ProfessionsCraftingPageMixin
-    then
-        self.craftingPageHooksInstalled = true
-
-        for _, method in ipairs({
-            "Refresh",
-            "OnShow",
-            "ValidateControls",
-        }) do
-            if ProfessionsCraftingPageMixin[method] then
-                hooksecurefunc(
-                    ProfessionsCraftingPageMixin,
-                    method,
-                    function()
-                        C_Timer.After(0, function()
-                            local professionsFrame =
-                                _G.ProfessionsFrame
-
-                            if professionsFrame then
-                                StyleCraftingPage(
-                                    professionsFrame
-                                )
-                            end
-                        end)
+                    if data and data.categoryInfo then
+                        Module:StyleRecipeCategory(row, node)
+                    elseif data and data.recipeInfo then
+                        Module:StyleRecipeRow(row, node)
                     end
-                )
-            end
+                end,
+                self
+            )
+
+            StyleVisibleRecipeRows(recipeList)
         end
     end
 
-    if not self.schematicHooksInstalled
-        and ProfessionsRecipeSchematicFormMixin
+    if not self.recipeSelectionCallbackInstalled
+        and EventRegistry
+        and EventRegistry.RegisterCallback
     then
-        self.schematicHooksInstalled = true
+        self.recipeSelectionCallbackInstalled = true
 
-        for _, method in ipairs({
-            "Init",
-            "Refresh",
-            "Update",
-            "OnShow",
-        }) do
-            if ProfessionsRecipeSchematicFormMixin[method] then
-                hooksecurefunc(
-                    ProfessionsRecipeSchematicFormMixin,
-                    method,
-                    function(form)
-                        C_Timer.After(0, function()
-                            StyleSchematicForm(form)
-                        end)
+        EventRegistry:RegisterCallback(
+            "ProfessionsRecipeListMixin.Event.OnRecipeSelected",
+            function()
+                C_Timer.After(0, function()
+                    local professionsFrame =
+                        _G.ProfessionsFrame
+
+                    if professionsFrame
+                        and professionsFrame:IsShown()
+                    then
+                        StyleCraftingPage(professionsFrame)
                     end
-                )
-            end
-        end
+                end)
+            end,
+            self
+        )
     end
 
     if not self.frameHooksInstalled then
