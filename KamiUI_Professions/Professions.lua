@@ -400,11 +400,12 @@ local function StyleProfessionCard(card)
         return
     end
 
-    if card.Background then
-        Styles:SetColor(card.Background, Palette.panel)
-    else
-        Styles:EnsureBackground(card, "KamiBackground", Palette.panel)
-    end
+    Styles:HideRegion(card.Background)
+    Styles:EnsureBackground(
+        card,
+        "KamiBackground",
+        Palette.panel
+    )
 
     Styles:CreateBorder(card, "KamiCardBorder")
 
@@ -731,7 +732,7 @@ function Module:StyleRecipeRow(row, node)
     local recipeInfo = data and data.recipeInfo
     local difficulty = recipeInfo and recipeInfo.relativeDifficulty
     local backgroundColor = Palette.difficulty.trivial
-    local backgroundAlpha = 0.10
+    local backgroundAlpha = 0.30
 
     if Enum
         and Enum.TradeskillRelativeDifficulty
@@ -741,13 +742,13 @@ function Module:StyleRecipeRow(row, node)
 
         if difficulty == difficulties.Optimal then
             backgroundColor = Palette.difficulty.hard
-            backgroundAlpha = 0.16
+            backgroundAlpha = 0.36
         elseif difficulty == difficulties.Medium then
             backgroundColor = Palette.difficulty.normal
-            backgroundAlpha = 0.14
+            backgroundAlpha = 0.34
         elseif difficulty == difficulties.Easy then
             backgroundColor = Palette.difficulty.easy
-            backgroundAlpha = 0.13
+            backgroundAlpha = 0.33
         end
     end
 
@@ -884,7 +885,7 @@ local function StyleRecipeList(recipeList)
     Styles:EnsureBackground(
         recipeList,
         "KamiRecipeListBackground",
-        Palette.panel
+        { 0, 0, 0, 0.44 }
     )
     Styles:CreateBorder(recipeList, "KamiRecipeListBorder")
     Components:StyleScrollBar(recipeList.ScrollBar)
@@ -1005,7 +1006,7 @@ local function StyleSchematicForm(form)
     Styles:EnsureBackground(
         form,
         "KamiSchematicBackground",
-        Palette.panel
+        { 0, 0, 0, 0.44 }
     )
     Styles:CreateBorder(form, "KamiSchematicBorder")
 
