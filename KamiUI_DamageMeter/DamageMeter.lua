@@ -148,6 +148,18 @@ local state = {
     minimized = false,
 }
 
+local function CanAccessValue(value)
+    if canaccessvalue then
+        return canaccessvalue(value)
+    end
+
+    if issecretvalue then
+        return not issecretvalue(value)
+    end
+
+    return true
+end
+
 local function CreateBackground(parent, alpha)
     local background = parent:CreateTexture(nil, "BACKGROUND")
     background:SetAllPoints()
@@ -320,21 +332,55 @@ local function GetCombatSession(damageType)
     )
 end
 
+local function GetLocalPlayerSource(damageType)
+    local session = GetCombatSession(damageType)
+
+    for _, candidate in ipairs(session.combatSources or {}) do
+        if candidate.isLocalPlayer then
+            return candidate
+        end
+    end
+end
+
 local function GetCombatSessionSource(source, damageType)
+    -- isLocalPlayer is explicitly NeverSecret. Matching the local player
+    -- through the alternate session avoids feeding a secret GUID back into
+    -- C_DamageMeter while combat restrictions are active.
+    if source.isLocalPlayer then
+        return GetLocalPlayerSource(damageType)
+    end
+
+    local sourceGUID = source.sourceGUID
+    local sourceCreatureID = source.sourceCreatureID
+
+    if not CanAccessValue(sourceGUID) then
+        sourceGUID = nil
+    end
+
+    if not CanAccessValue(sourceCreatureID) then
+        sourceCreatureID = nil
+    end
+
+    -- Player GUIDs can be secret in combat. Without an accessible identifier
+    -- there is no safe way to correlate this row with a different meter view.
+    if sourceGUID == nil and sourceCreatureID == nil then
+        return nil
+    end
+
     if state.sessionID then
         return C_DamageMeter.GetCombatSessionSourceFromID(
             state.sessionID,
             damageType,
-            source.sourceGUID,
-            source.sourceCreatureID
+            sourceGUID,
+            sourceCreatureID
         )
     end
 
     return C_DamageMeter.GetCombatSessionSourceFromType(
         state.sessionType,
         damageType,
-        source.sourceGUID,
-        source.sourceCreatureID
+        sourceGUID,
+        sourceCreatureID
     )
 end
 
@@ -605,7 +651,11 @@ local function SetSourceColumnValue(row, columnIndex, source, column)
         column.type
     )
 
-    value:SetText(sessionSource.totalAmount)
+    if sessionSource then
+        value:SetText(sessionSource.totalAmount)
+    else
+        value:SetText("-")
+    end
 end
 
 local function UpdateRows()
@@ -1065,6 +1115,8 @@ function Module:Initialize()
     end)
 
     UI:RegisterEvent("PLAYER_ENTERING_WORLD", QueueUpdate)
+    UI:RegisterEvent("PLAYER_REGEN_DISABLED", QueueUpdate)
+    UI:RegisterEvent("PLAYER_REGEN_ENABLED", QueueUpdate)
     UI:RegisterEvent("DAMAGE_METER_COMBAT_SESSION_UPDATED", QueueUpdate)
     UI:RegisterEvent("DAMAGE_METER_CURRENT_SESSION_UPDATED", QueueUpdate)
 
