@@ -127,6 +127,41 @@ local function TryDropOnSendMail(cursorX, cursorY)
     return false
 end
 
+local function TryDropOnCharacterSlot(cursorX, cursorY)
+    if InCombatLockdown and InCombatLockdown() then
+        return false
+    end
+
+    if not PickupInventoryItem or not UI.GetModule then
+        return false
+    end
+
+    local characters = UI:GetModule("Characters")
+
+    if not characters or not characters.frame then
+        return false
+    end
+
+    local characterFrame = characters.frame
+
+    if not characterFrame:IsShown()
+        or characterFrame.page ~= "character"
+    then
+        return false
+    end
+
+    for _, button in ipairs(characterFrame.equipmentSlots or {}) do
+        if button.slotID
+            and IsPointInsideFrame(button, cursorX, cursorY)
+        then
+            PickupInventoryItem(button.slotID)
+            return not CursorHasItem or not CursorHasItem()
+        end
+    end
+
+    return false
+end
+
 local function TryDropOnActionBar(cursorX, cursorY)
     if InCombatLockdown and InCombatLockdown() then
         return false
@@ -193,6 +228,10 @@ itemDragFrame:SetScript("OnUpdate", function(self)
     local cursorX, cursorY = GetCursorPosition()
 
     if TryDropOnSendMail(cursorX, cursorY) then
+        return
+    end
+
+    if TryDropOnCharacterSlot(cursorX, cursorY) then
         return
     end
 
