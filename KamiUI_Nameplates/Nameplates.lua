@@ -1,4 +1,6 @@
 local UI = KamiUI
+local Palette = UI.Palette
+local Styles = UI.Styles
 
 local Module = UI:NewModule("Nameplates")
 
@@ -8,7 +10,7 @@ Module.version = "0.3.0"
 local PLATE_WIDTH = 200
 local HEALTH_HEIGHT = 12
 local CAST_HEIGHT = 10
-local BORDER_SIZE = 1
+local BORDER_SIZE = Styles.Metrics.borderSize
 
 local AURA_SIZE = 20
 local AURA_SPACING = 2
@@ -42,50 +44,6 @@ local function CanAccessValue(value)
     return true
 end
 
-local function SetBorderColor(border, r, g, b, a)
-    if not border then
-        return
-    end
-
-    for _, edge in ipairs(border) do
-        edge:SetColorTexture(r, g, b, a or 1)
-    end
-end
-
-local function CreateBorder(parent)
-    local edges = {}
-
-    local top = parent:CreateTexture(nil, "OVERLAY")
-    top:SetPoint("TOPLEFT")
-    top:SetPoint("TOPRIGHT")
-    top:SetHeight(BORDER_SIZE)
-    top:SetColorTexture(0, 0, 0, 1)
-    edges[#edges + 1] = top
-
-    local bottom = parent:CreateTexture(nil, "OVERLAY")
-    bottom:SetPoint("BOTTOMLEFT")
-    bottom:SetPoint("BOTTOMRIGHT")
-    bottom:SetHeight(BORDER_SIZE)
-    bottom:SetColorTexture(0, 0, 0, 1)
-    edges[#edges + 1] = bottom
-
-    local left = parent:CreateTexture(nil, "OVERLAY")
-    left:SetPoint("TOPLEFT")
-    left:SetPoint("BOTTOMLEFT")
-    left:SetWidth(BORDER_SIZE)
-    left:SetColorTexture(0, 0, 0, 1)
-    edges[#edges + 1] = left
-
-    local right = parent:CreateTexture(nil, "OVERLAY")
-    right:SetPoint("TOPRIGHT")
-    right:SetPoint("BOTTOMRIGHT")
-    right:SetWidth(BORDER_SIZE)
-    right:SetColorTexture(0, 0, 0, 1)
-    edges[#edges + 1] = right
-
-    return edges
-end
-
 local function ConfigureSingleLine(fontString)
     if fontString.SetWordWrap then
         fontString:SetWordWrap(false)
@@ -113,21 +71,13 @@ local function GetDisplayIdentity(unit)
     if level and CanAccessValue(level) then
         levelText = level > 0 and tostring(level) or "??"
 
-        if level > 0 and GetQuestDifficultyColor then
-            local color = GetQuestDifficultyColor(level)
+        if level > 0 then
+            local color = Palette:GetLevelDifficultyColor(level)
 
             if color then
-                levelR = color.r or levelR
-                levelG = color.g or levelG
-                levelB = color.b or levelB
-
-                local isGray =
-                    math.abs(levelR - levelG) < 0.04
-                    and math.abs(levelG - levelB) < 0.04
-
-                if isGray and levelR < 0.72 then
-                    levelR, levelG, levelB = 0.72, 0.72, 0.72
-                end
+                levelR = color.r or color[1] or levelR
+                levelG = color.g or color[2] or levelG
+                levelB = color.b or color[3] or levelB
             end
         end
     end
@@ -158,13 +108,17 @@ local function GetUnitColor(unit)
     if CanAccessValue(isPlayer) and isPlayer then
         local _, class = UnitClass(unit)
 
-        if class and CanAccessValue(class) and RAID_CLASS_COLORS then
-            local color = RAID_CLASS_COLORS[class]
+        if class and CanAccessValue(class) then
+            local color = Palette:GetClassColor(class)
 
             if color then
-                return color.r * multiplier,
-                    color.g * multiplier,
-                    color.b * multiplier
+                local r = color.r or color[1]
+                local g = color.g or color[2]
+                local b = color.b or color[3]
+
+                return r * multiplier,
+                    g * multiplier,
+                    b * multiplier
             end
         end
     end
@@ -247,7 +201,7 @@ local function InitializeAuraButton(button)
     count:SetFont(fontPath, 8, "OUTLINE")
     count:SetTextColor(1, 1, 1)
 
-    CreateBorder(button)
+    Styles:CreateBorder(button, Palette.black)
 
     button:SetIcon(icon)
     button:SetDurationText(duration)
@@ -338,7 +292,7 @@ local function CreateCustomPlate(namePlate)
     healthBackground:SetAllPoints()
     healthBackground:SetColorTexture(0.05, 0.05, 0.05, 0.95)
 
-    local healthBorder = CreateBorder(health)
+    local healthBorder = Styles:CreateBorder(health, Palette.black)
 
     local raidMarker = root:CreateTexture(nil, "OVERLAY")
     raidMarker:SetSize(14, 14)
@@ -383,7 +337,7 @@ local function CreateCustomPlate(namePlate)
     castBackground:SetAllPoints()
     castBackground:SetColorTexture(0.05, 0.05, 0.05, 0.95)
 
-    CreateBorder(cast)
+    Styles:CreateBorder(cast, Palette.black)
 
     local castName = cast:CreateFontString(nil, "OVERLAY")
     castName:SetPoint("LEFT", cast, "LEFT", 2, 0)
@@ -487,9 +441,9 @@ local function UpdateIdentity(data)
     local isTarget = UnitIsUnit and UnitIsUnit(data.unit, "target")
 
     if CanAccessValue(isTarget) and isTarget then
-        SetBorderColor(data.healthBorder, 1.0, 0.82, 0.0, 1)
+        Styles:SetBorderColor(data.healthBorder, Palette.highlight)
     else
-        SetBorderColor(data.healthBorder, 0, 0, 0, 1)
+        Styles:SetBorderColor(data.healthBorder, Palette.black)
     end
 
     local index = GetRaidTargetIndex and GetRaidTargetIndex(data.unit)

@@ -1,4 +1,5 @@
 local UI = KamiUI
+local Palette = UI.Palette
 
 local UF = UI:NewModule("UnitFrames")
 
@@ -8,26 +9,6 @@ UF.version = "0.1.0"
 UF.flatTexture = "Interface\\Buttons\\WHITE8X8"
 UF.colorMultiplier = 0.60
 UF.powerColorMultiplier = 0.70
-
-local FALLBACK_CLASS_COLORS = {
-    DEATHKNIGHT = { 0.77, 0.12, 0.23 },
-    DRUID = { 1.00, 0.49, 0.04 },
-    HUNTER = { 0.67, 0.83, 0.45 },
-    MAGE = { 0.25, 0.78, 0.92 },
-    PALADIN = { 0.96, 0.55, 0.73 },
-    PRIEST = { 1.00, 1.00, 1.00 },
-    ROGUE = { 1.00, 0.96, 0.41 },
-    SHAMAN = { 0.00, 0.44, 0.87 },
-    WARLOCK = { 0.53, 0.53, 0.93 },
-    WARRIOR = { 0.78, 0.61, 0.43 },
-}
-
-local FALLBACK_POWER_COLORS = {
-    MANA = { 0.00, 0.45, 1.00 },
-    RAGE = { 1.00, 0.00, 0.00 },
-    FOCUS = { 1.00, 0.50, 0.25 },
-    ENERGY = { 1.00, 1.00, 0.00 },
-}
 
 local HAPPINESS_COLORS = {
     [1] = { 0.85, 0.10, 0.10 },
@@ -64,15 +45,14 @@ function UF:GetUnitColor(unit)
         local _, class = UnitClass(unit)
 
         if class and self:CanAccessValue(class) then
-            local color = RAID_CLASS_COLORS and RAID_CLASS_COLORS[class]
+            local color = Palette:GetClassColor(class)
 
             if color then
-                return self:DarkenColor(color.r, color.g, color.b)
-            end
-
-            color = FALLBACK_CLASS_COLORS[class]
-            if color then
-                return self:DarkenColor(color[1], color[2], color[3])
+                return self:DarkenColor(
+                    color.r or color[1],
+                    color.g or color[2],
+                    color.b or color[3]
+                )
             end
         end
     end
@@ -92,12 +72,7 @@ end
 
 function UF:GetPowerColor(unit)
     local _, powerToken = UnitPowerType(unit)
-    local color = PowerBarColor and PowerBarColor[powerToken]
-
-    if not color then
-        color = FALLBACK_POWER_COLORS[powerToken]
-            or { 0.00, 0.45, 1.00 }
-    end
+    local color = Palette:GetPowerColor(powerToken)
 
     local r = color.r or color[1]
     local g = color.g or color[2]
@@ -162,18 +137,13 @@ function UF:GetUnitDisplayName(unit)
     local classification = UnitClassification(unit)
     local suffix = CLASSIFICATION_SUFFIX[classification] or ""
 
-    local color
-    if level and level > 0 and GetQuestDifficultyColor then
-        color = GetQuestDifficultyColor(level)
-    else
-        color = { r = 1.0, g = 0.1, b = 0.1 }
-    end
+    local color = Palette:GetLevelDifficultyColor(level)
 
     local levelColor = string.format(
         "|cff%02x%02x%02x",
-        ToHexChannel(color.r),
-        ToHexChannel(color.g),
-        ToHexChannel(color.b)
+        ToHexChannel(color.r or color[1]),
+        ToHexChannel(color.g or color[2]),
+        ToHexChannel(color.b or color[3])
     )
 
     return status .. levelColor .. levelText .. suffix .. "|r " .. name

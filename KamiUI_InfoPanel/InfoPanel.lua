@@ -1,4 +1,5 @@
 local UI = KamiUI
+local Palette = UI.Palette
 
 local Module = UI:NewModule("InfoPanel")
 
@@ -398,9 +399,7 @@ local function ShowGoldTooltip(owner)
         local character = entry.character
         local name = character.name or "Unknown"
         local amount = character.money or 0
-        local color = character.classFile
-            and RAID_CLASS_COLORS
-            and RAID_CLASS_COLORS[character.classFile]
+        local color = Palette:GetClassColor(character.classFile)
         local r = color and color.r or 1
         local g = color and color.g or 1
         local b = color and color.b or 1

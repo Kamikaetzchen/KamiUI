@@ -1,4 +1,7 @@
 local UI = KamiUI
+local Palette = UI.Palette
+local Styles = UI.Styles
+local Components = UI.Components
 
 local Module = UI:NewModule("Bags")
 
@@ -14,10 +17,6 @@ local FOOTER_HEIGHT = 24
 local BAG_BAR_HEIGHT = 42
 
 local defaults = {
-    background = { 0.345, 0.000, 0.447, 0.25 },
-    slotBackground = { 0.02, 0.02, 0.02, 0.55 },
-    slotBorder = { 0.30, 0.24, 0.32, 0.90 },
-    border = { 0.20, 0.16, 0.24, 1.00 },
 }
 
 local bagFamilyColors = {
@@ -356,7 +355,7 @@ local function GetBagFamilyColorFromMask(family, isKeyring)
         return bagFamilyColors.mining
     end
 
-    return defaults.slotBorder
+    return Palette.slotBorder
 end
 
 local function GetBagFamilyColor(bagID)
@@ -466,8 +465,8 @@ local function CreateBackdrop(frame, color)
         edgeFile = "Interface\\Buttons\\WHITE8X8",
         edgeSize = 1,
     })
-    backdrop:SetBackdropColor(unpack(color or defaults.background))
-    backdrop:SetBackdropBorderColor(unpack(defaults.border))
+    backdrop:SetBackdropColor(unpack(color or Palette.window.inventory))
+    backdrop:SetBackdropBorderColor(unpack(Palette.windowBorder.inventory))
     backdrop:EnableMouse(false)
 
     return backdrop
@@ -535,29 +534,29 @@ local function StyleItemButton(button)
 
     local background = button:CreateTexture(nil, "BACKGROUND")
     background:SetAllPoints()
-    background:SetColorTexture(unpack(defaults.slotBackground))
+    background:SetColorTexture(unpack(Palette.slot))
     button.KamiBackground = background
 
     local top = button:CreateTexture(nil, "OVERLAY", nil, 2)
-    top:SetColorTexture(unpack(defaults.slotBorder))
+    top:SetColorTexture(unpack(Palette.slotBorder))
     top:SetPoint("TOPLEFT")
     top:SetPoint("TOPRIGHT")
     top:SetHeight(1)
 
     local bottom = button:CreateTexture(nil, "OVERLAY", nil, 2)
-    bottom:SetColorTexture(unpack(defaults.slotBorder))
+    bottom:SetColorTexture(unpack(Palette.slotBorder))
     bottom:SetPoint("BOTTOMLEFT")
     bottom:SetPoint("BOTTOMRIGHT")
     bottom:SetHeight(1)
 
     local left = button:CreateTexture(nil, "OVERLAY", nil, 2)
-    left:SetColorTexture(unpack(defaults.slotBorder))
+    left:SetColorTexture(unpack(Palette.slotBorder))
     left:SetPoint("TOPLEFT")
     left:SetPoint("BOTTOMLEFT")
     left:SetWidth(1)
 
     local right = button:CreateTexture(nil, "OVERLAY", nil, 2)
-    right:SetColorTexture(unpack(defaults.slotBorder))
+    right:SetColorTexture(unpack(Palette.slotBorder))
     right:SetPoint("TOPRIGHT")
     right:SetPoint("BOTTOMRIGHT")
     right:SetWidth(1)
@@ -1065,7 +1064,7 @@ local function CreateBagBarButton(parent)
 
     local background = button:CreateTexture(nil, "BACKGROUND")
     background:SetAllPoints()
-    background:SetColorTexture(unpack(defaults.slotBackground))
+    background:SetColorTexture(unpack(Palette.slot))
     button.background = background
 
     local icon = button:CreateTexture(nil, "ARTWORK")
@@ -1310,9 +1309,7 @@ function Module:UpdateTitle()
     local profile = GetCharacterProfile(key, character)
     local name = profile.name or "Unknown"
     local classFile = profile.classFile
-    local classColor = classFile
-        and RAID_CLASS_COLORS
-        and RAID_CLASS_COLORS[classFile]
+    local classColor = Palette:GetClassColor(classFile)
 
     if classColor then
         name = string.format(
@@ -1627,13 +1624,11 @@ local function CreateFrameUI()
     frame:EnableMouse(true)
     frame:Hide()
 
-    frame:SetBackdrop({
-        bgFile = "Interface\\Buttons\\WHITE8X8",
-        edgeFile = "Interface\\Buttons\\WHITE8X8",
-        edgeSize = 1,
-    })
-    frame:SetBackdropColor(unpack(defaults.background))
-    frame:SetBackdropBorderColor(unpack(defaults.border))
+    Styles:ApplyBackdrop(
+        frame,
+        Palette.window.inventory,
+        Palette.windowBorder.inventory
+    )
 
     frame:RegisterForDrag("LeftButton")
     frame:SetScript("OnDragStart", function(self)
@@ -1644,15 +1639,22 @@ local function CreateFrameUI()
         SavePosition(self)
     end)
 
-    local title = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    title:SetPoint("TOP", frame, "TOP", 0, -7)
-    title:SetText(GetCurrentCharacterName() .. "'s Inventory")
-    title:SetTextColor(0.92, 0.88, 1)
+    local header = Components:CreateWindowHeader(frame, {
+        height = HEADER_HEIGHT,
+        title = GetCurrentCharacterName() .. "'s Inventory",
+        draggable = true,
+        onDragStop = function()
+            SavePosition(frame)
+        end,
+    })
+    frame.header = header
+
+    local title = header.Title
     frame.title = title
 
-    local titleButton = CreateFrame("Button", nil, frame)
-    titleButton:SetPoint("TOPLEFT", frame, "TOPLEFT", 90, -2)
-    titleButton:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -90, -2)
+    local titleButton = CreateFrame("Button", nil, header)
+    titleButton:SetPoint("TOPLEFT", header, "TOPLEFT", 90, -1)
+    titleButton:SetPoint("TOPRIGHT", header, "TOPRIGHT", -90, -1)
     titleButton:SetHeight(24)
     titleButton:RegisterForDrag("LeftButton")
     titleButton:SetScript("OnDragStart", function()
@@ -1664,7 +1666,7 @@ local function CreateFrameUI()
     end)
     frame.titleButton = titleButton
 
-    local search = CreateFrame("EditBox", nil, frame, "InputBoxTemplate")
+    local search = CreateFrame("EditBox", nil, header, "InputBoxTemplate")
     search:SetPoint("TOPLEFT", titleButton, "TOPLEFT", 0, -1)
     search:SetPoint("TOPRIGHT", titleButton, "TOPRIGHT", 0, -1)
     search:SetHeight(22)
@@ -1733,9 +1735,9 @@ local function CreateFrameUI()
         end
     end)
 
-    local close = CreateFrame("Button", nil, frame)
+    local close = CreateFrame("Button", nil, header)
     close:SetSize(22, 22)
-    close:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -4, -3)
+    close:SetPoint("TOPRIGHT", header, "TOPRIGHT", -3, -2)
     close:SetNormalFontObject("GameFontNormal")
     close:SetHighlightFontObject("GameFontHighlight")
     close:SetText("x")
@@ -1744,9 +1746,9 @@ local function CreateFrameUI()
     end)
     frame.close = close
 
-    local characterButton = CreateFrame("Button", nil, frame)
+    local characterButton = CreateFrame("Button", nil, header)
     characterButton:SetSize(20, 20)
-    characterButton:SetPoint("TOPLEFT", frame, "TOPLEFT", 6, -4)
+    characterButton:SetPoint("TOPLEFT", header, "TOPLEFT", 5, -3)
 
     local characterIcon = characterButton:CreateTexture(nil, "ARTWORK")
     characterIcon:SetAllPoints()
@@ -1775,7 +1777,7 @@ local function CreateFrameUI()
         edgeSize = 1,
     })
     characterMenu:SetBackdropColor(0.04, 0.02, 0.06, 0.95)
-    characterMenu:SetBackdropBorderColor(unpack(defaults.border))
+    characterMenu:SetBackdropBorderColor(unpack(Palette.windowBorder.inventory))
     characterMenu.buttons = {}
     characterMenu:Hide()
     frame.characterMenu = characterMenu
@@ -1822,9 +1824,7 @@ local function CreateFrameUI()
 
             local character = entry.profile
             local label = character.name or "Unknown"
-            local classColor = character.classFile
-                and RAID_CLASS_COLORS
-                and RAID_CLASS_COLORS[character.classFile]
+            local classColor = Palette:GetClassColor(character.classFile)
 
             if classColor then
                 label = string.format(
@@ -1879,7 +1879,7 @@ local function CreateFrameUI()
         GameTooltip:Hide()
     end)
 
-    local bagBarToggle = CreateFrame("Button", nil, frame)
+    local bagBarToggle = CreateFrame("Button", nil, header)
     bagBarToggle:SetSize(52, 20)
     bagBarToggle:SetPoint(
         "LEFT",
@@ -1965,9 +1965,7 @@ local function CreateFrameUI()
         for _, entry in ipairs(GetSortedMoneyCharacters()) do
             local character = entry.character
             local amount = character.money or 0
-            local color = character.classFile
-                and RAID_CLASS_COLORS
-                and RAID_CLASS_COLORS[character.classFile]
+            local color = Palette:GetClassColor(character.classFile)
             local r = color and color.r or 0.75
             local g = color and color.g or 0.75
             local b = color and color.b or 0.75
@@ -2139,9 +2137,7 @@ local function AddCharacterCountsToTooltip(tooltip, data)
 
     for _, line in ipairs(lines) do
         totalCount = totalCount + line.count
-        local color = line.classFile
-            and RAID_CLASS_COLORS
-            and RAID_CLASS_COLORS[line.classFile]
+        local color = Palette:GetClassColor(line.classFile)
         local r = color and color.r or 0.75
         local g = color and color.g or 0.65
         local b = color and color.b or 0.90

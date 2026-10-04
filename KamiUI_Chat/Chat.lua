@@ -1,4 +1,7 @@
 local UI = KamiUI
+local Palette = UI.Palette
+local Styles = UI.Styles
+local Components = UI.Components
 
 local Module = UI:NewModule("Chat")
 
@@ -17,10 +20,6 @@ local defaults = {
     padding = 4,
     x = 0,
     y = 0,
-    background = { 0, 0, 0, 0.85 },
-    border = { 0.2, 0.2, 0.2, 1 },
-    tabBackground = { 0.02, 0.02, 0.02, 0.80 },
-    tabSelectedBackground = { 0.08, 0.08, 0.08, 0.95 },
 }
 
 local leftTabs = {
@@ -94,13 +93,11 @@ local function CreatePanel(name, width, height)
     local panel = CreateFrame("Frame", name, UIParent, "BackdropTemplate")
     panel:SetFrameStrata("LOW")
     panel:SetSize(width, height)
-    panel:SetBackdrop({
-        bgFile = "Interface\\Buttons\\WHITE8X8",
-        edgeFile = "Interface\\Buttons\\WHITE8X8",
-        edgeSize = 1,
-    })
-    panel:SetBackdropColor(unpack(defaults.background))
-    panel:SetBackdropBorderColor(unpack(defaults.border))
+    Styles:ApplyBackdrop(
+        panel,
+        Palette.window.chat,
+        Palette.windowBorder.chat
+    )
     panel:EnableMouse(false)
 
     return panel
@@ -306,95 +303,6 @@ local function EnsureDisplays()
     end
 end
 
-local function SetTabBackground(tab, r, g, b, a)
-    for _, texture in ipairs(tab.backgrounds or {}) do
-        texture:SetColorTexture(r, g, b, a)
-    end
-end
-
-local function CreateTabVisual(tab)
-    local chamfer = 4
-    local backgrounds = {}
-
-    local lower = tab:CreateTexture(nil, "BACKGROUND")
-    lower:SetPoint("BOTTOMLEFT", tab, "BOTTOMLEFT", 0, 0)
-    lower:SetPoint("BOTTOMRIGHT", tab, "BOTTOMRIGHT", 0, 0)
-    lower:SetPoint("TOP", tab, "TOP", 0, -chamfer)
-    backgrounds[#backgrounds + 1] = lower
-
-    for row = 0, chamfer - 1 do
-        local inset = chamfer - row
-        local strip = tab:CreateTexture(nil, "BACKGROUND")
-        strip:SetPoint("TOPLEFT", tab, "TOPLEFT", inset, -row)
-        strip:SetPoint("TOPRIGHT", tab, "TOPRIGHT", -inset, -row)
-        strip:SetHeight(1)
-        backgrounds[#backgrounds + 1] = strip
-    end
-
-    tab.backgrounds = backgrounds
-
-    local borders = {}
-
-    local top = tab:CreateTexture(nil, "OVERLAY")
-    top:SetPoint("TOPLEFT", tab, "TOPLEFT", chamfer, 0)
-    top:SetPoint("TOPRIGHT", tab, "TOPRIGHT", -chamfer, 0)
-    top:SetHeight(1)
-    top:SetColorTexture(unpack(defaults.border))
-    borders[1] = top
-
-    local bottom = tab:CreateTexture(nil, "OVERLAY")
-    bottom:SetPoint("BOTTOMLEFT")
-    bottom:SetPoint("BOTTOMRIGHT")
-    bottom:SetHeight(1)
-    bottom:SetColorTexture(unpack(defaults.border))
-    borders[2] = bottom
-
-    local left = tab:CreateTexture(nil, "OVERLAY")
-    left:SetPoint("TOPLEFT", tab, "TOPLEFT", 0, -chamfer)
-    left:SetPoint("BOTTOMLEFT")
-    left:SetWidth(1)
-    left:SetColorTexture(unpack(defaults.border))
-    borders[3] = left
-
-    local right = tab:CreateTexture(nil, "OVERLAY")
-    right:SetPoint("TOPRIGHT", tab, "TOPRIGHT", 0, -chamfer)
-    right:SetPoint("BOTTOMRIGHT")
-    right:SetWidth(1)
-    right:SetColorTexture(unpack(defaults.border))
-    borders[4] = right
-
-    for step = 1, chamfer do
-        local leftChamfer = tab:CreateTexture(nil, "OVERLAY")
-        leftChamfer:SetPoint(
-            "TOPLEFT",
-            tab,
-            "TOPLEFT",
-            step - 1,
-            -(chamfer - step)
-        )
-        leftChamfer:SetSize(1, 1)
-        leftChamfer:SetColorTexture(unpack(defaults.border))
-
-        local rightChamfer = tab:CreateTexture(nil, "OVERLAY")
-        rightChamfer:SetPoint(
-            "TOPRIGHT",
-            tab,
-            "TOPRIGHT",
-            -(step - 1),
-            -(chamfer - step)
-        )
-        rightChamfer:SetSize(1, 1)
-        rightChamfer:SetColorTexture(unpack(defaults.border))
-    end
-
-    tab.borders = borders
-
-    local highlight = tab:CreateTexture(nil, "HIGHLIGHT")
-    highlight:SetPoint("TOPLEFT", tab, "TOPLEFT", chamfer, -1)
-    highlight:SetPoint("BOTTOMRIGHT", tab, "BOTTOMRIGHT", -chamfer, 1)
-    highlight:SetColorTexture(1, 1, 1, 0.06)
-end
-
 local function CreateTab(index, config)
     local button = CreateFrame(
         "Button",
@@ -409,12 +317,10 @@ local function CreateTab(index, config)
     button:SetHighlightFontObject("GameFontHighlightSmall")
     button:SetText(config.label)
 
-    CreateTabVisual(button)
-    SetTabBackground(button, 0, 0, 0, 0.40)
-
-    if index > 1 and button.borders and button.borders[3] then
-        button.borders[3]:Hide()
-    end
+    Components:StyleTab(button, {
+        orientation = "top",
+        joinLeft = index > 1,
+    })
 
     button.key = config.key
     button:SetScript("OnClick", function(self)
@@ -462,27 +368,7 @@ local function UpdateTabStyles()
         local tab = Module.tabs[config.key]
         local active = config.key == Module.selectedTab
 
-        SetTabBackground(
-            tab,
-            active and 0.04 or 0.00,
-            active and 0.04 or 0.00,
-            active and 0.05 or 0.00,
-            active and 0.55 or 0.40
-        )
-
-        local text = tab:GetFontString()
-
-        if text then
-            if active then
-                text:SetTextColor(1.00, 0.82, 0.00)
-            else
-                text:SetTextColor(0.72, 0.72, 0.72)
-            end
-        end
-
-        if tab.borders and tab.borders[2] then
-            tab.borders[2]:SetShown(not active)
-        end
+        Components:SetTabState(tab, active, true)
     end
 end
 

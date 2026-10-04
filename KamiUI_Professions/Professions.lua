@@ -1,20 +1,12 @@
 local UI = KamiUI
+local Palette = UI.Palette
+local Styles = UI.Styles
+local Components = UI.Components
 
 local Module = UI:NewModule("Professions")
 
 Module.name = "KamiUI_Professions"
 Module.version = "0.1.0"
-
-local colors = {
-    background = { 0.00, 0.00, 0.00, 0.40 },
-    panel = { 0.00, 0.00, 0.00, 0.24 },
-    panelStrong = { 0.00, 0.00, 0.00, 0.40 },
-    header = { 0.00, 0.00, 0.00, 0.48 },
-    border = { 0.16, 0.16, 0.18, 1.00 },
-    gold = { 0.88, 0.72, 0.16, 1.00 },
-    text = { 0.92, 0.92, 0.94, 1.00 },
-    muted = { 0.62, 0.62, 0.66, 1.00 },
-}
 
 local CRAFTING_RANK_X = 110
 local CRAFTING_RANK_Y = -38
@@ -74,102 +66,6 @@ local function ApplySavedPosition(frame)
     )
 end
 
-local function SetColor(texture, color)
-    if texture and texture.SetColorTexture then
-        texture:SetColorTexture(
-            color[1],
-            color[2],
-            color[3],
-            color[4] or 1
-        )
-    end
-end
-
-local function HideRegion(region)
-    if region and region.SetAlpha then
-        region:SetAlpha(0)
-    end
-end
-
-local function CreateBorder(parent, key)
-    key = key or "KamiBorder"
-
-    if parent[key] then
-        return parent[key]
-    end
-
-    local edges = {}
-
-    local top = parent:CreateTexture(nil, "OVERLAY")
-    top:SetPoint("TOPLEFT")
-    top:SetPoint("TOPRIGHT")
-    top:SetHeight(1)
-    SetColor(top, colors.border)
-    edges[#edges + 1] = top
-
-    local bottom = parent:CreateTexture(nil, "OVERLAY")
-    bottom:SetPoint("BOTTOMLEFT")
-    bottom:SetPoint("BOTTOMRIGHT")
-    bottom:SetHeight(1)
-    SetColor(bottom, colors.border)
-    edges[#edges + 1] = bottom
-
-    local left = parent:CreateTexture(nil, "OVERLAY")
-    left:SetPoint("TOPLEFT")
-    left:SetPoint("BOTTOMLEFT")
-    left:SetWidth(1)
-    SetColor(left, colors.border)
-    edges[#edges + 1] = left
-
-    local right = parent:CreateTexture(nil, "OVERLAY")
-    right:SetPoint("TOPRIGHT")
-    right:SetPoint("BOTTOMRIGHT")
-    right:SetWidth(1)
-    SetColor(right, colors.border)
-    edges[#edges + 1] = right
-
-    parent[key] = edges
-
-    return edges
-end
-
-local function EnsureBackground(parent, key, color)
-    key = key or "KamiBackground"
-
-    local background = parent[key]
-
-    if not background then
-        background = parent:CreateTexture(nil, "BACKGROUND", nil, -7)
-        background:SetAllPoints()
-        parent[key] = background
-    end
-
-    SetColor(background, color)
-
-    return background
-end
-
-local function StyleFont(fontString, size, color)
-    if not fontString then
-        return
-    end
-
-    fontString:SetFont(
-        "Fonts\\FRIZQT__.TTF",
-        size or 9,
-        "OUTLINE"
-    )
-
-    if color then
-        fontString:SetTextColor(
-            color[1],
-            color[2],
-            color[3],
-            color[4] or 1
-        )
-    end
-end
-
 local function StyleRankBar(
     bar,
     fillXOffset,
@@ -189,7 +85,7 @@ local function StyleRankBar(
     if bar.Background then
         bar.Background:ClearAllPoints()
         bar.Background:SetAllPoints(bar)
-        SetColor(bar.Background, { 0, 0, 0, 0.62 })
+        Styles:SetColor(bar.Background, { 0, 0, 0, 0.62 })
     end
 
     if bar.Fill then
@@ -222,10 +118,10 @@ local function StyleRankBar(
         end
     end
 
-    HideRegion(bar.Border)
-    HideRegion(bar.Flare)
+    Styles:HideRegion(bar.Border)
+    Styles:HideRegion(bar.Flare)
 
-    CreateBorder(bar, "KamiRankBorder")
+    Styles:CreateBorder(bar, "KamiRankBorder")
 
     local rankText = bar.Rank and bar.Rank.Text
 
@@ -245,7 +141,7 @@ local function StyleRankBar(
             rankTextYOffset
         )
         rankText:SetHeight(rankFontSize + 2)
-        StyleFont(rankText, rankFontSize, colors.text)
+        Styles:ApplyText(rankText, rankFontSize, Palette.text)
         rankText:Show()
     end
 end
@@ -259,19 +155,19 @@ local function StyleProfessionSpellButton(button)
         button.IconTexture:SetTexCoord(0.07, 0.93, 0.07, 0.93)
     end
 
-    HideRegion(button.IconTextureOverlay)
+    Styles:HideRegion(button.IconTextureOverlay)
 
     if not button.KamiIconBorder then
         local border = CreateFrame("Frame", nil, button)
         border:SetPoint("TOPLEFT", 1, -1)
         border:SetPoint("BOTTOMRIGHT", -1, 1)
         border:SetFrameLevel(button:GetFrameLevel() + 1)
-        CreateBorder(border)
+        Styles:CreateBorder(border)
         button.KamiIconBorder = border
     end
 
-    StyleFont(button.spellString, 9, colors.text)
-    StyleFont(button.subSpellString, 8, colors.muted)
+    Styles:ApplyText(button.spellString, 9, Palette.text)
+    Styles:ApplyText(button.subSpellString, 8, Palette.muted)
 end
 
 local function StyleProfessionCard(card)
@@ -280,18 +176,18 @@ local function StyleProfessionCard(card)
     end
 
     if card.Background then
-        SetColor(card.Background, colors.panel)
+        Styles:SetColor(card.Background, Palette.panel)
     else
-        EnsureBackground(card, "KamiBackground", colors.panel)
+        Styles:EnsureBackground(card, "KamiBackground", Palette.panel)
     end
 
-    CreateBorder(card, "KamiCardBorder")
+    Styles:CreateBorder(card, "KamiCardBorder")
 
-    StyleFont(card.ProfessionName, 10, colors.gold)
-    StyleFont(card.specialization, 8, colors.muted)
-    StyleFont(card.Rank, 8, colors.muted)
-    StyleFont(card.missingHeader, 10, colors.gold)
-    StyleFont(card.missingText, 8, colors.muted)
+    Styles:ApplyText(card.ProfessionName, 10, Palette.gold)
+    Styles:ApplyText(card.specialization, 8, Palette.muted)
+    Styles:ApplyText(card.Rank, 8, Palette.muted)
+    Styles:ApplyText(card.missingHeader, 10, Palette.gold)
+    Styles:ApplyText(card.missingText, 8, Palette.muted)
 
     StyleRankBar(
         card.StatusBar,
@@ -372,7 +268,7 @@ local function HideButtonTextures(button)
     }
 
     for _, texture in ipairs(textures) do
-        HideRegion(texture)
+        Styles:HideRegion(texture)
     end
 end
 
@@ -391,15 +287,15 @@ function Module:ApplyRecipeCategoryVisual(row)
     background:ClearAllPoints()
     background:SetPoint("TOPLEFT", row, "TOPLEFT", 6, 0)
     background:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", -6, 0)
-    SetColor(background, { 1, 1, 1, 0.055 })
+    Styles:SetColor(background, { 1, 1, 1, 0.055 })
 
     HideButtonTextures(row)
 
-    HideRegion(row.LeftPiece)
-    HideRegion(row.CenterPiece)
-    HideRegion(row.RightPiece)
-    HideRegion(row.CollapseIcon)
-    HideRegion(row.CollapseIconAlphaAdd)
+    Styles:HideRegion(row.LeftPiece)
+    Styles:HideRegion(row.CenterPiece)
+    Styles:HideRegion(row.RightPiece)
+    Styles:HideRegion(row.CollapseIcon)
+    Styles:HideRegion(row.CollapseIconAlphaAdd)
 
     local collapse = row.GetCollapseButton
         and row:GetCollapseButton()
@@ -429,7 +325,7 @@ function Module:ApplyRecipeCategoryVisual(row)
         -6,
         0
     )
-    SetColor(row.KamiCategoryHighlight, { 1, 1, 1, 0.04 })
+    Styles:SetColor(row.KamiCategoryHighlight, { 1, 1, 1, 0.04 })
 
     local text = GetHeaderText(row)
 
@@ -438,7 +334,7 @@ function Module:ApplyRecipeCategoryVisual(row)
         text:SetPoint("LEFT", row, "LEFT", 6, 0)
         text:SetPoint("RIGHT", row, "RIGHT", -6, 0)
         text:SetJustifyH("LEFT")
-        StyleFont(text, 9, colors.gold)
+        Styles:ApplyText(text, 9, Palette.gold)
         text:SetText(
             string.format(
                 "%s %s",
@@ -512,7 +408,8 @@ function Module:StyleRecipeRow(row, node)
     local data = node and node.GetData and node:GetData()
     local recipeInfo = data and data.recipeInfo
     local difficulty = recipeInfo and recipeInfo.relativeDifficulty
-    local backgroundColor = { 0.45, 0.45, 0.48, 0.10 }
+    local backgroundColor = Palette.difficulty.trivial
+    local backgroundAlpha = 0.10
 
     if Enum
         and Enum.TradeskillRelativeDifficulty
@@ -521,11 +418,14 @@ function Module:StyleRecipeRow(row, node)
         local difficulties = Enum.TradeskillRelativeDifficulty
 
         if difficulty == difficulties.Optimal then
-            backgroundColor = { 1.00, 0.34, 0.05, 0.16 }
+            backgroundColor = Palette.difficulty.hard
+            backgroundAlpha = 0.16
         elseif difficulty == difficulties.Medium then
-            backgroundColor = { 1.00, 0.82, 0.00, 0.14 }
+            backgroundColor = Palette.difficulty.normal
+            backgroundAlpha = 0.14
         elseif difficulty == difficulties.Easy then
-            backgroundColor = { 0.20, 0.78, 0.24, 0.13 }
+            backgroundColor = Palette.difficulty.easy
+            backgroundAlpha = 0.13
         end
     end
 
@@ -537,7 +437,7 @@ function Module:StyleRecipeRow(row, node)
         row.KamiDifficultyBackground = background
     end
 
-    SetColor(background, backgroundColor)
+    Styles:SetColor(background, backgroundColor, backgroundAlpha)
 
     if row.SkillUps then
         row.SkillUps:Hide()
@@ -550,7 +450,7 @@ function Module:StyleRecipeRow(row, node)
         row.Label:SetJustifyH("LEFT")
         row.Label:SetText(recipeInfo and recipeInfo.name or "")
         row.Label:Show()
-        StyleFont(row.Label, 9)
+        Styles:ApplyText(row.Label, 9)
 
         if row.GetLabelColor then
             local color = row:GetLabelColor()
@@ -566,7 +466,7 @@ function Module:StyleRecipeRow(row, node)
         row.Count:SetPoint("RIGHT", row, "RIGHT", -6, 0)
         row.Count:SetJustifyH("RIGHT")
         row.Count:SetWidth(38)
-        StyleFont(row.Count, 9, colors.muted)
+        Styles:ApplyText(row.Count, 9, Palette.muted)
     end
 
     if row.SelectedOverlay then
@@ -588,12 +488,12 @@ local function StyleRecipeList(recipeList)
     end
 
     if recipeList.Background then
-        SetColor(recipeList.Background, colors.panel)
+        Styles:SetColor(recipeList.Background, Palette.panel)
     else
-        EnsureBackground(
+        Styles:EnsureBackground(
             recipeList,
             "KamiBackground",
-            colors.panel
+            Palette.panel
         )
     end
 
@@ -601,10 +501,10 @@ local function StyleRecipeList(recipeList)
         recipeList.BackgroundNineSlice:Hide()
     end
 
-    CreateBorder(recipeList, "KamiRecipeListBorder")
+    Styles:CreateBorder(recipeList, "KamiRecipeListBorder")
 
     if recipeList.SearchBox then
-        StyleFont(recipeList.SearchBox.Instructions, 9, colors.muted)
+        Styles:ApplyText(recipeList.SearchBox.Instructions, 9, Palette.muted)
     end
 end
 
@@ -618,17 +518,17 @@ local function StyleSchematicForm(form)
     end
 
     if form.Background then
-        SetColor(form.Background, colors.panel)
+        Styles:SetColor(form.Background, Palette.panel)
         form.Background:Show()
     else
-        EnsureBackground(form, "KamiBackground", colors.panel)
+        Styles:EnsureBackground(form, "KamiBackground", Palette.panel)
     end
 
-    CreateBorder(form, "KamiSchematicBorder")
+    Styles:CreateBorder(form, "KamiSchematicBorder")
 
-    StyleFont(form.Description, 9, colors.text)
-    StyleFont(form.RequiredTools, 8, colors.muted)
-    StyleFont(form.RecraftingRequiredTools, 8, colors.muted)
+    Styles:ApplyText(form.Description, 9, Palette.text)
+    Styles:ApplyText(form.RequiredTools, 8, Palette.muted)
+    Styles:ApplyText(form.RecraftingRequiredTools, 8, Palette.muted)
 end
 
 local function StyleCraftingPage(frame)
@@ -687,108 +587,6 @@ local function HideNativeProfessionTab(tab)
     end
 end
 
-local function SetBottomTabBackground(tab, r, g, b, a)
-    for _, texture in ipairs(tab.backgrounds or {}) do
-        texture:SetColorTexture(r, g, b, a)
-    end
-end
-
-local function CreateBottomTabVisual(tab)
-    local chamfer = 4
-    local backgrounds = {}
-
-    local upper = tab:CreateTexture(nil, "BACKGROUND")
-    upper:SetPoint("TOPLEFT", tab, "TOPLEFT", 0, 0)
-    upper:SetPoint("TOPRIGHT", tab, "TOPRIGHT", 0, 0)
-    upper:SetPoint("BOTTOM", tab, "BOTTOM", 0, chamfer)
-    backgrounds[#backgrounds + 1] = upper
-
-    for row = 0, chamfer - 1 do
-        local inset = chamfer - row
-        local strip = tab:CreateTexture(nil, "BACKGROUND")
-        strip:SetPoint("BOTTOMLEFT", tab, "BOTTOMLEFT", inset, row)
-        strip:SetPoint("BOTTOMRIGHT", tab, "BOTTOMRIGHT", -inset, row)
-        strip:SetHeight(1)
-        backgrounds[#backgrounds + 1] = strip
-    end
-
-    tab.backgrounds = backgrounds
-
-    local borders = {}
-
-    local top = tab:CreateTexture(nil, "OVERLAY")
-    top:SetPoint("TOPLEFT")
-    top:SetPoint("TOPRIGHT")
-    top:SetHeight(1)
-    SetColor(top, colors.border)
-    borders[1] = top
-
-    local bottom = tab:CreateTexture(nil, "OVERLAY")
-    bottom:SetPoint("BOTTOMLEFT", tab, "BOTTOMLEFT", chamfer, 0)
-    bottom:SetPoint("BOTTOMRIGHT", tab, "BOTTOMRIGHT", -chamfer, 0)
-    bottom:SetHeight(1)
-    SetColor(bottom, colors.border)
-    borders[2] = bottom
-
-    local left = tab:CreateTexture(nil, "OVERLAY")
-    left:SetPoint("TOPLEFT")
-    left:SetPoint("BOTTOMLEFT", tab, "BOTTOMLEFT", 0, chamfer)
-    left:SetWidth(1)
-    SetColor(left, colors.border)
-    borders[3] = left
-
-    local right = tab:CreateTexture(nil, "OVERLAY")
-    right:SetPoint("TOPRIGHT")
-    right:SetPoint("BOTTOMRIGHT", tab, "BOTTOMRIGHT", 0, chamfer)
-    right:SetWidth(1)
-    SetColor(right, colors.border)
-    borders[4] = right
-
-    for step = 1, chamfer do
-        local leftChamfer = tab:CreateTexture(nil, "OVERLAY")
-        leftChamfer:SetPoint(
-            "BOTTOMLEFT",
-            tab,
-            "BOTTOMLEFT",
-            step - 1,
-            chamfer - step
-        )
-        leftChamfer:SetSize(1, 1)
-        SetColor(leftChamfer, colors.border)
-
-        local rightChamfer = tab:CreateTexture(nil, "OVERLAY")
-        rightChamfer:SetPoint(
-            "BOTTOMRIGHT",
-            tab,
-            "BOTTOMRIGHT",
-            -(step - 1),
-            chamfer - step
-        )
-        rightChamfer:SetSize(1, 1)
-        SetColor(rightChamfer, colors.border)
-    end
-
-    tab.borders = borders
-end
-
-local function SetProfessionTabVisual(tab, active)
-    if not tab then
-        return
-    end
-
-    SetBottomTabBackground(
-        tab,
-        active and 0.04 or 0.00,
-        active and 0.04 or 0.00,
-        active and 0.05 or 0.00,
-        active and 0.55 or 0.40
-    )
-
-    if tab.borders and tab.borders[1] then
-        tab.borders[1]:SetShown(not active)
-    end
-end
-
 local function CreateProfessionBottomTabs(frame)
     if frame.KamiProfessionTabs then
         return
@@ -810,12 +608,10 @@ local function CreateProfessionBottomTabs(frame)
             1
         )
 
-        CreateBottomTabVisual(tab)
-        SetProfessionTabVisual(tab, false)
-
-        if index > 1 and tab.borders and tab.borders[3] then
-            tab.borders[3]:Hide()
-        end
+        Components:StyleTab(tab, {
+            orientation = "bottom",
+            joinLeft = index > 1,
+        })
 
         tab:SetScript("OnClick", function(self)
             local source = self.sourceTab
@@ -898,7 +694,7 @@ local function StyleRightTabs(frame)
                 ) and frame.selectedSkillLine == source.skillLine
             end
 
-            SetProfessionTabVisual(tab, active == true)
+            Components:SetTabState(tab, active == true, true)
             tab:Show()
         else
             tab.sourceTab = nil
@@ -928,7 +724,7 @@ local function StyleCloseButton(button)
         button.KamiText = text
     end
 
-    StyleFont(button.KamiText, 12, colors.text)
+    Styles:ApplyText(button.KamiText, 12, Palette.text)
 end
 
 local function ConfigureFrameDragging(frame)
@@ -966,24 +762,24 @@ local function StyleFrameChrome(frame)
 
     ConfigureFrameDragging(frame)
 
-    EnsureBackground(
+    Styles:EnsureBackground(
         frame,
         "KamiBackground",
-        colors.background
+        Palette.background
     )
-    CreateBorder(frame, "KamiFrameBorder")
+    Styles:CreateBorder(frame, "KamiFrameBorder")
 
     if not frame.KamiHeader then
         local header = frame:CreateTexture(nil, "BACKGROUND", nil, -6)
         header:SetPoint("TOPLEFT", frame, "TOPLEFT", 1, -1)
         header:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -1, -1)
         header:SetHeight(32)
-        SetColor(header, colors.header)
+        Styles:SetColor(header, Palette.header)
         frame.KamiHeader = header
     end
 
-    HideRegion(frame.Bg)
-    HideRegion(frame.TopTileStreaks)
+    Styles:HideRegion(frame.Bg)
+    Styles:HideRegion(frame.TopTileStreaks)
 
     if frame.NineSlice then
         frame.NineSlice:Hide()
@@ -999,7 +795,7 @@ local function StyleFrameChrome(frame)
     if title then
         title:ClearAllPoints()
         title:SetPoint("TOP", frame, "TOP", 0, -8)
-        StyleFont(title, 12, colors.gold)
+        Styles:ApplyText(title, "windowTitle")
     end
 
     StyleCloseButton(frame.CloseButton)

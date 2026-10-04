@@ -1,4 +1,7 @@
 local UI = KamiUI
+local Palette = UI.Palette
+local Styles = UI.Styles
+local Components = UI.Components
 
 local Module = UI:NewModule("ObjectiveTracker")
 
@@ -21,17 +24,6 @@ local OBJECTIVE_INDENT = 52
 local QUEST_SPACING = 4
 local OBJECTIVE_SPACING = 1
 
-local colors = {
-    background = { 0.00, 0.00, 0.00, 0.40 },
-    border = { 0.16, 0.16, 0.18, 1.00 },
-    header = { 1.00, 1.00, 1.00, 0.04 },
-    section = { 1.00, 1.00, 1.00, 0.055 },
-    gold = { 0.88, 0.72, 0.16, 1.00 },
-    text = { 0.92, 0.92, 0.94, 1.00 },
-    muted = { 0.62, 0.62, 0.66, 1.00 },
-    complete = { 0.32, 0.86, 0.38, 1.00 },
-}
-
 local function EnsureDatabase()
     KamiUIDB = KamiUIDB or {}
     KamiUIDB.objectiveTracker = KamiUIDB.objectiveTracker or {}
@@ -45,32 +37,6 @@ local function EnsureDatabase()
     db.collapsedSections = db.collapsedSections or {}
 
     return db
-end
-
-local function CreateBorder(parent)
-    local top = parent:CreateTexture(nil, "OVERLAY")
-    top:SetPoint("TOPLEFT")
-    top:SetPoint("TOPRIGHT")
-    top:SetHeight(1)
-    top:SetColorTexture(unpack(colors.border))
-
-    local bottom = parent:CreateTexture(nil, "OVERLAY")
-    bottom:SetPoint("BOTTOMLEFT")
-    bottom:SetPoint("BOTTOMRIGHT")
-    bottom:SetHeight(1)
-    bottom:SetColorTexture(unpack(colors.border))
-
-    local left = parent:CreateTexture(nil, "OVERLAY")
-    left:SetPoint("TOPLEFT")
-    left:SetPoint("BOTTOMLEFT")
-    left:SetWidth(1)
-    left:SetColorTexture(unpack(colors.border))
-
-    local right = parent:CreateTexture(nil, "OVERLAY")
-    right:SetPoint("TOPRIGHT")
-    right:SetPoint("BOTTOMRIGHT")
-    right:SetWidth(1)
-    right:SetColorTexture(unpack(colors.border))
 end
 
 local function SavePosition(frame)
@@ -167,29 +133,6 @@ local function HideBlizzardTracker()
     end
 end
 
-local function GetDifficultyColor(level)
-    level = tonumber(level) or 0
-
-    if level <= 0 then
-        return 1, 0.82, 0
-    end
-
-    local playerLevel = UnitLevel and UnitLevel("player") or level
-    local difference = level - playerLevel
-
-    if difference >= 5 then
-        return 1.00, 0.15, 0.15
-    elseif difference >= 3 then
-        return 1.00, 0.50, 0.10
-    elseif difference >= -2 then
-        return 1.00, 0.82, 0.00
-    elseif difference >= -5 then
-        return 0.25, 0.85, 0.25
-    end
-
-    return 0.55, 0.55, 0.55
-end
-
 local function OpenQuest(questID)
     if not questID then
         return
@@ -242,7 +185,7 @@ local function CreateQuestRow(parent)
     title:SetJustifyV("TOP")
     title:SetWordWrap(true)
     title:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
-    title:SetTextColor(unpack(colors.text))
+    title:SetTextColor(unpack(Palette.text))
     row.title = title
 
     local highlight = row:CreateTexture(nil, "HIGHLIGHT")
@@ -304,10 +247,10 @@ local function UpdateQuestRow(row, item, y)
     row.questID = item.questID
 
     local level = tonumber(item.level) or 0
-    local r, g, b = GetDifficultyColor(level)
+    local difficultyColor = Palette:GetLevelDifficultyColor(level)
 
     row.level:SetText(level > 0 and string.format("[%d]", level) or "[?]")
-    row.level:SetTextColor(r, g, b)
+    Styles:SetTextColor(row.level, difficultyColor)
     row.title:SetText(item.title or "Unknown Quest")
 
     local titleHeight = math.max(16, math.ceil(row.title:GetStringHeight() or 16))
@@ -342,9 +285,9 @@ local function UpdateQuestRow(row, item, y)
         text:SetText("- " .. (objective.text or ""))
 
         if objective.finished then
-            text:SetTextColor(unpack(colors.complete))
+            text:SetTextColor(unpack(Palette.success))
         else
-            text:SetTextColor(unpack(colors.muted))
+            text:SetTextColor(unpack(Palette.muted))
         end
 
         text:Show()
@@ -370,35 +313,16 @@ local function CreateSection(parent, id)
     local section = CreateFrame("Frame", nil, parent)
     section.id = id
 
-    local header = CreateFrame("Button", nil, section)
+    local header = Components:CreateSection(section, {
+        text = id,
+        collapsible = true,
+        expanded = true,
+        height = SECTION_HEADER_HEIGHT,
+        inset = 0,
+    })
     header:SetPoint("TOPLEFT")
     header:SetPoint("TOPRIGHT")
-    header:SetHeight(SECTION_HEADER_HEIGHT)
     header:RegisterForClicks("LeftButtonUp")
-
-    local background = header:CreateTexture(nil, "BACKGROUND")
-    background:SetAllPoints()
-    background:SetColorTexture(unpack(colors.section))
-
-    local toggle = header:CreateFontString(nil, "OVERLAY")
-    toggle:SetPoint("LEFT", header, "LEFT", 0, 0)
-    toggle:SetWidth(10)
-    toggle:SetJustifyH("CENTER")
-    toggle:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
-    toggle:SetTextColor(unpack(colors.gold))
-    header.toggle = toggle
-
-    local title = header:CreateFontString(nil, "OVERLAY")
-    title:SetPoint("LEFT", toggle, "RIGHT", 4, 0)
-    title:SetPoint("RIGHT", header, "RIGHT", -6, 0)
-    title:SetJustifyH("LEFT")
-    title:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
-    title:SetTextColor(unpack(colors.gold))
-    header.title = title
-
-    local highlight = header:CreateTexture(nil, "HIGHLIGHT")
-    highlight:SetAllPoints()
-    highlight:SetColorTexture(1, 1, 1, 0.04)
 
     header:SetScript("OnClick", function()
         local db = EnsureDatabase()
@@ -501,11 +425,11 @@ function Module:Refresh()
                 -y
             )
             section:SetWidth(PANEL_WIDTH - SECTION_INDENT - 2)
-            section.header.title:SetText(data.title or id)
+            section.header:SetSectionText(data.title or id)
             section:Show()
 
             local collapsed = EnsureDatabase().collapsedSections[id] == true
-            section.header.toggle:SetText(collapsed and "+" or "-")
+            section.header:SetExpanded(not collapsed)
 
             local sectionHeight = SECTION_HEADER_HEIGHT
             local rowY = SECTION_HEADER_HEIGHT + 3
@@ -579,11 +503,11 @@ local function CreateFrameUI()
     frame:SetClampedToScreen(true)
     frame:SetMovable(true)
     frame:EnableMouse(true)
-    frame:SetBackdrop({
-        bgFile = "Interface\\Buttons\\WHITE8X8",
-    })
-    frame:SetBackdropColor(unpack(colors.background))
-    CreateBorder(frame)
+    Styles:ApplyBackdrop(
+        frame,
+        Palette.window.neutral,
+        Palette.border
+    )
 
     local header = CreateFrame("Button", nil, frame)
     header:SetPoint("TOPLEFT", frame, "TOPLEFT", 1, -1)
@@ -614,7 +538,7 @@ local function CreateFrameUI()
 
     local headerBackground = header:CreateTexture(nil, "BACKGROUND")
     headerBackground:SetAllPoints()
-    headerBackground:SetColorTexture(unpack(colors.header))
+    Styles:SetColor(headerBackground, Palette.white, 0.04)
 
     local toggle = CreateFrame("Button", nil, header)
     toggle:SetSize(18, 18)
@@ -631,8 +555,7 @@ local function CreateFrameUI()
     title:SetPoint("LEFT", toggle, "RIGHT", 2, 0)
     title:SetPoint("RIGHT", header, "RIGHT", -6, 0)
     title:SetJustifyH("LEFT")
-    title:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
-    title:SetTextColor(unpack(colors.gold))
+    Styles:ApplyText(title, "panelTitle")
     title:SetText("Objectives")
     frame.title = title
 
@@ -646,8 +569,7 @@ local function CreateFrameUI()
     empty:SetPoint("TOPLEFT", content, "TOPLEFT", CONTENT_PADDING, -5)
     empty:SetPoint("RIGHT", content, "RIGHT", -CONTENT_PADDING, 0)
     empty:SetJustifyH("LEFT")
-    empty:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
-    empty:SetTextColor(unpack(colors.muted))
+    Styles:ApplyText(empty, 9, Palette.muted)
     empty:SetText("No tracked objectives")
     frame.empty = empty
 

@@ -6,6 +6,9 @@
 ## SavedVariables: KamiUIDB
 
 Core.lua
+Palette.lua
+Styles.lua
+Components.lua
 Config.lua
 Events.lua
 Modules.lua
