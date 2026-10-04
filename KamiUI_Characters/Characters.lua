@@ -368,6 +368,8 @@ end
 
 local SafeCall
 local UpdateEquipmentIgnoreOverlays
+local LoadEquipmentIgnoreState
+local ApplyEquipmentIgnoreState
 
 local function CreateEquipmentSlot(parent, definition)
     local button = CreateFrame("Button", nil, parent)
@@ -477,21 +479,27 @@ local function CreateEquipmentSlot(parent, definition)
                 return
             end
 
-            local ignored = SafeCall(
-                C_EquipmentSet.IsSlotIgnoredForSave,
-                self.slotID
-            )
+            local ignored = self.KamiIgnoreForSave
 
-            if ignored then
-                if C_EquipmentSet.UnignoreSlotForSave then
+            if ignored == nil then
+                ignored = SafeCall(
+                    C_EquipmentSet.IsSlotIgnoredForSave,
+                    self.slotID
+                ) == true
+            end
+
+            self.KamiIgnoreForSave = not ignored
+
+            if self.KamiIgnoreForSave then
+                if C_EquipmentSet.IgnoreSlotForSave then
                     SafeCall(
-                        C_EquipmentSet.UnignoreSlotForSave,
+                        C_EquipmentSet.IgnoreSlotForSave,
                         self.slotID
                     )
                 end
-            elseif C_EquipmentSet.IgnoreSlotForSave then
+            elseif C_EquipmentSet.UnignoreSlotForSave then
                 SafeCall(
-                    C_EquipmentSet.IgnoreSlotForSave,
+                    C_EquipmentSet.UnignoreSlotForSave,
                     self.slotID
                 )
             end
@@ -521,6 +529,65 @@ local function CreateEquipmentSlot(parent, definition)
     return button
 end
 
+ApplyEquipmentIgnoreState = function(frame)
+    if not frame or not C_EquipmentSet then
+        return
+    end
+
+    if C_EquipmentSet.ClearIgnoredSlotsForSave then
+        SafeCall(C_EquipmentSet.ClearIgnoredSlotsForSave)
+    end
+
+    for _, button in ipairs(frame.equipmentSlots or {}) do
+        if button.slotID then
+            if button.KamiIgnoreForSave then
+                if C_EquipmentSet.IgnoreSlotForSave then
+                    SafeCall(
+                        C_EquipmentSet.IgnoreSlotForSave,
+                        button.slotID
+                    )
+                end
+            elseif C_EquipmentSet.UnignoreSlotForSave then
+                SafeCall(
+                    C_EquipmentSet.UnignoreSlotForSave,
+                    button.slotID
+                )
+            end
+        end
+    end
+end
+
+LoadEquipmentIgnoreState = function(frame, setID)
+    if not frame then
+        return
+    end
+
+    local ignoredSlots = {}
+
+    if setID
+        and C_EquipmentSet
+        and C_EquipmentSet.GetIgnoredSlots
+    then
+        local saved = SafeCall(C_EquipmentSet.GetIgnoredSlots, setID)
+
+        if type(saved) == "table" then
+            ignoredSlots = saved
+        end
+    end
+
+    for _, button in ipairs(frame.equipmentSlots or {}) do
+        button.KamiIgnoreForSave =
+            button.slotID and ignoredSlots[button.slotID] == true or false
+    end
+
+    if frame.sidebar and frame.sidebar.equipmentPane then
+        frame.sidebar.equipmentPane.loadedIgnoreSetID = setID
+    end
+
+    ApplyEquipmentIgnoreState(frame)
+    UpdateEquipmentIgnoreOverlays(frame)
+end
+
 UpdateEquipmentIgnoreOverlays = function(frame)
     if not frame then
         return
@@ -537,10 +604,14 @@ UpdateEquipmentIgnoreOverlays = function(frame)
         local ignored = false
 
         if show and button.slotID then
-            ignored = SafeCall(
-                C_EquipmentSet.IsSlotIgnoredForSave,
-                button.slotID
-            ) == true
+            if button.KamiIgnoreForSave ~= nil then
+                ignored = button.KamiIgnoreForSave == true
+            else
+                ignored = SafeCall(
+                    C_EquipmentSet.IsSlotIgnoredForSave,
+                    button.slotID
+                ) == true
+            end
         end
 
         if button.KamiIgnoreOverlay then
@@ -1371,6 +1442,10 @@ local function UpdateEquipmentPane(frame)
         if pendingID then
             pane.selectedSetID = pendingID
             pane.pendingSetName = nil
+
+            if LoadEquipmentIgnoreState then
+                LoadEquipmentIgnoreState(frame, pendingID)
+            end
         end
     end
 
@@ -1497,6 +1572,11 @@ local function UpdateEquipmentPane(frame)
 
             row:SetScript("OnClick", function(self)
                 pane.selectedSetID = self.setID
+
+                if LoadEquipmentIgnoreState then
+                    LoadEquipmentIgnoreState(frame, self.setID)
+                end
+
                 UpdateEquipmentPane(frame)
             end)
 
@@ -1618,6 +1698,16 @@ SetSidebarMode = function(frame, mode)
         UpdateStatsPane(frame)
     else
         UpdateEquipmentPane(frame)
+
+        local pane = sidebar.equipmentPane
+
+        if pane
+            and pane.selectedSetID
+            and pane.loadedIgnoreSetID ~= pane.selectedSetID
+            and LoadEquipmentIgnoreState
+        then
+            LoadEquipmentIgnoreState(frame, pane.selectedSetID)
+        end
     end
 
     if UpdateEquipmentIgnoreOverlays then
@@ -3850,7 +3940,17 @@ local function CreateSidebar(frame)
             and C_EquipmentSet
             and C_EquipmentSet.SaveEquipmentSet
         then
+            if ApplyEquipmentIgnoreState then
+                ApplyEquipmentIgnoreState(frame)
+            end
+
             SafeCall(C_EquipmentSet.SaveEquipmentSet, setID)
+
+            C_Timer.After(0, function()
+                if LoadEquipmentIgnoreState then
+                    LoadEquipmentIgnoreState(frame, setID)
+                end
+            end)
         end
     end)
     equipmentPane.save = save
