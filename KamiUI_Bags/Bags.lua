@@ -35,6 +35,86 @@ local pendingRebuild = false
 local sortingBags = false
 local pendingSortRefresh = false
 
+local function TryReceiveDragOnMouseFocus()
+    local frames = {}
+
+    if GetMouseFoci then
+        frames = { GetMouseFoci() }
+    elseif GetMouseFocus then
+        local focus = GetMouseFocus()
+
+        if focus then
+            frames[1] = focus
+        end
+    end
+
+    for _, frame in ipairs(frames) do
+        local current = frame
+
+        while current do
+            if current.GetScript then
+                local onReceiveDrag = current:GetScript("OnReceiveDrag")
+
+                if onReceiveDrag then
+                    onReceiveDrag(current)
+
+                    if not CursorHasItem or not CursorHasItem() then
+                        return true
+                    end
+                end
+            end
+
+            current = current.GetParent and current:GetParent() or nil
+        end
+    end
+
+    return false
+end
+
+local function TryDropOnActionBar(cursorX, cursorY)
+    if InCombatLockdown and InCombatLockdown() then
+        return false
+    end
+
+    if not PlaceAction or not UI.GetModule then
+        return false
+    end
+
+    local actionBars = UI:GetModule("ActionBars")
+
+    if not actionBars or not actionBars.bars then
+        return false
+    end
+
+    for _, bar in pairs(actionBars.bars) do
+        for _, button in ipairs(bar.buttons or {}) do
+            if button:IsShown() and button:GetParent():IsShown() then
+                local scale = button:GetEffectiveScale()
+                local x = cursorX / scale
+                local y = cursorY / scale
+                local left, bottom, width, height = button:GetRect()
+
+                if left
+                    and bottom
+                    and x >= left
+                    and x <= left + width
+                    and y >= bottom
+                    and y <= bottom + height
+                then
+                    local action = button:GetAttribute("action")
+
+                    if type(action) == "number" then
+                        PlaceAction(action)
+                        return true
+                    end
+                end
+            end
+        end
+    end
+
+    return false
+end
+
 local itemDragFrame = CreateFrame("Frame")
 itemDragFrame:Hide()
 itemDragFrame:SetScript("OnUpdate", function(self)
@@ -55,6 +135,14 @@ itemDragFrame:SetScript("OnUpdate", function(self)
     end
 
     local cursorX, cursorY = GetCursorPosition()
+
+    if TryDropOnActionBar(cursorX, cursorY) then
+        return
+    end
+
+    if TryReceiveDragOnMouseFocus() then
+        return
+    end
 
     for _, button in ipairs(frame.activeButtons or {}) do
         if button:IsShown() and button:GetParent():IsShown() then
@@ -730,6 +818,10 @@ local function UpdateItemButton(button, bagID, slotID)
         if icon then
             icon:SetTexture(info.iconFileID)
             icon:SetAlpha(alpha)
+
+            if icon.SetDesaturated then
+                icon:SetDesaturated(info.isLocked == true)
+            end
         end
 
         if button.Count then
@@ -761,6 +853,10 @@ local function UpdateItemButton(button, bagID, slotID)
 
         if icon then
             icon:SetTexture(nil)
+
+            if icon.SetDesaturated then
+                icon:SetDesaturated(false)
+            end
         end
 
         if button.Count then
@@ -2281,6 +2377,22 @@ function Module:Initialize()
     end)
 
     UI:RegisterEvent("ITEM_LOCK_CHANGED", function()
+        if sortingBags or _G.KamiUIBankSortInProgress then
+            return
+        end
+
+        Module:Refresh()
+    end)
+
+    UI:RegisterEvent("MAIL_SEND_INFO_UPDATE", function()
+        if sortingBags or _G.KamiUIBankSortInProgress then
+            return
+        end
+
+        Module:Refresh()
+    end)
+
+    UI:RegisterEvent("MAIL_CLOSED", function()
         if sortingBags or _G.KamiUIBankSortInProgress then
             return
         end
