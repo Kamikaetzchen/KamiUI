@@ -334,21 +334,23 @@ local function GetSpecFromInspectSpecialization(unit)
     end
 
     local specName
-    local sex = UnitSex and UnitSex(unit) or nil
 
-    if GetSpecializationInfoForSpecID then
+    if GetSpecializationNameForSpecID then
+        specName = UI:SafeCall(
+            GetSpecializationNameForSpecID,
+            specID
+        )
+    elseif GetSpecializationInfoForSpecID then
         local _id
         _id, specName = UI:SafeCall(
             GetSpecializationInfoForSpecID,
-            specID,
-            sex
+            specID
         )
     elseif GetSpecializationInfoByID then
         local _id
         _id, specName = UI:SafeCall(
             GetSpecializationInfoByID,
-            specID,
-            sex
+            specID
         )
     end
 
