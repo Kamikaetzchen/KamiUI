@@ -1181,7 +1181,7 @@ function Components:CreatePopupMenu(parent, anchor, options)
     menu:SetWidth(
         options.width
         or options.minWidth
-        or 170
+        or 50
     )
 
     if options.frameStrata then
@@ -1286,7 +1286,7 @@ function Components:BuildCharacterMenu(menu, entries, options)
     local popupOptions = menu.KamiPopupOptions or {}
     local minWidth = options.minWidth
         or popupOptions.minWidth
-        or 170
+        or 50
     local maxLabelWidth = 0
     local inset = popupOptions.inset or 4
     local textInset = popupOptions.textInset or 3

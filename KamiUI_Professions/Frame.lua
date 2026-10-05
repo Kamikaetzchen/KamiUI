@@ -559,7 +559,6 @@ local function CreateCharacterMenu(frame, header)
         frame,
         characterButton,
         {
-            minWidth = 170,
             frameLevel = frame:GetFrameLevel() + 30,
             backgroundColor = { 0, 0, 0, 0.96 },
             borderColor = Palette.border,
