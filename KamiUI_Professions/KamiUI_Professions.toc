@@ -6,3 +6,4 @@
 ## RequiredDeps: KamiUI
 
 Professions.lua
+Frame.lua
