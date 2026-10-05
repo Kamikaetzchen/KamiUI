@@ -60,115 +60,92 @@ local function GetLiveProfessionInfo()
     return baseInfo, baseInfo
 end
 
-local function GetProfessionSpellID(profession)
-    if not profession
-        or not profession.professionID
-        or not C_TradeSkillUI
-        or not C_TradeSkillUI.GetProfessionSpells
-    then
-        return nil
-    end
-
-    local skillLineID = profession.professionID
-    local professionInfo =
-        C_TradeSkillUI.GetProfessionInfoBySkillLineID
-        and UI:SafeCall(
-            C_TradeSkillUI.GetProfessionInfoBySkillLineID,
-            skillLineID
-        )
-        or nil
-    local professionEnum = professionInfo
-        and professionInfo.profession
-
-    if professionEnum == nil then
-        return nil
-    end
-
-    local spells = UI:SafeCall(
-        C_TradeSkillUI.GetProfessionSpells,
-        professionEnum,
-        skillLineID
-    )
-
-    if type(spells) ~= "table" then
-        spells = UI:SafeCall(
-            C_TradeSkillUI.GetProfessionSpells,
-            professionEnum
-        )
-    end
-
-    if type(spells) ~= "table" then
-        return nil
-    end
-
-    local professionName = string.lower(
-        profession.professionName
-        or professionInfo.professionName
-        or ""
-    )
-    local partialMatch
-
-    for _, spellID in ipairs(spells) do
-        local spellName
-
-        if C_Spell and C_Spell.GetSpellInfo then
-            local spellInfo = C_Spell.GetSpellInfo(spellID)
-            spellName = spellInfo and spellInfo.name
-        elseif GetSpellInfo then
-            spellName = GetSpellInfo(spellID)
-        end
-
-        if spellName then
-            local normalized = string.lower(spellName)
-
-            if normalized == professionName then
-                return spellID
-            end
-
-            if professionName ~= ""
-                and string.find(
-                    normalized,
-                    professionName,
-                    1,
-                    true
-                )
-            then
-                partialMatch = partialMatch or spellID
-            end
-        end
-    end
-
-    return partialMatch
-end
-
 local function IsLiveProfessionOpen()
     return GetLiveProfessionInfo() ~= nil
 end
 
+local secondaryProfessionIDs = {
+    [129] = true, -- First Aid
+    [185] = true, -- Cooking
+    [356] = true, -- Fishing
+    [794] = true, -- Archaeology
+}
+
+local secondaryProfessionNames = {
+    ["first aid"] = true,
+    ["cooking"] = true,
+    ["fishing"] = true,
+    ["archaeology"] = true,
+}
+
+local function IsPrimaryProfession(profession)
+    if not profession then
+        return false
+    end
+
+    if profession.isPrimaryProfession ~= nil then
+        return profession.isPrimaryProfession == true
+    end
+
+    if C_TradeSkillUI
+        and C_TradeSkillUI.GetProfessionInfoBySkillLineID
+        and profession.professionID
+    then
+        local info = UI:SafeCall(
+            C_TradeSkillUI.GetProfessionInfoBySkillLineID,
+            profession.professionID
+        )
+
+        if info and info.isPrimaryProfession ~= nil then
+            return info.isPrimaryProfession == true
+        end
+    end
+
+    if secondaryProfessionIDs[profession.professionID] then
+        return false
+    end
+
+    local name = string.lower(
+        profession.professionName or ""
+    )
+
+    return not secondaryProfessionNames[name]
+end
+
 local function GetCachedProfessions(character)
-    local professions = {}
+    local primary = {}
+    local secondary = {}
 
     for _, profession in pairs(
         character and character.professions or {}
     ) do
         if profession.professionName then
-            professions[#professions + 1] = profession
+            local target = IsPrimaryProfession(profession)
+                and primary
+                or secondary
+
+            target[#target + 1] = profession
         end
     end
 
-    table.sort(professions, function(left, right)
-        local leftName = left.professionName or ""
-        local rightName = right.professionName or ""
+    table.sort(primary, function(left, right)
+        local leftSlot = left.professionSlot or 99
+        local rightSlot = right.professionSlot or 99
 
-        if leftName == rightName then
-            return (left.professionID or 0)
-                < (right.professionID or 0)
+        if leftSlot ~= rightSlot then
+            return leftSlot < rightSlot
         end
 
-        return leftName < rightName
+        return (left.professionName or "")
+            < (right.professionName or "")
     end)
 
-    return professions
+    table.sort(secondary, function(left, right)
+        return (left.professionName or "")
+            < (right.professionName or "")
+    end)
+
+    return primary, secondary
 end
 
 local function GetCachedRecipes(profession)
@@ -379,38 +356,18 @@ local function AcquireOverviewCard(frame, index)
         return card
     end
 
-    card = CreateFrame(
-        "Button",
-        nil,
-        frame.overviewPage,
-        "SecureActionButtonTemplate"
-    )
-    card:SetHeight(54)
-    card:SetPoint(
-        "TOPLEFT",
-        frame.overviewPage,
-        "TOPLEFT",
-        4,
-        -46 - ((index - 1) * 60)
-    )
-    card:SetPoint(
-        "TOPRIGHT",
-        frame.overviewPage,
-        "TOPRIGHT",
-        -4,
-        -46 - ((index - 1) * 60)
-    )
+    card = CreateFrame("Button", nil, frame.overviewPage)
     card:RegisterForClicks("LeftButtonUp")
 
-    Styles:EnsureBackground(
+    local background = Styles:EnsureBackground(
         card,
         "KamiBackground",
         Palette.panelStrong
     )
-    Styles:CreateBorder(card)
+    card.background = background
+    card.KamiBorders = Styles:CreateBorder(card)
 
     local icon = card:CreateTexture(nil, "ARTWORK")
-    icon:SetSize(38, 38)
     icon:SetPoint("LEFT", card, "LEFT", 8, 0)
     icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
     card.icon = icon
@@ -423,7 +380,6 @@ local function AcquireOverviewCard(frame, index)
     name:SetPoint("TOPLEFT", icon, "TOPRIGHT", 8, -1)
     name:SetPoint("RIGHT", card, "RIGHT", -8, 0)
     name:SetJustifyH("LEFT")
-    Styles:ApplyText(name, 11, Palette.gold)
     card.name = name
 
     local rank = card:CreateFontString(
@@ -433,13 +389,10 @@ local function AcquireOverviewCard(frame, index)
     )
     rank:SetPoint("TOPLEFT", name, "BOTTOMLEFT", 0, -3)
     rank:SetJustifyH("LEFT")
-    Styles:ApplyText(rank, 9, Palette.muted)
     card.rank = rank
 
     local bar = CreateFrame("StatusBar", nil, card)
-    bar:SetPoint("LEFT", icon, "RIGHT", 8, -16)
     bar:SetPoint("RIGHT", card, "RIGHT", -8, 0)
-    bar:SetHeight(8)
     bar:SetStatusBarTexture("Interface\\Buttons\\WHITE8X8")
     bar:SetStatusBarColor(0.24, 0.42, 0.72, 0.65)
     Styles:EnsureBackground(
@@ -459,26 +412,75 @@ local function AcquireOverviewCard(frame, index)
     )
 
     card:SetScript("OnClick", function(self)
-        if not self.profession then
-            return
+        if self.profession then
+            Module:OpenProfession(self.profession)
         end
-
-        local _, _, isCurrent = GetViewedCharacter()
-
-        if not isCurrent then
-            Module.cachedProfessionID =
-                self.profession.professionID
-            Module.forceOverview = false
-            Module.selectedRecipeID = nil
-            Module:RefreshFrame()
-            return
-        end
-
-        Module:OpenProfession(self.profession)
     end)
 
     frame.overviewCards[index] = card
     return card
+end
+
+local function StyleOverviewCard(card, isPrimary)
+    if isPrimary then
+        card:SetHeight(68)
+        card.icon:SetSize(46, 46)
+        Styles:SetColor(
+            card.background,
+            { 0.035, 0.028, 0.008, 0.56 }
+        )
+        Styles:SetBorderColor(
+            card.KamiBorders,
+            { 0.42, 0.32, 0.08, 0.95 }
+        )
+        Styles:ApplyText(card.name, 12, Palette.gold)
+        Styles:ApplyText(card.rank, 9, Palette.text)
+        card.rankBar:SetHeight(10)
+        card.rankBar:ClearAllPoints()
+        card.rankBar:SetPoint(
+            "BOTTOMLEFT",
+            card,
+            "BOTTOMLEFT",
+            62,
+            8
+        )
+        card.rankBar:SetPoint(
+            "RIGHT",
+            card,
+            "RIGHT",
+            -8,
+            0
+        )
+    else
+        card:SetHeight(46)
+        card.icon:SetSize(30, 30)
+        Styles:SetColor(
+            card.background,
+            Palette.panelStrong
+        )
+        Styles:SetBorderColor(
+            card.KamiBorders,
+            Palette.border
+        )
+        Styles:ApplyText(card.name, 10, Palette.text)
+        Styles:ApplyText(card.rank, 8, Palette.muted)
+        card.rankBar:SetHeight(6)
+        card.rankBar:ClearAllPoints()
+        card.rankBar:SetPoint(
+            "BOTTOMLEFT",
+            card,
+            "BOTTOMLEFT",
+            46,
+            7
+        )
+        card.rankBar:SetPoint(
+            "RIGHT",
+            card,
+            "RIGHT",
+            -8,
+            0
+        )
+    end
 end
 
 local function AcquireReagentRow(frame, index)
@@ -647,19 +649,25 @@ local function CreateOverviewPage(frame)
     Styles:ApplyText(subtitle, 9, Palette.muted)
     page.subtitle = subtitle
 
-    local scroll = CreateFrame("ScrollFrame", nil, page)
-    scroll:SetPoint("TOPLEFT", subtitle, "BOTTOMLEFT", 0, -10)
-    scroll:SetPoint("BOTTOMRIGHT", page, "BOTTOMRIGHT", -2, 2)
-    page.scroll = scroll
+    local primaryLabel = page:CreateFontString(
+        nil,
+        "OVERLAY",
+        "GameFontNormalSmall"
+    )
+    Styles:ApplyText(primaryLabel, 9, Palette.gold)
+    primaryLabel:SetText("Primary Professions")
+    page.primaryLabel = primaryLabel
 
-    local content = CreateFrame("Frame", nil, scroll)
-    content:SetSize(1, 1)
-    scroll:SetScrollChild(content)
-    page.content = content
-    frame.overviewContent = content
+    local secondaryLabel = page:CreateFontString(
+        nil,
+        "OVERLAY",
+        "GameFontNormalSmall"
+    )
+    Styles:ApplyText(secondaryLabel, 9, Palette.muted)
+    secondaryLabel:SetText("Secondary Professions")
+    page.secondaryLabel = secondaryLabel
+
     frame.overviewCards = {}
-
-    ConfigureMouseWheelScroll(scroll, content, 42)
 end
 
 local function CreateCraftingPage(frame)
@@ -1034,9 +1042,26 @@ function Module:CreateFrame()
         end
     end)
 
-    if UISpecialFrames then
-        UISpecialFrames[#UISpecialFrames + 1] = frame:GetName()
+    frame:EnableKeyboard(true)
+
+    if frame.SetPropagateKeyboardInput then
+        frame:SetPropagateKeyboardInput(true)
     end
+
+    frame:SetScript("OnKeyDown", function(self, key)
+        if key == "ESCAPE" then
+            if self.SetPropagateKeyboardInput then
+                self:SetPropagateKeyboardInput(false)
+            end
+
+            Module:CloseFrame()
+            return
+        end
+
+        if self.SetPropagateKeyboardInput then
+            self:SetPropagateKeyboardInput(true)
+        end
+    end)
 
     self.frame = frame
     return frame
@@ -1091,6 +1116,33 @@ function Module:OpenProfession(profession)
         self.forceOverview = false
         self.selectedRecipeID = nil
         self:RefreshFrame()
+        return
+    end
+
+    if not C_TradeSkillUI
+        or not C_TradeSkillUI.OpenTradeSkill
+    then
+        return
+    end
+
+    local tradeSkillID =
+        profession.parentProfessionID
+        or profession.professionID
+
+    if tradeSkillID then
+        local opened = UI:SafeCall(
+            C_TradeSkillUI.OpenTradeSkill,
+            tradeSkillID
+        )
+
+        if not opened
+            and profession.professionID ~= tradeSkillID
+        then
+            UI:SafeCall(
+                C_TradeSkillUI.OpenTradeSkill,
+                profession.professionID
+            )
+        end
     end
 end
 
@@ -1101,7 +1153,8 @@ function Module:RefreshOverview()
     end
 
     local _, character, isCurrent = GetViewedCharacter()
-    local professions = GetCachedProfessions(character)
+    local primary, secondary =
+        GetCachedProfessions(character)
 
     frame.header:SetTitle(
         Components:FormatCharacterLabel(
@@ -1115,90 +1168,176 @@ function Module:RefreshOverview()
             or "Cached character data"
     )
 
+    local total = #primary + #secondary
+
     frame.overviewPage.subtitle:SetText(
-        #professions > 0
+        total > 0
             and "Select a profession"
             or "No profession data cached"
     )
 
-    local y = 0
+    local cardIndex = 0
+    local y = 44
 
-    for index, profession in ipairs(professions) do
-        local card = AcquireOverviewCard(frame, index)
+    frame.overviewPage.primaryLabel:ClearAllPoints()
+    frame.overviewPage.primaryLabel:SetPoint(
+        "TOPLEFT",
+        frame.overviewPage,
+        "TOPLEFT",
+        4,
+        -y
+    )
+    frame.overviewPage.primaryLabel:SetShown(#primary > 0)
 
-        card.profession = profession
+    if #primary > 0 then
+        y = y + 18
 
-        card.icon:SetTexture(profession.icon)
-        card.name:SetText(
-            profession.professionName or "Profession"
-        )
+        for _, profession in ipairs(primary) do
+            cardIndex = cardIndex + 1
+            local card = AcquireOverviewCard(frame, cardIndex)
 
-        local skill = profession.skillLevel or 0
-        local maximum = profession.maxSkillLevel or 0
-        local modifier = profession.skillModifier or 0
-        local rankText = string.format("%d / %d", skill, maximum)
+            card.profession = profession
+            StyleOverviewCard(card, true)
+            card:ClearAllPoints()
+            card:SetPoint(
+                "TOPLEFT",
+                frame.overviewPage,
+                "TOPLEFT",
+                4,
+                -y
+            )
+            card:SetPoint(
+                "TOPRIGHT",
+                frame.overviewPage,
+                "TOPRIGHT",
+                -4,
+                -y
+            )
 
-        if modifier ~= 0 then
-            rankText = rankText .. string.format("  %+d", modifier)
-        end
+            card.icon:SetTexture(profession.icon)
+            card.name:SetText(
+                profession.professionName or "Profession"
+            )
 
-        if profession.recipesCached then
-            local count = 0
-            for _ in pairs(profession.recipes or {}) do
-                count = count + 1
+            local skill = profession.skillLevel or 0
+            local maximum = profession.maxSkillLevel or 0
+            local modifier = profession.skillModifier or 0
+            local rankText =
+                string.format("%d / %d", skill, maximum)
+
+            if modifier ~= 0 then
+                rankText = rankText
+                    .. string.format("  %+d", modifier)
             end
-            rankText = rankText
-                .. string.format("  -  %d recipes", count)
-        end
 
-        card.rank:SetText(rankText)
-        card.rankBar:SetMinMaxValues(0, math.max(1, maximum))
-        card.rankBar:SetValue(skill)
+            if profession.recipesCached then
+                local count = 0
 
-        if isCurrent then
-            local spellID = GetProfessionSpellID(profession)
-
-            if InCombatLockdown and InCombatLockdown() then
-                card:Disable()
-            else
-                card:Enable()
-
-                if spellID then
-                    card:SetAttribute("type1", "spell")
-                    card:SetAttribute("spell", spellID)
-                else
-                    card:SetAttribute("type1", nil)
-                    card:SetAttribute("spell", nil)
+                for _ in pairs(profession.recipes or {}) do
+                    count = count + 1
                 end
+
+                rankText = rankText
+                    .. string.format("  -  %d recipes", count)
             end
-        else
+
+            card.rank:SetText(rankText)
+            card.rankBar:SetMinMaxValues(
+                0,
+                math.max(1, maximum)
+            )
+            card.rankBar:SetValue(skill)
             card:Enable()
+            card:Show()
 
-            if not InCombatLockdown
-                or not InCombatLockdown()
-            then
-                card:SetAttribute("type1", nil)
-                card:SetAttribute("spell", nil)
-            end
+            y = y + 76
         end
-
-        card:Show()
-
-        y = y + 60
     end
 
-    for index = #professions + 1, #frame.overviewCards do
+    if #primary > 0 and #secondary > 0 then
+        y = y + 10
+    end
+
+    frame.overviewPage.secondaryLabel:ClearAllPoints()
+    frame.overviewPage.secondaryLabel:SetPoint(
+        "TOPLEFT",
+        frame.overviewPage,
+        "TOPLEFT",
+        4,
+        -y
+    )
+    frame.overviewPage.secondaryLabel:SetShown(
+        #secondary > 0
+    )
+
+    if #secondary > 0 then
+        y = y + 18
+
+        for _, profession in ipairs(secondary) do
+            cardIndex = cardIndex + 1
+            local card = AcquireOverviewCard(frame, cardIndex)
+
+            card.profession = profession
+            StyleOverviewCard(card, false)
+            card:ClearAllPoints()
+            card:SetPoint(
+                "TOPLEFT",
+                frame.overviewPage,
+                "TOPLEFT",
+                4,
+                -y
+            )
+            card:SetPoint(
+                "TOPRIGHT",
+                frame.overviewPage,
+                "TOPRIGHT",
+                -4,
+                -y
+            )
+
+            card.icon:SetTexture(profession.icon)
+            card.name:SetText(
+                profession.professionName or "Profession"
+            )
+
+            local skill = profession.skillLevel or 0
+            local maximum = profession.maxSkillLevel or 0
+            local modifier = profession.skillModifier or 0
+            local rankText =
+                string.format("%d / %d", skill, maximum)
+
+            if modifier ~= 0 then
+                rankText = rankText
+                    .. string.format("  %+d", modifier)
+            end
+
+            if profession.recipesCached then
+                local count = 0
+
+                for _ in pairs(profession.recipes or {}) do
+                    count = count + 1
+                end
+
+                rankText = rankText
+                    .. string.format("  -  %d recipes", count)
+            end
+
+            card.rank:SetText(rankText)
+            card.rankBar:SetMinMaxValues(
+                0,
+                math.max(1, maximum)
+            )
+            card.rankBar:SetValue(skill)
+            card:Enable()
+            card:Show()
+
+            y = y + 52
+        end
+    end
+
+    for index = cardIndex + 1, #frame.overviewCards do
         frame.overviewCards[index]:Hide()
     end
-
-    frame.overviewContent:SetWidth(
-        math.max(1, frame.overviewPage.scroll:GetWidth())
-    )
-    SetScrollHeight(
-        frame.overviewPage.scroll,
-        frame.overviewContent,
-        1
-    )
 end
 
 local function BuildLiveRecipeEntries(frame)

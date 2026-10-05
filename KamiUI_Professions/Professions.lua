@@ -72,7 +72,7 @@ function Module:SnapshotProfessionSkills()
 
     local professionIndexes = { GetProfessions() }
 
-    for slot = 1, 5 do
+    for slot = 1, 6 do
         local professionIndex = professionIndexes[slot]
 
         if professionIndex then
@@ -93,6 +93,26 @@ function Module:SnapshotProfessionSkills()
                 local saved = professions[skillLineID] or {}
 
                 saved.professionID = skillLineID
+                saved.professionSlot = slot
+
+                local professionInfo =
+                    C_TradeSkillUI
+                    and C_TradeSkillUI.GetProfessionInfoBySkillLineID
+                    and UI:SafeCall(
+                        C_TradeSkillUI.GetProfessionInfoBySkillLineID,
+                        skillLineID
+                    )
+                    or nil
+
+                if professionInfo then
+                    saved.professionEnum =
+                        professionInfo.profession
+                    saved.isPrimaryProfession =
+                        professionInfo.isPrimaryProfession
+                elseif saved.isPrimaryProfession == nil then
+                    saved.isPrimaryProfession = slot <= 2
+                end
+
                 saved.professionName =
                     name or skillLineName or saved.professionName
                 saved.icon = icon or saved.icon
@@ -158,6 +178,19 @@ function Module:SnapshotCurrentProfession()
     local saved = professions[professionID] or {}
 
     saved.professionID = professionID
+    saved.professionEnum =
+        professionInfo.profession
+        or baseInfo.profession
+        or saved.professionEnum
+
+    if professionInfo.isPrimaryProfession ~= nil then
+        saved.isPrimaryProfession =
+            professionInfo.isPrimaryProfession
+    elseif baseInfo.isPrimaryProfession ~= nil then
+        saved.isPrimaryProfession =
+            baseInfo.isPrimaryProfession
+    end
+
     saved.parentProfessionID =
         professionInfo.parentProfessionID
         or (
