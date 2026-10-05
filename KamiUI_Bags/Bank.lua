@@ -1075,7 +1075,7 @@ local function CreateFrameUI()
         frame,
         characterButton,
         {
-            width = 170,
+            minWidth = 170,
             backgroundColor = { 0.02, 0.08, 0.02, 0.95 },
             borderColor = Palette.windowBorder.bank,
             fontSize = 9,

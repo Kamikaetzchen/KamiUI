@@ -3963,7 +3963,7 @@ local function CreateFrameUI()
             relativePoint = "BOTTOMLEFT",
             x = 3,
             y = -2,
-            width = 210,
+            minWidth = 170,
             frameLevel = frame:GetFrameLevel() + 30,
             backgroundColor = { 0, 0, 0, 0.94 },
             borderColor = Palette.border,

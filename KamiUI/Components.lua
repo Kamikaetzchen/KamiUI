@@ -1178,7 +1178,11 @@ function Components:CreatePopupMenu(parent, anchor, options)
         options.x or 0,
         options.y or -2
     )
-    menu:SetWidth(options.width or 170)
+    menu:SetWidth(
+        options.width
+        or options.minWidth
+        or 170
+    )
 
     if options.frameStrata then
         menu:SetFrameStrata(options.frameStrata)
@@ -1279,6 +1283,15 @@ function Components:BuildCharacterMenu(menu, entries, options)
     end
 
     local count = 0
+    local popupOptions = menu.KamiPopupOptions or {}
+    local minWidth = options.minWidth
+        or popupOptions.minWidth
+        or 170
+    local maxLabelWidth = 0
+    local inset = popupOptions.inset or 4
+    local textInset = popupOptions.textInset or 3
+    local horizontalPadding =
+        inset * 2 + textInset * 2 + 8
 
     for _, entry in ipairs(entries) do
         if not options.filter or options.filter(entry) then
@@ -1324,8 +1337,27 @@ function Components:BuildCharacterMenu(menu, entries, options)
                 end
             end)
             button:Show()
+
+            local textWidth
+
+            if button.text.GetUnboundedStringWidth then
+                textWidth =
+                    button.text:GetUnboundedStringWidth()
+            elseif button.text.GetStringWidth then
+                textWidth = button.text:GetStringWidth()
+            end
+
+            maxLabelWidth = math.max(
+                maxLabelWidth,
+                textWidth or 0
+            )
         end
     end
+
+    menu:SetWidth(math.max(
+        minWidth,
+        math.ceil(maxLabelWidth + horizontalPadding)
+    ))
 
     self:FinishPopupMenu(menu, count, options.menuOptions)
 
