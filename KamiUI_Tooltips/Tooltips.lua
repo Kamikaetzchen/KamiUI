@@ -4,7 +4,7 @@ local Styles = UI.Styles
 
 local Module = UI:NewModule("Tooltips", "KamiUI_Tooltips")
 
-Module.version = "0.2.7"
+Module.version = "0.2.8"
 
 local INSPECT_CACHE_SECONDS = 600
 local INSPECT_MISS_CACHE_SECONDS = 60
@@ -16,6 +16,57 @@ local INSPECT_READY_RETRY_COUNT = 20
 
 local GUILD_COLOR = { 0.50, 1.00, 0.50, 1.00 }
 local GUILD_RANK_COLOR = Palette.gold
+
+local SPEC_LABELS = {
+    WARRIOR = {
+        arms = "Arms",
+        fury = "Fury",
+        protection = "Prot",
+    },
+    PALADIN = {
+        holy = "Holy",
+        protection = "Prot",
+        retribution = "Ret",
+    },
+    HUNTER = {
+        ["beast mastery"] = "BM",
+        beastmaster = "BM",
+        marksmanship = "MM",
+        survival = "SV",
+    },
+    ROGUE = {
+        assassination = "Assa",
+        combat = "Combat",
+        subtlety = "Sub",
+    },
+    PRIEST = {
+        discipline = "Disc",
+        holy = "Holy",
+        shadow = "Shadow",
+        ["shadow magic"] = "Shadow",
+    },
+    SHAMAN = {
+        elemental = "Ele",
+        enhancement = "Enh",
+        restoration = "Resto",
+    },
+    MAGE = {
+        arcane = "Arcane",
+        fire = "Fire",
+        frost = "Frost",
+    },
+    WARLOCK = {
+        affliction = "DoT",
+        demonology = "Demo",
+        destruction = "Destro",
+    },
+    DRUID = {
+        balance = "Balance",
+        feral = "Feral",
+        ["feral combat"] = "Feral",
+        restoration = "Resto",
+    },
+}
 
 local tooltipNames = {
     "GameTooltip",
@@ -126,6 +177,17 @@ local function AnchorGameTooltipToCursor(tooltip)
 
     local scale = UIParent:GetEffectiveScale() or 1
     local cursorX, cursorY = GetCursorPosition()
+    local x = cursorX / scale
+    local y = cursorY / scale
+
+    if tooltip.KamiCursorX == x
+        and tooltip.KamiCursorY == y
+    then
+        return
+    end
+
+    tooltip.KamiCursorX = x
+    tooltip.KamiCursorY = y
 
     tooltip:SetAnchorType("ANCHOR_NONE")
     tooltip:ClearAllPoints()
@@ -133,8 +195,8 @@ local function AnchorGameTooltipToCursor(tooltip)
         "TOPLEFT",
         UIParent,
         "BOTTOMLEFT",
-        cursorX / scale + 14,
-        cursorY / scale - 12
+        x + 14,
+        y - 12
     )
 end
 
@@ -522,7 +584,7 @@ local function NormalizeSpecText(specText, unit)
         return nil
     end
 
-    local className = GetClassInfo(unit)
+    local className, classFile = GetClassInfo(unit)
 
     if not className then
         return specText
@@ -535,6 +597,26 @@ local function NormalizeSpecText(specText, unit)
         or normalized == normalizedClass .. " " .. normalizedClass
     then
         return nil
+    end
+
+    local suffix = " " .. normalizedClass
+    local specName = normalized
+
+    if string.sub(normalized, -#suffix) == suffix then
+        specName = string.sub(
+            normalized,
+            1,
+            #normalized - #suffix
+        )
+    end
+
+    local classLabels = classFile
+        and SPEC_LABELS[classFile]
+    local label = classLabels
+        and classLabels[specName]
+
+    if label then
+        return label .. " " .. className
     end
 
     return specText
@@ -1041,6 +1123,16 @@ local function BuildLevelLine(
     end
 
     local classText = specText or className
+    local normalizedRace = string.lower(raceName)
+
+    if string.find(
+        normalizedRace,
+        "skyborn",
+        1,
+        true
+    ) then
+        raceName = "Smurf Elf"
+    end
 
     return "Level "
         .. Colorize(level, GetLevelColor(level))
@@ -1169,6 +1261,10 @@ local function AddPlayerDetails(tooltip)
             or (specText and plain == specText)
         then
             -- Class/spec is already part of the combined level line.
+        elseif normalizedPlain == "horde"
+            or normalizedPlain == "alliance"
+        then
+            -- Faction is already obvious from the player race.
         else
             AddCapturedLine(tooltip, line)
         end
@@ -1435,13 +1531,21 @@ local function InstallCursorAnchor()
     Module.cursorAnchorInstalled = true
 
     GameTooltip:HookScript("OnShow", function(self)
+        self.KamiCursorX = nil
+        self.KamiCursorY = nil
         AnchorGameTooltipToCursor(self)
         StyleTooltip(self)
+    end)
+
+    GameTooltip:HookScript("OnUpdate", function(self)
+        AnchorGameTooltipToCursor(self)
     end)
 
     GameTooltip:HookScript("OnHide", function(self)
         queuedInspect = nil
         self.KamiPendingRefreshGuid = nil
+        self.KamiCursorX = nil
+        self.KamiCursorY = nil
     end)
 
     if hooksecurefunc and GameTooltip_SetDefaultAnchor then
@@ -1454,9 +1558,30 @@ local function InstallCursorAnchor()
     end
 end
 
+local function InstallStatusBarSuppression()
+    if Module.statusBarSuppressionInstalled
+        or not GameTooltipStatusBar
+    then
+        return
+    end
+
+    Module.statusBarSuppressionInstalled = true
+    GameTooltipStatusBar:SetAlpha(0)
+
+    if GameTooltipStatusBar.HookScript then
+        GameTooltipStatusBar:HookScript(
+            "OnShow",
+            function(self)
+                self:SetAlpha(0)
+            end
+        )
+    end
+end
+
 function Module:Initialize()
     StyleKnownTooltips()
     InstallCursorAnchor()
+    InstallStatusBarSuppression()
     InstallUnitTooltipHook()
 
     UI:RegisterEvent("INSPECT_READY", function(_, guid)
