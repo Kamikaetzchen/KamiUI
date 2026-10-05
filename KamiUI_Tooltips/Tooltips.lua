@@ -4,7 +4,7 @@ local Styles = UI.Styles
 
 local Module = UI:NewModule("Tooltips", "KamiUI_Tooltips")
 
-Module.version = "0.2.0"
+Module.version = "0.2.1"
 
 local INSPECT_CACHE_SECONDS = 300
 local INSPECT_THROTTLE_SECONDS = 1.5
@@ -144,6 +144,31 @@ local function IsValidPlayerUnit(unit)
     return true
 end
 
+local function GetLocalizedSpecName(
+    classID,
+    specIndex,
+    sex,
+    fallbackName
+)
+    if GetSpecializationInfoForClassID
+        and classID
+        and specIndex
+    then
+        local _id, name = UI:SafeCall(
+            GetSpecializationInfoForClassID,
+            classID,
+            specIndex,
+            sex
+        )
+
+        if name and UI:CanAccessValue(name) then
+            return name
+        end
+    end
+
+    return fallbackName
+end
+
 local function GetSpecFromTalentPoints(unit)
     if not IsValidPlayerUnit(unit) then
         return nil
@@ -168,6 +193,23 @@ local function GetSpecFromTalentPoints(unit)
         return nil
     end
 
+    local isInspect = not UnitIsUnit(unit, "player")
+    local groupIndex
+
+    if C_SpecializationInfo.GetActiveSpecGroup then
+        groupIndex = UI:SafeCall(
+            C_SpecializationInfo.GetActiveSpecGroup,
+            isInspect,
+            false
+        )
+
+        if groupIndex
+            and not UI:CanAccessValue(groupIndex)
+        then
+            groupIndex = nil
+        end
+    end
+
     local bestName
     local bestPoints = -1
     local tied = false
@@ -180,37 +222,61 @@ local function GetSpecFromTalentPoints(unit)
             _icon,
             _role,
             _primaryStat,
-            pointsSpent =
+            pointsSpent,
+            _background,
+            previewPointsSpent =
             UI:SafeCall(
                 C_SpecializationInfo.GetSpecializationInfo,
                 index,
-                true,
+                isInspect,
                 false,
-                unit,
+                isInspect and unit or nil,
                 sex,
-                nil,
+                groupIndex,
                 classID
             )
 
         if pointsSpent
             and UI:CanAccessValue(pointsSpent)
         then
-            pointsSpent = tonumber(pointsSpent)
+            pointsSpent = tonumber(pointsSpent) or 0
         else
-            pointsSpent = nil
+            pointsSpent = 0
         end
 
-        if specName
-            and UI:CanAccessValue(specName)
-            and pointsSpent
+        if previewPointsSpent
+            and UI:CanAccessValue(previewPointsSpent)
         then
-            if pointsSpent > bestPoints then
-                bestName = specName
-                bestPoints = pointsSpent
-                tied = false
-            elseif pointsSpent == bestPoints then
-                tied = true
-            end
+            previewPointsSpent =
+                tonumber(previewPointsSpent) or 0
+        else
+            previewPointsSpent = 0
+        end
+
+        local totalPoints =
+            pointsSpent + previewPointsSpent
+
+        if specName
+            and not UI:CanAccessValue(specName)
+        then
+            specName = nil
+        end
+
+        specName = GetLocalizedSpecName(
+            classID,
+            index,
+            sex,
+            specName
+        )
+
+        if specName and totalPoints > bestPoints then
+            bestName = specName
+            bestPoints = totalPoints
+            tied = false
+        elseif specName
+            and totalPoints == bestPoints
+        then
+            tied = true
         end
     end
 
@@ -242,20 +308,21 @@ local function GetSpecFromInspectSpecialization(unit)
     end
 
     local specName
+    local sex = UnitSex and UnitSex(unit) or nil
 
-    if GetSpecializationInfoByID then
-        local _id
-        _id, specName = UI:SafeCall(
-            GetSpecializationInfoByID,
-            specID,
-            UnitSex and UnitSex(unit) or nil
-        )
-    elseif GetSpecializationInfoForSpecID then
+    if GetSpecializationInfoForSpecID then
         local _id
         _id, specName = UI:SafeCall(
             GetSpecializationInfoForSpecID,
             specID,
-            UnitSex and UnitSex(unit) or nil
+            sex
+        )
+    elseif GetSpecializationInfoByID then
+        local _id
+        _id, specName = UI:SafeCall(
+            GetSpecializationInfoByID,
+            specID,
+            sex
         )
     end
 
@@ -400,9 +467,33 @@ local function GetCachedSpec(guid)
     return cached.text
 end
 
+local function IsBlizzardInspectActive()
+    if InspectFrame then
+        if InspectFrame.unit then
+            return true
+        end
+
+        if InspectFrame.IsShown
+            and InspectFrame:IsShown()
+        then
+            return true
+        end
+    end
+
+    if PlayerSpellsFrame
+        and PlayerSpellsFrame.IsInspecting
+        and PlayerSpellsFrame:IsInspecting()
+    then
+        return true
+    end
+
+    return false
+end
+
 local function CanRequestInspect(unit)
     if not IsValidPlayerUnit(unit)
         or UnitIsUnit(unit, "player")
+        or IsBlizzardInspectActive()
         or not NotifyInspect
         or not CanInspect
     then
@@ -878,6 +969,11 @@ local function HandleInspectReady(guid)
         return
     end
 
+    if IsBlizzardInspectActive() then
+        pendingInspect = nil
+        return
+    end
+
     pendingInspect = nil
 
     local unit = request.unit
@@ -898,11 +994,7 @@ local function HandleInspectReady(guid)
     end
 
     if ClearInspectPlayer
-        and not (
-            InspectFrame
-            and InspectFrame.IsShown
-            and InspectFrame:IsShown()
-        )
+        and not IsBlizzardInspectActive()
     then
         ClearInspectPlayer()
     end
