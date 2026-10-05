@@ -5,7 +5,7 @@ local Components = UI.Components
 
 local Module = UI:NewModule("Chat", "KamiUI_Chat")
 
-Module.version = "0.3.1"
+Module.version = "0.3.2"
 
 local SETUP_VERSION = 3
 
@@ -494,6 +494,40 @@ local function DisableEditBox(editBox)
     editBox:Hide()
 end
 
+local function HideEditBoxDecorations(editBox)
+    if not editBox then
+        return
+    end
+
+    local name = editBox:GetName()
+
+    if not name then
+        return
+    end
+
+    for _, suffix in ipairs({
+        "Left",
+        "Right",
+        "Mid",
+        "FocusLeft",
+        "FocusRight",
+        "FocusMid",
+        "Header",
+        "HeaderSuffix",
+        "NewcomerHint",
+        "Prompt",
+        "Language",
+    }) do
+        HideObject(_G[name .. suffix])
+    end
+
+    HideObject(editBox.header)
+    HideObject(editBox.headerSuffix)
+    HideObject(editBox.languageHeader)
+    HideObject(editBox.NewcomerHint)
+    HideObject(editBox.prompt)
+end
+
 local function StyleEditBox(frame)
     local editBox = frame and frame.editBox
 
@@ -501,35 +535,22 @@ local function StyleEditBox(frame)
         return
     end
 
+    if editBox.SetParent then
+        editBox:SetParent(Module.inputPanel)
+    end
+
     if editBox.SetIgnoreParentAlpha then
-        editBox:SetIgnoreParentAlpha(true)
+        editBox:SetIgnoreParentAlpha(false)
     end
 
     local focused = editBox.HasFocus and editBox:HasFocus()
     editBox:SetAlpha(focused and 1 or 0)
 
+    HideEditBoxDecorations(editBox)
+
     editBox:ClearAllPoints()
     editBox:SetPoint("TOPLEFT", Module.inputPanel, "TOPLEFT", 0, 0)
     editBox:SetPoint("BOTTOMRIGHT", Module.inputPanel, "BOTTOMRIGHT", 0, 0)
-
-    local name = editBox:GetName()
-
-    if name then
-        for _, suffix in ipairs({
-            "Left",
-            "Right",
-            "Mid",
-            "FocusLeft",
-            "FocusRight",
-            "FocusMid",
-        }) do
-            local texture = _G[name .. suffix]
-
-            if texture then
-                texture:SetAlpha(0)
-            end
-        end
-    end
 
     local font, _, flags = editBox:GetFont()
 
@@ -541,8 +562,13 @@ local function StyleEditBox(frame)
         editBox.KamiUIInputHooked = true
 
         editBox:HookScript("OnEditFocusGained", function(self)
+            HideEditBoxDecorations(self)
             self:SetAlpha(1)
             Module.inputPanel:Show()
+        end)
+
+        editBox:HookScript("OnTextChanged", function(self)
+            HideEditBoxDecorations(self)
         end)
 
         editBox:HookScript("OnEditFocusLost", function(self)
@@ -573,6 +599,10 @@ local function HideBackendFrame(frame)
     frame:SetAlpha(0)
     frame:SetFading(false)
     frame:EnableMouse(false)
+
+    if frame.SetHyperlinksEnabled then
+        frame:SetHyperlinksEnabled(false)
+    end
 
     if frame.EnableMouseWheel then
         frame:EnableMouseWheel(false)
