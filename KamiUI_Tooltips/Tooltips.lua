@@ -773,9 +773,14 @@ local function AddPlayerDetails(tooltip)
 
         if index == 1 then
             if line.leftText then
+                local r, g, b =
+                    GetColorChannels(classColor)
+
                 tooltip:AddLine(
                     line.leftText,
-                    GetColorChannels(classColor)
+                    r,
+                    g,
+                    b
                 )
             end
 
