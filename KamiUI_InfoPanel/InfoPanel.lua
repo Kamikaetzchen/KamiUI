@@ -59,28 +59,12 @@ local function GetLinenBagIcon()
     return "Interface\\Icons\\INV_Misc_Bag_07"
 end
 
-local function GetContainerNumSlotsCompat(bag)
-    if C_Container and C_Container.GetContainerNumSlots then
-        return C_Container.GetContainerNumSlots(bag) or 0
-    elseif GetContainerNumSlots then
-        return GetContainerNumSlots(bag) or 0
-    end
-
-    return 0
-end
-
 local function IsContainerSlotUsed(bag, slot)
-    if C_Container and C_Container.GetContainerItemInfo then
-        return C_Container.GetContainerItemInfo(bag, slot) ~= nil
-    elseif GetContainerItemInfo then
-        return GetContainerItemInfo(bag, slot) ~= nil
-    end
-
-    return false
+    return UI:GetContainerItemInfo(bag, slot) ~= nil
 end
 
 local function GetBagSlotUsage(bag)
-    local total = GetContainerNumSlotsCompat(bag)
+    local total = UI:GetContainerNumSlots(bag)
     local used = 0
 
     for slot = 1, total do
@@ -211,55 +195,23 @@ local function GetLatency()
     return math.max(home, world)
 end
 
-local function GetCharactersModule()
-    if not UI.GetModule then
-        return nil
-    end
-
-    local characters = UI:GetModule("Characters")
-
-    if characters and characters.GetCharacters then
-        return characters
-    end
-
-    return nil
-end
-
-local function GetFallbackCharacter()
-    local first, surname = UnitName("player")
-
-    first = first or "Player"
-
-    local fullName = first
-
-    if surname and surname ~= "" then
-        fullName = first .. " " .. surname
-    end
-
-    return {
-        name = fullName,
-        realm = GetRealmName and GetRealmName() or "",
-        classFile = select(2, UnitClass("player")),
-        money = GetMoney and GetMoney() or 0,
-    }
-end
-
 local function GetMoneyCharacters()
-    local characters = GetCharactersModule()
+    local characters = UI:GetCharactersModule()
 
     if characters then
         if characters.UpdateCurrentCharacter then
             characters:UpdateCurrentCharacter()
         end
 
-        if characters.GetSortedCharacters then
-            return characters:GetSortedCharacters()
-        end
+        return characters:GetSortedCharacters()
     end
+
+    local key = UI:GetCurrentCharacterKey()
 
     return {
         {
-            character = GetFallbackCharacter(),
+            key = key,
+            character = UI:GetCharacterProfile(key),
         },
     }
 end

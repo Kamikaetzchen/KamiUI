@@ -153,6 +153,139 @@ function UI:ParseCharacterKey(key)
     return realm or "", name or "Unknown"
 end
 
+function UI:GetCharactersModule()
+    if not self.GetModule then
+        return nil
+    end
+
+    local characters = self:GetModule("Characters")
+
+    if characters and characters.GetCharacters then
+        return characters
+    end
+
+    return nil
+end
+
+function UI:GetCharacterProfile(key, legacy)
+    local characters = self:GetCharactersModule()
+
+    if characters and characters.GetCharacter then
+        local character = characters:GetCharacter(key)
+
+        if character then
+            return character
+        end
+    end
+
+    local realm, name = self:ParseCharacterKey(key)
+    local profile = {
+        name = legacy and legacy.name or name,
+        firstName = legacy and legacy.firstName,
+        surname = legacy and legacy.surname,
+        classFile = legacy and legacy.classFile,
+        realm = legacy and legacy.realm or realm,
+        money = legacy and legacy.money or 0,
+    }
+
+    if key == self:GetCurrentCharacterKey() then
+        local firstName, surname, fullName =
+            self:GetCurrentCharacterNames()
+
+        profile.name = fullName
+        profile.firstName = firstName
+        profile.surname = surname
+        profile.realm = GetRealmName and GetRealmName() or ""
+        profile.classFile = select(2, UnitClass("player"))
+        profile.money = GetMoney and GetMoney() or 0
+    end
+
+    return profile
+end
+
+function UI:GetSortedCharacterProfiles(fallbackCharacters)
+    local characters = self:GetCharactersModule()
+
+    if characters and characters.GetSortedCharacters then
+        return characters:GetSortedCharacters()
+    end
+
+    local entries = {}
+
+    for key, legacy in pairs(fallbackCharacters or {}) do
+        entries[#entries + 1] = {
+            key = key,
+            character = self:GetCharacterProfile(key, legacy),
+        }
+    end
+
+    table.sort(entries, function(left, right)
+        local leftRealm = left.character.realm or ""
+        local rightRealm = right.character.realm or ""
+
+        if leftRealm == rightRealm then
+            return (left.character.name or "")
+                < (right.character.name or "")
+        end
+
+        return leftRealm < rightRealm
+    end)
+
+    return entries
+end
+
+function UI:GetContainerNumSlots(bagID)
+    if C_Container and C_Container.GetContainerNumSlots then
+        return C_Container.GetContainerNumSlots(bagID) or 0
+    end
+
+    if _G.GetContainerNumSlots then
+        return _G.GetContainerNumSlots(bagID) or 0
+    end
+
+    return 0
+end
+
+function UI:GetContainerItemInfo(bagID, slotID)
+    if C_Container and C_Container.GetContainerItemInfo then
+        return C_Container.GetContainerItemInfo(bagID, slotID)
+    end
+
+    return nil
+end
+
+function UI:GetContainerNumFreeSlots(bagID)
+    if C_Container and C_Container.GetContainerNumFreeSlots then
+        return C_Container.GetContainerNumFreeSlots(bagID)
+    end
+
+    if _G.GetContainerNumFreeSlots then
+        return _G.GetContainerNumFreeSlots(bagID)
+    end
+
+    return 0, 0
+end
+
+function UI:GetBagInventoryID(bagID)
+    if C_Container and C_Container.ContainerIDToInventoryID then
+        return C_Container.ContainerIDToInventoryID(bagID)
+    end
+
+    if ContainerIDToInventoryID then
+        return ContainerIDToInventoryID(bagID)
+    end
+
+    return nil
+end
+
+function UI:HasFlag(value, flag)
+    if not value or not flag or flag <= 0 then
+        return false
+    end
+
+    return value % (flag * 2) >= flag
+end
+
 function UI:FormatNumber(value)
     if BreakUpLargeNumbers then
         return BreakUpLargeNumbers(value or 0)

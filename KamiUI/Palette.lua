@@ -36,6 +36,17 @@ Palette.gold = { 0.88, 0.72, 0.16, 1.00 }
 Palette.highlight = { 1.00, 0.82, 0.00, 1.00 }
 Palette.success = { 0.32, 0.86, 0.38, 1.00 }
 
+Palette.bagFamily = {
+    arrows = { 0.565, 0.000, 0.000, 1.00 },
+    bullets = { 0.565, 0.000, 0.000, 1.00 },
+    soul = { 0.55, 0.20, 0.75, 1.00 },
+    leather = { 0.439, 0.188, 0.063, 1.00 },
+    skinning = { 0.439, 0.188, 0.063, 1.00 },
+    herbs = { 0.122, 0.420, 0.220, 1.00 },
+    mining = { 0.38, 0.55, 0.68, 1.00 },
+    keyring = { 0.90, 0.70, 0.15, 1.00 },
+}
+
 Palette.scrollbar = {
     track = { 1.00, 1.00, 1.00, 0.05 },
     thumb = { 0.45, 0.45, 0.48, 0.65 },
@@ -115,4 +126,31 @@ function Palette:GetLevelDifficultyColor(level)
     end
 
     return self.difficulty.veryHard
+end
+
+
+function Palette:GetBagFamilyColor(family, isKeyring)
+    if isKeyring then
+        return self.bagFamily.keyring
+    end
+
+    family = family or 0
+
+    local masks = {
+        { BAG_FAMILY_MASK_ARROWS or 0x00000001, "arrows" },
+        { BAG_FAMILY_MASK_BULLETS or 0x00000002, "bullets" },
+        { BAG_FAMILY_MASK_SOUL_SHARDS or 0x00000004, "soul" },
+        { BAG_FAMILY_MASK_HERBS or 0x00000020, "herbs" },
+        { BAG_FAMILY_MASK_LEATHERWORKING_SUPP or 0x00000008, "leather" },
+        { BAG_FAMILY_MASK_SKINNING or 0x02000000, "skinning" },
+        { BAG_FAMILY_MASK_MINING_SUPP or 0x00000400, "mining" },
+    }
+
+    for _, entry in ipairs(masks) do
+        if UI:HasFlag(family, entry[1]) then
+            return self.bagFamily[entry[2]]
+        end
+    end
+
+    return self.slotBorder
 end

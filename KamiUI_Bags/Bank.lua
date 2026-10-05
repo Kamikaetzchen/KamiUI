@@ -18,16 +18,6 @@ local BAG_BAR_HEIGHT = 42
 local defaults = {
 }
 
-local bagFamilyColors = {
-    arrows = { 0.565, 0.000, 0.000, 1.00 },
-    bullets = { 0.565, 0.000, 0.000, 1.00 },
-    soul = { 0.55, 0.20, 0.75, 1.00 },
-    leather = { 0.439, 0.188, 0.063, 1.00 },
-    skinning = { 0.439, 0.188, 0.063, 1.00 },
-    herbs = { 0.122, 0.420, 0.220, 1.00 },
-    mining = { 0.38, 0.55, 0.68, 1.00 },
-}
-
 local bankOpen = false
 local pendingRefresh = false
 local sortingBank = false
@@ -44,144 +34,8 @@ local function GetDatabase()
     return UI:GetDatabase("bags", BANK_DATABASE_DEFAULTS)
 end
 
-local function GetCharactersModule()
-    if not UI.GetModule then
-        return nil
-    end
-
-    local characters = UI:GetModule("Characters")
-
-    if characters and characters.GetCharacters then
-        return characters
-    end
-
-    return nil
-end
-
-local function GetCharacterProfile(key, legacy)
-    local characters = GetCharactersModule()
-
-    if characters and characters.GetCharacter then
-        local character = characters:GetCharacter(key)
-
-        if character then
-            return character
-        end
-    end
-
-    local realm, name = UI:ParseCharacterKey(key)
-    local profile = {
-        name = legacy and legacy.name or name,
-        firstName = legacy and legacy.firstName,
-        surname = legacy and legacy.surname,
-        classFile = legacy and legacy.classFile,
-        realm = legacy and legacy.realm or realm,
-        money = legacy and legacy.money or 0,
-    }
-
-    if key == UI:GetCurrentCharacterKey() then
-        local firstName, surname, fullName = UI:GetCurrentCharacterNames()
-
-        profile.name = fullName
-        profile.firstName = firstName
-        profile.surname = surname
-        profile.realm = GetRealmName() or ""
-        profile.classFile = select(2, UnitClass("player"))
-        profile.money = GetMoney() or 0
-    end
-
-    return profile
-end
-
 local function GetSortedMoneyCharacters()
-    local characters = GetCharactersModule()
-
-    if characters and characters.GetSortedCharacters then
-        return characters:GetSortedCharacters()
-    end
-
-    local entries = {}
-
-    for key, legacy in pairs(GetDatabase().characters) do
-        entries[#entries + 1] = {
-            key = key,
-            character = GetCharacterProfile(key, legacy),
-        }
-    end
-
-    table.sort(entries, function(left, right)
-        local leftRealm = left.character.realm or ""
-        local rightRealm = right.character.realm or ""
-
-        if leftRealm == rightRealm then
-            return (left.character.name or "")
-                < (right.character.name or "")
-        end
-
-        return leftRealm < rightRealm
-    end)
-
-    return entries
-end
-
-local function GetContainerNumSlots(bagID)
-    if C_Container and C_Container.GetContainerNumSlots then
-        return C_Container.GetContainerNumSlots(bagID) or 0
-    end
-
-    return 0
-end
-
-local function GetContainerItemInfo(bagID, slotID)
-    if C_Container and C_Container.GetContainerItemInfo then
-        return C_Container.GetContainerItemInfo(bagID, slotID)
-    end
-end
-
-local function GetContainerNumFreeSlots(bagID)
-    if C_Container and C_Container.GetContainerNumFreeSlots then
-        return C_Container.GetContainerNumFreeSlots(bagID)
-    end
-
-    return 0, 0
-end
-
-local function HasBagFamilyFlag(value, flag)
-    if not value or not flag or flag <= 0 then
-        return false
-    end
-
-    return value % (flag * 2) >= flag
-end
-
-local function GetBagFamilyColorFromMask(family)
-    family = family or 0
-
-    local arrows = BAG_FAMILY_MASK_ARROWS or 0x00000001
-    local bullets = BAG_FAMILY_MASK_BULLETS or 0x00000002
-    local soul = BAG_FAMILY_MASK_SOUL_SHARDS or 0x00000004
-    local leather = BAG_FAMILY_MASK_LEATHERWORKING_SUPP or 0x00000008
-    local herbs = BAG_FAMILY_MASK_HERBS or 0x00000020
-    local mining = BAG_FAMILY_MASK_MINING_SUPP or 0x00000400
-    local skinning = BAG_FAMILY_MASK_SKINNING or 0x02000000
-
-    if HasBagFamilyFlag(family, arrows) then
-        return bagFamilyColors.arrows
-    elseif HasBagFamilyFlag(family, bullets) then
-        return bagFamilyColors.bullets
-    elseif HasBagFamilyFlag(family, soul) then
-        return bagFamilyColors.soul
-    elseif HasBagFamilyFlag(family, herbs) then
-        return bagFamilyColors.herbs
-    elseif HasBagFamilyFlag(family, leather) then
-        return bagFamilyColors.leather
-    elseif HasBagFamilyFlag(family, skinning) then
-        return bagFamilyColors.skinning
-    elseif HasBagFamilyFlag(family, mining) then
-        return bagFamilyColors.mining
-    end
-
-    return Palette.slotBorder
+    return UI:GetSortedCharacterProfiles(GetDatabase().characters)
 end
 
 local BANK_TAB_FALLBACK_ICON = 5524917
@@ -243,12 +97,12 @@ local function GetBankTabs()
 
     for _, entry in ipairs(GetCharacterBankBagIDs()) do
         local bagID = entry.bagID
-        local slotCount = GetContainerNumSlots(bagID)
+        local slotCount = UI:GetContainerNumSlots(bagID)
         local data = tabData[entry.index]
         local info
 
         if bankBagSlots and entry.index > 1 then
-            info = GetContainerItemInfo(bankBagSlots, entry.index)
+            info = UI:GetContainerItemInfo(bankBagSlots, entry.index)
         end
 
         local purchased = entry.index <= purchasedCount
@@ -256,7 +110,7 @@ local function GetBankTabs()
             or info ~= nil
 
         if purchased then
-            local _, family = GetContainerNumFreeSlots(bagID)
+            local _, family = UI:GetContainerNumFreeSlots(bagID)
             local emptyBagSlot = entry.index > 1
                 and slotCount == 0
                 and info == nil
@@ -287,8 +141,8 @@ end
 local function CountFreeSlots(bagID)
     local free = 0
 
-    for slotID = 1, GetContainerNumSlots(bagID) do
-        if not GetContainerItemInfo(bagID, slotID) then
+    for slotID = 1, UI:GetContainerNumSlots(bagID) do
+        if not UI:GetContainerItemInfo(bagID, slotID) then
             free = free + 1
         end
     end
@@ -317,7 +171,7 @@ local function SaveCurrentBank()
 
     local db = GetDatabase()
     local key = UI:GetCurrentCharacterKey()
-    local characters = GetCharactersModule()
+    local characters = UI:GetCharactersModule()
 
     if characters and characters.UpdateCurrentCharacter then
         characters:UpdateCurrentCharacter()
@@ -343,7 +197,7 @@ local function SaveCurrentBank()
         }
 
         for slotID = 1, tab.slotCount do
-            local info = GetContainerItemInfo(tab.bagID, slotID)
+            local info = UI:GetContainerItemInfo(tab.bagID, slotID)
 
             if info then
                 local itemName
@@ -390,7 +244,7 @@ local function GetSortedCharacters()
         characters[#characters + 1] = {
             key = key,
             character = character,
-            profile = GetCharacterProfile(key, character),
+            profile = UI:GetCharacterProfile(key, character),
         }
     end
 
@@ -524,7 +378,7 @@ local function UpdateItemButton(button, bagID, slotID, family)
 
     button:SetID(slotID)
 
-    local color = GetBagFamilyColorFromMask(family)
+    local color = Palette:GetBagFamilyColor(family)
 
     Components:SetItemSlotBorderColor(button, color)
 
@@ -534,7 +388,7 @@ local function UpdateItemButton(button, bagID, slotID, family)
 
     Components:SuppressItemButtonFlash(button)
 
-    local info = GetContainerItemInfo(bagID, slotID)
+    local info = UI:GetContainerItemInfo(bagID, slotID)
     local icon = button.icon or button.Icon
 
     if info then
@@ -595,7 +449,7 @@ end
 local function UpdateCachedItemButton(button, slot, tab)
     button.bagID = tab.bagID
 
-    local borderColor = GetBagFamilyColorFromMask(tab.family)
+    local borderColor = Palette:GetBagFamilyColor(tab.family)
     local search = Module.frame
         and Module.frame.search
         and Module.frame.search:GetText()
@@ -920,7 +774,7 @@ function Module:UpdateMoney()
     end
 
     local key, character, isCurrent = GetViewedCharacter()
-    local profile = GetCharacterProfile(key, character)
+    local profile = UI:GetCharacterProfile(key, character)
     local money = isCurrent and GetMoney()
         or profile.money
         or 0
@@ -934,7 +788,7 @@ function Module:UpdateTitle()
     end
 
     local key, character = GetViewedCharacter()
-    local profile = GetCharacterProfile(key, character)
+    local profile = UI:GetCharacterProfile(key, character)
     local name = Components:FormatCharacterLabel(
         profile,
         { showRealm = false }
