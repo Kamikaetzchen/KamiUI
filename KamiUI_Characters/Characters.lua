@@ -4340,7 +4340,6 @@ local function CreateFrameUI()
     end)
 
     UI:ApplyFramePosition(frame, GetDatabase(), "position", 0, 10)
-    tinsert(UISpecialFrames, frame:GetName())
 
     return frame
 end
