@@ -1187,23 +1187,32 @@ local function RefreshVisiblePlayerTooltip(guid)
 end
 
 local function GetMatchingInspectUnit(guid, preferredUnit)
-    local candidates = {
-        GetBlizzardInspectUnit(),
-        preferredUnit,
-        GetVisibleTooltipUnit(guid),
-    }
-
-    for _, unit in ipairs(candidates) do
-        if IsValidPlayerUnit(unit) then
-            local unitGuid = UnitGUID(unit)
-
-            if unitGuid
-                and UI:CanAccessValue(unitGuid)
-                and unitGuid == guid
-            then
-                return unit
-            end
+    local function Matches(unit)
+        if not IsValidPlayerUnit(unit) then
+            return false
         end
+
+        local unitGuid = UnitGUID(unit)
+
+        return unitGuid
+            and UI:CanAccessValue(unitGuid)
+            and unitGuid == guid
+    end
+
+    local inspectUnit = GetBlizzardInspectUnit()
+
+    if Matches(inspectUnit) then
+        return inspectUnit
+    end
+
+    if Matches(preferredUnit) then
+        return preferredUnit
+    end
+
+    local visibleUnit = GetVisibleTooltipUnit(guid)
+
+    if Matches(visibleUnit) then
+        return visibleUnit
     end
 
     return nil
