@@ -5,7 +5,7 @@ local Components = UI.Components
 
 local Module = UI:NewModule("Chat", "KamiUI_Chat")
 
-Module.version = "0.3.0"
+Module.version = "0.3.1"
 
 local SETUP_VERSION = 3
 
@@ -233,34 +233,20 @@ local function CreateDisplay(name, parent)
         self:SetScrollOffset(nextOffset)
     end)
 
-    frame:SetScript("OnHyperlinkClick", function(self, link, text, button)
-        SetItemRef(link, text, button, self)
-    end)
-
-    frame:SetScript(
-        "OnHyperlinkEnter",
-        function(self, link, text, region, left, bottom, width, height)
-            if EventRegistry then
-                EventRegistry:TriggerEvent(
-                    "ChatFrame.OnHyperlinkEnter",
-                    self,
-                    link,
-                    text,
-                    region,
-                    left,
-                    bottom,
-                    width,
-                    height
-                )
-            end
-        end
-    )
-
-    frame:SetScript("OnHyperlinkLeave", function(self)
-        if EventRegistry then
-            EventRegistry:TriggerEvent("ChatFrame.OnHyperlinkLeave", self)
-        end
-    end)
+    if ChatFrameMixin then
+        frame:SetScript(
+            "OnHyperlinkClick",
+            ChatFrameMixin.OnHyperlinkClick
+        )
+        frame:SetScript(
+            "OnHyperlinkEnter",
+            ChatFrameMixin.OnHyperlinkEnter
+        )
+        frame:SetScript(
+            "OnHyperlinkLeave",
+            ChatFrameMixin.OnHyperlinkLeave
+        )
+    end
 
     return frame
 end
