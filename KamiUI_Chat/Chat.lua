@@ -733,10 +733,6 @@ function Module:SelectTab(key)
         end
     end
 
-    if ChatFrameUtil and ChatFrameUtil.SetLastActiveWindow then
-        ChatFrameUtil.SetLastActiveWindow(backend.editBox)
-    end
-
     UpdateTabStyles()
 end
 
