@@ -4,13 +4,15 @@ local Styles = UI.Styles
 
 local Module = UI:NewModule("Tooltips", "KamiUI_Tooltips")
 
-Module.version = "0.2.3"
+Module.version = "0.2.4"
 
 local INSPECT_CACHE_SECONDS = 600
 local INSPECT_MISS_CACHE_SECONDS = 60
 local INSPECT_HOVER_DELAY_SECONDS = 0.30
 local INSPECT_THROTTLE_SECONDS = 1.5
 local INSPECT_TIMEOUT_SECONDS = 10
+local INSPECT_READY_RETRY_SECONDS = 0.05
+local INSPECT_READY_RETRY_COUNT = 20
 
 local GUILD_COLOR = { 0.50, 1.00, 0.50, 1.00 }
 local GUILD_RANK_COLOR = Palette.gold
@@ -549,6 +551,7 @@ local function StartSpecInspect(unit, guid)
     end
 
     local request = {
+        unit = unit,
         guid = guid,
         requestedAt = now,
     }
@@ -572,6 +575,12 @@ local function StartSpecInspect(unit, guid)
                     nil,
                     INSPECT_MISS_CACHE_SECONDS
                 )
+
+                if ClearInspectPlayer
+                    and not IsBlizzardInspectActive()
+                then
+                    ClearInspectPlayer()
+                end
             end
         )
     end
@@ -1118,49 +1127,137 @@ local function RefreshVisiblePlayerTooltip(guid)
     end
 end
 
-local function HandleInspectReady(guid)
-    local inspectUnit = GetBlizzardInspectUnit()
+local function GetMatchingInspectUnit(guid, preferredUnit)
+    local candidates = {
+        GetBlizzardInspectUnit(),
+        preferredUnit,
+        GetVisibleTooltipUnit(guid),
+    }
 
-    if inspectUnit then
-        local inspectGuid = UnitGUID(inspectUnit)
+    for _, unit in ipairs(candidates) do
+        if IsValidPlayerUnit(unit) then
+            local unitGuid = UnitGUID(unit)
 
-        if inspectGuid
-            and UI:CanAccessValue(inspectGuid)
-            and inspectGuid == guid
+            if unitGuid
+                and UI:CanAccessValue(unitGuid)
+                and unitGuid == guid
+            then
+                return unit
+            end
+        end
+    end
+
+    return nil
+end
+
+local function FinishInspectRequest(request)
+    if request
+        and pendingInspect == request
+    then
+        pendingInspect = nil
+    end
+
+    if ClearInspectPlayer
+        and not IsBlizzardInspectActive()
+    then
+        ClearInspectPlayer()
+    end
+end
+
+local function ResolveInspectReady(
+    guid,
+    request,
+    preferredUnit
+)
+    local attempts = 0
+
+    local function TryResolve()
+        if request
+            and pendingInspect ~= request
         then
+            return
+        end
+
+        attempts = attempts + 1
+
+        local unit = GetMatchingInspectUnit(
+            guid,
+            preferredUnit
+        )
+        local specText = unit
+            and ResolveInspectedSpec(unit)
+            or nil
+
+        if specText then
+            CacheSpec(guid, specText)
+            FinishInspectRequest(request)
+            RefreshVisiblePlayerTooltip(guid)
+            return
+        end
+
+        if attempts < INSPECT_READY_RETRY_COUNT
+            and C_Timer
+            and C_Timer.After
+        then
+            C_Timer.After(
+                INSPECT_READY_RETRY_SECONDS,
+                TryResolve
+            )
+            return
+        end
+
+        if request then
             CacheSpec(
                 guid,
-                ResolveInspectedSpec(inspectUnit)
+                nil,
+                INSPECT_MISS_CACHE_SECONDS
             )
+            FinishInspectRequest(request)
             RefreshVisiblePlayerTooltip(guid)
         end
+    end
 
-        if pendingInspect
-            and pendingInspect.guid == guid
-        then
-            pendingInspect = nil
-        end
+    if C_Timer and C_Timer.After then
+        C_Timer.After(0, TryResolve)
+    else
+        TryResolve()
+    end
+end
 
+local function HandleInspectReady(guid)
+    if not guid or not UI:CanAccessValue(guid) then
         return
     end
 
+    local inspectUnit = GetBlizzardInspectUnit()
+    local inspectGuid = inspectUnit
+        and UnitGUID(inspectUnit)
+        or nil
     local request = pendingInspect
+    local requestMatches = request
+        and request.guid == guid
 
-    if not request or request.guid ~= guid then
+    if inspectGuid
+        and UI:CanAccessValue(inspectGuid)
+        and inspectGuid == guid
+    then
+        ResolveInspectReady(
+            guid,
+            requestMatches and request or nil,
+            inspectUnit
+        )
         return
     end
 
-    pendingInspect = nil
-
-    local unit = GetVisibleTooltipUnit(guid)
-    local specText
-
-    if unit then
-        specText = ResolveInspectedSpec(unit)
+    if not requestMatches then
+        return
     end
 
-    CacheSpec(guid, specText)
-    RefreshVisiblePlayerTooltip(guid)
+    ResolveInspectReady(
+        guid,
+        request,
+        request.unit
+    )
 end
 
 local function InstallUnitTooltipHook()
