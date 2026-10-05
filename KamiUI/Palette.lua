@@ -4,7 +4,7 @@ local Palette = {}
 UI.Palette = Palette
 
 Palette.window = {
-    neutral = { 0.00, 0.00, 0.00, 0.40 },
+    neutral = { 0.00, 0.00, 0.00, 0.60 },
     inventory = { 0.345, 0.000, 0.447, 0.25 },
     bank = { 0.000, 0.314, 0.000, 0.25 },
     chat = { 0.00, 0.00, 0.00, 0.85 },
