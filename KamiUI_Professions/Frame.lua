@@ -268,10 +268,20 @@ local function SetScrollHeight(scroll, content, height)
         0,
         content:GetHeight() - scroll:GetHeight()
     )
-
-    scroll:SetVerticalScroll(
-        math.min(scroll:GetVerticalScroll(), maxScroll)
+    local value = math.min(
+        scroll:GetVerticalScroll(),
+        maxScroll
     )
+
+    scroll:SetVerticalScroll(value)
+
+    local scrollbar = scroll.KamiScrollBar
+
+    if scrollbar then
+        scrollbar:SetMinMaxValues(0, maxScroll)
+        scrollbar:SetValue(value)
+        scrollbar:SetShown(maxScroll > 0)
+    end
 end
 
 local function ConfigureMouseWheelScroll(scroll, content, step)
@@ -284,9 +294,14 @@ local function ConfigureMouseWheelScroll(scroll, content, step)
         local nextScroll =
             self:GetVerticalScroll() - delta * (step or 32)
 
-        self:SetVerticalScroll(
+        local value =
             math.max(0, math.min(maxScroll, nextScroll))
-        )
+
+        self:SetVerticalScroll(value)
+
+        if self.KamiScrollBar then
+            self.KamiScrollBar:SetValue(value)
+        end
     end)
 end
 
@@ -741,10 +756,58 @@ local function CreateCraftingPage(frame)
         "BOTTOMRIGHT",
         left,
         "BOTTOMRIGHT",
-        -1,
+        -10,
         1
     )
     frame.recipeScroll = recipeScroll
+
+    local recipeScrollBar = CreateFrame(
+        "Slider",
+        nil,
+        left
+    )
+    recipeScrollBar:SetOrientation("VERTICAL")
+    recipeScrollBar:SetPoint(
+        "TOPRIGHT",
+        recipeScroll,
+        "TOPRIGHT",
+        8,
+        0
+    )
+    recipeScrollBar:SetPoint(
+        "BOTTOMRIGHT",
+        recipeScroll,
+        "BOTTOMRIGHT",
+        8,
+        0
+    )
+    recipeScrollBar:SetMinMaxValues(0, 0)
+    recipeScrollBar:SetValue(0)
+    recipeScrollBar:SetValueStep(1)
+
+    if recipeScrollBar.SetObeyStepOnDrag then
+        recipeScrollBar:SetObeyStepOnDrag(false)
+    end
+
+    local _, recipeThumb =
+        Components:StyleScrollBar(
+            recipeScrollBar,
+            { width = 6 }
+        )
+
+    if recipeThumb then
+        recipeThumb:SetHeight(28)
+    end
+
+    recipeScrollBar:SetScript(
+        "OnValueChanged",
+        function(_, value)
+            recipeScroll:SetVerticalScroll(value)
+        end
+    )
+
+    recipeScroll.KamiScrollBar = recipeScrollBar
+    frame.recipeScrollBar = recipeScrollBar
 
     local recipeContent = CreateFrame("Frame", nil, recipeScroll)
     recipeContent:SetSize(RECIPE_PANEL_WIDTH - 12, 1)
