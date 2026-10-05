@@ -1,4 +1,5 @@
 local UI = KamiUI
+local Styles = UI.Styles
 local LAB = LibStub("LibActionButton-1.0")
 
 local Module = UI:NewModule("ActionBars")
@@ -92,23 +93,6 @@ local function HideTexture(texture)
     end
 end
 
-local function CreateEdge(parent, pointA, pointB, width, height)
-    local edge = parent:CreateTexture(nil, "OVERLAY")
-    edge:SetColorTexture(0, 0, 0, 1)
-    edge:SetPoint(pointA, parent, pointA)
-    edge:SetPoint(pointB, parent, pointB)
-
-    if width then
-        edge:SetWidth(width)
-    end
-
-    if height then
-        edge:SetHeight(height)
-    end
-
-    return edge
-end
-
 local function CreateButtonChrome(button)
     if button.KamiBackground then
         return
@@ -120,34 +104,10 @@ local function CreateButtonChrome(button)
     background:SetColorTexture(0.025, 0.025, 0.025, 0.30)
     button.KamiBackground = background
 
-    button.KamiBorderTop = CreateEdge(
-        button,
-        "TOPLEFT",
-        "TOPRIGHT",
-        nil,
-        1
-    )
-    button.KamiBorderBottom = CreateEdge(
-        button,
-        "BOTTOMLEFT",
-        "BOTTOMRIGHT",
-        nil,
-        1
-    )
-    button.KamiBorderLeft = CreateEdge(
-        button,
-        "TOPLEFT",
-        "BOTTOMLEFT",
-        1,
-        nil
-    )
-    button.KamiBorderRight = CreateEdge(
-        button,
-        "TOPRIGHT",
-        "BOTTOMRIGHT",
-        1,
-        nil
-    )
+    Styles:CreateBorder(button, {
+        key = "KamiBorder",
+        color = { 0, 0, 0, 1 },
+    })
 end
 
 local function GetButtonIcon(button)

@@ -1,4 +1,5 @@
 local UI = KamiUI
+local Styles = UI.Styles
 local UF = UI:GetModule("UnitFrames")
 
 local DEFAULT_AURAS_PER_ROW = 8
@@ -46,30 +47,10 @@ end
 local BUFF_BORDER_COLORS = BuildDispelColorMap({ 0, 0, 0 })
 local DEBUFF_BORDER_COLORS = BuildDispelColorMap({ 0.80, 0.20, 0.20 })
 
-local function CreateBorderEdge(parent, pointA, pointB, width, height)
-    local edge = parent:CreateTexture(nil, "OVERLAY")
-    edge:SetColorTexture(1, 1, 1, 1)
-    edge:SetPoint(pointA)
-    edge:SetPoint(pointB)
-
-    if width then
-        edge:SetWidth(width)
-    end
-
-    if height then
-        edge:SetHeight(height)
-    end
-
-    return edge
-end
-
 local function CreateDispelBorder(button, colorMap)
-    local edges = {
-        CreateBorderEdge(button, "TOPLEFT", "TOPRIGHT", nil, 1),
-        CreateBorderEdge(button, "BOTTOMLEFT", "BOTTOMRIGHT", nil, 1),
-        CreateBorderEdge(button, "TOPLEFT", "BOTTOMLEFT", 1, nil),
-        CreateBorderEdge(button, "TOPRIGHT", "BOTTOMRIGHT", 1, nil),
-    }
+    local edges = Styles:CreateBorder(button, {
+        color = { 1, 1, 1, 1 },
+    })
 
     for _, edge in ipairs(edges) do
         button:AddDispelTypeTexture(edge, {

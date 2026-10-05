@@ -1,4 +1,5 @@
 local UI = KamiUI
+local Styles = UI.Styles
 
 local Module = UI:NewModule("XPBar")
 
@@ -81,54 +82,6 @@ local function FormatNumber(value)
     end
 
     return tostring(value)
-end
-
-local function CreateEdge(frame, pointA, pointB, width, height)
-    local texture = frame:CreateTexture(nil, "OVERLAY")
-    texture:SetColorTexture(unpack(defaults.borderColor))
-    texture:SetPoint(pointA, frame, pointA)
-    texture:SetPoint(pointB, frame, pointB)
-
-    if width then
-        texture:SetWidth(width)
-    end
-
-    if height then
-        texture:SetHeight(height)
-    end
-
-    return texture
-end
-
-local function CreateBorder(frame)
-    frame.borderTop = CreateEdge(
-        frame,
-        "TOPLEFT",
-        "TOPRIGHT",
-        nil,
-        1
-    )
-    frame.borderBottom = CreateEdge(
-        frame,
-        "BOTTOMLEFT",
-        "BOTTOMRIGHT",
-        nil,
-        1
-    )
-    frame.borderLeft = CreateEdge(
-        frame,
-        "TOPLEFT",
-        "BOTTOMLEFT",
-        1,
-        nil
-    )
-    frame.borderRight = CreateEdge(
-        frame,
-        "TOPRIGHT",
-        "BOTTOMRIGHT",
-        1,
-        nil
-    )
 end
 
 local function UpdateDividers(frame)
@@ -232,7 +185,10 @@ local function CreateBar()
     frame.xpBar = xpBar
     frame.overlay = overlay
 
-    CreateBorder(overlay)
+    Styles:CreateBorder(overlay, {
+        key = "KamiBorder",
+        color = defaults.borderColor,
+    })
     UpdateDividers(overlay)
 
     frame:SetScript("OnSizeChanged", function(self)

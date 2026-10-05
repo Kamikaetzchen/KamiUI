@@ -174,6 +174,10 @@ function Styles:CreateBorder(parent, colorOrOptions, key)
             colorOrOptions.color
             or colorOrOptions.size
             or colorOrOptions.key
+            or colorOrOptions.top ~= nil
+            or colorOrOptions.bottom ~= nil
+            or colorOrOptions.left ~= nil
+            or colorOrOptions.right ~= nil
         )
     then
         options = colorOrOptions
@@ -191,33 +195,38 @@ function Styles:CreateBorder(parent, colorOrOptions, key)
 
     local edges = {}
 
-    local top = parent:CreateTexture(nil, "OVERLAY")
-    top:SetPoint("TOPLEFT")
-    top:SetPoint("TOPRIGHT")
-    top:SetHeight(size)
-    self:SetColor(top, color)
-    edges[#edges + 1] = top
+    local function CreateEdge(pointA, pointB, width, height)
+        local edge = parent:CreateTexture(nil, "OVERLAY")
+        edge:SetPoint(pointA)
+        edge:SetPoint(pointB)
 
-    local bottom = parent:CreateTexture(nil, "OVERLAY")
-    bottom:SetPoint("BOTTOMLEFT")
-    bottom:SetPoint("BOTTOMRIGHT")
-    bottom:SetHeight(size)
-    self:SetColor(bottom, color)
-    edges[#edges + 1] = bottom
+        if width then
+            edge:SetWidth(width)
+        end
 
-    local left = parent:CreateTexture(nil, "OVERLAY")
-    left:SetPoint("TOPLEFT")
-    left:SetPoint("BOTTOMLEFT")
-    left:SetWidth(size)
-    self:SetColor(left, color)
-    edges[#edges + 1] = left
+        if height then
+            edge:SetHeight(height)
+        end
 
-    local right = parent:CreateTexture(nil, "OVERLAY")
-    right:SetPoint("TOPRIGHT")
-    right:SetPoint("BOTTOMRIGHT")
-    right:SetWidth(size)
-    self:SetColor(right, color)
-    edges[#edges + 1] = right
+        self:SetColor(edge, color)
+        edges[#edges + 1] = edge
+    end
+
+    if options.top ~= false then
+        CreateEdge("TOPLEFT", "TOPRIGHT", nil, size)
+    end
+
+    if options.bottom ~= false then
+        CreateEdge("BOTTOMLEFT", "BOTTOMRIGHT", nil, size)
+    end
+
+    if options.left ~= false then
+        CreateEdge("TOPLEFT", "BOTTOMLEFT", size, nil)
+    end
+
+    if options.right ~= false then
+        CreateEdge("TOPRIGHT", "BOTTOMRIGHT", size, nil)
+    end
 
     if key then
         parent[key] = edges

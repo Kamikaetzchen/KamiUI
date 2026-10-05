@@ -1,4 +1,5 @@
 local UI = KamiUI
+local Styles = UI.Styles
 
 local Module = UI:NewModule("ThreatMeter")
 
@@ -18,32 +19,6 @@ local defaults = {
 local frame
 local rows = {}
 local updateQueued = false
-
-local function CreateBorder(parent)
-    local top = parent:CreateTexture(nil, "OVERLAY")
-    top:SetColorTexture(0, 0, 0, 1)
-    top:SetPoint("TOPLEFT")
-    top:SetPoint("TOPRIGHT")
-    top:SetHeight(1)
-
-    local bottom = parent:CreateTexture(nil, "OVERLAY")
-    bottom:SetColorTexture(0, 0, 0, 1)
-    bottom:SetPoint("BOTTOMLEFT")
-    bottom:SetPoint("BOTTOMRIGHT")
-    bottom:SetHeight(1)
-
-    local left = parent:CreateTexture(nil, "OVERLAY")
-    left:SetColorTexture(0, 0, 0, 1)
-    left:SetPoint("TOPLEFT")
-    left:SetPoint("BOTTOMLEFT")
-    left:SetWidth(1)
-
-    local right = parent:CreateTexture(nil, "OVERLAY")
-    right:SetColorTexture(0, 0, 0, 1)
-    right:SetPoint("TOPRIGHT")
-    right:SetPoint("BOTTOMRIGHT")
-    right:SetWidth(1)
-end
 
 local function CreateRow(index)
     local row = CreateFrame("Frame", nil, frame)
@@ -92,7 +67,7 @@ local function CreateRow(index)
     name:SetTextColor(1, 1, 1)
     percent:SetTextColor(1, 1, 1)
 
-    CreateBorder(row)
+    Styles:CreateBorder(row, { color = { 0, 0, 0, 1 } })
 
     row.bar = bar
     row.name = name
@@ -142,7 +117,7 @@ local function EnsureFrame()
     end
 
     title:SetTextColor(1, 1, 1)
-    CreateBorder(titleBar)
+    Styles:CreateBorder(titleBar, { color = { 0, 0, 0, 1 } })
 
     frame.titleBar = titleBar
     frame.title = title

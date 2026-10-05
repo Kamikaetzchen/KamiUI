@@ -1,4 +1,5 @@
 local UI = KamiUI
+local Styles = UI.Styles
 
 local Module = UI:NewModule("Auras")
 
@@ -42,39 +43,6 @@ end
 local function HideBlizzardAuras()
     HideObject(BuffFrame)
     HideObject(DebuffFrame)
-end
-
-local function CreateBorder(parent, top, bottom, left, right)
-    local function CreateEdge(pointA, pointB, width, height)
-        local edge = parent:CreateTexture(nil, "OVERLAY")
-        edge:SetColorTexture(0, 0, 0, 1)
-        edge:SetPoint(pointA, parent, pointA)
-        edge:SetPoint(pointB, parent, pointB)
-
-        if width then
-            edge:SetWidth(width)
-        end
-
-        if height then
-            edge:SetHeight(height)
-        end
-    end
-
-    if top then
-        CreateEdge("TOPLEFT", "TOPRIGHT", nil, 1)
-    end
-
-    if bottom then
-        CreateEdge("BOTTOMLEFT", "BOTTOMRIGHT", nil, 1)
-    end
-
-    if left then
-        CreateEdge("TOPLEFT", "BOTTOMLEFT", 1, nil)
-    end
-
-    if right then
-        CreateEdge("TOPRIGHT", "BOTTOMRIGHT", 1, nil)
-    end
 end
 
 local function InitializeAuraButton(button, color, useDispelColor)
@@ -151,7 +119,12 @@ local function InitializeAuraButton(button, color, useDispelColor)
     stackText:SetFont(fontPath, defaults.fontSize, "OUTLINE")
 
     -- Shared 1 px separator between stacked rows.
-    CreateBorder(overlay, false, true, false, false)
+    Styles:CreateBorder(overlay, {
+        color = { 0, 0, 0, 1 },
+        top = false,
+        left = false,
+        right = false,
+    })
 
     -- Bind only after the complete visual tree exists. Blizzard applies
     -- access restrictions to these objects as part of the binding calls.
@@ -203,7 +176,9 @@ local function CreateAuraContainer()
 
     -- Outer border. Child anchors are established before aura groups make the
     -- container layout-restricted in combat.
-    CreateBorder(auraContainer, true, true, true, true)
+    Styles:CreateBorder(auraContainer, {
+        color = { 0, 0, 0, 1 },
+    })
 
     auraContainer:AddAuraGroup("helpful", "HELPFUL", {
         maxFrameCount = 40,
