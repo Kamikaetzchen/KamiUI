@@ -4,7 +4,7 @@ local Styles = UI.Styles
 
 local Module = UI:NewModule("Nameplates", "KamiUI_Nameplates")
 
-Module.version = "0.3.0"
+Module.version = "0.3.1"
 
 local PLATE_WIDTH = 200
 local HEALTH_HEIGHT = 12
@@ -17,6 +17,15 @@ local MAX_AURAS = 5
 
 local flatTexture = "Interface\\Buttons\\WHITE8X8"
 local fontPath, _, fontFlags = GameFontNormalSmall:GetFont()
+local nameFontPath = fontPath
+
+if GameTooltipText and GameTooltipText.GetFont then
+    local tooltipFontPath = GameTooltipText:GetFont()
+
+    if tooltipFontPath then
+        nameFontPath = tooltipFontPath
+    end
+end
 
 local styled = {}
 
@@ -299,7 +308,7 @@ local function CreateCustomPlate(namePlate)
     name:SetPoint("LEFT", level, "RIGHT", 3, 0)
     name:SetPoint("RIGHT", health, "RIGHT", -36, 0)
     name:SetJustifyH("LEFT")
-    name:SetFont(fontPath, 9, fontFlags)
+    name:SetFont(nameFontPath, 9, fontFlags)
     name:SetTextColor(1, 1, 1)
     name:SetShadowColor(0, 0, 0, 1)
     name:SetShadowOffset(1, -1)
