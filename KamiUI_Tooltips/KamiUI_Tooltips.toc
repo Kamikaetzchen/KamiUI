@@ -2,7 +2,7 @@
 ## Title: KamiUI - Tooltips
 ## Notes: Tooltip module for KamiUI
 ## Author: Kami Katze
-## Version: 0.1.0
+## Version: 0.2.0
 ## RequiredDeps: KamiUI
 ## OptionalDeps: KamiUI_Characters
 
