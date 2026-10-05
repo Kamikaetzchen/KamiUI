@@ -244,10 +244,9 @@ local function GetSpecFromTalentPoints(unit)
                 index,
                 isInspect,
                 false,
-                isInspect and unit or nil,
-                sex,
-                groupIndex,
-                classID
+                nil,
+                nil,
+                groupIndex
             )
 
         if not ok then
