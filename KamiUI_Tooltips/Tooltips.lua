@@ -467,17 +467,32 @@ local function GetCachedSpec(guid)
     return cached.text
 end
 
-local function IsBlizzardInspectActive()
-    if InspectFrame then
-        if InspectFrame.unit then
-            return true
-        end
+local function GetBlizzardInspectUnit()
+    if InspectFrame and InspectFrame.unit then
+        return InspectFrame.unit
+    end
 
-        if InspectFrame.IsShown
-            and InspectFrame:IsShown()
-        then
-            return true
-        end
+    if PlayerSpellsFrame
+        and PlayerSpellsFrame.IsInspecting
+        and PlayerSpellsFrame:IsInspecting()
+        and PlayerSpellsFrame.GetInspectUnit
+    then
+        return PlayerSpellsFrame:GetInspectUnit()
+    end
+
+    return nil
+end
+
+local function IsBlizzardInspectActive()
+    if GetBlizzardInspectUnit() then
+        return true
+    end
+
+    if InspectFrame
+        and InspectFrame.IsShown
+        and InspectFrame:IsShown()
+    then
+        return true
     end
 
     if PlayerSpellsFrame
@@ -963,14 +978,35 @@ local function RefreshVisiblePlayerTooltip(guid)
 end
 
 local function HandleInspectReady(guid)
-    local request = pendingInspect
+    if IsBlizzardInspectActive() then
+        local inspectUnit = GetBlizzardInspectUnit()
+        local inspectGuid = inspectUnit
+            and UnitGUID(inspectUnit)
 
-    if not request or request.guid ~= guid then
+        if inspectGuid
+            and UI:CanAccessValue(inspectGuid)
+            and inspectGuid == guid
+        then
+            local specText =
+                ResolveInspectedSpec(inspectUnit)
+
+            if specText then
+                CacheSpec(guid, specText)
+            end
+        end
+
+        if pendingInspect
+            and pendingInspect.guid == guid
+        then
+            pendingInspect = nil
+        end
+
         return
     end
 
-    if IsBlizzardInspectActive() then
-        pendingInspect = nil
+    local request = pendingInspect
+
+    if not request or request.guid ~= guid then
         return
     end
 
