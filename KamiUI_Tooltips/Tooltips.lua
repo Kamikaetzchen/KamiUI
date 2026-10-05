@@ -4,11 +4,10 @@ local Styles = UI.Styles
 
 local Module = UI:NewModule("Tooltips", "KamiUI_Tooltips")
 
-Module.version = "0.2.12"
+Module.version = "0.2.13"
 
 local INSPECT_CACHE_SECONDS = 600
 local INSPECT_MISS_CACHE_SECONDS = 60
-local INSPECT_HOVER_DELAY_SECONDS = 0.30
 local INSPECT_THROTTLE_SECONDS = 1.5
 local INSPECT_TIMEOUT_SECONDS = 5
 local INSPECT_READY_RETRY_SECONDS = 0.05
@@ -341,6 +340,8 @@ local function GetSpecFromTalentPoints(unit)
 
     local className, _, classID = GetClassInfo(unit)
     local isInspect = not UnitIsUnit(unit, "player")
+    local inspectTarget = isInspect and unit or nil
+    local sex = UnitSex and UI:SafeCall(UnitSex, unit) or nil
     local groupIndex
 
     if C_SpecializationInfo.GetActiveSpecGroup then
@@ -376,9 +377,10 @@ local function GetSpecFromTalentPoints(unit)
                 index,
                 isInspect,
                 false,
-                nil,
-                nil,
-                groupIndex
+                inspectTarget,
+                sex,
+                groupIndex,
+                classID
             )
 
         if pointsSpent
@@ -590,15 +592,15 @@ end
 
 local function ResolveInspectedSpec(unit)
     return NormalizeSpecText(
-        GetSpecFromTraitGroups(unit),
+        GetSpecFromTalentPoints(unit),
         unit
     )
         or NormalizeSpecText(
-            GetSpecFromInspectSpecialization(unit),
+            GetSpecFromTraitGroups(unit),
             unit
         )
         or NormalizeSpecText(
-            GetSpecFromTalentPoints(unit),
+            GetSpecFromInspectSpecialization(unit),
             unit
         )
         or NormalizeSpecText(
@@ -844,15 +846,7 @@ local function ScheduleSpecInspect(unit, guid)
         )
     end
 
-    if C_Timer and C_Timer.After then
-        C_Timer.After(
-            INSPECT_HOVER_DELAY_SECONDS,
-            TryStart
-        )
-    else
-        queuedInspect = nil
-        StartSpecInspect(unit, guid)
-    end
+    TryStart()
 end
 
 local function GetPlayerSpec(unit, guid)
