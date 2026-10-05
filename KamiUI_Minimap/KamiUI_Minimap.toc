@@ -3,6 +3,7 @@
 ## Notes: Clean minimap module for KamiUI
 ## Author: Kami Katze
 ## Version: 0.1.0
+## IconTexture: Interface\Icons\INV_Misc_Spyglass_03
 ## RequiredDeps: KamiUI
 
 Minimap.lua

@@ -3,6 +3,7 @@
 ## Notes: Custom damage meter powered by C_DamageMeter
 ## Author: Kami Katze
 ## Version: 0.4.0
+## IconTexture: Interface\Icons\Ability_DualWield
 ## RequiredDeps: KamiUI
 
 DamageMeter.lua

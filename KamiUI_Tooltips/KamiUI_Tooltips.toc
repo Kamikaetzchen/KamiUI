@@ -3,6 +3,7 @@
 ## Notes: Tooltip module for KamiUI
 ## Author: Kami Katze
 ## Version: 0.2.18
+## IconTexture: Interface\Icons\INV_Misc_Spyglass_02
 ## RequiredDeps: KamiUI
 ## OptionalDeps: KamiUI_Characters
 

@@ -3,6 +3,7 @@
 ## Notes: Cooldown viewer integration for KamiUI
 ## Author: Kami Katze
 ## Version: 0.1.0
+## IconTexture: Interface\Icons\INV_Misc_PocketWatch_01
 ## RequiredDeps: KamiUI
 ## OptionalDeps: Blizzard_CooldownViewer
 

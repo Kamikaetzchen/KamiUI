@@ -3,6 +3,7 @@
 ## Notes: Account-wide character data module for KamiUI
 ## Author: Kami Katze
 ## Version: 0.2.0
+## IconTexture: Interface\Icons\INV_Misc_Book_09
 ## RequiredDeps: KamiUI
 
 Characters.lua

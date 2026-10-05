@@ -3,6 +3,7 @@
 ## Notes: Swing timer layout module for KamiUI
 ## Author: Kami Katze
 ## Version: 0.1.0
+## IconTexture: Interface\Icons\Ability_Parry
 ## RequiredDeps: KamiUI
 
 SwingTimer.lua

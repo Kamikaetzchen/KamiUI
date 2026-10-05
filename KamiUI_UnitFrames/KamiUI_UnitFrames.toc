@@ -3,6 +3,7 @@
 ## Notes: UnitFrames module for KamiUI
 ## Author: Kami Katze
 ## Version: 0.1.0
+## IconTexture: Interface\Icons\INV_Misc_GroupLooking
 ## RequiredDeps: KamiUI
 
 UnitFrames.lua

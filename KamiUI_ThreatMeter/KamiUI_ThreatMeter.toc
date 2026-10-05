@@ -3,6 +3,7 @@
 ## Notes: Threat meter module for KamiUI
 ## Author: Kami Katze
 ## Version: 0.1.0
+## IconTexture: Interface\Icons\Ability_Warrior_DefensiveStance
 ## RequiredDeps: KamiUI
 
 ThreatMeter.lua

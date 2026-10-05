@@ -3,6 +3,7 @@
 ## Notes: Buff and debuff module for KamiUI
 ## Author: Kami Katze
 ## Version: 0.1.0
+## IconTexture: Interface\Icons\Spell_Holy_WordFortitude
 ## RequiredDeps: KamiUI
 
 Auras.lua

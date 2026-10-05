@@ -3,6 +3,7 @@
 ## Notes: Core framework for KamiUI
 ## Author: Kami Katze
 ## Version: 0.2.0
+## IconTexture: Interface\AddOns\KamiUI\Media\KamiUI.tga
 ## SavedVariables: KamiUIDB
 
 Core.lua

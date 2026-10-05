@@ -3,6 +3,7 @@
 ## Notes: Experience bar module for KamiUI
 ## Author: Kami Katze
 ## Version: 0.1.0
+## IconTexture: Interface\Icons\Spell_Holy_InnerFire
 ## RequiredDeps: KamiUI
 ## OptionalDeps: Blizzard_StatusTrackingBar
 

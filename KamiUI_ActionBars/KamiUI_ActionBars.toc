@@ -3,6 +3,7 @@
 ## Notes: Action bars module for KamiUI
 ## Author: Kami Katze
 ## Version: 0.2.0
+## IconTexture: Interface\Icons\INV_Sword_04
 ## RequiredDeps: KamiUI
 
 libs\LibStub\LibStub.lua
