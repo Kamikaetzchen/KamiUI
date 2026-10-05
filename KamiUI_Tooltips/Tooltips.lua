@@ -4,9 +4,11 @@ local Styles = UI.Styles
 
 local Module = UI:NewModule("Tooltips", "KamiUI_Tooltips")
 
-Module.version = "0.2.1"
+Module.version = "0.2.2"
 
-local INSPECT_CACHE_SECONDS = 300
+local INSPECT_CACHE_SECONDS = 600
+local INSPECT_MISS_CACHE_SECONDS = 60
+local INSPECT_HOVER_DELAY_SECONDS = 0.30
 local INSPECT_THROTTLE_SECONDS = 1.5
 local INSPECT_TIMEOUT_SECONDS = 5
 
@@ -24,6 +26,7 @@ local tooltipNames = {
 
 local specCache = {}
 local pendingInspect
+local queuedInspect
 local lastInspectRequest = 0
 
 local function GetClassInfo(unit)
@@ -438,15 +441,22 @@ local function ResolveInspectedSpec(unit)
         )
 end
 
-local function CacheSpec(guid, specText)
-    if not guid or not specText then
+local function CacheSpec(guid, specText, ttl)
+    if not guid then
         return
     end
 
+    local lifetime = ttl
+        or (
+            specText
+            and INSPECT_CACHE_SECONDS
+            or INSPECT_MISS_CACHE_SECONDS
+        )
+
     specCache[guid] = {
-        text = specText,
+        text = specText or false,
         expires = (GetTime and GetTime() or 0)
-            + INSPECT_CACHE_SECONDS,
+            + lifetime,
     }
 end
 
@@ -454,17 +464,19 @@ local function GetCachedSpec(guid)
     local cached = guid and specCache[guid]
 
     if not cached then
-        return nil
+        return false, nil
     end
 
     local now = GetTime and GetTime() or 0
 
     if cached.expires < now then
         specCache[guid] = nil
-        return nil
+        return false, nil
     end
 
-    return cached.text
+    return true, cached.text ~= false
+        and cached.text
+        or nil
 end
 
 local function GetBlizzardInspectUnit()
@@ -520,25 +532,33 @@ local function CanRequestInspect(unit)
     return canInspect == true
 end
 
-local function RequestSpecInspect(unit, guid)
+local function StartSpecInspect(unit, guid)
     local now = GetTime and GetTime() or 0
 
     if pendingInspect
         and now - (pendingInspect.requestedAt or 0)
             >= INSPECT_TIMEOUT_SECONDS
     then
+        CacheSpec(
+            pendingInspect.guid,
+            nil,
+            INSPECT_MISS_CACHE_SECONDS
+        )
         pendingInspect = nil
     end
 
-    if pendingInspect
+    local cached = select(1, GetCachedSpec(guid))
+
+    if cached
+        or pendingInspect
         or not CanRequestInspect(unit)
         or not guid
     then
-        return
+        return false
     end
 
     if now - lastInspectRequest < INSPECT_THROTTLE_SECONDS then
-        return
+        return false
     end
 
     pendingInspect = {
@@ -549,12 +569,110 @@ local function RequestSpecInspect(unit, guid)
     lastInspectRequest = now
 
     NotifyInspect(unit)
+    return true
+end
+
+local function GetVisibleTooltipUnit(guid)
+    local tooltip = GameTooltip
+
+    if not tooltip
+        or not tooltip:IsShown()
+        or not tooltip.GetUnit
+    then
+        return nil
+    end
+
+    local _name, unit = tooltip:GetUnit()
+
+    if not IsValidPlayerUnit(unit) then
+        return nil
+    end
+
+    local currentGuid = UnitGUID(unit)
+
+    if not currentGuid
+        or not UI:CanAccessValue(currentGuid)
+        or currentGuid ~= guid
+    then
+        return nil
+    end
+
+    return unit
+end
+
+local function ScheduleSpecInspect(unit, guid)
+    if not guid or not IsValidPlayerUnit(unit) then
+        return
+    end
+
+    local cached = select(1, GetCachedSpec(guid))
+
+    if cached
+        or (pendingInspect and pendingInspect.guid == guid)
+        or (queuedInspect and queuedInspect.guid == guid)
+    then
+        return
+    end
+
+    local request = {
+        guid = guid,
+    }
+
+    queuedInspect = request
+
+    local function TryStart()
+        if queuedInspect ~= request then
+            return
+        end
+
+        local currentUnit =
+            GetVisibleTooltipUnit(request.guid)
+
+        if not currentUnit then
+            queuedInspect = nil
+            return
+        end
+
+        local hasCached =
+            select(1, GetCachedSpec(request.guid))
+
+        if hasCached then
+            queuedInspect = nil
+            return
+        end
+
+        if pendingInspect then
+            if C_Timer and C_Timer.After then
+                C_Timer.After(
+                    0.20,
+                    TryStart
+                )
+            end
+            return
+        end
+
+        queuedInspect = nil
+        StartSpecInspect(
+            currentUnit,
+            request.guid
+        )
+    end
+
+    if C_Timer and C_Timer.After then
+        C_Timer.After(
+            INSPECT_HOVER_DELAY_SECONDS,
+            TryStart
+        )
+    else
+        queuedInspect = nil
+        StartSpecInspect(unit, guid)
+    end
 end
 
 local function GetPlayerSpec(unit, guid)
-    local cached = GetCachedSpec(guid)
+    local hasCached, cached = GetCachedSpec(guid)
 
-    if cached then
+    if hasCached then
         return cached
     end
 
@@ -604,7 +722,7 @@ local function GetPlayerSpec(unit, guid)
         return specName
     end
 
-    RequestSpecInspect(unit, guid)
+    ScheduleSpecInspect(unit, guid)
 
     return nil
 end
@@ -951,30 +1069,40 @@ end
 
 local function RefreshVisiblePlayerTooltip(guid)
     local tooltip = GameTooltip
+    local unit = GetVisibleTooltipUnit(guid)
 
-    if not tooltip
-        or not tooltip:IsShown()
-        or not tooltip.GetUnit
-    then
+    if not tooltip or not unit then
         return
     end
 
-    local _name, unit = tooltip:GetUnit()
+    tooltip.KamiPendingRefreshGuid = guid
 
-    if not IsValidPlayerUnit(unit) then
-        return
+    local function Refresh()
+        if tooltip.KamiPendingRefreshGuid ~= guid then
+            return
+        end
+
+        local currentUnit = GetVisibleTooltipUnit(guid)
+
+        if not currentUnit then
+            tooltip.KamiPendingRefreshGuid = nil
+            return
+        end
+
+        tooltip.KamiPendingRefreshGuid = nil
+        tooltip:SetUnit(currentUnit)
+
+        if tooltip:IsShown() then
+            AddPlayerDetails(tooltip)
+            AnchorGameTooltipToCursor(tooltip)
+        end
     end
 
-    local currentGuid = UnitGUID(unit)
-
-    if not currentGuid
-        or not UI:CanAccessValue(currentGuid)
-        or currentGuid ~= guid
-    then
-        return
+    if C_Timer and C_Timer.After then
+        C_Timer.After(0, Refresh)
+    else
+        Refresh()
     end
-
-    tooltip:SetUnit(unit)
 end
 
 local function HandleInspectReady(guid)
@@ -990,9 +1118,7 @@ local function HandleInspectReady(guid)
             local specText =
                 ResolveInspectedSpec(inspectUnit)
 
-            if specText then
-                CacheSpec(guid, specText)
-            end
+            CacheSpec(guid, specText)
         end
 
         if pendingInspect
@@ -1023,9 +1149,7 @@ local function HandleInspectReady(guid)
         then
             local specText = ResolveInspectedSpec(unit)
 
-            if specText then
-                CacheSpec(guid, specText)
-            end
+            CacheSpec(guid, specText)
         end
     end
 
@@ -1084,6 +1208,11 @@ local function InstallCursorAnchor()
     GameTooltip:HookScript("OnShow", function(self)
         AnchorGameTooltipToCursor(self)
         StyleTooltip(self)
+    end)
+
+    GameTooltip:HookScript("OnHide", function(self)
+        queuedInspect = nil
+        self.KamiPendingRefreshGuid = nil
     end)
 
     if hooksecurefunc and GameTooltip_SetDefaultAnchor then
