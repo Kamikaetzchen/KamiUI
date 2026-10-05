@@ -1058,7 +1058,7 @@ function Module:CreateFrame()
     local close = CreateFrame("Button", nil, header.RightActions)
     close:SetSize(24, 22)
     close:SetPoint("RIGHT", header.RightActions, "RIGHT", -4, 0)
-    Components:StyleButton(close, { text = "x" })
+    Components:StyleButton(close, { text = "X" })
     close:SetScript("OnClick", function()
         Module:CloseFrame()
     end)
@@ -1716,7 +1716,7 @@ function Module:RefreshRecipeDetails()
     frame.quantity:Disable()
     frame.craftAllButton:Disable()
     frame.craftButton:Disable()
-    frame.craftButton:SetText("Craft")
+    Components:SetButtonText(frame.craftButton, "Craft")
     self.maxCraftable = 0
 
     if not recipeID then
@@ -1962,19 +1962,19 @@ function Module:RefreshRecipeDetails()
         frame.quantity:Enable()
         frame.craftAllButton:Enable()
         frame.craftButton:Enable()
-        frame.craftButton:SetText(
+        Components:SetButtonText(frame.craftButton, 
             info.alternateVerb
             or info.abilityVerb
             or "Craft"
         )
     elseif info.isEnchantingRecipe then
-        frame.craftButton:SetText("Target required")
+        Components:SetButtonText(frame.craftButton, "Target required")
     elseif info.isRecraft then
-        frame.craftButton:SetText("Recraft not supported")
+        Components:SetButtonText(frame.craftButton, "Recraft not supported")
     elseif info.isSalvageRecipe then
-        frame.craftButton:SetText("Salvage not supported")
+        Components:SetButtonText(frame.craftButton, "Salvage not supported")
     elseif hasUnsupportedSelection then
-        frame.craftButton:SetText("Select reagent")
+        Components:SetButtonText(frame.craftButton, "Select reagent")
     end
 
     self:SetCraftQuantity(

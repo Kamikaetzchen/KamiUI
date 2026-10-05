@@ -325,6 +325,24 @@ function Components:ClearButtonArt(button)
     end
 end
 
+function Components:SetButtonText(button, text)
+    if not button then
+        return
+    end
+
+    if button.KamiButtonText then
+        button.KamiButtonText:SetText(text or "")
+    elseif button.SetText then
+        button:SetText(text or "")
+    elseif button.Text and button.Text.SetText then
+        button.Text:SetText(text or "")
+    end
+
+    if button.RefreshKamiButtonStyle then
+        button:RefreshKamiButtonStyle()
+    end
+end
+
 function Components:StyleButton(button, options)
     if not button then
         return nil
