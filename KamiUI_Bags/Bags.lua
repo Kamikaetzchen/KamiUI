@@ -525,29 +525,6 @@ local function UpdateItemButton(button, bagID, slotID)
     end
 end
 
-local function CreateItemButton(content, carrier)
-    local button = CreateFrame(
-        "ItemButton",
-        nil,
-        carrier,
-        "ContainerFrameItemButtonTemplate"
-    )
-
-    button:UnregisterAllEvents()
-    button:RegisterForDrag("LeftButton")
-
-    button:HookScript("OnDragStart", function()
-        itemDragFrame:Show()
-    end)
-
-    Components:StyleItemSlot(button, {
-        size = SLOT_SIZE,
-        corners = true,
-    })
-
-    return button
-end
-
 local function UpdateCachedItemButton(button, slot, bag)
     button.bagID = bag.bagID
 
@@ -738,19 +715,6 @@ local function GetSortedCharacters()
     return characters
 end
 
-local function CountFreeSlots(bagID)
-    local slots = UI:GetContainerNumSlots(bagID)
-    local free = 0
-
-    for slotID = 1, slots do
-        if not UI:GetContainerItemInfo(bagID, slotID) then
-            free = free + 1
-        end
-    end
-
-    return free
-end
-
 function Module:SetBagSlotHighlight(bagID, shown)
     self.highlightedBagID = shown and bagID or nil
 
@@ -894,7 +858,7 @@ function Module:UpdateBagBar()
                 bagID = bagID,
                 icon = GetBagButtonTexture(bagID),
                 name = GetBagName(bagID),
-                free = CountFreeSlots(bagID),
+                free = UI:CountContainerFreeSlots(bagID),
                 isKeyring = bagID == (
                     KEYRING_CONTAINER
                     or (Enum and Enum.BagIndex and Enum.BagIndex.Keyring)
@@ -1192,7 +1156,16 @@ function Module:Rebuild()
                     local button = frame.itemButtons[activeIndex]
 
                     if not button or button:GetParent() ~= carrier then
-                        button = CreateItemButton(frame.content, carrier)
+                        button = Components:CreateContainerItemButton(
+                        carrier,
+                        {
+                            size = SLOT_SIZE,
+                            corners = true,
+                            onDragStart = function()
+                                itemDragFrame:Show()
+                            end,
+                        }
+                    )
                         frame.itemButtons[activeIndex] = button
                     end
 

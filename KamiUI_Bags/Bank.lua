@@ -134,18 +134,6 @@ local function GetBankTabs()
     return tabs
 end
 
-local function CountFreeSlots(bagID)
-    local free = 0
-
-    for slotID = 1, UI:GetContainerNumSlots(bagID) do
-        if not UI:GetContainerItemInfo(bagID, slotID) then
-            free = free + 1
-        end
-    end
-
-    return free
-end
-
 local function SaveCurrentBank()
     if not bankOpen then
         return
@@ -328,28 +316,6 @@ itemDragFrame:SetScript("OnUpdate", function(self)
         end
     end
 end)
-
-local function CreateItemButton(content, carrier)
-    local button = CreateFrame(
-        "ItemButton",
-        nil,
-        carrier,
-        "ContainerFrameItemButtonTemplate"
-    )
-
-    button:UnregisterAllEvents()
-    button:RegisterForDrag("LeftButton")
-    button:HookScript("OnDragStart", function()
-        itemDragFrame:Show()
-    end)
-
-    Components:StyleItemSlot(button, {
-        size = SLOT_SIZE,
-        corners = true,
-    })
-
-    return button
-end
 
 local function UpdateItemButton(button, bagID, slotID, family)
     if button.SetBagID then
@@ -668,7 +634,7 @@ function Module:UpdateBagBar()
         local free
 
         if isCurrent and bankOpen then
-            free = CountFreeSlots(tab.bagID)
+            free = UI:CountContainerFreeSlots(tab.bagID)
         else
             local used = 0
 
@@ -941,7 +907,16 @@ function Module:Rebuild()
                 local button = frame.itemButtons[index]
 
                 if not button or button:GetParent() ~= carrier then
-                    button = CreateItemButton(frame.content, carrier)
+                    button = Components:CreateContainerItemButton(
+                        carrier,
+                        {
+                            size = SLOT_SIZE,
+                            corners = true,
+                            onDragStart = function()
+                                itemDragFrame:Show()
+                            end,
+                        }
+                    )
                     frame.itemButtons[index] = button
                 end
 

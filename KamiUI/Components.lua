@@ -1005,6 +1005,31 @@ function Components:CreateItemSlot(parent, options)
     return button
 end
 
+function Components:CreateContainerItemButton(parent, options)
+    options = options or {}
+
+    local button = CreateFrame(
+        "ItemButton",
+        options.name,
+        parent,
+        options.template or "ContainerFrameItemButtonTemplate"
+    )
+
+    button:UnregisterAllEvents()
+
+    if options.draggable ~= false then
+        button:RegisterForDrag("LeftButton")
+    end
+
+    if options.onDragStart then
+        button:HookScript("OnDragStart", options.onDragStart)
+    end
+
+    self:StyleItemSlot(button, options)
+
+    return button
+end
+
 function Components:CreateCachedItemButton(parent, options)
     options = options or {}
     options.count = options.count ~= false

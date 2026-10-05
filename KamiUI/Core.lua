@@ -266,6 +266,18 @@ function UI:GetContainerNumFreeSlots(bagID)
     return 0, 0
 end
 
+function UI:CountContainerFreeSlots(bagID)
+    local free = 0
+
+    for slotID = 1, self:GetContainerNumSlots(bagID) do
+        if not self:GetContainerItemInfo(bagID, slotID) then
+            free = free + 1
+        end
+    end
+
+    return free
+end
+
 function UI:GetBagInventoryID(bagID)
     if C_Container and C_Container.ContainerIDToInventoryID then
         return C_Container.ContainerIDToInventoryID(bagID)
