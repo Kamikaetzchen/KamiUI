@@ -229,7 +229,8 @@ local function GetSpecFromTalentPoints(unit)
     -- Forever uses the classic three-tree talent model even though the
     -- modern specialization API reports one synthetic class spec ID.
     for index = 1, 3 do
-        local _specID,
+        local ok,
+            _specID,
             specName,
             _description,
             _icon,
@@ -238,7 +239,7 @@ local function GetSpecFromTalentPoints(unit)
             pointsSpent,
             _background,
             previewPointsSpent =
-            UI:SafeCall(
+            pcall(
                 C_SpecializationInfo.GetSpecializationInfo,
                 index,
                 isInspect,
@@ -248,6 +249,30 @@ local function GetSpecFromTalentPoints(unit)
                 groupIndex,
                 classID
             )
+
+        if not ok then
+            DebugInspect(
+                "talent tree error",
+                "index=" .. tostring(index),
+                "error=" .. DebugValue(_specID)
+            )
+
+            _specID = nil
+            specName = nil
+            pointsSpent = nil
+            previewPointsSpent = nil
+        else
+            DebugInspect(
+                "talent tree raw",
+                "index=" .. tostring(index),
+                "specID=" .. DebugValue(_specID),
+                "name=" .. DebugValue(specName),
+                "points=" .. DebugValue(pointsSpent),
+                "preview=" .. DebugValue(previewPointsSpent),
+                "group=" .. DebugValue(groupIndex),
+                "classID=" .. DebugValue(classID)
+            )
+        end
 
         if pointsSpent
             and UI:CanAccessValue(pointsSpent)
