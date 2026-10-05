@@ -60,6 +60,87 @@ local function GetLiveProfessionInfo()
     return baseInfo, baseInfo
 end
 
+local function GetProfessionSpellID(profession)
+    if not profession
+        or not profession.professionID
+        or not C_TradeSkillUI
+        or not C_TradeSkillUI.GetProfessionSpells
+    then
+        return nil
+    end
+
+    local skillLineID = profession.professionID
+    local professionInfo =
+        C_TradeSkillUI.GetProfessionInfoBySkillLineID
+        and UI:SafeCall(
+            C_TradeSkillUI.GetProfessionInfoBySkillLineID,
+            skillLineID
+        )
+        or nil
+    local professionEnum = professionInfo
+        and professionInfo.profession
+
+    if professionEnum == nil then
+        return nil
+    end
+
+    local spells = UI:SafeCall(
+        C_TradeSkillUI.GetProfessionSpells,
+        professionEnum,
+        skillLineID
+    )
+
+    if type(spells) ~= "table" then
+        spells = UI:SafeCall(
+            C_TradeSkillUI.GetProfessionSpells,
+            professionEnum
+        )
+    end
+
+    if type(spells) ~= "table" then
+        return nil
+    end
+
+    local professionName = string.lower(
+        profession.professionName
+        or professionInfo.professionName
+        or ""
+    )
+    local partialMatch
+
+    for _, spellID in ipairs(spells) do
+        local spellName
+
+        if C_Spell and C_Spell.GetSpellInfo then
+            local spellInfo = C_Spell.GetSpellInfo(spellID)
+            spellName = spellInfo and spellInfo.name
+        elseif GetSpellInfo then
+            spellName = GetSpellInfo(spellID)
+        end
+
+        if spellName then
+            local normalized = string.lower(spellName)
+
+            if normalized == professionName then
+                return spellID
+            end
+
+            if professionName ~= ""
+                and string.find(
+                    normalized,
+                    professionName,
+                    1,
+                    true
+                )
+            then
+                partialMatch = partialMatch or spellID
+            end
+        end
+    end
+
+    return partialMatch
+end
+
 local function IsLiveProfessionOpen()
     return GetLiveProfessionInfo() ~= nil
 end
@@ -128,8 +209,13 @@ local function GetItemCount(itemID)
         ) or 0
     end
 
-    if GetItemCount then
-        return GetItemCount(itemID, false, false, true) or 0
+    if _G.GetItemCount then
+        return _G.GetItemCount(
+            itemID,
+            false,
+            false,
+            true
+        ) or 0
     end
 
     return 0
@@ -293,8 +379,14 @@ local function AcquireOverviewCard(frame, index)
         return card
     end
 
-    card = CreateFrame("Button", nil, frame.overviewContent)
+    card = CreateFrame(
+        "Button",
+        nil,
+        frame.overviewContent,
+        "SecureActionButtonTemplate"
+    )
     card:SetHeight(54)
+    card:RegisterForClicks("LeftButtonUp")
 
     Styles:EnsureBackground(
         card,
@@ -945,6 +1037,16 @@ function Module:OpenProfession(profession)
         return
     end
 
+    local _, _, isCurrent = GetViewedCharacter()
+
+    if not isCurrent then
+        self.cachedProfessionID = profession.professionID
+        self.forceOverview = false
+        self.selectedRecipeID = nil
+        self:RefreshFrame()
+        return
+    end
+
     local liveInfo = GetLiveProfessionInfo()
 
     if liveInfo
@@ -954,64 +1056,10 @@ function Module:OpenProfession(profession)
             or profession.parentProfessionID == liveInfo.professionID
         )
     then
+        self.cachedProfessionID = nil
         self.forceOverview = false
         self.selectedRecipeID = nil
         self:RefreshFrame()
-        return
-    end
-
-    if not C_TradeSkillUI
-        or not C_TradeSkillUI.GetProfessionSpells
-    then
-        return
-    end
-
-    local spells = UI:SafeCall(
-        C_TradeSkillUI.GetProfessionSpells,
-        profession.professionID,
-        profession.professionID
-    )
-
-    if type(spells) ~= "table" then
-        spells = UI:SafeCall(
-            C_TradeSkillUI.GetProfessionSpells,
-            profession.professionID
-        )
-    end
-
-    if type(spells) ~= "table" then
-        return
-    end
-
-    local professionName =
-        string.lower(profession.professionName or "")
-
-    for _, spellID in ipairs(spells) do
-        local spellName
-
-        if C_Spell and C_Spell.GetSpellInfo then
-            local spellInfo = C_Spell.GetSpellInfo(spellID)
-            spellName = spellInfo and spellInfo.name
-        elseif GetSpellInfo then
-            spellName = GetSpellInfo(spellID)
-        end
-
-        if spellName
-            and string.find(
-                string.lower(spellName),
-                professionName,
-                1,
-                true
-            )
-        then
-            if C_Spell and C_Spell.CastSpell then
-                C_Spell.CastSpell(spellID)
-            elseif CastSpellByID then
-                CastSpellByID(spellID)
-            end
-
-            return
-        end
     end
 end
 
@@ -1090,6 +1138,34 @@ function Module:RefreshOverview()
         card.rank:SetText(rankText)
         card.rankBar:SetMinMaxValues(0, math.max(1, maximum))
         card.rankBar:SetValue(skill)
+
+        if isCurrent then
+            local spellID = GetProfessionSpellID(profession)
+
+            if InCombatLockdown and InCombatLockdown() then
+                card:Disable()
+            else
+                card:Enable()
+
+                if spellID then
+                    card:SetAttribute("type1", "spell")
+                    card:SetAttribute("spell", spellID)
+                else
+                    card:SetAttribute("type1", nil)
+                    card:SetAttribute("spell", nil)
+                end
+            end
+        else
+            card:Enable()
+
+            if not InCombatLockdown
+                or not InCombatLockdown()
+            then
+                card:SetAttribute("type1", nil)
+                card:SetAttribute("spell", nil)
+            end
+        end
+
         card:Show()
 
         y = y + 60
@@ -1824,6 +1900,19 @@ function Module:CloseFrame()
     end
 end
 
+local function DetachNativePanelLayout(frame)
+    if not frame or not SetUIPanelAttribute then
+        return
+    end
+
+    -- Keep Blizzard's hidden backend alive for C_TradeSkillUI, but stop
+    -- it behaving like a left-side UIPanel that moves other windows.
+    SetUIPanelAttribute(frame, "area", "center")
+    SetUIPanelAttribute(frame, "pushable", 0)
+    SetUIPanelAttribute(frame, "allowOtherPanels", 1)
+    SetUIPanelAttribute(frame, "checkFit", 0)
+end
+
 local function DisableNativeMouse(frame)
     if not frame then
         return
@@ -1851,6 +1940,7 @@ function Module:SuppressNativeFrame()
         return
     end
 
+    DetachNativePanelLayout(frame)
     frame:SetAlpha(0)
     DisableNativeMouse(frame)
 
@@ -1858,6 +1948,7 @@ function Module:SuppressNativeFrame()
         frame.KamiProfessionSuppressed = true
 
         frame:HookScript("OnShow", function(self)
+            DetachNativePanelLayout(self)
             self:SetAlpha(0)
             DisableNativeMouse(self)
 
@@ -1908,6 +1999,12 @@ function Module:InitializeFrame()
     UI:RegisterEvent("TRADE_SKILL_CLOSE", function()
         if Module.frame then
             Module.frame:Hide()
+        end
+    end)
+
+    UI:RegisterEvent("PLAYER_REGEN_ENABLED", function()
+        if Module.frame and Module.frame:IsShown() then
+            Module:RefreshFrame()
         end
     end)
 
