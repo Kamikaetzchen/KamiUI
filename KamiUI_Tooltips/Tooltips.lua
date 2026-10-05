@@ -4,7 +4,7 @@ local Styles = UI.Styles
 
 local Module = UI:NewModule("Tooltips", "KamiUI_Tooltips")
 
-Module.version = "0.2.9"
+Module.version = "0.2.10"
 
 local INSPECT_CACHE_SECONDS = 600
 local INSPECT_MISS_CACHE_SECONDS = 60
@@ -164,20 +164,6 @@ local function StyleKnownTooltips()
     for _, name in ipairs(tooltipNames) do
         StyleTooltip(_G[name])
     end
-end
-
-local function AnchorGameTooltipToCursor(tooltip)
-    if tooltip ~= GameTooltip
-        or not tooltip.SetOwner
-        or not UIParent
-    then
-        return
-    end
-
-    tooltip:SetOwner(
-        UIParent,
-        "ANCHOR_CURSOR_RIGHT"
-    )
 end
 
 local function IsValidPlayerUnit(unit)
@@ -1258,7 +1244,6 @@ local function AddPlayerDetails(tooltip)
         tooltip:AddLine(levelText, 1, 1, 1)
     end
 
-    AnchorGameTooltipToCursor(tooltip)
     tooltip.KamiAddingPlayerDetails = false
 end
 
@@ -1286,10 +1271,6 @@ local function RefreshVisiblePlayerTooltip(guid)
 
         tooltip.KamiPendingRefreshGuid = nil
         tooltip:SetUnit(currentUnit)
-
-        if tooltip:IsShown() then
-            AnchorGameTooltipToCursor(tooltip)
-        end
     end
 
     if C_Timer and C_Timer.After then
@@ -1503,31 +1484,38 @@ local function InstallUnitTooltipHook()
     end
 end
 
-local function InstallCursorAnchor()
-    if Module.cursorAnchorInstalled or not GameTooltip then
+local function InstallWorldCursorAnchor()
+    if Module.worldCursorAnchorInstalled
+        or not GameTooltip
+        or not GameTooltip.SetWorldCursor
+        or not hooksecurefunc
+        or not Enum
+        or not Enum.WorldCursorAnchorType
+    then
         return
     end
 
-    Module.cursorAnchorInstalled = true
+    Module.worldCursorAnchorInstalled = true
 
-    GameTooltip:HookScript("OnShow", function(self)
-        AnchorGameTooltipToCursor(self)
-        StyleTooltip(self)
-    end)
-
-    GameTooltip:HookScript("OnHide", function(self)
-        queuedInspect = nil
-        self.KamiPendingRefreshGuid = nil
-    end)
-
-    if hooksecurefunc and GameTooltip_SetDefaultAnchor then
-        hooksecurefunc(
-            "GameTooltip_SetDefaultAnchor",
-            function(tooltip)
-                AnchorGameTooltipToCursor(tooltip)
+    hooksecurefunc(
+        GameTooltip,
+        "SetWorldCursor",
+        function(self, anchorType, parent)
+            if Module.reanchoringWorldCursor
+                or anchorType
+                    ~= Enum.WorldCursorAnchorType.Default
+            then
+                return
             end
-        )
-    end
+
+            Module.reanchoringWorldCursor = true
+            self:SetWorldCursor(
+                Enum.WorldCursorAnchorType.Cursor,
+                parent
+            )
+            Module.reanchoringWorldCursor = false
+        end
+    )
 end
 
 local function InstallInstantUnitTooltipHide()
@@ -1569,7 +1557,7 @@ end
 
 function Module:Initialize()
     StyleKnownTooltips()
-    InstallCursorAnchor()
+    InstallWorldCursorAnchor()
     InstallStatusBarSuppression()
     InstallInstantUnitTooltipHide()
     InstallUnitTooltipHook()
@@ -1580,7 +1568,7 @@ function Module:Initialize()
 
     UI:RegisterEvent("ADDON_LOADED", function()
         StyleKnownTooltips()
-        InstallCursorAnchor()
+        InstallWorldCursorAnchor()
         InstallStatusBarSuppression()
         InstallInstantUnitTooltipHide()
         InstallUnitTooltipHook()
