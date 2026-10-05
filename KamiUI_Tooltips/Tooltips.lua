@@ -78,7 +78,7 @@ local function StyleTooltip(tooltip)
         Styles:EnsureBackground(
             tooltip,
             "KamiTooltipBackground",
-            { 0.005, 0.008, 0.015, 0.96 },
+            { 0.005, 0.008, 0.015, 0.60 },
             "BACKGROUND",
             -8
         )
