@@ -1,9 +1,8 @@
 local UI = KamiUI
 local Palette = UI.Palette
 
-local Module = UI:NewModule("InfoPanel")
+local Module = UI:NewModule("InfoPanel", "KamiUI_InfoPanel")
 
-Module.name = "KamiUI_InfoPanel"
 Module.version = "0.1.0"
 
 local defaults = {

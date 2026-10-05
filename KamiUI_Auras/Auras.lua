@@ -1,9 +1,8 @@
 local UI = KamiUI
 local Styles = UI.Styles
 
-local Module = UI:NewModule("Auras")
+local Module = UI:NewModule("Auras", "KamiUI_Auras")
 
-Module.name = "KamiUI_Auras"
 Module.version = "0.1.0"
 
 local defaults = {

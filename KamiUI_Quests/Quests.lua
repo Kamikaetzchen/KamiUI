@@ -1,8 +1,7 @@
 local UI = KamiUI
 
-local Module = UI:NewModule("Quests")
+local Module = UI:NewModule("Quests", "KamiUI_Quests")
 
-Module.name = "KamiUI_Quests"
 Module.version = "0.1.0"
 
 local function ShouldBypass()

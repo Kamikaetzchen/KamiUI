@@ -2,9 +2,8 @@ local UI = KamiUI
 local Palette = UI.Palette
 local Styles = UI.Styles
 
-local Module = UI:NewModule("Nameplates")
+local Module = UI:NewModule("Nameplates", "KamiUI_Nameplates")
 
-Module.name = "KamiUI_Nameplates"
 Module.version = "0.3.0"
 
 local PLATE_WIDTH = 200

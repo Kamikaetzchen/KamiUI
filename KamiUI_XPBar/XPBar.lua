@@ -1,9 +1,8 @@
 local UI = KamiUI
 local Styles = UI.Styles
 
-local Module = UI:NewModule("XPBar")
+local Module = UI:NewModule("XPBar", "KamiUI_XPBar")
 
-Module.name = "KamiUI_XPBar"
 Module.version = "0.1.0"
 
 local defaults = {

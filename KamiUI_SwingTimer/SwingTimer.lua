@@ -1,8 +1,7 @@
 local UI = KamiUI
 
-local Module = UI:NewModule("SwingTimer")
+local Module = UI:NewModule("SwingTimer", "KamiUI_SwingTimer")
 
-Module.name = "KamiUI_SwingTimer"
 Module.version = "0.1.0"
 
 local defaults = {

@@ -2,9 +2,8 @@ local UI = KamiUI
 local Styles = UI.Styles
 local LAB = LibStub("LibActionButton-1.0")
 
-local Module = UI:NewModule("ActionBars")
+local Module = UI:NewModule("ActionBars", "KamiUI_ActionBars")
 
-Module.name = "KamiUI_ActionBars"
 Module.version = "0.2.0"
 
 local defaults = {

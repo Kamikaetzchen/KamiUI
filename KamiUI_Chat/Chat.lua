@@ -3,9 +3,8 @@ local Palette = UI.Palette
 local Styles = UI.Styles
 local Components = UI.Components
 
-local Module = UI:NewModule("Chat")
+local Module = UI:NewModule("Chat", "KamiUI_Chat")
 
-Module.name = "KamiUI_Chat"
 Module.version = "0.3.0"
 
 local SETUP_VERSION = 3

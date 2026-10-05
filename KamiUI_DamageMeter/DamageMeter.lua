@@ -3,9 +3,8 @@ local Palette = UI.Palette
 local Styles = UI.Styles
 local Components = UI.Components
 
-local Module = UI:NewModule("DamageMeter")
+local Module = UI:NewModule("DamageMeter", "KamiUI_DamageMeter")
 
-Module.name = "KamiUI_DamageMeter"
 Module.version = "0.4.0"
 
 local defaults = {

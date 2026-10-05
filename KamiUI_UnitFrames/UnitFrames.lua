@@ -1,9 +1,8 @@
 local UI = KamiUI
 local Palette = UI.Palette
 
-local UF = UI:NewModule("UnitFrames")
+local UF = UI:NewModule("UnitFrames", "KamiUI_UnitFrames")
 
-UF.name = "KamiUI_UnitFrames"
 UF.version = "0.1.0"
 
 UF.flatTexture = "Interface\\Buttons\\WHITE8X8"

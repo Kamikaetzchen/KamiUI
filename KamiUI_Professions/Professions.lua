@@ -3,9 +3,8 @@ local Palette = UI.Palette
 local Styles = UI.Styles
 local Components = UI.Components
 
-local Module = UI:NewModule("Professions")
+local Module = UI:NewModule("Professions", "KamiUI_Professions")
 
-Module.name = "KamiUI_Professions"
 Module.version = "0.2.0"
 
 local RECIPE_CACHE_VERSION = 3

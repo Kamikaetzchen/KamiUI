@@ -3,9 +3,8 @@ local Palette = UI.Palette
 local Styles = UI.Styles
 local Components = UI.Components
 
-local Module = UI:NewModule("Bank")
+local Module = UI:NewModule("Bank", "KamiUI_Bags")
 
-Module.name = "KamiUI_Bank"
 Module.version = "0.1.0"
 
 local SLOT_SIZE = 36
