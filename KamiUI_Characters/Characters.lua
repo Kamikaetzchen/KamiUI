@@ -100,7 +100,7 @@ local function UpdateCurrentCharacter()
     return key, character
 end
 
-function Module:UI:GetCurrentCharacterKey()
+function Module:GetCurrentCharacterKey()
     return UI:GetCurrentCharacterKey()
 end
 
