@@ -4,7 +4,7 @@ local Styles = UI.Styles
 
 local Module = UI:NewModule("Tooltips", "KamiUI_Tooltips")
 
-Module.version = "0.2.5"
+Module.version = "0.2.6"
 
 local INSPECT_CACHE_SECONDS = 600
 local INSPECT_MISS_CACHE_SECONDS = 60
@@ -193,6 +193,149 @@ local function GetLocalizedSpecName(
     end
 
     return fallbackName
+end
+
+local function GetSpecFromTraitGroups(unit)
+    if not IsValidPlayerUnit(unit)
+        or UnitIsUnit(unit, "player")
+        or not C_Traits
+        or not C_Traits.GetConfigInfo
+        or not C_Traits.GetGroupDisplayInfoByTreeID
+        or not C_Traits.GetGroupCurrencyInfo
+        or not Constants
+        or not Constants.TraitConsts
+        or not Constants.TraitConsts.INSPECT_TRAIT_CONFIG_ID
+    then
+        return nil
+    end
+
+    if C_Traits.HasValidInspectData
+        and UI:SafeCall(C_Traits.HasValidInspectData) ~= true
+    then
+        return nil
+    end
+
+    local configID =
+        Constants.TraitConsts.INSPECT_TRAIT_CONFIG_ID
+    local configInfo =
+        UI:SafeCall(C_Traits.GetConfigInfo, configID)
+
+    if not configInfo
+        or not configInfo.treeIDs
+        or not UI:CanAccessValue(configInfo.treeIDs)
+    then
+        DebugInspect(
+            "trait groups",
+            "config unavailable"
+        )
+        return nil
+    end
+
+    local bestName
+    local bestPoints = -1
+    local tied = false
+
+    for _, treeID in ipairs(configInfo.treeIDs) do
+        local displayInfos = UI:SafeCall(
+            C_Traits.GetGroupDisplayInfoByTreeID,
+            treeID
+        )
+
+        if displayInfos
+            and UI:CanAccessValue(displayInfos)
+        then
+            local groupIDs = {}
+
+            for _, displayInfo in ipairs(displayInfos) do
+                if displayInfo
+                    and displayInfo.groupID
+                    and UI:CanAccessValue(displayInfo.groupID)
+                then
+                    groupIDs[#groupIDs + 1] =
+                        displayInfo.groupID
+                end
+            end
+
+            local groupInfos = #groupIDs > 0
+                and UI:SafeCall(
+                    C_Traits.GetGroupCurrencyInfo,
+                    configID,
+                    groupIDs
+                )
+                or nil
+
+            local groupInfoByID = {}
+
+            if groupInfos
+                and UI:CanAccessValue(groupInfos)
+            then
+                for _, groupInfo in ipairs(groupInfos) do
+                    if groupInfo
+                        and groupInfo.traitNodeGroupID
+                        and UI:CanAccessValue(
+                            groupInfo.traitNodeGroupID
+                        )
+                    then
+                        groupInfoByID[
+                            groupInfo.traitNodeGroupID
+                        ] = groupInfo
+                    end
+                end
+            end
+
+            for _, displayInfo in ipairs(displayInfos) do
+                local name = displayInfo
+                    and displayInfo.displayName
+                local groupID = displayInfo
+                    and displayInfo.groupID
+                local groupInfo =
+                    groupID
+                    and groupInfoByID[groupID]
+                    or nil
+                local currencyInfo =
+                    groupInfo
+                    and groupInfo.currencyInfos
+                    and groupInfo.currencyInfos[1]
+                    or nil
+                local spent =
+                    currencyInfo
+                    and currencyInfo.spent
+                    or 0
+
+                if name
+                    and UI:CanAccessValue(name)
+                    and UI:CanAccessValue(spent)
+                then
+                    spent = tonumber(spent) or 0
+
+                    DebugInspect(
+                        "trait group",
+                        "name=" .. DebugValue(name),
+                        "spent=" .. tostring(spent),
+                        "groupID=" .. DebugValue(groupID)
+                    )
+
+                    if spent > bestPoints then
+                        bestName = name
+                        bestPoints = spent
+                        tied = false
+                    elseif spent == bestPoints then
+                        tied = true
+                    end
+                end
+            end
+        end
+    end
+
+    if bestName and bestPoints > 0 and not tied then
+        local className = GetClassInfo(unit)
+
+        return bestName
+            .. " "
+            .. (className or "")
+    end
+
+    return nil
 end
 
 local function GetSpecFromTalentPoints(unit)
@@ -464,9 +607,13 @@ end
 
 local function ResolveInspectedSpec(unit)
     return NormalizeSpecText(
-        GetSpecFromInspectSpecialization(unit),
+        GetSpecFromTraitGroups(unit),
         unit
     )
+        or NormalizeSpecText(
+            GetSpecFromInspectSpecialization(unit),
+            unit
+        )
         or NormalizeSpecText(
             GetSpecFromTalentPoints(unit),
             unit
