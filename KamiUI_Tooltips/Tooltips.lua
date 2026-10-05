@@ -4,36 +4,15 @@ local Styles = UI.Styles
 
 local Module = UI:NewModule("Tooltips", "KamiUI_Tooltips")
 
-Module.version = "0.2.6"
+Module.version = "0.2.7"
 
 local INSPECT_CACHE_SECONDS = 600
 local INSPECT_MISS_CACHE_SECONDS = 60
 local INSPECT_HOVER_DELAY_SECONDS = 0.30
 local INSPECT_THROTTLE_SECONDS = 1.5
-local INSPECT_TIMEOUT_SECONDS = 10
+local INSPECT_TIMEOUT_SECONDS = 5
 local INSPECT_READY_RETRY_SECONDS = 0.05
 local INSPECT_READY_RETRY_COUNT = 20
-local INSPECT_DEBUG = true
-
-local function DebugInspect(...)
-    if not INSPECT_DEBUG then
-        return
-    end
-
-    UI:Print("|cffffcc00Tooltip Inspect:|r", ...)
-end
-
-local function DebugValue(value)
-    if value == nil then
-        return "nil"
-    end
-
-    if not UI:CanAccessValue(value) then
-        return "<secret>"
-    end
-
-    return tostring(value)
-end
 
 local GUILD_COLOR = { 0.50, 1.00, 0.50, 1.00 }
 local GUILD_RANK_COLOR = Palette.gold
@@ -224,10 +203,6 @@ local function GetSpecFromTraitGroups(unit)
         or not configInfo.treeIDs
         or not UI:CanAccessValue(configInfo.treeIDs)
     then
-        DebugInspect(
-            "trait groups",
-            "config unavailable"
-        )
         return nil
     end
 
@@ -263,22 +238,19 @@ local function GetSpecFromTraitGroups(unit)
                     groupIDs
                 )
                 or nil
-
             local groupInfoByID = {}
 
             if groupInfos
                 and UI:CanAccessValue(groupInfos)
             then
                 for _, groupInfo in ipairs(groupInfos) do
-                    if groupInfo
+                    local groupID = groupInfo
                         and groupInfo.traitNodeGroupID
-                        and UI:CanAccessValue(
-                            groupInfo.traitNodeGroupID
-                        )
+
+                    if groupID
+                        and UI:CanAccessValue(groupID)
                     then
-                        groupInfoByID[
-                            groupInfo.traitNodeGroupID
-                        ] = groupInfo
+                        groupInfoByID[groupID] = groupInfo
                     end
                 end
             end
@@ -307,13 +279,6 @@ local function GetSpecFromTraitGroups(unit)
                     and UI:CanAccessValue(spent)
                 then
                     spent = tonumber(spent) or 0
-
-                    DebugInspect(
-                        "trait group",
-                        "name=" .. DebugValue(name),
-                        "spent=" .. tostring(spent),
-                        "groupID=" .. DebugValue(groupID)
-                    )
 
                     if spent > bestPoints then
                         bestName = name
@@ -367,13 +332,9 @@ local function GetSpecFromTalentPoints(unit)
     local bestName
     local bestPoints = -1
     local tied = false
-    local sex = UnitSex and UnitSex(unit) or nil
 
-    -- Forever uses the classic three-tree talent model even though the
-    -- modern specialization API reports one synthetic class spec ID.
     for index = 1, 3 do
-        local ok,
-            _specID,
+        local _specID,
             specName,
             _description,
             _icon,
@@ -382,7 +343,7 @@ local function GetSpecFromTalentPoints(unit)
             pointsSpent,
             _background,
             previewPointsSpent =
-            pcall(
+            UI:SafeCall(
                 C_SpecializationInfo.GetSpecializationInfo,
                 index,
                 isInspect,
@@ -391,30 +352,6 @@ local function GetSpecFromTalentPoints(unit)
                 nil,
                 groupIndex
             )
-
-        if not ok then
-            DebugInspect(
-                "talent tree error",
-                "index=" .. tostring(index),
-                "error=" .. DebugValue(_specID)
-            )
-
-            _specID = nil
-            specName = nil
-            pointsSpent = nil
-            previewPointsSpent = nil
-        else
-            DebugInspect(
-                "talent tree raw",
-                "index=" .. tostring(index),
-                "specID=" .. DebugValue(_specID),
-                "name=" .. DebugValue(specName),
-                "points=" .. DebugValue(pointsSpent),
-                "preview=" .. DebugValue(previewPointsSpent),
-                "group=" .. DebugValue(groupIndex),
-                "classID=" .. DebugValue(classID)
-            )
-        end
 
         if pointsSpent
             and UI:CanAccessValue(pointsSpent)
@@ -442,15 +379,13 @@ local function GetSpecFromTalentPoints(unit)
         local totalPoints =
             pointsSpent + previewPointsSpent
 
-        DebugInspect(
-            "talent tree",
-            "index=" .. tostring(index),
-            "name=" .. DebugValue(specName),
-            "points=" .. tostring(totalPoints)
-        )
-
         if specName and totalPoints > bestPoints then
-            bestName = specName
+            bestName = GetLocalizedSpecName(
+                classID,
+                index,
+                nil,
+                specName
+            )
             bestPoints = totalPoints
             tied = false
         elseif specName
@@ -701,42 +636,16 @@ local function IsBlizzardInspectActive()
 end
 
 local function CanRequestInspect(unit)
-    if not IsValidPlayerUnit(unit) then
-        DebugInspect(
-            "blocked: invalid unit",
-            DebugValue(unit)
-        )
+    if not IsValidPlayerUnit(unit)
+        or UnitIsUnit(unit, "player")
+        or IsBlizzardInspectActive()
+        or not NotifyInspect
+        or not CanInspect
+    then
         return false
     end
 
-    if UnitIsUnit(unit, "player") then
-        DebugInspect("blocked: player unit")
-        return false
-    end
-
-    if IsBlizzardInspectActive() then
-        DebugInspect("blocked: Blizzard inspect active")
-        return false
-    end
-
-    if not NotifyInspect or not CanInspect then
-        DebugInspect(
-            "blocked: inspect API missing",
-            "NotifyInspect=" .. DebugValue(NotifyInspect),
-            "CanInspect=" .. DebugValue(CanInspect)
-        )
-        return false
-    end
-
-    local canInspect = UI:SafeCall(CanInspect, unit)
-
-    DebugInspect(
-        "CanInspect",
-        "unit=" .. DebugValue(unit),
-        "result=" .. DebugValue(canInspect)
-    )
-
-    return canInspect == true
+    return UI:SafeCall(CanInspect, unit) == true
 end
 
 local function StartSpecInspect(unit, guid)
@@ -764,15 +673,7 @@ local function StartSpecInspect(unit, guid)
     pendingInspect = request
     lastInspectRequest = now
 
-    DebugInspect(
-        "request",
-        "unit=" .. DebugValue(unit),
-        "guid=" .. DebugValue(guid)
-    )
-
     NotifyInspect(unit)
-
-    DebugInspect("NotifyInspect called")
 
     if C_Timer and C_Timer.After then
         C_Timer.After(
@@ -783,11 +684,6 @@ local function StartSpecInspect(unit, guid)
                 end
 
                 pendingInspect = nil
-
-                DebugInspect(
-                    "timeout",
-                    "guid=" .. DebugValue(guid)
-                )
 
                 CacheSpec(
                     guid,
@@ -1120,7 +1016,12 @@ local function BuildGuildText(guildName, guildRankName)
     return text
 end
 
-local function BuildLevelLine(unit, className, classColor)
+local function BuildLevelLine(
+    unit,
+    className,
+    classColor,
+    specText
+)
     local level = UnitLevel and UnitLevel(unit)
     local raceName = UnitRace and UnitRace(unit)
 
@@ -1139,12 +1040,14 @@ local function BuildLevelLine(unit, className, classColor)
         return nil
     end
 
+    local classText = specText or className
+
     return "Level "
         .. Colorize(level, GetLevelColor(level))
         .. " "
         .. raceName
         .. " "
-        .. Colorize(className, classColor)
+        .. Colorize(classText, classColor)
 end
 
 local function AddPlayerDetails(tooltip)
@@ -1184,14 +1087,15 @@ local function AddPlayerDetails(tooltip)
         guildName,
         guildRankName
     )
-    local levelText = BuildLevelLine(
-        unit,
-        className,
-        classColor
-    )
     local specText = NormalizeSpecText(
         GetPlayerSpec(unit, guid),
         unit
+    )
+    local levelText = BuildLevelLine(
+        unit,
+        className,
+        classColor,
+        specText
     )
 
     tooltip.KamiAddingPlayerDetails = true
@@ -1199,7 +1103,6 @@ local function AddPlayerDetails(tooltip)
     local lines = CaptureTooltipLines(tooltip)
     local guildIndex
     local levelIndex
-    local classIndex
 
     for index, line in ipairs(lines) do
         local plain = StripColorCodes(line.leftText)
@@ -1219,18 +1122,13 @@ local function AddPlayerDetails(tooltip)
         if string.find(plain, "Level ", 1, true) == 1 then
             levelIndex = levelIndex or index
         end
-
-        if plain == className then
-            classIndex = classIndex or index
-        end
     end
 
     tooltip:ClearLines()
 
     local addedGuild = false
     local addedLevel = false
-    local addedSpec = false
-    local duplicateSpec =
+    local duplicateClass =
         string.lower(className .. " " .. className)
 
     for index, line in ipairs(lines) do
@@ -1266,27 +1164,11 @@ local function AddPlayerDetails(tooltip)
             else
                 AddCapturedLine(tooltip, line)
             end
-
-            if specText and not classIndex then
-                local r, g, b =
-                    GetColorChannels(classColor)
-                tooltip:AddLine(specText, r, g, b)
-                addedSpec = true
-            end
-        elseif classIndex and index == classIndex then
-            if specText then
-                local r, g, b =
-                    GetColorChannels(classColor)
-                tooltip:AddLine(specText, r, g, b)
-                addedSpec = true
-            end
-        elseif normalizedPlain == duplicateSpec then
-            -- Drop the old "Hunter Hunter"-style duplicate.
-        elseif specText
-            and plain == specText
-            and addedSpec
+        elseif plain == className
+            or normalizedPlain == duplicateClass
+            or (specText and plain == specText)
         then
-            -- Drop duplicate spec lines on refresh.
+            -- Class/spec is already part of the combined level line.
         else
             AddCapturedLine(tooltip, line)
         end
@@ -1298,11 +1180,6 @@ local function AddPlayerDetails(tooltip)
 
     if levelText and not addedLevel then
         tooltip:AddLine(levelText, 1, 1, 1)
-    end
-
-    if specText and not addedSpec then
-        local r, g, b = GetColorChannels(classColor)
-        tooltip:AddLine(specText, r, g, b)
     end
 
     AnchorGameTooltipToCursor(tooltip)
@@ -1421,12 +1298,6 @@ local function ResolveInspectReady(
         end
 
         if not hasValidInspectData then
-            DebugInspect(
-                "ready attempt " .. tostring(attempts),
-                "unit=" .. DebugValue(unit),
-                "talentData=false"
-            )
-
             if attempts < INSPECT_READY_RETRY_COUNT
                 and C_Timer
                 and C_Timer.After
@@ -1439,46 +1310,16 @@ local function ResolveInspectReady(
             end
 
             if request then
-                DebugInspect(
-                    "inspect talent data unavailable",
-                    "guid=" .. DebugValue(guid)
-                )
-
                 FinishInspectRequest(request)
             end
             return
-        end
-
-        local inspectSpecID
-        if unit
-            and C_SpecializationInfo
-            and C_SpecializationInfo.GetInspectSpecialization
-        then
-            inspectSpecID = UI:SafeCall(
-                C_SpecializationInfo.GetInspectSpecialization,
-                unit
-            )
         end
 
         local specText = unit
             and ResolveInspectedSpec(unit)
             or nil
 
-        DebugInspect(
-            "ready attempt " .. tostring(attempts),
-            "unit=" .. DebugValue(unit),
-            "talentData=true",
-            "specID=" .. DebugValue(inspectSpecID),
-            "resolved=" .. DebugValue(specText)
-        )
-
         if specText then
-            DebugInspect(
-                "success",
-                "guid=" .. DebugValue(guid),
-                "spec=" .. DebugValue(specText)
-            )
-
             CacheSpec(guid, specText)
             FinishInspectRequest(request)
             RefreshVisiblePlayerTooltip(guid)
@@ -1497,11 +1338,6 @@ local function ResolveInspectReady(
         end
 
         if request then
-            DebugInspect(
-                "ready but unresolved",
-                "guid=" .. DebugValue(guid)
-            )
-
             CacheSpec(
                 guid,
                 nil,
@@ -1519,59 +1355,8 @@ local function ResolveInspectReady(
     end
 end
 
-local function DebugInspectUnitToken(label, unit)
-    local exists
-    local isPlayer
-    local unitGuid
-
-    if unit then
-        exists = UI:SafeCall(UnitExists, unit)
-        isPlayer = UI:SafeCall(UnitIsPlayer, unit)
-        unitGuid = UI:SafeCall(UnitGUID, unit)
-    end
-
-    DebugInspect(
-        "unit probe",
-        label .. "=" .. DebugValue(unit),
-        "exists=" .. DebugValue(exists),
-        "player=" .. DebugValue(isPlayer),
-        "guid=" .. DebugValue(unitGuid)
-    )
-end
-
-local function DebugInspectUnitState()
-    local tooltipUnit
-
-    if GameTooltip
-        and GameTooltip.GetUnit
-        and GameTooltip:IsShown()
-    then
-        local _name
-        _name, tooltipUnit = GameTooltip:GetUnit()
-    end
-
-    DebugInspectUnitToken(
-        "pendingUnit",
-        pendingInspect and pendingInspect.unit
-    )
-    DebugInspectUnitToken("tooltipUnit", tooltipUnit)
-    DebugInspectUnitToken("mouseover", "mouseover")
-    DebugInspectUnitToken("target", "target")
-end
-
 local function HandleInspectReady(guid)
-    DebugInspect(
-        "INSPECT_READY",
-        "guid=" .. DebugValue(guid),
-        "pending=" .. DebugValue(
-            pendingInspect and pendingInspect.guid
-        )
-    )
-
-    DebugInspectUnitState()
-
     if not guid or not UI:CanAccessValue(guid) then
-        DebugInspect("ignored: invalid INSPECT_READY guid")
         return
     end
 
