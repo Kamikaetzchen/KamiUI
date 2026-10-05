@@ -8,6 +8,7 @@ Module.version = "0.2.0"
 
 local INSPECT_CACHE_SECONDS = 300
 local INSPECT_THROTTLE_SECONDS = 1.5
+local INSPECT_TIMEOUT_SECONDS = 5
 
 local tooltipNames = {
     "GameTooltip",
@@ -39,11 +40,9 @@ local function GetColorChannels(color)
 end
 
 local function StyleTooltip(tooltip)
-    if not tooltip or tooltip.KamiTooltipStyled then
+    if not tooltip then
         return
     end
-
-    tooltip.KamiTooltipStyled = true
 
     for _, region in ipairs({
         tooltip.NineSlice,
@@ -55,20 +54,30 @@ local function StyleTooltip(tooltip)
         end
     end
 
-    Styles:EnsureBackground(
-        tooltip,
-        "KamiTooltipBackground",
-        { 0.005, 0.008, 0.015, 0.96 },
-        "BACKGROUND",
-        -8
-    )
-    Styles:CreateBorder(tooltip, {
-        key = "KamiTooltipBorder",
-        color = Palette.border,
-    })
+    if not tooltip.KamiTooltipStyled then
+        tooltip.KamiTooltipStyled = true
 
-    if tooltip.SetPadding then
-        tooltip:SetPadding(7, 7, 7, 7)
+        Styles:EnsureBackground(
+            tooltip,
+            "KamiTooltipBackground",
+            { 0.005, 0.008, 0.015, 0.96 },
+            "BACKGROUND",
+            -8
+        )
+        Styles:CreateBorder(tooltip, {
+            key = "KamiTooltipBorder",
+            color = Palette.border,
+        })
+
+        if tooltip.SetPadding then
+            tooltip:SetPadding(7, 7, 7, 7)
+        end
+
+        if tooltip.HookScript then
+            tooltip:HookScript("OnShow", function(self)
+                StyleTooltip(self)
+            end)
+        end
     end
 end
 
@@ -145,9 +154,18 @@ local function GetSpecFromTalentPoints(unit)
                 classID
             )
 
-        pointsSpent = tonumber(pointsSpent)
+        if pointsSpent
+            and UI:CanAccessValue(pointsSpent)
+        then
+            pointsSpent = tonumber(pointsSpent)
+        else
+            pointsSpent = nil
+        end
 
-        if specName and pointsSpent then
+        if specName
+            and UI:CanAccessValue(specName)
+            and pointsSpent
+        then
             if pointsSpent > bestPoints then
                 bestName = specName
                 bestPoints = pointsSpent
@@ -203,11 +221,17 @@ local function GetSpecFromInspectSpecialization(unit)
         )
     end
 
-    if not specName then
+    if not specName
+        or not UI:CanAccessValue(specName)
+    then
         return nil
     end
 
     local className = GetClassInfo(unit)
+
+    if className and not UI:CanAccessValue(className) then
+        className = nil
+    end
 
     return specName .. " " .. (className or "")
 end
@@ -225,6 +249,8 @@ local function GetSpecFromClassicTalentTabs(unit)
     local bestPoints = -1
     local tied = false
 
+    local isInspect = not UnitIsUnit(unit, "player")
+
     for index = 1, tabCount do
         local _id,
             name,
@@ -234,13 +260,22 @@ local function GetSpecFromClassicTalentTabs(unit)
             UI:SafeCall(
                 GetTalentTabInfo,
                 index,
-                true,
+                isInspect,
                 false
             )
 
-        pointsSpent = tonumber(pointsSpent)
+        if pointsSpent
+            and UI:CanAccessValue(pointsSpent)
+        then
+            pointsSpent = tonumber(pointsSpent)
+        else
+            pointsSpent = nil
+        end
 
-        if name and pointsSpent then
+        if name
+            and UI:CanAccessValue(name)
+            and pointsSpent
+        then
             if pointsSpent > bestPoints then
                 bestName = name
                 bestPoints = pointsSpent
@@ -304,20 +339,27 @@ local function CanRequestInspect(unit)
         return false
     end
 
-    local canInspect = UI:SafeCall(CanInspect, unit, false)
+    local canInspect = UI:SafeCall(CanInspect, unit)
 
     return canInspect == true
 end
 
 local function RequestSpecInspect(unit, guid)
+    local now = GetTime and GetTime() or 0
+
+    if pendingInspect
+        and now - (pendingInspect.requestedAt or 0)
+            >= INSPECT_TIMEOUT_SECONDS
+    then
+        pendingInspect = nil
+    end
+
     if pendingInspect
         or not CanRequestInspect(unit)
         or not guid
     then
         return
     end
-
-    local now = GetTime and GetTime() or 0
 
     if now - lastInspectRequest < INSPECT_THROTTLE_SECONDS then
         return
@@ -326,6 +368,7 @@ local function RequestSpecInspect(unit, guid)
     pendingInspect = {
         unit = unit,
         guid = guid,
+        requestedAt = now,
     }
     lastInspectRequest = now
 
@@ -359,10 +402,19 @@ local function GetPlayerSpec(unit, guid)
             end
         end
 
-        if not specName then
+        if not specName
+            or not UI:CanAccessValue(specName)
+        then
             specName = GetSpecFromClassicTalentTabs(unit)
         else
             local className = GetClassInfo(unit)
+
+            if className
+                and not UI:CanAccessValue(className)
+            then
+                className = nil
+            end
+
             specName = specName .. " " .. (className or "")
         end
 
@@ -374,6 +426,44 @@ local function GetPlayerSpec(unit, guid)
     end
 
     RequestSpecInspect(unit, guid)
+
+    return nil
+end
+
+local function FindGuildLine(tooltip, guildName)
+    if not tooltip
+        or not guildName
+        or guildName == ""
+    then
+        return nil
+    end
+
+    local lineCount = tooltip.NumLines and tooltip:NumLines() or 0
+
+    for index = 2, lineCount do
+        local line = tooltip.GetLeftLine
+            and tooltip:GetLeftLine(index)
+            or nil
+
+        if not line and tooltip.GetName then
+            local tooltipName = tooltip:GetName()
+
+            if tooltipName then
+                line = _G[
+                    tooltipName .. "TextLeft" .. index
+                ]
+            end
+        end
+
+        local text = line and line.GetText and line:GetText()
+
+        if text
+            and UI:CanAccessValue(text)
+            and string.find(text, guildName, 1, true)
+        then
+            return line
+        end
+    end
 
     return nil
 end
@@ -406,15 +496,32 @@ local function AddPlayerDetails(tooltip)
         guildName, guildRankName = GetGuildInfo(unit)
     end
 
-    if guildName and guildName ~= "" then
+    if guildName
+        and UI:CanAccessValue(guildName)
+        and guildName ~= ""
+    then
         local guildText = "<" .. guildName .. ">"
 
-        if guildRankName and guildRankName ~= "" then
+        if guildRankName
+            and UI:CanAccessValue(guildRankName)
+            and guildRankName ~= ""
+        then
             guildText = guildText .. "  " .. guildRankName
         end
 
-        local r, g, b = GetColorChannels(Palette.muted)
-        tooltip:AddLine(guildText, r, g, b)
+        local existingGuildLine =
+            FindGuildLine(tooltip, guildName)
+
+        if existingGuildLine then
+            existingGuildLine:SetText(guildText)
+            Styles:SetTextColor(
+                existingGuildLine,
+                Palette.muted
+            )
+        else
+            local r, g, b = GetColorChannels(Palette.muted)
+            tooltip:AddLine(guildText, r, g, b)
+        end
     end
 
     local specText = GetPlayerSpec(unit, guid)
@@ -441,8 +548,15 @@ local function RefreshVisiblePlayerTooltip(guid)
 
     local _name, unit = tooltip:GetUnit()
 
-    if not IsValidPlayerUnit(unit)
-        or UnitGUID(unit) ~= guid
+    if not IsValidPlayerUnit(unit) then
+        return
+    end
+
+    local currentGuid = UnitGUID(unit)
+
+    if not currentGuid
+        or not UI:CanAccessValue(currentGuid)
+        or currentGuid ~= guid
     then
         return
     end
@@ -461,13 +575,18 @@ local function HandleInspectReady(guid)
 
     local unit = request.unit
 
-    if IsValidPlayerUnit(unit)
-        and UnitGUID(unit) == guid
-    then
-        local specText = ResolveInspectedSpec(unit)
+    if IsValidPlayerUnit(unit) then
+        local currentGuid = UnitGUID(unit)
 
-        if specText then
-            CacheSpec(guid, specText)
+        if currentGuid
+            and UI:CanAccessValue(currentGuid)
+            and currentGuid == guid
+        then
+            local specText = ResolveInspectedSpec(unit)
+
+            if specText then
+                CacheSpec(guid, specText)
+            end
         end
     end
 
