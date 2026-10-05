@@ -4,7 +4,7 @@ local Styles = UI.Styles
 
 local Module = UI:NewModule("Tooltips", "KamiUI_Tooltips")
 
-Module.version = "0.2.8"
+Module.version = "0.2.9"
 
 local INSPECT_CACHE_SECONDS = 600
 local INSPECT_MISS_CACHE_SECONDS = 60
@@ -168,35 +168,15 @@ end
 
 local function AnchorGameTooltipToCursor(tooltip)
     if tooltip ~= GameTooltip
-        or not tooltip.SetAnchorType
-        or not GetCursorPosition
+        or not tooltip.SetOwner
         or not UIParent
     then
         return
     end
 
-    local scale = UIParent:GetEffectiveScale() or 1
-    local cursorX, cursorY = GetCursorPosition()
-    local x = cursorX / scale
-    local y = cursorY / scale
-
-    if tooltip.KamiCursorX == x
-        and tooltip.KamiCursorY == y
-    then
-        return
-    end
-
-    tooltip.KamiCursorX = x
-    tooltip.KamiCursorY = y
-
-    tooltip:SetAnchorType("ANCHOR_NONE")
-    tooltip:ClearAllPoints()
-    tooltip:SetPoint(
-        "TOPLEFT",
+    tooltip:SetOwner(
         UIParent,
-        "BOTTOMLEFT",
-        x + 14,
-        y - 12
+        "ANCHOR_CURSOR_RIGHT"
     )
 end
 
@@ -1531,21 +1511,13 @@ local function InstallCursorAnchor()
     Module.cursorAnchorInstalled = true
 
     GameTooltip:HookScript("OnShow", function(self)
-        self.KamiCursorX = nil
-        self.KamiCursorY = nil
         AnchorGameTooltipToCursor(self)
         StyleTooltip(self)
-    end)
-
-    GameTooltip:HookScript("OnUpdate", function(self)
-        AnchorGameTooltipToCursor(self)
     end)
 
     GameTooltip:HookScript("OnHide", function(self)
         queuedInspect = nil
         self.KamiPendingRefreshGuid = nil
-        self.KamiCursorX = nil
-        self.KamiCursorY = nil
     end)
 
     if hooksecurefunc and GameTooltip_SetDefaultAnchor then
@@ -1556,6 +1528,23 @@ local function InstallCursorAnchor()
             end
         )
     end
+end
+
+local function InstallInstantUnitTooltipHide()
+    if Module.instantUnitTooltipHideInstalled
+        or not hooksecurefunc
+        or not UnitFrame_OnLeave
+    then
+        return
+    end
+
+    Module.instantUnitTooltipHideInstalled = true
+
+    hooksecurefunc("UnitFrame_OnLeave", function()
+        if GameTooltip then
+            GameTooltip:Hide()
+        end
+    end)
 end
 
 local function InstallStatusBarSuppression()
@@ -1582,6 +1571,7 @@ function Module:Initialize()
     StyleKnownTooltips()
     InstallCursorAnchor()
     InstallStatusBarSuppression()
+    InstallInstantUnitTooltipHide()
     InstallUnitTooltipHook()
 
     UI:RegisterEvent("INSPECT_READY", function(_, guid)
@@ -1591,6 +1581,8 @@ function Module:Initialize()
     UI:RegisterEvent("ADDON_LOADED", function()
         StyleKnownTooltips()
         InstallCursorAnchor()
+        InstallStatusBarSuppression()
+        InstallInstantUnitTooltipHide()
         InstallUnitTooltipHook()
     end)
 end
