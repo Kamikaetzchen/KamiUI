@@ -3975,30 +3975,21 @@ local function CreateFrameUI()
     characterButton.icon = characterIcon
     frame.characterButton = characterButton
 
-    local characterMenu = CreateFrame(
-        "Frame",
-        nil,
+    local characterMenu = Components:CreatePopupMenu(
         frame,
-        "BackdropTemplate"
-    )
-    characterMenu:SetPoint(
-        "TOPLEFT",
         header,
-        "BOTTOMLEFT",
-        3,
-        -2
+        {
+            point = "TOPLEFT",
+            relativePoint = "BOTTOMLEFT",
+            x = 3,
+            y = -2,
+            width = 210,
+            frameLevel = frame:GetFrameLevel() + 30,
+            backgroundColor = { 0, 0, 0, 0.94 },
+            borderColor = Palette.border,
+            fontSize = 9,
+        }
     )
-    characterMenu:SetWidth(210)
-    characterMenu:SetFrameLevel(frame:GetFrameLevel() + 30)
-    characterMenu:SetBackdrop({
-        bgFile = "Interface\\Buttons\\WHITE8X8",
-        edgeFile = "Interface\\Buttons\\WHITE8X8",
-        edgeSize = 1,
-    })
-    characterMenu:SetBackdropColor(0, 0, 0, 0.94)
-    characterMenu:SetBackdropBorderColor(unpack(Palette.border))
-    characterMenu.buttons = {}
-    characterMenu:Hide()
     frame.characterMenu = characterMenu
 
     local function RebuildCharacterMenu()
@@ -4006,65 +3997,15 @@ local function CreateFrameUI()
         local height = 8
 
         for index, entry in ipairs(characters) do
-            local button = characterMenu.buttons[index]
-
-            if not button then
-                button = CreateFrame("Button", nil, characterMenu)
-                button:SetHeight(20)
-                button:SetPoint(
-                    "TOPLEFT",
-                    characterMenu,
-                    "TOPLEFT",
-                    4,
-                    -(4 + (index - 1) * 20)
-                )
-                button:SetPoint(
-                    "TOPRIGHT",
-                    characterMenu,
-                    "TOPRIGHT",
-                    -4,
-                    -(4 + (index - 1) * 20)
-                )
-
-                local text = button:CreateFontString(
-                    nil,
-                    "OVERLAY",
-                    "GameFontNormalSmall"
-                )
-                text:SetPoint("LEFT", 3, 0)
-                text:SetPoint("RIGHT", -3, 0)
-                text:SetJustifyH("LEFT")
-                button.text = text
-
-                local highlight = button:CreateTexture(nil, "HIGHLIGHT")
-                highlight:SetAllPoints()
-                highlight:SetColorTexture(1, 1, 1, 0.08)
-
-                characterMenu.buttons[index] = button
-            end
+            local button = Components:AcquirePopupMenuButton(
+                characterMenu,
+                index
+            )
 
             local character = entry.character
-            local label = character.name or "Unknown"
-            local classColor = Palette:GetClassColor(character.classFile)
-
-            if classColor then
-                label = string.format(
-                    "|cff%02x%02x%02x%s|r",
-                    math.floor(classColor.r * 255 + 0.5),
-                    math.floor(classColor.g * 255 + 0.5),
-                    math.floor(classColor.b * 255 + 0.5),
-                    label
-                )
-            end
-
-            if character.realm
-                and character.realm ~= ""
-                and character.realm ~= GetRealmName()
-            then
-                label = label .. " - " .. character.realm
-            end
-
-            button.text:SetText(label)
+            button.text:SetText(
+                Components:FormatCharacterLabel(character)
+            )
             button.characterKey = entry.key
             button:SetScript("OnClick", function(self)
                 Module:SetViewedCharacter(self.characterKey)
@@ -4074,11 +4015,10 @@ local function CreateFrameUI()
             height = height + 20
         end
 
-        for index = #characters + 1, #characterMenu.buttons do
-            characterMenu.buttons[index]:Hide()
-        end
-
-        characterMenu:SetHeight(math.max(28, height))
+        Components:FinishPopupMenu(
+            characterMenu,
+            #characters
+        )
     end
 
     characterButton:SetScript("OnClick", function()

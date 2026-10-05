@@ -2019,31 +2019,20 @@ local function CreateCharacterBrowser(frame)
     characterButton.icon = icon
     frame.KamiCharacterButton = characterButton
 
-    local menu = CreateFrame(
-        "Frame",
-        nil,
+    local menu = Components:CreatePopupMenu(
         frame,
-        "BackdropTemplate"
-    )
-    menu:SetPoint(
-        "TOPLEFT",
         characterButton,
-        "BOTTOMLEFT",
-        -2,
-        -2
+        {
+            x = -2,
+            y = -2,
+            width = 210,
+            frameStrata = "TOOLTIP",
+            frameLevel = 200,
+            backgroundColor = { 0, 0, 0, 0.96 },
+            borderColor = Palette.border,
+            fontSize = 10,
+        }
     )
-    menu:SetWidth(210)
-    menu:SetFrameStrata("TOOLTIP")
-    menu:SetFrameLevel(200)
-    menu:SetBackdrop({
-        bgFile = "Interface\\Buttons\\WHITE8X8",
-        edgeFile = "Interface\\Buttons\\WHITE8X8",
-        edgeSize = 1,
-    })
-    menu:SetBackdropColor(0, 0, 0, 0.96)
-    menu:SetBackdropBorderColor(unpack(Palette.border))
-    menu.buttons = {}
-    menu:Hide()
     frame.KamiCharacterMenu = menu
 
     local pane = CreateFrame(
@@ -2125,66 +2114,18 @@ local function CreateCharacterBrowser(frame)
         local height = 8
 
         for index, entry in ipairs(entries) do
-            local button = menu.buttons[index]
-
-            if not button then
-                button = CreateFrame("Button", nil, menu)
-                button:SetHeight(20)
-                button:SetPoint(
-                    "TOPLEFT",
-                    menu,
-                    "TOPLEFT",
-                    4,
-                    -(4 + (index - 1) * 20)
-                )
-                button:SetPoint(
-                    "TOPRIGHT",
-                    menu,
-                    "TOPRIGHT",
-                    -4,
-                    -(4 + (index - 1) * 20)
-                )
-
-                local text = button:CreateFontString(
-                    nil,
-                    "OVERLAY",
-                    "GameFontNormalSmall"
-                )
-                text:SetPoint("LEFT", 3, 0)
-                text:SetPoint("RIGHT", -3, 0)
-                text:SetJustifyH("LEFT")
-                Styles:ApplyText(text, 10, Palette.text)
-                button.text = text
-
-                local highlight =
-                    button:CreateTexture(nil, "HIGHLIGHT")
-                highlight:SetAllPoints()
-                highlight:SetColorTexture(1, 1, 1, 0.08)
-
-                menu.buttons[index] = button
-            end
+            local button = Components:AcquirePopupMenuButton(
+                menu,
+                index
+            )
 
             local character = entry.character
-            local label = character.name or "Unknown"
-
-            if entry.key == viewedKey then
-                label = "> " .. label
-            end
-
-            local classColor =
-                Palette:GetClassColor(character.classFile)
-
-            if classColor then
-                label = string.format(
-                    "|cff%02x%02x%02x%s|r",
-                    math.floor((classColor.r or classColor[1]) * 255 + 0.5),
-                    math.floor((classColor.g or classColor[2]) * 255 + 0.5),
-                    math.floor((classColor.b or classColor[3]) * 255 + 0.5),
-                    label
-                )
-            end
-
-            button.text:SetText(label)
+            button.text:SetText(
+                Components:FormatCharacterLabel(character, {
+                    selected = entry.key == viewedKey,
+                    showRealm = false,
+                })
+            )
             button.characterKey = entry.key
             button:SetScript("OnClick", function(self)
                 Module:SetViewedCharacter(self.characterKey)
@@ -2194,11 +2135,7 @@ local function CreateCharacterBrowser(frame)
             height = height + 20
         end
 
-        for index = #entries + 1, #menu.buttons do
-            menu.buttons[index]:Hide()
-        end
-
-        menu:SetHeight(math.max(28, height))
+        Components:FinishPopupMenu(menu, #entries)
     end
 
     characterButton:SetScript("OnClick", function()

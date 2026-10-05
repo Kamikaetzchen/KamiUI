@@ -1187,19 +1187,10 @@ function Module:UpdateTitle()
 
     local key, character = GetViewedCharacter()
     local profile = GetCharacterProfile(key, character)
-    local name = profile.name or "Unknown"
-    local classFile = profile.classFile
-    local classColor = Palette:GetClassColor(classFile)
-
-    if classColor then
-        name = string.format(
-            "|cff%02x%02x%02x%s|r",
-            math.floor(classColor.r * 255 + 0.5),
-            math.floor(classColor.g * 255 + 0.5),
-            math.floor(classColor.b * 255 + 0.5),
-            name
-        )
-    end
+    local name = Components:FormatCharacterLabel(
+        profile,
+        { showRealm = false }
+    )
 
     self.frame.title:SetText(name .. "'s Inventory")
 end
@@ -1639,30 +1630,18 @@ local function CreateFrameUI()
     characterButton.icon = characterIcon
     frame.characterButton = characterButton
 
-    local characterMenu = CreateFrame(
-        "Frame",
-        nil,
+    local characterMenu = Components:CreatePopupMenu(
         frame,
-        "BackdropTemplate"
-    )
-    characterMenu:SetPoint(
-        "TOPLEFT",
         characterButton,
-        "BOTTOMLEFT",
-        0,
-        -2
+        {
+            width = 170,
+            backgroundColor = { 0.04, 0.02, 0.06, 0.95 },
+            borderColor = Palette.windowBorder.inventory,
+            fontSize = 9,
+            heightPadding = 6,
+            minHeight = 26,
+        }
     )
-    characterMenu:SetWidth(170)
-    characterMenu:SetFrameLevel(frame:GetFrameLevel() + 20)
-    characterMenu:SetBackdrop({
-        bgFile = "Interface\\Buttons\\WHITE8X8",
-        edgeFile = "Interface\\Buttons\\WHITE8X8",
-        edgeSize = 1,
-    })
-    characterMenu:SetBackdropColor(0.04, 0.02, 0.06, 0.95)
-    characterMenu:SetBackdropBorderColor(unpack(Palette.windowBorder.inventory))
-    characterMenu.buttons = {}
-    characterMenu:Hide()
     frame.characterMenu = characterMenu
 
     local function RebuildCharacterMenu()
@@ -1670,63 +1649,15 @@ local function CreateFrameUI()
         local height = 6
 
         for index, entry in ipairs(characters) do
-            local button = characterMenu.buttons[index]
-
-            if not button then
-                button = CreateFrame("Button", nil, characterMenu)
-                button:SetHeight(20)
-                button:SetPoint(
-                    "TOPLEFT",
-                    characterMenu,
-                    "TOPLEFT",
-                    4,
-                    -(4 + (index - 1) * 20)
-                )
-                button:SetPoint(
-                    "TOPRIGHT",
-                    characterMenu,
-                    "TOPRIGHT",
-                    -4,
-                    -(4 + (index - 1) * 20)
-                )
-
-                local text = button:CreateFontString(
-                    nil,
-                    "OVERLAY",
-                    "GameFontNormalSmall"
-                )
-                text:SetPoint("LEFT", 3, 0)
-                button.text = text
-
-                local highlight = button:CreateTexture(nil, "HIGHLIGHT")
-                highlight:SetAllPoints()
-                highlight:SetColorTexture(1, 1, 1, 0.08)
-
-                characterMenu.buttons[index] = button
-            end
+            local button = Components:AcquirePopupMenuButton(
+                characterMenu,
+                index
+            )
 
             local character = entry.profile
-            local label = character.name or "Unknown"
-            local classColor = Palette:GetClassColor(character.classFile)
-
-            if classColor then
-                label = string.format(
-                    "|cff%02x%02x%02x%s|r",
-                    math.floor(classColor.r * 255 + 0.5),
-                    math.floor(classColor.g * 255 + 0.5),
-                    math.floor(classColor.b * 255 + 0.5),
-                    label
-                )
-            end
-
-            if character.realm
-                and character.realm ~= ""
-                and character.realm ~= GetRealmName()
-            then
-                label = label .. " - " .. character.realm
-            end
-
-            button.text:SetText(label)
+            button.text:SetText(
+                Components:FormatCharacterLabel(character)
+            )
             button.characterKey = entry.key
             button:SetScript("OnClick", function(self)
                 Module:SetViewedCharacter(self.characterKey)
@@ -1736,11 +1667,10 @@ local function CreateFrameUI()
             height = height + 20
         end
 
-        for index = #characters + 1, #characterMenu.buttons do
-            characterMenu.buttons[index]:Hide()
-        end
-
-        characterMenu:SetHeight(math.max(26, height))
+        Components:FinishPopupMenu(
+            characterMenu,
+            #characters
+        )
     end
 
     characterButton:SetScript("OnClick", function()

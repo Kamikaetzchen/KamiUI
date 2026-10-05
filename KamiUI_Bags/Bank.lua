@@ -935,19 +935,10 @@ function Module:UpdateTitle()
 
     local key, character = GetViewedCharacter()
     local profile = GetCharacterProfile(key, character)
-    local name = profile.name or "Unknown"
-    local classFile = profile.classFile
-    local color = Palette:GetClassColor(classFile)
-
-    if color then
-        name = string.format(
-            "|cff%02x%02x%02x%s|r",
-            math.floor(color.r * 255 + 0.5),
-            math.floor(color.g * 255 + 0.5),
-            math.floor(color.b * 255 + 0.5),
-            name
-        )
-    end
+    local name = Components:FormatCharacterLabel(
+        profile,
+        { showRealm = false }
+    )
 
     self.frame.title:SetText(name .. "'s Bank")
 end
@@ -1275,30 +1266,18 @@ local function CreateFrameUI()
     characterIcon:SetTexture("Interface\\Icons\\INV_Misc_GroupLooking")
     frame.characterButton = characterButton
 
-    local characterMenu = CreateFrame(
-        "Frame",
-        nil,
+    local characterMenu = Components:CreatePopupMenu(
         frame,
-        "BackdropTemplate"
-    )
-    characterMenu:SetPoint(
-        "TOPLEFT",
         characterButton,
-        "BOTTOMLEFT",
-        0,
-        -2
+        {
+            width = 170,
+            backgroundColor = { 0.02, 0.08, 0.02, 0.95 },
+            borderColor = Palette.windowBorder.bank,
+            fontSize = 9,
+            heightPadding = 6,
+            minHeight = 26,
+        }
     )
-    characterMenu:SetWidth(170)
-    characterMenu:SetFrameLevel(frame:GetFrameLevel() + 20)
-    characterMenu:SetBackdrop({
-        bgFile = "Interface\\Buttons\\WHITE8X8",
-        edgeFile = "Interface\\Buttons\\WHITE8X8",
-        edgeSize = 1,
-    })
-    characterMenu:SetBackdropColor(0.02, 0.08, 0.02, 0.95)
-    characterMenu:SetBackdropBorderColor(unpack(Palette.windowBorder.bank))
-    characterMenu.buttons = {}
-    characterMenu:Hide()
     frame.characterMenu = characterMenu
 
     local function RebuildCharacterMenu()
@@ -1311,63 +1290,15 @@ local function CreateFrameUI()
             if character.bank then
                 index = index + 1
 
-                local button = characterMenu.buttons[index]
-
-                if not button then
-                    button = CreateFrame("Button", nil, characterMenu)
-                    button:SetHeight(20)
-                    button:SetPoint(
-                        "TOPLEFT",
-                        characterMenu,
-                        "TOPLEFT",
-                        4,
-                        -(4 + (index - 1) * 20)
-                    )
-                    button:SetPoint(
-                        "TOPRIGHT",
-                        characterMenu,
-                        "TOPRIGHT",
-                        -4,
-                        -(4 + (index - 1) * 20)
-                    )
-
-                    local text = button:CreateFontString(
-                        nil,
-                        "OVERLAY",
-                        "GameFontNormalSmall"
-                    )
-                    text:SetPoint("LEFT", 3, 0)
-                    button.text = text
-
-                    local highlight = button:CreateTexture(nil, "HIGHLIGHT")
-                    highlight:SetAllPoints()
-                    highlight:SetColorTexture(1, 1, 1, 0.08)
-
-                    characterMenu.buttons[index] = button
-                end
+                local button = Components:AcquirePopupMenuButton(
+                    characterMenu,
+                    index
+                )
 
                 local profile = entry.profile
-                local label = profile.name or "Unknown"
-                local color = Palette:GetClassColor(profile.classFile)
-
-                if color then
-                    label = string.format(
-                        "|cff%02x%02x%02x%s|r",
-                        math.floor(color.r * 255 + 0.5),
-                        math.floor(color.g * 255 + 0.5),
-                        math.floor(color.b * 255 + 0.5),
-                        label
-                    )
-                end
-
-                if profile.realm
-                    and profile.realm ~= ""
-                    and profile.realm ~= GetRealmName()
-                then
-                    label = label .. " - " .. profile.realm
-                end
-
-                button.text:SetText(label)
+                button.text:SetText(
+                    Components:FormatCharacterLabel(profile)
+                )
                 button.characterKey = entry.key
                 button:SetScript("OnClick", function(self)
                     Module:SetViewedCharacter(self.characterKey)
@@ -1377,11 +1308,7 @@ local function CreateFrameUI()
             end
         end
 
-        for i = index + 1, #characterMenu.buttons do
-            characterMenu.buttons[i]:Hide()
-        end
-
-        characterMenu:SetHeight(math.max(26, height))
+        Components:FinishPopupMenu(characterMenu, index)
     end
 
     characterButton:SetScript("OnClick", function()
