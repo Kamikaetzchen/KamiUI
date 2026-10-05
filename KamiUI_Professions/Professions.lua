@@ -315,28 +315,6 @@ function Module:SnapshotCurrentProfession()
     professions[professionID] = saved
 end
 
-local function SavePosition(frame)
-    UI:SaveFramePosition(
-        frame,
-        GetDatabase(),
-        "position",
-        nil,
-        true
-    )
-end
-
-local function ApplySavedPosition(frame)
-    UI:ApplyFramePosition(
-        frame,
-        GetDatabase(),
-        "position",
-        nil,
-        nil,
-        nil,
-        true
-    )
-end
-
 local function StyleRankBar(
     bar,
     fillXOffset,
@@ -2111,7 +2089,6 @@ local function CreateCharacterBrowser(frame)
 
         local entries = characters:GetSortedCharacters()
         local viewedKey = select(1, GetViewedCharacter())
-        local height = 8
 
         for index, entry in ipairs(entries) do
             local button = Components:AcquirePopupMenuButton(
@@ -2132,7 +2109,6 @@ local function CreateCharacterBrowser(frame)
             end)
             button:Show()
 
-            height = height + 20
         end
 
         Components:FinishPopupMenu(menu, #entries)
@@ -2182,7 +2158,7 @@ local function ConfigureFrameDragging(frame)
             frame:SetUserPlaced(true)
         end
 
-        SavePosition(frame)
+        UI:SaveFramePosition(frame, GetDatabase(), "position", nil, true)
     end)
 end
 
@@ -2315,14 +2291,14 @@ function Module:Attach()
 
         frame:HookScript("OnShow", function()
             C_Timer.After(0, function()
-                ApplySavedPosition(frame)
+                UI:ApplyFramePosition(frame, GetDatabase(), "position", nil, nil, nil, true)
                 Module:RefreshStyle()
             end)
         end)
 
     end
 
-    ApplySavedPosition(frame)
+    UI:ApplyFramePosition(frame, GetDatabase(), "position", nil, nil, nil, true)
     self:RefreshStyle()
 end
 

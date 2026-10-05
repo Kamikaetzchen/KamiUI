@@ -170,14 +170,6 @@ function Module:SetViewedCharacter(key)
     end
 end
 
-local function SavePosition(frame)
-    UI:SaveFramePosition(frame, GetDatabase())
-end
-
-local function ApplySavedPosition(frame)
-    UI:ApplyFramePosition(frame, GetDatabase(), "position", 0, 10)
-end
-
 local SLOT_LAYOUT = {
     -- left column
     { key = "HeadSlot",          label = "Head",      side = "LEFT",  row = 1 },
@@ -3958,7 +3950,7 @@ local function CreateFrameUI()
         hasSubtitle = true,
         draggable = true,
         onDragStop = function()
-            SavePosition(frame)
+            UI:SaveFramePosition(frame, GetDatabase())
         end,
     })
     frame.header = header
@@ -3994,7 +3986,6 @@ local function CreateFrameUI()
 
     local function RebuildCharacterMenu()
         local characters = Module:GetSortedCharacters()
-        local height = 8
 
         for index, entry in ipairs(characters) do
             local button = Components:AcquirePopupMenuButton(
@@ -4012,7 +4003,6 @@ local function CreateFrameUI()
             end)
             button:Show()
 
-            height = height + 20
         end
 
         Components:FinishPopupMenu(
@@ -4174,7 +4164,7 @@ local function CreateFrameUI()
     end)
     titleButton:SetScript("OnDragStop", function(self)
         frame:StopMovingOrSizing()
-        SavePosition(frame)
+        UI:SaveFramePosition(frame, GetDatabase())
 
         C_Timer.After(0, function()
             self.dragging = false
@@ -4349,7 +4339,7 @@ local function CreateFrameUI()
         end
     end)
 
-    ApplySavedPosition(frame)
+    UI:ApplyFramePosition(frame, GetDatabase(), "position", 0, 10)
     tinsert(UISpecialFrames, frame:GetName())
 
     return frame

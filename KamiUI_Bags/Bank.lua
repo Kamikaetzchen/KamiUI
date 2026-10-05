@@ -34,10 +34,6 @@ local function GetDatabase()
     return UI:GetDatabase("bags", BANK_DATABASE_DEFAULTS)
 end
 
-local function GetSortedMoneyCharacters()
-    return UI:GetSortedCharacterProfiles(GetDatabase().characters)
-end
-
 local BANK_TAB_FALLBACK_ICON = 5524917
 
 local function GetBankTabIcon(data, info)
@@ -148,20 +144,6 @@ local function CountFreeSlots(bagID)
     end
 
     return free
-end
-
-local function SavePosition(frame)
-    UI:SaveFramePosition(frame, GetDatabase(), "bankPosition")
-end
-
-local function ApplySavedPosition(frame)
-    UI:ApplyFramePosition(
-        frame,
-        GetDatabase(),
-        "bankPosition",
-        -280,
-        0
-    )
 end
 
 local function SaveCurrentBank()
@@ -1033,7 +1015,7 @@ local function CreateFrameUI()
     end)
     frame:SetScript("OnDragStop", function(self)
         self:StopMovingOrSizing()
-        SavePosition(self)
+        UI:SaveFramePosition(self, GetDatabase(), "bankPosition")
     end)
 
     local header = Components:CreateWindowHeader(frame, {
@@ -1041,7 +1023,7 @@ local function CreateFrameUI()
         title = UI:GetCurrentCharacterName() .. "'s Bank",
         draggable = true,
         onDragStop = function()
-            SavePosition(frame)
+            UI:SaveFramePosition(frame, GetDatabase(), "bankPosition")
         end,
     })
     frame.header = header
@@ -1059,7 +1041,7 @@ local function CreateFrameUI()
     end)
     titleButton:SetScript("OnDragStop", function()
         frame:StopMovingOrSizing()
-        SavePosition(frame)
+        UI:SaveFramePosition(frame, GetDatabase(), "bankPosition")
     end)
     frame.titleButton = titleButton
 
@@ -1135,7 +1117,6 @@ local function CreateFrameUI()
     frame.characterMenu = characterMenu
 
     local function RebuildCharacterMenu()
-        local height = 6
         local index = 0
 
         for _, entry in ipairs(GetSortedCharacters()) do
@@ -1158,7 +1139,6 @@ local function CreateFrameUI()
                     Module:SetViewedCharacter(self.characterKey)
                 end)
                 button:Show()
-                height = height + 20
             end
         end
 
@@ -1274,7 +1254,7 @@ local function CreateFrameUI()
 
         local total = 0
 
-        for _, entry in ipairs(GetSortedMoneyCharacters()) do
+        for _, entry in ipairs(UI:GetSortedCharacterProfiles(GetDatabase().characters)) do
             local character = entry.character
             local amount = character.money or 0
             local color = Palette:GetClassColor(character.classFile)
@@ -1342,7 +1322,7 @@ local function CreateFrameUI()
         GameTooltip:Hide()
     end)
 
-    ApplySavedPosition(frame)
+    UI:ApplyFramePosition(frame, GetDatabase(), "bankPosition", -280, 0)
 
     return frame
 end
@@ -1391,7 +1371,7 @@ function Module:ResetPosition()
     GetDatabase().bankPosition = nil
 
     if self.frame then
-        ApplySavedPosition(self.frame)
+        UI:ApplyFramePosition(self.frame, GetDatabase(), "bankPosition", -280, 0)
     end
 
     UI:Print("Bank position reset")

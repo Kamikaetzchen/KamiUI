@@ -304,10 +304,6 @@ local function GetDatabase()
     return UI:GetDatabase("bags", BAG_DATABASE_DEFAULTS)
 end
 
-local function GetSortedMoneyCharacters()
-    return UI:GetSortedCharacterProfiles(GetDatabase().characters)
-end
-
 local function CleanupLegacyCharacterMetadata()
     if not UI:GetCharactersModule() then
         return
@@ -419,30 +415,6 @@ local function GetInventoryBags()
     end
 
     return bags
-end
-
-local function CreateBackdrop(frame, color)
-    local backdrop = CreateFrame("Frame", nil, frame, "BackdropTemplate")
-    backdrop:SetAllPoints()
-    backdrop:SetFrameLevel(math.max(0, frame:GetFrameLevel() - 1))
-    backdrop:SetBackdrop({
-        bgFile = "Interface\\Buttons\\WHITE8X8",
-        edgeFile = "Interface\\Buttons\\WHITE8X8",
-        edgeSize = 1,
-    })
-    backdrop:SetBackdropColor(unpack(color or Palette.window.inventory))
-    backdrop:SetBackdropBorderColor(unpack(Palette.windowBorder.inventory))
-    backdrop:EnableMouse(false)
-
-    return backdrop
-end
-
-local function SavePosition(frame)
-    UI:SaveFramePosition(frame, GetDatabase())
-end
-
-local function ApplySavedPosition(frame)
-    UI:ApplyFramePosition(frame, GetDatabase(), "position", 280, 0)
 end
 
 local function UpdateItemButton(button, bagID, slotID)
@@ -1312,7 +1284,7 @@ function Module:ResetPosition()
     db.position = nil
 
     if self.frame then
-        ApplySavedPosition(self.frame)
+        UI:ApplyFramePosition(self.frame, GetDatabase(), "position", 280, 0)
     end
 
     UI:Print("Bag position reset")
@@ -1338,7 +1310,7 @@ local function CreateFrameUI()
     end)
     frame:SetScript("OnDragStop", function(self)
         self:StopMovingOrSizing()
-        SavePosition(self)
+        UI:SaveFramePosition(self, GetDatabase())
     end)
 
     local header = Components:CreateWindowHeader(frame, {
@@ -1346,7 +1318,7 @@ local function CreateFrameUI()
         title = UI:GetCurrentCharacterName() .. "'s Inventory",
         draggable = true,
         onDragStop = function()
-            SavePosition(frame)
+            UI:SaveFramePosition(frame, GetDatabase())
         end,
     })
     frame.header = header
@@ -1364,7 +1336,7 @@ local function CreateFrameUI()
     end)
     titleButton:SetScript("OnDragStop", function()
         frame:StopMovingOrSizing()
-        SavePosition(frame)
+        UI:SaveFramePosition(frame, GetDatabase())
     end)
     frame.titleButton = titleButton
 
@@ -1474,7 +1446,6 @@ local function CreateFrameUI()
 
     local function RebuildCharacterMenu()
         local characters = GetSortedCharacters()
-        local height = 6
 
         for index, entry in ipairs(characters) do
             local button = Components:AcquirePopupMenuButton(
@@ -1492,7 +1463,6 @@ local function CreateFrameUI()
             end)
             button:Show()
 
-            height = height + 20
         end
 
         Components:FinishPopupMenu(
@@ -1603,7 +1573,7 @@ local function CreateFrameUI()
 
         local total = 0
 
-        for _, entry in ipairs(GetSortedMoneyCharacters()) do
+        for _, entry in ipairs(UI:GetSortedCharacterProfiles(GetDatabase().characters)) do
             local character = entry.character
             local amount = character.money or 0
             local color = Palette:GetClassColor(character.classFile)
@@ -1651,7 +1621,7 @@ local function CreateFrameUI()
         GameTooltip:Hide()
     end)
 
-    ApplySavedPosition(frame)
+    UI:ApplyFramePosition(frame, GetDatabase(), "position", 280, 0)
 
     tinsert(UISpecialFrames, frame:GetName())
 
