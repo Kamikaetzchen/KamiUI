@@ -695,9 +695,9 @@ local function CreateCraftingPage(frame)
     })
     search.Instructions = search.Instructions
         or search:CreateFontString(nil, "OVERLAY")
+    Styles:ApplyText(search.Instructions, 9, Palette.muted)
     search.Instructions:SetPoint("LEFT", search, "LEFT", 7, 0)
     search.Instructions:SetText("Search recipes")
-    Styles:ApplyText(search.Instructions, 9, Palette.muted)
     search:SetScript("OnTextChanged", function(self)
         if self.Instructions then
             self.Instructions:SetShown(self:GetText() == "")
