@@ -5,7 +5,7 @@ local Components = UI.Components
 
 local Module = UI:NewModule("Chat", "KamiUI_Chat")
 
-Module.version = "0.4.1"
+Module.version = "0.4.2"
 
 local SETUP_VERSION = 4
 
@@ -131,6 +131,15 @@ local function EnsurePanels()
         )
         Module.inputPanel:SetFrameStrata("DIALOG")
         Module.inputPanel:Hide()
+    end
+
+    if not Module.chromeSink then
+        Module.chromeSink = CreateFrame(
+            "Frame",
+            "KamiUIChatChromeSink",
+            UIParent
+        )
+        Module.chromeSink:Hide()
     end
 end
 
@@ -420,16 +429,28 @@ local function HideFrameChrome(frame)
         return
     end
 
+    local function StashObject(object)
+        if not object then
+            return
+        end
+
+        if object.SetParent and Module.chromeSink then
+            object:SetParent(Module.chromeSink)
+        end
+
+        HideObject(object)
+    end
+
     HideObject(frame.Background)
-    HideObject(frame.ScrollBar)
-    HideObject(frame.ScrollToBottomButton)
-    HideObject(frame.ResizeButton)
+    StashObject(frame.ScrollBar)
+    StashObject(frame.ScrollToBottomButton)
+    StashObject(frame.ResizeButton)
 
     local name = frame:GetName()
 
     if name then
-        HideObject(_G[name .. "ButtonFrame"])
-        HideObject(_G[name .. "Tab"])
+        StashObject(_G[name .. "ButtonFrame"])
+        StashObject(_G[name .. "Tab"])
 
         for _, suffix in ipairs(CHAT_FRAME_TEXTURES or {}) do
             HideObject(_G[name .. suffix])
