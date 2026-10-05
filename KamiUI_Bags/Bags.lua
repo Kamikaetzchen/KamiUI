@@ -700,18 +700,12 @@ local function GetSortedCharacters()
         }
     end
 
-    table.sort(characters, function(left, right)
-        local leftRealm = left.profile.realm or ""
-        local rightRealm = right.profile.realm or ""
-
-        if leftRealm == rightRealm then
-            return (left.profile.name or "") < (right.profile.name or "")
+    return UI:SortCharacterEntries(
+        characters,
+        function(entry)
+            return entry.profile
         end
-
-        return leftRealm < rightRealm
-    end)
-
-    return characters
+    )
 end
 
 function Module:SetBagSlotHighlight(bagID, shown)

@@ -203,6 +203,37 @@ function UI:GetCharacterProfile(key, legacy)
     return profile
 end
 
+function UI:SortCharacterEntries(entries, getCharacter)
+    local currentKey = self:GetCurrentCharacterKey()
+
+    getCharacter = getCharacter or function(entry)
+        return entry.character or entry.profile or {}
+    end
+
+    table.sort(entries, function(left, right)
+        local leftCurrent = left.key == currentKey
+        local rightCurrent = right.key == currentKey
+
+        if leftCurrent ~= rightCurrent then
+            return leftCurrent
+        end
+
+        local leftCharacter = getCharacter(left) or {}
+        local rightCharacter = getCharacter(right) or {}
+        local leftRealm = leftCharacter.realm or ""
+        local rightRealm = rightCharacter.realm or ""
+
+        if leftRealm == rightRealm then
+            return (leftCharacter.name or "")
+                < (rightCharacter.name or "")
+        end
+
+        return leftRealm < rightRealm
+    end)
+
+    return entries
+end
+
 function UI:GetSortedCharacterProfiles(fallbackCharacters)
     local characters = self:GetCharactersModule()
 
@@ -219,19 +250,7 @@ function UI:GetSortedCharacterProfiles(fallbackCharacters)
         }
     end
 
-    table.sort(entries, function(left, right)
-        local leftRealm = left.character.realm or ""
-        local rightRealm = right.character.realm or ""
-
-        if leftRealm == rightRealm then
-            return (left.character.name or "")
-                < (right.character.name or "")
-        end
-
-        return leftRealm < rightRealm
-    end)
-
-    return entries
+    return self:SortCharacterEntries(entries)
 end
 
 function UI:GetContainerNumSlots(bagID)

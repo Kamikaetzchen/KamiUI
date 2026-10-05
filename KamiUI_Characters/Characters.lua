@@ -128,19 +128,7 @@ function Module:GetSortedCharacters()
         }
     end
 
-    table.sort(characters, function(left, right)
-        local leftRealm = left.character.realm or ""
-        local rightRealm = right.character.realm or ""
-
-        if leftRealm == rightRealm then
-            return (left.character.name or "")
-                < (right.character.name or "")
-        end
-
-        return leftRealm < rightRealm
-    end)
-
-    return characters
+    return UI:SortCharacterEntries(characters)
 end
 
 function Module:UpdateCurrentCharacter()
