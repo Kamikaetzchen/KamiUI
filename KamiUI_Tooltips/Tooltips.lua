@@ -4,7 +4,7 @@ local Styles = UI.Styles
 
 local Module = UI:NewModule("Tooltips", "KamiUI_Tooltips")
 
-Module.version = "0.2.11"
+Module.version = "0.2.12"
 
 local INSPECT_CACHE_SECONDS = 600
 local INSPECT_MISS_CACHE_SECONDS = 60
@@ -1484,6 +1484,27 @@ local function InstallUnitTooltipHook()
     end
 end
 
+local function PositionWorldCursorTooltip(tooltip)
+    if not tooltip
+        or not tooltip.SetAnchorType
+        or not tooltip.GetHeight
+    then
+        return
+    end
+
+    local height = tooltip:GetHeight()
+
+    if not height or height <= 0 then
+        return
+    end
+
+    tooltip:SetAnchorType(
+        "ANCHOR_CURSOR_RIGHT",
+        14,
+        -(height + 12)
+    )
+end
+
 local function InstallWorldCursorAnchor()
     if Module.worldCursorAnchorInstalled
         or not GameTooltip
@@ -1498,9 +1519,16 @@ local function InstallWorldCursorAnchor()
     Module.worldCursorAnchorInstalled = true
 
     if GameTooltip.HookScript then
+        GameTooltip:HookScript("OnSizeChanged", function(self)
+            if self.KamiWorldCursorPositioned then
+                PositionWorldCursorTooltip(self)
+            end
+        end)
+
         GameTooltip:HookScript("OnHide", function(self)
             queuedInspect = nil
             self.KamiPendingRefreshGuid = nil
+            self.KamiWorldCursorPositioned = nil
         end)
     end
 
@@ -1520,11 +1548,8 @@ local function InstallWorldCursorAnchor()
                 Enum.WorldCursorAnchorType.Cursor,
                 parent
             )
-            self:SetAnchorType(
-                "ANCHOR_CURSOR_RIGHT",
-                14,
-                -12
-            )
+            self.KamiWorldCursorPositioned = true
+            PositionWorldCursorTooltip(self)
             Module.reanchoringWorldCursor = false
         end
     )
