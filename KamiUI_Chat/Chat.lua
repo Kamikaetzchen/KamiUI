@@ -5,7 +5,7 @@ local Components = UI.Components
 
 local Module = UI:NewModule("Chat", "KamiUI_Chat")
 
-Module.version = "0.4.0"
+Module.version = "0.4.1"
 
 local SETUP_VERSION = 4
 
@@ -398,10 +398,8 @@ local function StyleEditBox(frame)
         return
     end
 
-    editBox:SetParent(Module.inputPanel)
-
-    if editBox.SetIgnoreParentAlpha then
-        editBox:SetIgnoreParentAlpha(false)
+    if editBox.SetParent then
+        editBox:SetParent(UIParent)
     end
 
     HideEditBoxDecorations(editBox)
@@ -482,13 +480,15 @@ local function StyleNativeChatFrame(frame, parent, topInset, withInput)
         frame:SetFont(font, defaults.fontSize, flags)
     end
 
-    HideFrameChrome(frame)
-
     if withInput then
         StyleEditBox(frame)
     end
 
     frame:Show()
+
+    -- Showing a native chat frame can re-show its Blizzard tab/chrome.
+    -- Hide it only after the frame itself is visible.
+    HideFrameChrome(frame)
 end
 
 local function HideStockFrame(frame)
@@ -564,9 +564,42 @@ local function SetupCombatLog()
     end
 end
 
-local function PositionManagedChatFrames()
-    Module.inputPanel:Show()
+local function IsManagedEditBox(editBox)
+    if not editBox then
+        return false
+    end
 
+    for _, config in ipairs(leftTabs) do
+        local frame = Module.backends[config.key]
+
+        if frame and frame.editBox == editBox then
+            return true
+        end
+    end
+
+    return false
+end
+
+local function UpdateInputPanelVisibility()
+    local visible = false
+
+    for _, config in ipairs(leftTabs) do
+        local frame = Module.backends[config.key]
+        local editBox = frame and frame.editBox
+
+        if editBox
+            and editBox.IsShown
+            and editBox:IsShown()
+        then
+            visible = true
+            break
+        end
+    end
+
+    Module.inputPanel:SetShown(visible)
+end
+
+local function PositionManagedChatFrames()
     for _, config in ipairs(leftTabs) do
         local frame = Module.backends[config.key]
 
@@ -637,6 +670,7 @@ function Module:SelectTab(key)
     end
 
     UpdateTabStyles()
+    UpdateInputPanelVisibility()
 end
 
 function Module:SetupBackends()
@@ -711,6 +745,45 @@ function Module:Initialize()
 
     KamiUIDB = KamiUIDB or {}
     KamiUIDB.chat = KamiUIDB.chat or {}
+
+    if EventRegistry and EventRegistry.RegisterCallback then
+        EventRegistry:RegisterCallback(
+            "ChatFrame.OnEditBoxShow",
+            function(_, editBox)
+                if not IsManagedEditBox(editBox) then
+                    return
+                end
+
+                HideEditBoxDecorations(editBox)
+
+                if C_Timer and C_Timer.After then
+                    C_Timer.After(0, function()
+                        HideEditBoxDecorations(editBox)
+                        UpdateInputPanelVisibility()
+                    end)
+                else
+                    UpdateInputPanelVisibility()
+                end
+            end,
+            Module
+        )
+
+        EventRegistry:RegisterCallback(
+            "ChatFrame.OnEditBoxHide",
+            function(_, editBox)
+                if not IsManagedEditBox(editBox) then
+                    return
+                end
+
+                if C_Timer and C_Timer.After then
+                    C_Timer.After(0, UpdateInputPanelVisibility)
+                else
+                    UpdateInputPanelVisibility()
+                end
+            end,
+            Module
+        )
+    end
 
     UI:RegisterEvent("PLAYER_ENTERING_WORLD", function()
         C_Timer.After(0, StartChatUI)
