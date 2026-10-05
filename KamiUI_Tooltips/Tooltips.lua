@@ -4,7 +4,7 @@ local Styles = UI.Styles
 
 local Module = UI:NewModule("Tooltips", "KamiUI_Tooltips")
 
-Module.version = "0.2.17"
+Module.version = "0.2.18"
 
 local INSPECT_CACHE_SECONDS = 600
 local INSPECT_MISS_CACHE_SECONDS = 60
@@ -605,7 +605,7 @@ end
 
 local function ResolveInspectedSpec(unit)
     return NormalizeSpecText(
-        GetSpecFromTalentPoints(unit),
+        GetSpecFromTraitGroups(unit),
         unit
     )
 end
