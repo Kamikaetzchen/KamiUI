@@ -850,9 +850,11 @@ function Components:StyleItemSlot(button, options)
     button.KamiBackground = background
     button.background = background
 
-    button.KamiBorders = Styles:CreateBorder(button, {
-        color = options.borderColor or Palette.slotBorder,
-    })
+    if options.border ~= false then
+        button.KamiBorders = Styles:CreateBorder(button, {
+            color = options.borderColor or Palette.slotBorder,
+        })
+    end
 
     if options.corners then
         local corners = {}

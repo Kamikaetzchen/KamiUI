@@ -617,161 +617,6 @@ local function ApplySavedPosition(frame)
     UI:ApplyFramePosition(frame, GetDatabase(), "position", 280, 0)
 end
 
-local function StyleItemButton(button)
-    if button.KamiStyled then
-        return
-    end
-
-    button.KamiStyled = true
-    button:SetSize(SLOT_SIZE, SLOT_SIZE)
-
-    if button.NormalTexture then
-        button.NormalTexture:SetAlpha(0)
-    end
-
-    if button.NormalTexture then
-        button.NormalTexture:Hide()
-    end
-
-    if button.IconBorder then
-        button.IconBorder:SetAlpha(0)
-    end
-
-    if button.NewItemTexture then
-        button.NewItemTexture:SetAlpha(0)
-    end
-
-    if button.BattlepayItemTexture then
-        button.BattlepayItemTexture:SetAlpha(0)
-    end
-
-    local background = button:CreateTexture(nil, "BACKGROUND")
-    background:SetAllPoints()
-    background:SetColorTexture(unpack(Palette.slot))
-    button.KamiBackground = background
-
-    local top = button:CreateTexture(nil, "OVERLAY", nil, 2)
-    top:SetColorTexture(unpack(Palette.slotBorder))
-    top:SetPoint("TOPLEFT")
-    top:SetPoint("TOPRIGHT")
-    top:SetHeight(1)
-
-    local bottom = button:CreateTexture(nil, "OVERLAY", nil, 2)
-    bottom:SetColorTexture(unpack(Palette.slotBorder))
-    bottom:SetPoint("BOTTOMLEFT")
-    bottom:SetPoint("BOTTOMRIGHT")
-    bottom:SetHeight(1)
-
-    local left = button:CreateTexture(nil, "OVERLAY", nil, 2)
-    left:SetColorTexture(unpack(Palette.slotBorder))
-    left:SetPoint("TOPLEFT")
-    left:SetPoint("BOTTOMLEFT")
-    left:SetWidth(1)
-
-    local right = button:CreateTexture(nil, "OVERLAY", nil, 2)
-    right:SetColorTexture(unpack(Palette.slotBorder))
-    right:SetPoint("TOPRIGHT")
-    right:SetPoint("BOTTOMRIGHT")
-    right:SetWidth(1)
-
-    button.KamiBorders = { top, bottom, left, right }
-
-    local topLeft = button:CreateTexture(nil, "OVERLAY", nil, 2)
-    topLeft:SetSize(1, 1)
-    topLeft:SetPoint("TOPLEFT")
-
-    local topRight = button:CreateTexture(nil, "OVERLAY", nil, 2)
-    topRight:SetSize(1, 1)
-    topRight:SetPoint("TOPRIGHT")
-
-    local bottomLeft = button:CreateTexture(nil, "OVERLAY", nil, 2)
-    bottomLeft:SetSize(1, 1)
-    bottomLeft:SetPoint("BOTTOMLEFT")
-
-    local bottomRight = button:CreateTexture(nil, "OVERLAY", nil, 2)
-    bottomRight:SetSize(1, 1)
-    bottomRight:SetPoint("BOTTOMRIGHT")
-
-    button.KamiBorderCorners = {
-        topLeft,
-        topRight,
-        bottomLeft,
-        bottomRight,
-    }
-
-    local rarityGlow = button:CreateTexture(nil, "OVERLAY", nil, 1)
-    rarityGlow:SetPoint("CENTER", button, "CENTER", 1, 0)
-    rarityGlow:SetSize(62, 62)
-    rarityGlow:SetTexture("Interface\\Buttons\\UI-ActionButton-Border")
-    rarityGlow:SetBlendMode("ADD")
-    rarityGlow:SetAlpha(0.45)
-    rarityGlow:Hide()
-    button.KamiRarityGlow = rarityGlow
-
-    local icon = button.icon or button.Icon
-
-    if icon then
-        icon:ClearAllPoints()
-        icon:SetPoint("TOPLEFT", button, "TOPLEFT", 1, -1)
-        icon:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", -1, 1)
-        icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
-    end
-
-    local highlight = button:GetHighlightTexture()
-
-    if highlight then
-        highlight:SetColorTexture(1, 1, 1, 0.12)
-        highlight:SetAllPoints()
-    end
-
-    if button.Count then
-        button.Count:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
-        button.Count:ClearAllPoints()
-        button.Count:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", -2, 2)
-    end
-end
-
-local function UpdateRarityBorder(button, quality)
-    local glow = button.KamiRarityGlow
-
-    if not glow then
-        return
-    end
-
-    if quality == nil or quality <= 1 then
-        glow:Hide()
-        return
-    end
-
-    local color = ITEM_QUALITY_COLORS
-        and ITEM_QUALITY_COLORS[quality]
-
-    if color then
-        glow:SetVertexColor(color.r, color.g, color.b, 1)
-        glow:Show()
-    else
-        glow:Hide()
-    end
-end
-
-local function SuppressNewItemFlash(button)
-    if button.NewItemTexture then
-        button.NewItemTexture:Hide()
-    end
-
-    if button.BattlepayItemTexture then
-        button.BattlepayItemTexture:Hide()
-    end
-
-    if button.flashAnim and button.flashAnim:IsPlaying() then
-        button.flashAnim:Stop()
-    end
-
-    if button.newitemglowAnim and button.newitemglowAnim:IsPlaying() then
-        button.newitemglowAnim:Stop()
-    end
-end
-
 local function UpdateItemButton(button, bagID, slotID)
     if button.SetBagID then
         button:SetBagID(bagID)
@@ -783,29 +628,19 @@ local function UpdateItemButton(button, bagID, slotID)
 
     local borderColor = GetBagFamilyColor(bagID)
 
-    if button.KamiBorders then
-        for _, border in ipairs(button.KamiBorders) do
-            border:SetColorTexture(unpack(borderColor))
-        end
-    end
-
-    if button.KamiBorderCorners then
-        for _, corner in ipairs(button.KamiBorderCorners) do
-            corner:SetColorTexture(unpack(borderColor))
-        end
-    end
+    Components:SetItemSlotBorderColor(button, borderColor)
 
     if ContainerFrameItemButton_Update then
         ContainerFrameItemButton_Update(button)
     end
 
-    SuppressNewItemFlash(button)
+    Components:SuppressItemButtonFlash(button)
 
     local info = GetContainerItemInfo(bagID, slotID)
     local icon = button.icon or button.Icon
 
     if info then
-        UpdateRarityBorder(button, info.quality)
+        Components:SetItemSlotQuality(button, info.quality)
 
         local filtered = info.isFiltered == true
         local search = Module.frame
@@ -869,7 +704,7 @@ local function UpdateItemButton(button, bagID, slotID)
             )
         end
     else
-        UpdateRarityBorder(button, nil)
+        Components:SetItemSlotQuality(button, nil)
         button:SetAlpha(1)
 
         if icon then
@@ -890,15 +725,6 @@ local function UpdateItemButton(button, bagID, slotID)
     end
 end
 
-local function CreateBagCarrier(content, bagID)
-    local carrier = CreateFrame("Frame", nil, content)
-    carrier:SetAllPoints(content)
-    carrier:SetID(bagID)
-    carrier:Show()
-
-    return carrier
-end
-
 local function CreateItemButton(content, carrier)
     local button = CreateFrame(
         "ItemButton",
@@ -914,82 +740,50 @@ local function CreateItemButton(content, carrier)
         itemDragFrame:Show()
     end)
 
-    StyleItemButton(button)
-
-    return button
-end
-
-local function CreateCachedItemButton(content)
-    local button = CreateFrame("Button", nil, content)
-    button:SetSize(SLOT_SIZE, SLOT_SIZE)
-
-    local icon = button:CreateTexture(nil, "ARTWORK")
-    icon:SetAllPoints()
-    button.icon = icon
-
-    local count = button:CreateFontString(nil, "OVERLAY")
-    count:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
-    count:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", -2, 2)
-    button.Count = count
-
-    StyleItemButton(button)
-
-    button:SetScript("OnEnter", function(self)
-        if not self.itemLink then
-            return
-        end
-
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:SetHyperlink(self.itemLink)
-        GameTooltip:Show()
-    end)
-
-    button:SetScript("OnLeave", function()
-        GameTooltip:Hide()
-    end)
+    Components:StyleItemSlot(button, {
+        size = SLOT_SIZE,
+        corners = true,
+    })
 
     return button
 end
 
 local function UpdateCachedItemButton(button, slot, bag)
     button.bagID = bag.bagID
+
     local borderColor = GetBagFamilyColorFromMask(
         bag.family,
         bag.isKeyring
     )
-
-    if button.KamiBorders then
-        for _, border in ipairs(button.KamiBorders) do
-            border:SetColorTexture(unpack(borderColor))
-        end
-    end
-
-    UpdateRarityBorder(button, slot and slot.quality or nil)
-
-    button.itemLink = slot and slot.link or nil
-    button.icon:SetTexture(slot and slot.icon or nil)
-    button.Count:SetText(
-        slot and slot.count and slot.count > 1 and slot.count or ""
-    )
-
     local search = Module.frame
         and Module.frame.search
         and Module.frame.search:GetText()
         or ""
+    local alpha = 1
 
     if slot and search ~= "" then
         local haystack = string.lower(
             slot.name or slot.link or ""
         )
 
-        button:SetAlpha(
-            string.find(haystack, string.lower(search), 1, true)
-                and 1.00
-                or 0.20
-        )
-    else
-        button:SetAlpha(1)
+        if not string.find(
+            haystack,
+            string.lower(search),
+            1,
+            true
+        ) then
+            alpha = 0.20
+        end
     end
+
+    Components:SetItemSlotData(button, {
+        link = slot and slot.link or nil,
+        icon = slot and slot.icon or nil,
+        count = slot and slot.count or 0,
+        quality = slot and slot.quality or nil,
+        borderColor = borderColor,
+        alpha = alpha,
+    })
 end
 
 local function GetBagButtonTexture(bagID)
@@ -1187,30 +981,16 @@ function Module:SetBagSlotHighlight(bagID, shown)
 end
 
 local function CreateBagBarButton(parent)
-    local button = CreateFrame("Button", nil, parent)
-    button:SetSize(32, 32)
+    local button = Components:CreateItemSlot(parent, {
+        size = 32,
+        count = true,
+        countFontSize = 9,
+        rarityGlow = false,
+        border = false,
+    })
+
     button:RegisterForClicks("LeftButtonUp")
     button:RegisterForDrag("LeftButton")
-
-    local background = button:CreateTexture(nil, "BACKGROUND")
-    background:SetAllPoints()
-    background:SetColorTexture(unpack(Palette.slot))
-    button.background = background
-
-    local icon = button:CreateTexture(nil, "ARTWORK")
-    icon:SetPoint("TOPLEFT", button, "TOPLEFT", 1, -1)
-    icon:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", -1, 1)
-    icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
-    button.icon = icon
-
-    local count = button:CreateFontString(nil, "OVERLAY")
-    count:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
-    count:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", -2, 2)
-    button.count = count
-
-    local highlight = button:CreateTexture(nil, "HIGHLIGHT")
-    highlight:SetAllPoints()
-    highlight:SetColorTexture(1, 1, 1, 0.12)
 
     button:SetScript("OnClick", function(self)
         if self.isCached then
@@ -1554,7 +1334,10 @@ function Module:Rebuild()
                         local button = frame.cachedButtons[index]
 
                         if not button then
-                            button = CreateCachedItemButton(frame.content)
+                            button = Components:CreateCachedItemButton(frame.content, {
+                size = SLOT_SIZE,
+                corners = true,
+            })
                             frame.cachedButtons[index] = button
                         end
 
@@ -1598,7 +1381,7 @@ function Module:Rebuild()
             local carrier = frame.bagCarriers[bagID]
 
         if not carrier then
-            carrier = CreateBagCarrier(frame.content, bagID)
+            carrier = Components:CreateCarrier(frame.content, bagID)
             frame.bagCarriers[bagID] = carrier
         end
 
