@@ -26,6 +26,18 @@ local lastInspectRequest = 0
 local function GetClassInfo(unit)
     local className, classFile, classID = UnitClass(unit)
 
+    if className and not UI:CanAccessValue(className) then
+        className = nil
+    end
+
+    if classFile and not UI:CanAccessValue(classFile) then
+        classFile = nil
+    end
+
+    if classID and not UI:CanAccessValue(classID) then
+        classID = nil
+    end
+
     return className, classFile, classID
 end
 
