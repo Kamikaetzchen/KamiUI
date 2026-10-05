@@ -1264,6 +1264,105 @@ function Components:AcquirePopupMenuButton(menu, index, options)
     return button
 end
 
+function Components:BuildCharacterMenu(menu, entries, options)
+    if not menu then
+        return 0
+    end
+
+    entries = entries or {}
+    options = options or {}
+
+    local selectedKey = options.selectedKey
+
+    if type(selectedKey) == "function" then
+        selectedKey = selectedKey()
+    end
+
+    local count = 0
+
+    for _, entry in ipairs(entries) do
+        if not options.filter or options.filter(entry) then
+            count = count + 1
+
+            local button = self:AcquirePopupMenuButton(
+                menu,
+                count
+            )
+            local character
+
+            if options.getCharacter then
+                character = options.getCharacter(entry)
+            else
+                character = entry.character
+                    or entry.profile
+                    or {}
+            end
+
+            button.text:SetText(
+                self:FormatCharacterLabel(
+                    character,
+                    {
+                        selected =
+                            options.showSelected ~= false
+                            and entry.key == selectedKey,
+                        selectedPrefix =
+                            options.selectedPrefix,
+                        showRealm = options.showRealm,
+                    }
+                )
+            )
+            button.characterKey = entry.key
+            button.characterEntry = entry
+            button:SetScript("OnClick", function(self)
+                menu:Hide()
+
+                if options.onSelect then
+                    options.onSelect(
+                        self.characterKey,
+                        self.characterEntry
+                    )
+                end
+            end)
+            button:Show()
+        end
+    end
+
+    self:FinishPopupMenu(menu, count, options.menuOptions)
+
+    return count
+end
+
+function Components:BindCharacterMenu(button, menu, options)
+    if not button or not menu then
+        return
+    end
+
+    options = options or {}
+
+    button:SetScript("OnClick", function()
+        if menu:IsShown() then
+            menu:Hide()
+            return
+        end
+
+        if options.prepare then
+            options.prepare()
+        end
+
+        local entries = options.getEntries
+            and options.getEntries()
+            or options.entries
+            or {}
+
+        Components:BuildCharacterMenu(
+            menu,
+            entries,
+            options
+        )
+        menu:Show()
+    end)
+end
+
 function Components:FinishPopupMenu(menu, count, options)
     if not menu then
         return

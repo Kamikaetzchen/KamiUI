@@ -568,53 +568,34 @@ local function CreateCharacterMenu(frame, header)
     )
     frame.characterMenu = menu
 
-    local function Rebuild()
-        local characters = GetCharactersModule()
+    Components:BindCharacterMenu(
+        characterButton,
+        menu,
+        {
+            prepare = function()
+                local characters = GetCharactersModule()
 
-        if not characters then
-            menu:Hide()
-            return
-        end
+                if characters
+                    and characters.UpdateCurrentCharacter
+                then
+                    characters:UpdateCurrentCharacter()
+                end
+            end,
+            getEntries = function()
+                local characters = GetCharactersModule()
 
-        if characters.UpdateCurrentCharacter then
-            characters:UpdateCurrentCharacter()
-        end
-
-        local entries = characters:GetSortedCharacters()
-        local viewedKey = select(1, GetViewedCharacter())
-
-        for index, entry in ipairs(entries) do
-            local button = Components:AcquirePopupMenuButton(
-                menu,
-                index
-            )
-
-            button.text:SetText(
-                Components:FormatCharacterLabel(
-                    entry.character,
-                    {
-                        selected = entry.key == viewedKey,
-                    }
-                )
-            )
-            button.characterKey = entry.key
-            button:SetScript("OnClick", function(self)
-                Module:SetViewedCharacter(self.characterKey)
-            end)
-            button:Show()
-        end
-
-        Components:FinishPopupMenu(menu, #entries)
-    end
-
-    characterButton:SetScript("OnClick", function()
-        if menu:IsShown() then
-            menu:Hide()
-        else
-            Rebuild()
-            menu:Show()
-        end
-    end)
+                return characters
+                    and characters:GetSortedCharacters()
+                    or {}
+            end,
+            selectedKey = function()
+                return select(1, GetViewedCharacter())
+            end,
+            onSelect = function(key)
+                Module:SetViewedCharacter(key)
+            end,
+        }
+    )
 
     characterButton:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")

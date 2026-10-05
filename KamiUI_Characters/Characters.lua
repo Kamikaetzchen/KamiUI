@@ -3972,41 +3972,24 @@ local function CreateFrameUI()
     )
     frame.characterMenu = characterMenu
 
-    local function RebuildCharacterMenu()
-        local characters = Module:GetSortedCharacters()
-
-        for index, entry in ipairs(characters) do
-            local button = Components:AcquirePopupMenuButton(
-                characterMenu,
-                index
-            )
-
-            local character = entry.character
-            button.text:SetText(
-                Components:FormatCharacterLabel(character)
-            )
-            button.characterKey = entry.key
-            button:SetScript("OnClick", function(self)
-                Module:SetViewedCharacter(self.characterKey)
-            end)
-            button:Show()
-
-        end
-
-        Components:FinishPopupMenu(
-            characterMenu,
-            #characters
-        )
-    end
-
-    characterButton:SetScript("OnClick", function()
-        if characterMenu:IsShown() then
-            characterMenu:Hide()
-        else
-            RebuildCharacterMenu()
-            characterMenu:Show()
-        end
-    end)
+    Components:BindCharacterMenu(
+        characterButton,
+        characterMenu,
+        {
+            getEntries = function()
+                return Module:GetSortedCharacters()
+            end,
+            selectedKey = function()
+                return select(
+                    1,
+                    Module:GetViewedCharacter()
+                )
+            end,
+            onSelect = function(key)
+                Module:SetViewedCharacter(key)
+            end,
+        }
+    )
 
     characterButton:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
