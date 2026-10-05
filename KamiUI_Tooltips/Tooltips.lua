@@ -4,7 +4,7 @@ local Styles = UI.Styles
 
 local Module = UI:NewModule("Tooltips", "KamiUI_Tooltips")
 
-Module.version = "0.2.16"
+Module.version = "0.2.17"
 
 local INSPECT_CACHE_SECONDS = 600
 local INSPECT_MISS_CACHE_SECONDS = 60
@@ -333,6 +333,7 @@ end
 local function GetSpecFromTalentPoints(unit)
     if not IsValidPlayerUnit(unit)
         or not C_SpecializationInfo
+        or not C_SpecializationInfo.GetSpecialization
         or not C_SpecializationInfo.GetSpecializationInfo
     then
         return nil
@@ -358,78 +359,90 @@ local function GetSpecFromTalentPoints(unit)
         end
     end
 
-    local bestName
-    local bestPoints = -1
-    local tied = false
+    local specIndex = UI:SafeCall(
+        C_SpecializationInfo.GetSpecialization,
+        isInspect,
+        false,
+        groupIndex
+    )
 
-    for index = 1, 3 do
-        local _specID,
-            specName,
-            _description,
-            _icon,
-            _role,
-            _primaryStat,
-            pointsSpent,
-            _background,
-            previewPointsSpent =
-            UI:SafeCall(
-                C_SpecializationInfo.GetSpecializationInfo,
-                index,
-                isInspect,
-                false,
-                inspectTarget,
-                sex,
-                groupIndex,
-                classID
-            )
-
-        if pointsSpent
-            and UI:CanAccessValue(pointsSpent)
-        then
-            pointsSpent = tonumber(pointsSpent) or 0
-        else
-            pointsSpent = 0
-        end
-
-        if previewPointsSpent
-            and UI:CanAccessValue(previewPointsSpent)
-        then
-            previewPointsSpent =
-                tonumber(previewPointsSpent) or 0
-        else
-            previewPointsSpent = 0
-        end
-
-        if specName
-            and not UI:CanAccessValue(specName)
-        then
-            specName = nil
-        end
-
-        local totalPoints =
-            pointsSpent + previewPointsSpent
-
-        if specName and totalPoints > bestPoints then
-            bestName = GetLocalizedSpecName(
-                classID,
-                index,
-                nil,
-                specName
-            )
-            bestPoints = totalPoints
-            tied = false
-        elseif specName
-            and totalPoints == bestPoints
-        then
-            tied = true
-        end
+    if not specIndex
+        or not UI:CanAccessValue(specIndex)
+    then
+        return nil
     end
 
-    if bestName and bestPoints > 0 and not tied then
-        return bestName .. " " .. (className or "")
+    specIndex = tonumber(specIndex)
+
+    if not specIndex or specIndex < 1 then
+        return nil
     end
 
-    return nil
+    local ok,
+        _specID,
+        specName,
+        _description,
+        _icon,
+        _role,
+        _primaryStat,
+        pointsSpent,
+        _background,
+        previewPointsSpent,
+        _isUnlocked =
+        pcall(
+            C_SpecializationInfo.GetSpecializationInfo,
+            specIndex,
+            isInspect,
+            false,
+            inspectTarget,
+            sex,
+            groupIndex,
+            classID
+        )
+
+    if not ok then
+        return nil
+    end
+
+    if specName
+        and not UI:CanAccessValue(specName)
+    then
+        specName = nil
+    end
+
+    if not specName then
+        return nil
+    end
+
+    if pointsSpent
+        and UI:CanAccessValue(pointsSpent)
+    then
+        pointsSpent = tonumber(pointsSpent) or 0
+    else
+        pointsSpent = 0
+    end
+
+    if previewPointsSpent
+        and UI:CanAccessValue(previewPointsSpent)
+    then
+        previewPointsSpent =
+            tonumber(previewPointsSpent) or 0
+    else
+        previewPointsSpent = 0
+    end
+
+    local localizedName = GetLocalizedSpecName(
+        classID,
+        specIndex,
+        nil,
+        specName
+    )
+
+    if not localizedName then
+        return nil
+    end
+
+    return localizedName .. " " .. (className or "")
 end
 
 local function GetSpecFromInspectSpecialization(unit)
