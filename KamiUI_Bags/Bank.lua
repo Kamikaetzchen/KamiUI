@@ -34,19 +34,14 @@ local sortingBank = false
 local hiddenBankParent = CreateFrame("Frame")
 hiddenBankParent:Hide()
 
-local function EnsureDatabase()
-    KamiUIDB = KamiUIDB or {}
-    KamiUIDB.bags = KamiUIDB.bags or {}
+local BANK_DATABASE_DEFAULTS = {
+    characters = {},
+    bankHiddenTabs = {},
+    bankBagBarExpanded = false,
+}
 
-    local db = KamiUIDB.bags
-    db.characters = db.characters or {}
-    db.bankHiddenTabs = db.bankHiddenTabs or {}
-
-    if db.bankBagBarExpanded == nil then
-        db.bankBagBarExpanded = false
-    end
-
-    return db
+local function GetDatabase()
+    return UI:GetDatabase("bags", BANK_DATABASE_DEFAULTS)
 end
 
 local function GetCharactersModule()
@@ -63,53 +58,6 @@ local function GetCharactersModule()
     return nil
 end
 
-local function GetCurrentCharacterNames()
-    local first, surname = UnitName("player")
-
-    first = first or "Player"
-
-    if surname and surname ~= "" then
-        return first, surname, first .. " " .. surname
-    end
-
-    return first, nil, first
-end
-
-local function GetCurrentCharacterKey()
-    local characters = GetCharactersModule()
-
-    if characters and characters.GetCurrentCharacterKey then
-        return characters:GetCurrentCharacterKey()
-    end
-
-    local _, _, fullName = GetCurrentCharacterNames()
-    local realm = GetRealmName() or ""
-
-    return realm .. "::" .. fullName
-end
-
-local function GetCurrentCharacterName()
-    local characters = GetCharactersModule()
-
-    if characters and characters.GetCurrentCharacter then
-        local _, character = characters:GetCurrentCharacter()
-
-        if character and character.name then
-            return character.name
-        end
-    end
-
-    local _, _, fullName = GetCurrentCharacterNames()
-
-    return fullName
-end
-
-local function ParseCharacterKey(key)
-    local realm, name = string.match(key or "", "^(.-)::(.*)$")
-
-    return realm or "", name or "Unknown"
-end
-
 local function GetCharacterProfile(key, legacy)
     local characters = GetCharactersModule()
 
@@ -121,7 +69,7 @@ local function GetCharacterProfile(key, legacy)
         end
     end
 
-    local realm, name = ParseCharacterKey(key)
+    local realm, name = UI:ParseCharacterKey(key)
     local profile = {
         name = legacy and legacy.name or name,
         firstName = legacy and legacy.firstName,
@@ -131,8 +79,8 @@ local function GetCharacterProfile(key, legacy)
         money = legacy and legacy.money or 0,
     }
 
-    if key == GetCurrentCharacterKey() then
-        local firstName, surname, fullName = GetCurrentCharacterNames()
+    if key == UI:GetCurrentCharacterKey() then
+        local firstName, surname, fullName = UI:GetCurrentCharacterNames()
 
         profile.name = fullName
         profile.firstName = firstName
@@ -154,7 +102,7 @@ local function GetSortedMoneyCharacters()
 
     local entries = {}
 
-    for key, legacy in pairs(EnsureDatabase().characters) do
+    for key, legacy in pairs(GetDatabase().characters) do
         entries[#entries + 1] = {
             key = key,
             character = GetCharacterProfile(key, legacy),
@@ -349,50 +297,17 @@ local function CountFreeSlots(bagID)
 end
 
 local function SavePosition(frame)
-    local position = UI:GetFrameCenterOffset(frame)
-
-    if position then
-        EnsureDatabase().bankPosition = position
-    end
+    UI:SaveFramePosition(frame, GetDatabase(), "bankPosition")
 end
 
 local function ApplySavedPosition(frame)
-    UI:SetFrameCenterOffset(
+    UI:ApplyFramePosition(
         frame,
-        EnsureDatabase().bankPosition,
+        GetDatabase(),
+        "bankPosition",
         -280,
         0
     )
-end
-
-local function FormatMoney(copper)
-    copper = copper or 0
-
-    local gold = math.floor(copper / 10000)
-    local silver = math.floor((copper % 10000) / 100)
-    local bronze = copper % 100
-    local parts = {}
-
-    if gold > 0 then
-        parts[#parts + 1] = string.format(
-            "%d |TInterface\\MoneyFrame\\UI-GoldIcon:14:14:0:0|t",
-            gold
-        )
-    end
-
-    if silver > 0 or gold > 0 then
-        parts[#parts + 1] = string.format(
-            "%d |TInterface\\MoneyFrame\\UI-SilverIcon:14:14:0:0|t",
-            silver
-        )
-    end
-
-    parts[#parts + 1] = string.format(
-        "%d |TInterface\\MoneyFrame\\UI-CopperIcon:14:14:0:0|t",
-        bronze
-    )
-
-    return table.concat(parts, " ")
 end
 
 local function SaveCurrentBank()
@@ -400,8 +315,8 @@ local function SaveCurrentBank()
         return
     end
 
-    local db = EnsureDatabase()
-    local key = GetCurrentCharacterKey()
+    local db = GetDatabase()
+    local key = UI:GetCurrentCharacterKey()
     local characters = GetCharactersModule()
 
     if characters and characters.UpdateCurrentCharacter then
@@ -461,8 +376,8 @@ local function SaveCurrentBank()
 end
 
 local function GetViewedCharacter()
-    local db = EnsureDatabase()
-    local currentKey = GetCurrentCharacterKey()
+    local db = GetDatabase()
+    local currentKey = UI:GetCurrentCharacterKey()
     local key = Module.viewCharacterKey or currentKey
 
     return key, db.characters[key], key == currentKey
@@ -471,7 +386,7 @@ end
 local function GetSortedCharacters()
     local characters = {}
 
-    for key, character in pairs(EnsureDatabase().characters) do
+    for key, character in pairs(GetDatabase().characters) do
         characters[#characters + 1] = {
             key = key,
             character = character,
@@ -972,7 +887,7 @@ local function CreateBankBagButton(parent)
             return
         end
 
-        local db = EnsureDatabase()
+        local db = GetDatabase()
         db.bankHiddenTabs[self.bagID] = not db.bankHiddenTabs[self.bagID]
         Module:Rebuild()
     end)
@@ -1066,7 +981,7 @@ local function CreateBankPurchaseButton(parent)
 
             if data and data.tabCost then
                 GameTooltip:AddLine(
-                    "Cost: " .. FormatMoney(data.tabCost),
+                    "Cost: " .. UI:FormatMoney(data.tabCost),
                     1,
                     1,
                     1
@@ -1133,7 +1048,7 @@ function Module:UpdateBagBar()
 
         button.count:SetText(tab.emptyBagSlot and "" or free)
 
-        local hidden = EnsureDatabase().bankHiddenTabs[tab.bagID] == true
+        local hidden = GetDatabase().bankHiddenTabs[tab.bagID] == true
         button.icon:SetAlpha(hidden and 0.30 or 1.00)
         button.count:SetAlpha(hidden and 0.30 or 1.00)
         button.background:SetAlpha(hidden and 0.35 or 1.00)
@@ -1211,7 +1126,7 @@ function Module:UpdateMoney()
         or profile.money
         or 0
 
-    self.frame.money:SetText(FormatMoney(money))
+    self.frame.money:SetText(UI:FormatMoney(money))
 end
 
 function Module:UpdateTitle()
@@ -1247,7 +1162,7 @@ function Module:Layout()
 
     local buttons = frame.activeButtons or {}
     local rows = math.max(1, math.ceil(#buttons / COLUMNS))
-    local bagBarOffset = EnsureDatabase().bankBagBarExpanded
+    local bagBarOffset = GetDatabase().bankBagBarExpanded
         and BAG_BAR_HEIGHT
         or 0
     local contentTop = HEADER_HEIGHT + FRAME_PADDING + bagBarOffset
@@ -1294,7 +1209,7 @@ function Module:UpdateBagBarVisibility()
         return
     end
 
-    local expanded = EnsureDatabase().bankBagBarExpanded
+    local expanded = GetDatabase().bankBagBarExpanded
 
     frame.bagBar:SetShown(expanded)
     frame.bagBarToggle:SetText(expanded and "Bags -" or "Bags +")
@@ -1303,7 +1218,7 @@ function Module:UpdateBagBarVisibility()
 end
 
 function Module:SetViewedCharacter(key)
-    local currentKey = GetCurrentCharacterKey()
+    local currentKey = UI:GetCurrentCharacterKey()
 
     self.viewCharacterKey = key == currentKey and nil or key
 
@@ -1341,7 +1256,7 @@ function Module:Rebuild()
             or {}
 
         for _, tab in ipairs(tabs) do
-            if not EnsureDatabase().bankHiddenTabs[tab.bagID] then
+            if not GetDatabase().bankHiddenTabs[tab.bagID] then
                 for slotID = 1, tab.slotCount or 0 do
                     index = index + 1
 
@@ -1381,7 +1296,7 @@ function Module:Rebuild()
     frame.liveBankAccess = true
 
     for _, tab in ipairs(GetBankTabs()) do
-        if not EnsureDatabase().bankHiddenTabs[tab.bagID] then
+        if not GetDatabase().bankHiddenTabs[tab.bagID] then
             local carrier = frame.carriers[tab.bagID]
 
             if not carrier then
@@ -1476,7 +1391,7 @@ local function CreateFrameUI()
 
     local header = Components:CreateWindowHeader(frame, {
         height = HEADER_HEIGHT,
-        title = GetCurrentCharacterName() .. "'s Bank",
+        title = UI:GetCurrentCharacterName() .. "'s Bank",
         draggable = true,
         onDragStop = function()
             SavePosition(frame)
@@ -1691,7 +1606,7 @@ local function CreateFrameUI()
     bagBarToggle:SetNormalFontObject("GameFontNormalSmall")
     bagBarToggle:SetHighlightFontObject("GameFontHighlightSmall")
     bagBarToggle:SetScript("OnClick", function()
-        local db = EnsureDatabase()
+        local db = GetDatabase()
         db.bankBagBarExpanded = not db.bankBagBarExpanded
         Module:UpdateBagBarVisibility()
     end)
@@ -1788,7 +1703,7 @@ local function CreateFrameUI()
 
             GameTooltip:AddDoubleLine(
                 character.name or "Unknown",
-                FormatMoney(amount),
+                UI:FormatMoney(amount),
                 r,
                 g,
                 b,
@@ -1801,7 +1716,7 @@ local function CreateFrameUI()
         GameTooltip:AddLine(" ")
         GameTooltip:AddDoubleLine(
             "Total",
-            FormatMoney(total),
+            UI:FormatMoney(total),
             1,
             0.82,
             0,
@@ -1890,7 +1805,7 @@ function Module:Toggle()
 end
 
 function Module:ResetPosition()
-    EnsureDatabase().bankPosition = nil
+    GetDatabase().bankPosition = nil
 
     if self.frame then
         ApplySavedPosition(self.frame)
@@ -1968,7 +1883,7 @@ eventFrame:SetScript("OnEvent", function(_, event)
 end)
 
 function Module:Initialize()
-    EnsureDatabase()
+    GetDatabase()
     self.frame = CreateFrameUI()
 
     local hotkeyButton = CreateFrame("Button", "KamiUIBankHotkeyButton", UIParent)

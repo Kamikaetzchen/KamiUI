@@ -75,14 +75,6 @@ local function ScheduleNativeXPBarHide()
     end
 end
 
-local function FormatNumber(value)
-    if BreakUpLargeNumbers then
-        return BreakUpLargeNumbers(value)
-    end
-
-    return tostring(value)
-end
-
 local function UpdateDividers(frame)
     if not frame.dividers then
         frame.dividers = {}
@@ -126,8 +118,8 @@ local function ShowTooltip(frame)
 
     local text = string.format(
         "%s/%s",
-        FormatNumber(currentXP),
-        FormatNumber(maxXP)
+        UI:FormatNumber(currentXP),
+        UI:FormatNumber(maxXP)
     )
 
     if maxXP > 0 and restedXP > 0 then

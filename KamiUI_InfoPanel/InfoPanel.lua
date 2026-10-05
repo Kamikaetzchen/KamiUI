@@ -39,14 +39,6 @@ local slotWidths = {
     clock = 58,
 }
 
-local function FormatNumber(value)
-    if BreakUpLargeNumbers then
-        return BreakUpLargeNumbers(value)
-    end
-
-    return tostring(value or 0)
-end
-
 local function FormatXPPerHour(value)
     value = math.max(0, value or 0)
 
@@ -55,23 +47,6 @@ local function FormatXPPerHour(value)
     end
 
     return tostring(value)
-end
-
-local function FormatMoney(copper)
-    copper = math.max(0, copper or 0)
-
-    local gold = math.floor(copper / 10000)
-    local silver = math.floor((copper % 10000) / 100)
-    local bronze = copper % 100
-
-    return string.format(
-        "%d |TInterface\\MoneyFrame\\UI-GoldIcon:12:12:0:2|t "
-            .. "%d |TInterface\\MoneyFrame\\UI-SilverIcon:12:12:0:2|t "
-            .. "%d |TInterface\\MoneyFrame\\UI-CopperIcon:12:12:0:2|t",
-        gold,
-        silver,
-        bronze
-    )
 end
 
 local function GetLinenBagIcon()
@@ -412,7 +387,7 @@ local function ShowGoldTooltip(owner)
 
         GameTooltip:AddDoubleLine(
             name,
-            FormatMoney(amount),
+            UI:FormatMoney(amount, { iconSize = 12, iconYOffset = 2, showAll = true }),
             r, g, b,
             1, 1, 1
         )
@@ -421,7 +396,7 @@ local function ShowGoldTooltip(owner)
     GameTooltip:AddLine(" ")
     GameTooltip:AddDoubleLine(
         "Total",
-        FormatMoney(total),
+        UI:FormatMoney(total, { iconSize = 12, iconYOffset = 2, showAll = true }),
         1, 0.82, 0,
         1, 1, 1
     )
@@ -778,7 +753,7 @@ function Module:Refresh()
         "|TInterface\\Minimap\\Tracking\\Repair:13:13:0:2|t %d%%",
         durability
     ))
-    self.texts.gold:SetText(FormatMoney(GetMoney and GetMoney() or 0))
+    self.texts.gold:SetText(UI:FormatMoney(GetMoney and GetMoney(, { iconSize = 12, iconYOffset = 2, showAll = true }) or 0))
     self.texts.latency:SetText(string.format("     %d ms", latency))
     self.texts.clock:SetText(string.format(
         "|TInterface\\Icons\\INV_Misc_PocketWatch_01:13:13:0:2:64:64:4:60:4:60|t %s",

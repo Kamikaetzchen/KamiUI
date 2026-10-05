@@ -20,33 +20,12 @@ local HEADER_HEIGHT = 40
 local SLOT_SIZE = 36
 local SLOT_GAP = 3
 
-local function EnsureDatabase()
-    KamiUIDB = KamiUIDB or {}
-    KamiUIDB.characters = KamiUIDB.characters or {}
+local CHARACTER_DATABASE_DEFAULTS = {
+    data = {},
+}
 
-    local db = KamiUIDB.characters
-    db.data = db.data or {}
-
-    return db
-end
-
-local function GetCurrentCharacterNames()
-    local first, surname = UnitName("player")
-
-    first = first or "Player"
-
-    if surname and surname ~= "" then
-        return first, surname, first .. " " .. surname
-    end
-
-    return first, nil, first
-end
-
-local function GetCurrentCharacterKey()
-    local _, _, fullName = GetCurrentCharacterNames()
-    local realm = GetRealmName and GetRealmName() or ""
-
-    return realm .. "::" .. fullName
+local function GetDatabase()
+    return UI:GetDatabase("characters", CHARACTER_DATABASE_DEFAULTS)
 end
 
 local function ImportLegacyBagCharacters()
@@ -58,7 +37,7 @@ local function ImportLegacyBagCharacters()
         return
     end
 
-    local characters = EnsureDatabase().data
+    local characters = GetDatabase().data
 
     for key, legacy in pairs(bagCharacters) do
         if type(legacy) == "table" then
@@ -100,9 +79,9 @@ local function ImportLegacyBagCharacters()
 end
 
 local function UpdateCurrentCharacter()
-    local db = EnsureDatabase()
-    local key = GetCurrentCharacterKey()
-    local firstName, surname, fullName = GetCurrentCharacterNames()
+    local db = GetDatabase()
+    local key = UI:GetCurrentCharacterKey()
+    local firstName, surname, fullName = UI:GetCurrentCharacterNames()
     local className, classFile = UnitClass("player")
     local character = db.data[key] or {}
 
@@ -121,28 +100,28 @@ local function UpdateCurrentCharacter()
     return key, character
 end
 
-function Module:GetCurrentCharacterKey()
-    return GetCurrentCharacterKey()
+function Module:UI:GetCurrentCharacterKey()
+    return UI:GetCurrentCharacterKey()
 end
 
 function Module:GetCurrentCharacter()
-    local key = GetCurrentCharacterKey()
+    local key = UI:GetCurrentCharacterKey()
 
-    return key, EnsureDatabase().data[key]
+    return key, GetDatabase().data[key]
 end
 
 function Module:GetCharacter(key)
-    return key and EnsureDatabase().data[key] or nil
+    return key and GetDatabase().data[key] or nil
 end
 
 function Module:GetCharacters()
-    return EnsureDatabase().data
+    return GetDatabase().data
 end
 
 function Module:GetSortedCharacters()
     local characters = {}
 
-    for key, character in pairs(EnsureDatabase().data) do
+    for key, character in pairs(GetDatabase().data) do
         characters[#characters + 1] = {
             key = key,
             character = character,
@@ -169,14 +148,14 @@ function Module:UpdateCurrentCharacter()
 end
 
 function Module:GetViewedCharacter()
-    local currentKey = GetCurrentCharacterKey()
+    local currentKey = UI:GetCurrentCharacterKey()
     local key = self.viewCharacterKey or currentKey
 
-    return key, EnsureDatabase().data[key], key == currentKey
+    return key, GetDatabase().data[key], key == currentKey
 end
 
 function Module:SetViewedCharacter(key)
-    local currentKey = GetCurrentCharacterKey()
+    local currentKey = UI:GetCurrentCharacterKey()
 
     self.viewCharacterKey = key == currentKey and nil or key
 
@@ -192,20 +171,11 @@ function Module:SetViewedCharacter(key)
 end
 
 local function SavePosition(frame)
-    local position = UI:GetFrameCenterOffset(frame)
-
-    if position then
-        EnsureDatabase().position = position
-    end
+    UI:SaveFramePosition(frame, GetDatabase())
 end
 
 local function ApplySavedPosition(frame)
-    UI:SetFrameCenterOffset(
-        frame,
-        EnsureDatabase().position,
-        0,
-        10
-    )
+    UI:ApplyFramePosition(frame, GetDatabase(), "position", 0, 10)
 end
 
 local SLOT_LAYOUT = {
@@ -237,7 +207,7 @@ local SLOT_LAYOUT = {
 }
 
 local function GetFullPlayerName()
-    local _, _, fullName = GetCurrentCharacterNames()
+    local _, _, fullName = UI:GetCurrentCharacterNames()
 
     return fullName
 end
@@ -350,7 +320,6 @@ local function GetTitledPlayerName()
     return name
 end
 
-local SafeCall
 local UpdateEquipmentIgnoreOverlays
 local LoadEquipmentIgnoreState
 local ApplyEquipmentIgnoreState
@@ -466,7 +435,7 @@ local function CreateEquipmentSlot(parent, definition)
             local ignored = self.KamiIgnoreForSave
 
             if ignored == nil then
-                ignored = SafeCall(
+                ignored = UI:SafeCall(
                     C_EquipmentSet.IsSlotIgnoredForSave,
                     self.slotID
                 ) == true
@@ -480,13 +449,13 @@ local function CreateEquipmentSlot(parent, definition)
 
             if self.KamiIgnoreForSave then
                 if C_EquipmentSet.IgnoreSlotForSave then
-                    SafeCall(
+                    UI:SafeCall(
                         C_EquipmentSet.IgnoreSlotForSave,
                         self.slotID
                     )
                 end
             elseif C_EquipmentSet.UnignoreSlotForSave then
-                SafeCall(
+                UI:SafeCall(
                     C_EquipmentSet.UnignoreSlotForSave,
                     self.slotID
                 )
@@ -523,20 +492,20 @@ ApplyEquipmentIgnoreState = function(frame)
     end
 
     if C_EquipmentSet.ClearIgnoredSlotsForSave then
-        SafeCall(C_EquipmentSet.ClearIgnoredSlotsForSave)
+        UI:SafeCall(C_EquipmentSet.ClearIgnoredSlotsForSave)
     end
 
     for _, button in ipairs(frame.equipmentSlots or {}) do
         if button.slotID then
             if button.KamiIgnoreForSave then
                 if C_EquipmentSet.IgnoreSlotForSave then
-                    SafeCall(
+                    UI:SafeCall(
                         C_EquipmentSet.IgnoreSlotForSave,
                         button.slotID
                     )
                 end
             elseif C_EquipmentSet.UnignoreSlotForSave then
-                SafeCall(
+                UI:SafeCall(
                     C_EquipmentSet.UnignoreSlotForSave,
                     button.slotID
                 )
@@ -556,7 +525,7 @@ LoadEquipmentIgnoreState = function(frame, setID)
         and C_EquipmentSet
         and C_EquipmentSet.GetIgnoredSlots
     then
-        local saved = SafeCall(C_EquipmentSet.GetIgnoredSlots, setID)
+        local saved = UI:SafeCall(C_EquipmentSet.GetIgnoredSlots, setID)
 
         if type(saved) == "table" then
             ignoredSlots = saved
@@ -596,7 +565,7 @@ UpdateEquipmentIgnoreOverlays = function(frame)
             if button.KamiIgnoreForSave ~= nil then
                 ignored = button.KamiIgnoreForSave == true
             else
-                ignored = SafeCall(
+                ignored = UI:SafeCall(
                     C_EquipmentSet.IsSlotIgnoredForSave,
                     button.slotID
                 ) == true
@@ -856,27 +825,12 @@ local function FormatStatValue(value, suffix)
     return string.format("%.0f", value)
 end
 
-SafeCall = function(func, ...)
-    if not func then
-        return nil
-    end
-
-    local ok, a, b, c, d, e, f, g, h = pcall(func, ...)
-
-    if not ok then
-        return nil
-    end
-
-    return a, b, c, d, e, f, g, h
-end
-
-
 local function GetFactionData(index)
     if not C_Reputation or not C_Reputation.GetFactionDataByIndex then
         return nil
     end
 
-    local data = SafeCall(C_Reputation.GetFactionDataByIndex, index)
+    local data = UI:SafeCall(C_Reputation.GetFactionDataByIndex, index)
 
     if type(data) ~= "table" then
         return nil
@@ -897,7 +851,7 @@ local function GetFactionStandingLabel(reaction)
     end
 
     if GetText then
-        local label = SafeCall(
+        local label = UI:SafeCall(
             GetText,
             "FACTION_STANDING_LABEL" .. reaction,
             UnitSex and UnitSex("player") or 2
@@ -1031,7 +985,7 @@ local function UpdateStatsPane(frame)
 
     local moveSpeed
     local currentSpeed, runSpeed = GetUnitSpeed
-        and SafeCall(GetUnitSpeed, "player")
+        and UI:SafeCall(GetUnitSpeed, "player")
     local speed = runSpeed or currentSpeed
     local baseSpeed = BASE_MOVEMENT_SPEED or 7
 
@@ -1054,11 +1008,11 @@ local function UpdateStatsPane(frame)
     }
 
     for _, data in ipairs(attributes) do
-        local effective = select(2, SafeCall(UnitStat, "player", data[2]))
+        local effective = select(2, UI:SafeCall(UnitStat, "player", data[2]))
         rows[data[1]].value:SetText(FormatStatValue(effective))
     end
 
-    local baseAP, posAP, negAP = SafeCall(UnitAttackPower, "player")
+    local baseAP, posAP, negAP = UI:SafeCall(UnitAttackPower, "player")
     local attackPower
 
     if UI:CanAccessValue(baseAP)
@@ -1072,14 +1026,14 @@ local function UpdateStatsPane(frame)
     end
 
     rows.attackPower.value:SetText(FormatStatValue(attackPower))
-    rows.crit.value:SetText(FormatStatValue(SafeCall(GetCritChance), "%"))
-    rows.hit.value:SetText(FormatStatValue(SafeCall(GetHitModifier), "%"))
+    rows.crit.value:SetText(FormatStatValue(UI:SafeCall(GetCritChance), "%"))
+    rows.hit.value:SetText(FormatStatValue(UI:SafeCall(GetHitModifier), "%"))
 
-    local _, effectiveArmor = SafeCall(UnitArmor, "player")
+    local _, effectiveArmor = UI:SafeCall(UnitArmor, "player")
     rows.armor.value:SetText(FormatStatValue(effectiveArmor))
-    rows.dodge.value:SetText(FormatStatValue(SafeCall(GetDodgeChance), "%"))
-    rows.parry.value:SetText(FormatStatValue(SafeCall(GetParryChance), "%"))
-    rows.block.value:SetText(FormatStatValue(SafeCall(GetBlockChance), "%"))
+    rows.dodge.value:SetText(FormatStatValue(UI:SafeCall(GetDodgeChance), "%"))
+    rows.parry.value:SetText(FormatStatValue(UI:SafeCall(GetParryChance), "%"))
+    rows.block.value:SetText(FormatStatValue(UI:SafeCall(GetBlockChance), "%"))
 
     local resistances = {
         { "fire", 2 },
@@ -1090,7 +1044,7 @@ local function UpdateStatsPane(frame)
     }
 
     for _, data in ipairs(resistances) do
-        local base, total = SafeCall(UnitResistance, "player", data[2])
+        local base, total = UI:SafeCall(UnitResistance, "player", data[2])
         local value = total
 
         if not UI:CanAccessValue(value) or type(value) ~= "number" then
@@ -1398,7 +1352,7 @@ local function UpdateEquipmentPane(frame)
 
     local ids = C_EquipmentSet
         and C_EquipmentSet.GetEquipmentSetIDs
-        and SafeCall(C_EquipmentSet.GetEquipmentSetIDs)
+        and UI:SafeCall(C_EquipmentSet.GetEquipmentSetIDs)
         or {}
 
     if type(ids) ~= "table" then
@@ -1411,7 +1365,7 @@ local function UpdateEquipmentPane(frame)
         and C_EquipmentSet
         and C_EquipmentSet.GetEquipmentSetID
     then
-        local pendingID = SafeCall(
+        local pendingID = UI:SafeCall(
             C_EquipmentSet.GetEquipmentSetID,
             pane.pendingSetName
         )
@@ -1559,9 +1513,9 @@ local function UpdateEquipmentPane(frame)
 
             row:SetScript("OnDoubleClick", function(self)
                 if C_EquipmentSet and C_EquipmentSet.UseEquipmentSet then
-                    SafeCall(C_EquipmentSet.UseEquipmentSet, self.setID)
+                    UI:SafeCall(C_EquipmentSet.UseEquipmentSet, self.setID)
                 elseif EquipmentManager_EquipSet then
-                    SafeCall(EquipmentManager_EquipSet, self.setID)
+                    UI:SafeCall(EquipmentManager_EquipSet, self.setID)
                 end
             end)
 
@@ -1600,7 +1554,7 @@ local function UpdateEquipmentPane(frame)
             if setID then
                 local name, icon, actualID, isEquipped,
                     _, _, _, numLost =
-                    SafeCall(C_EquipmentSet.GetEquipmentSetInfo, setID)
+                    UI:SafeCall(C_EquipmentSet.GetEquipmentSetInfo, setID)
 
                 row.setID = actualID or setID
                 row.setName = name or "Set"
@@ -1641,7 +1595,7 @@ local function UpdateEquipmentPane(frame)
 
     if hasSelection and C_EquipmentSet and C_EquipmentSet.GetEquipmentSetInfo then
         local _, _, _, isEquipped =
-            SafeCall(C_EquipmentSet.GetEquipmentSetInfo, pane.selectedSetID)
+            UI:SafeCall(C_EquipmentSet.GetEquipmentSetInfo, pane.selectedSetID)
         selectedEquipped = isEquipped == true
     end
 
@@ -1807,7 +1761,7 @@ local function UpdateReputationDetails(frame, index)
     local isActive = true
 
     if C_Reputation and C_Reputation.IsFactionActive then
-        local active = SafeCall(C_Reputation.IsFactionActive, index)
+        local active = UI:SafeCall(C_Reputation.IsFactionActive, index)
 
         if type(active) == "boolean" then
             isActive = active
@@ -1839,7 +1793,7 @@ local function UpdateReputationPane(frame)
     end
 
     local numFactions = tonumber(
-        SafeCall(C_Reputation.GetNumFactions)
+        UI:SafeCall(C_Reputation.GetNumFactions)
     ) or 0
     local y = -4
     local selectedIndex
@@ -1924,13 +1878,13 @@ local function UpdateReputationPane(frame)
 
                         if headerData.isCollapsed then
                             if C_Reputation.ExpandFactionHeader then
-                                SafeCall(
+                                UI:SafeCall(
                                     C_Reputation.ExpandFactionHeader,
                                     self.index
                                 )
                             end
                         elseif C_Reputation.CollapseFactionHeader then
-                            SafeCall(
+                            UI:SafeCall(
                                 C_Reputation.CollapseFactionHeader,
                                 self.index
                             )
@@ -1985,7 +1939,7 @@ local function UpdateReputationPane(frame)
                         pane.selectedIndex = self.index
 
                         if C_Reputation.SetSelectedFaction then
-                            SafeCall(
+                            UI:SafeCall(
                                 C_Reputation.SetSelectedFaction,
                                 self.index
                             )
@@ -2225,7 +2179,7 @@ local function CreateReputationPane(frame)
             and C_Reputation
             and C_Reputation.ToggleFactionAtWar
         then
-            SafeCall(
+            UI:SafeCall(
                 C_Reputation.ToggleFactionAtWar,
                 pane.selectedIndex
             )
@@ -2244,7 +2198,7 @@ local function CreateReputationPane(frame)
         local isActive = true
 
         if C_Reputation.IsFactionActive then
-            local active = SafeCall(
+            local active = UI:SafeCall(
                 C_Reputation.IsFactionActive,
                 pane.selectedIndex
             )
@@ -2254,7 +2208,7 @@ local function CreateReputationPane(frame)
             end
         end
 
-        SafeCall(
+        UI:SafeCall(
             C_Reputation.SetFactionActive,
             pane.selectedIndex,
             not isActive
@@ -2268,14 +2222,14 @@ local function CreateReputationPane(frame)
         end
 
         if C_Reputation.SetWatchedFactionByIndex then
-            SafeCall(
+            UI:SafeCall(
                 C_Reputation.SetWatchedFactionByIndex,
                 pane.selectedIndex
             )
         elseif pane.selectedFactionID
             and C_Reputation.SetWatchedFactionByID
         then
-            SafeCall(
+            UI:SafeCall(
                 C_Reputation.SetWatchedFactionByID,
                 pane.selectedFactionID
             )
@@ -2292,7 +2246,7 @@ end
 
 local function GetSkillLineData(index)
     if C_SkillInfo and C_SkillInfo.GetSkillLineInfo then
-        local data = SafeCall(C_SkillInfo.GetSkillLineInfo, index)
+        local data = UI:SafeCall(C_SkillInfo.GetSkillLineInfo, index)
 
         if type(data) == "table" then
             return data
@@ -2359,12 +2313,12 @@ end
 local function GetNumSkillLinesValue()
     if C_SkillInfo and C_SkillInfo.GetNumSkillLines then
         return tonumber(
-            SafeCall(C_SkillInfo.GetNumSkillLines)
+            UI:SafeCall(C_SkillInfo.GetNumSkillLines)
         ) or 0
     end
 
     if GetNumSkillLines then
-        return tonumber(SafeCall(GetNumSkillLines)) or 0
+        return tonumber(UI:SafeCall(GetNumSkillLines)) or 0
     end
 
     return 0
@@ -2372,25 +2326,25 @@ end
 
 local function SetSelectedSkillValue(index)
     if C_SkillInfo and C_SkillInfo.SetSelectedSkill then
-        SafeCall(C_SkillInfo.SetSelectedSkill, index)
+        UI:SafeCall(C_SkillInfo.SetSelectedSkill, index)
     elseif SetSelectedSkill then
-        SafeCall(SetSelectedSkill, index)
+        UI:SafeCall(SetSelectedSkill, index)
     end
 end
 
 local function ExpandSkillHeaderValue(index)
     if C_SkillInfo and C_SkillInfo.ExpandSkillHeader then
-        SafeCall(C_SkillInfo.ExpandSkillHeader, index)
+        UI:SafeCall(C_SkillInfo.ExpandSkillHeader, index)
     elseif ExpandSkillHeader then
-        SafeCall(ExpandSkillHeader, index)
+        UI:SafeCall(ExpandSkillHeader, index)
     end
 end
 
 local function CollapseSkillHeaderValue(index)
     if C_SkillInfo and C_SkillInfo.CollapseSkillHeader then
-        SafeCall(C_SkillInfo.CollapseSkillHeader, index)
+        UI:SafeCall(C_SkillInfo.CollapseSkillHeader, index)
     elseif CollapseSkillHeader then
-        SafeCall(CollapseSkillHeader, index)
+        UI:SafeCall(CollapseSkillHeader, index)
     end
 end
 
@@ -2632,11 +2586,11 @@ local function UpdateSkillsPane(frame)
 
         if C_SkillInfo and C_SkillInfo.GetSelectedSkill then
             selectedFromAPI = tonumber(
-                SafeCall(C_SkillInfo.GetSelectedSkill)
+                UI:SafeCall(C_SkillInfo.GetSelectedSkill)
             )
         elseif GetSelectedSkill then
             selectedFromAPI = tonumber(
-                SafeCall(GetSelectedSkill)
+                UI:SafeCall(GetSelectedSkill)
             )
         end
 
@@ -3863,7 +3817,7 @@ local function CreateSidebar(frame)
         end
 
         equipmentPane.pendingSetName = name
-        SafeCall(C_EquipmentSet.CreateEquipmentSet, name)
+        UI:SafeCall(C_EquipmentSet.CreateEquipmentSet, name)
         CloseCreateDialog()
 
         C_Timer.After(0, function()
@@ -3914,9 +3868,9 @@ local function CreateSidebar(frame)
         end
 
         if C_EquipmentSet and C_EquipmentSet.UseEquipmentSet then
-            SafeCall(C_EquipmentSet.UseEquipmentSet, setID)
+            UI:SafeCall(C_EquipmentSet.UseEquipmentSet, setID)
         elseif EquipmentManager_EquipSet then
-            SafeCall(EquipmentManager_EquipSet, setID)
+            UI:SafeCall(EquipmentManager_EquipSet, setID)
         end
     end)
     equipmentPane.equip = equip
@@ -3948,7 +3902,7 @@ local function CreateSidebar(frame)
                 ApplyEquipmentIgnoreState(frame)
             end
 
-            SafeCall(C_EquipmentSet.SaveEquipmentSet, setID)
+            UI:SafeCall(C_EquipmentSet.SaveEquipmentSet, setID)
             equipmentPane.ignoreDirty = false
 
             C_Timer.After(0, function()
@@ -4508,7 +4462,7 @@ local function CreateFrameUI()
 end
 
 function Module:Initialize()
-    EnsureDatabase()
+    GetDatabase()
     ImportLegacyBagCharacters()
     UpdateCurrentCharacter()
     self.frame = CreateFrameUI()

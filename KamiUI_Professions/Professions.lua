@@ -23,11 +23,8 @@ local OVERVIEW_FILL_Y_OFFSET = 3
 local RECIPE_CATEGORY_INSET = 2
 local RECIPE_ROW_INSET = 8
 
-local function EnsureDatabase()
-    KamiUIDB = KamiUIDB or {}
-    KamiUIDB.professions = KamiUIDB.professions or {}
-
-    return KamiUIDB.professions
+local function GetDatabase()
+    return UI:GetDatabase("professions")
 end
 
 local function GetCharactersModule()
@@ -319,22 +316,25 @@ function Module:SnapshotCurrentProfession()
 end
 
 local function SavePosition(frame)
-    local position = UI:GetFrameCenterOffset(frame)
-
-    if not position then
-        return
-    end
-
-    EnsureDatabase().position = position
-    UI:SetFrameCenterOffset(frame, position)
+    UI:SaveFramePosition(
+        frame,
+        GetDatabase(),
+        "position",
+        nil,
+        true
+    )
 end
 
 local function ApplySavedPosition(frame)
-    local position = EnsureDatabase().position
-
-    if position then
-        UI:SetFrameCenterOffset(frame, position)
-    end
+    UI:ApplyFramePosition(
+        frame,
+        GetDatabase(),
+        "position",
+        nil,
+        nil,
+        nil,
+        true
+    )
 end
 
 local function StyleRankBar(

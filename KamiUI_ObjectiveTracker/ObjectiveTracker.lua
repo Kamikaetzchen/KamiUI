@@ -23,19 +23,16 @@ local OBJECTIVE_INDENT = 52
 local QUEST_SPACING = 4
 local OBJECTIVE_SPACING = 1
 
-local function EnsureDatabase()
-    KamiUIDB = KamiUIDB or {}
-    KamiUIDB.objectiveTracker = KamiUIDB.objectiveTracker or {}
+local OBJECTIVE_DATABASE_DEFAULTS = {
+    minimized = false,
+    collapsedSections = {},
+}
 
-    local db = KamiUIDB.objectiveTracker
-
-    if db.minimized == nil then
-        db.minimized = false
-    end
-
-    db.collapsedSections = db.collapsedSections or {}
-
-    return db
+local function GetDatabase()
+    return UI:GetDatabase(
+        "objectiveTracker",
+        OBJECTIVE_DATABASE_DEFAULTS
+    )
 end
 
 local function SavePosition(frame)
@@ -78,7 +75,7 @@ local function SavePosition(frame)
     frame:ClearAllPoints()
     frame:SetPoint(anchor, UIParent, anchor, x, y)
 
-    EnsureDatabase().position = {
+    GetDatabase().position = {
         anchor = anchor,
         x = x,
         y = y,
@@ -86,7 +83,7 @@ local function SavePosition(frame)
 end
 
 local function ApplySavedPosition(frame)
-    local position = EnsureDatabase().position
+    local position = GetDatabase().position
 
     frame:ClearAllPoints()
 
@@ -324,7 +321,7 @@ local function CreateSection(parent, id)
     header:RegisterForClicks("LeftButtonUp")
 
     header:SetScript("OnClick", function()
-        local db = EnsureDatabase()
+        local db = GetDatabase()
         db.collapsedSections[id] = not db.collapsedSections[id]
         Module:Refresh()
     end)
@@ -360,7 +357,7 @@ function Module:RegisterProvider(id, provider)
 end
 
 function Module:SetMinimized(minimized)
-    local db = EnsureDatabase()
+    local db = GetDatabase()
     db.minimized = minimized == true
 
     if not self.frame then
@@ -379,7 +376,7 @@ function Module:SetMinimized(minimized)
 end
 
 function Module:ToggleMinimized()
-    self:SetMinimized(not EnsureDatabase().minimized)
+    self:SetMinimized(not GetDatabase().minimized)
 end
 
 function Module:Refresh()
@@ -389,7 +386,7 @@ function Module:Refresh()
         return
     end
 
-    if EnsureDatabase().minimized then
+    if GetDatabase().minimized then
         frame:SetWidth(COLLAPSED_WIDTH)
         frame:SetHeight(HEADER_HEIGHT)
         frame.content:Hide()
@@ -427,7 +424,7 @@ function Module:Refresh()
             section.header:SetSectionText(data.title or id)
             section:Show()
 
-            local collapsed = EnsureDatabase().collapsedSections[id] == true
+            local collapsed = GetDatabase().collapsedSections[id] == true
             section.header:SetExpanded(not collapsed)
 
             local sectionHeight = SECTION_HEADER_HEIGHT
@@ -585,11 +582,11 @@ function Module:Initialize()
     end
 
     self.initialized = true
-    EnsureDatabase()
+    GetDatabase()
     self.frame = CreateFrameUI()
 
     HideBlizzardTracker()
-    self:SetMinimized(EnsureDatabase().minimized)
+    self:SetMinimized(GetDatabase().minimized)
     self:Refresh()
 
     if self.positionNeedsMigration then
