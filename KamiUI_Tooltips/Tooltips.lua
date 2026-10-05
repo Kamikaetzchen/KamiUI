@@ -4,7 +4,7 @@ local Styles = UI.Styles
 
 local Module = UI:NewModule("Tooltips", "KamiUI_Tooltips")
 
-Module.version = "0.2.10"
+Module.version = "0.2.11"
 
 local INSPECT_CACHE_SECONDS = 600
 local INSPECT_MISS_CACHE_SECONDS = 60
@@ -1519,6 +1519,11 @@ local function InstallWorldCursorAnchor()
             self:SetWorldCursor(
                 Enum.WorldCursorAnchorType.Cursor,
                 parent
+            )
+            self:SetAnchorType(
+                "ANCHOR_CURSOR_RIGHT",
+                14,
+                -12
             )
             Module.reanchoringWorldCursor = false
         end
