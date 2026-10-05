@@ -196,29 +196,14 @@ local function GetLocalizedSpecName(
 end
 
 local function GetSpecFromTalentPoints(unit)
-    if not IsValidPlayerUnit(unit) then
-        return nil
-    end
-
-    local className, _, classID = GetClassInfo(unit)
-
-    if not classID
+    if not IsValidPlayerUnit(unit)
         or not C_SpecializationInfo
-        or not C_SpecializationInfo.GetNumSpecializationsForClassID
         or not C_SpecializationInfo.GetSpecializationInfo
     then
         return nil
     end
 
-    local specializationCount = UI:SafeCall(
-        C_SpecializationInfo.GetNumSpecializationsForClassID,
-        classID
-    )
-
-    if not specializationCount or specializationCount <= 0 then
-        return nil
-    end
-
+    local className, _, classID = GetClassInfo(unit)
     local isInspect = not UnitIsUnit(unit, "player")
     local groupIndex
 
@@ -241,7 +226,9 @@ local function GetSpecFromTalentPoints(unit)
     local tied = false
     local sex = UnitSex and UnitSex(unit) or nil
 
-    for index = 1, specializationCount do
+    -- Forever uses the classic three-tree talent model even though the
+    -- modern specialization API reports one synthetic class spec ID.
+    for index = 1, 3 do
         local _specID,
             specName,
             _description,
@@ -279,20 +266,20 @@ local function GetSpecFromTalentPoints(unit)
             previewPointsSpent = 0
         end
 
-        local totalPoints =
-            pointsSpent + previewPointsSpent
-
         if specName
             and not UI:CanAccessValue(specName)
         then
             specName = nil
         end
 
-        specName = GetLocalizedSpecName(
-            classID,
-            index,
-            sex,
-            specName
+        local totalPoints =
+            pointsSpent + previewPointsSpent
+
+        DebugInspect(
+            "talent tree",
+            "index=" .. tostring(index),
+            "name=" .. DebugValue(specName),
+            "points=" .. tostring(totalPoints)
         )
 
         if specName and totalPoints > bestPoints then
