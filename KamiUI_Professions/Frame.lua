@@ -1003,6 +1003,23 @@ function Module:CreateFrame()
         Module:RefreshFrame()
     end)
 
+    frame:SetScript("OnHide", function()
+        if Module.suppressBackendClose then
+            return
+        end
+
+        if IsLiveProfessionOpen()
+            and C_TradeSkillUI
+            and C_TradeSkillUI.CloseTradeSkill
+        then
+            C_TradeSkillUI.CloseTradeSkill()
+        elseif _G.ProfessionsFrame
+            and _G.ProfessionsFrame:IsShown()
+        then
+            _G.ProfessionsFrame:Hide()
+        end
+    end)
+
     if UISpecialFrames then
         UISpecialFrames[#UISpecialFrames + 1] = frame:GetName()
     end
@@ -1884,8 +1901,9 @@ function Module:ShowFrame()
 end
 
 function Module:CloseFrame()
-    if self.frame then
+    if self.frame and self.frame:IsShown() then
         self.frame:Hide()
+        return
     end
 
     if IsLiveProfessionOpen()
@@ -1978,9 +1996,13 @@ function Module:InitializeFrame()
 
     UI:RegisterEvent("ADDON_LOADED", function(_, addonName)
         if addonName == "Blizzard_Professions" then
-            C_Timer.After(0, function()
-                Module:SuppressNativeFrame()
-            end)
+            Module:SuppressNativeFrame()
+
+            if not _G.ProfessionsFrame then
+                C_Timer.After(0, function()
+                    Module:SuppressNativeFrame()
+                end)
+            end
         end
     end)
 
@@ -1997,8 +2019,10 @@ function Module:InitializeFrame()
     end)
 
     UI:RegisterEvent("TRADE_SKILL_CLOSE", function()
-        if Module.frame then
+        if Module.frame and Module.frame:IsShown() then
+            Module.suppressBackendClose = true
             Module.frame:Hide()
+            Module.suppressBackendClose = false
         end
     end)
 
