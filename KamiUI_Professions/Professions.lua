@@ -123,7 +123,7 @@ function Module:SnapshotCurrentProfession()
     if not C_TradeSkillUI
         or not C_TradeSkillUI.GetBaseProfessionInfo
         or not C_TradeSkillUI.GetChildProfessionInfo
-        or not C_TradeSkillUI.GetFilteredRecipeIDs
+        or not C_TradeSkillUI.GetAllRecipeIDs
         or not C_TradeSkillUI.GetRecipeInfo
     then
         return
@@ -177,18 +177,18 @@ function Module:SnapshotCurrentProfession()
         professionInfo.skillModifier or saved.skillModifier or 0
     saved.updated = time and time() or 0
 
-    local ok, filteredRecipeIDs = pcall(
-        C_TradeSkillUI.GetFilteredRecipeIDs
+    local ok, recipeIDs = pcall(
+        C_TradeSkillUI.GetAllRecipeIDs
     )
 
-    if not ok or type(filteredRecipeIDs) ~= "table" then
+    if not ok or type(recipeIDs) ~= "table" then
         professions[professionID] = saved
         return
     end
 
     local discoveredRecipes = {}
 
-    for _, recipeID in ipairs(filteredRecipeIDs) do
+    for _, recipeID in ipairs(recipeIDs) do
         local belongsToSkillLine = true
 
         if C_TradeSkillUI.IsRecipeInSkillLine then
@@ -223,68 +223,9 @@ function Module:SnapshotCurrentProfession()
         end
     end
 
-    local searching = false
-
-    local function GetBooleanResult(func)
-        if type(func) ~= "function" then
-            return nil
-        end
-
-        local okResult, result = pcall(func)
-
-        if not okResult then
-            return nil
-        end
-
-        return result == true
-    end
-
-    -- We only cache learned recipes, so Blizzard hiding unlearned
-    -- recipes is not a reason to reject an otherwise complete scan.
-    -- Professions.IsUsingDefaultFilters() requires both learned and
-    -- unlearned recipes to be visible, which is too strict for Forever.
-    local learnedRecipesVisible =
-        GetBooleanResult(C_TradeSkillUI.GetShowLearned)
-    local makeableOnly =
-        GetBooleanResult(C_TradeSkillUI.GetOnlyShowMakeableRecipes)
-    local skillUpOnly =
-        GetBooleanResult(C_TradeSkillUI.GetOnlyShowSkillUpRecipes)
-    local firstCraftOnly =
-        GetBooleanResult(C_TradeSkillUI.GetOnlyShowFirstCraftRecipes)
-    local inventorySlotsFiltered =
-        GetBooleanResult(C_TradeSkillUI.AreAnyInventorySlotsFiltered)
-    local categoriesFiltered =
-        GetBooleanResult(C_TradeSkillUI.AnyRecipeCategoriesFiltered)
-    local sourcesUnfiltered =
-        Professions
-        and GetBooleanResult(Professions.AreAllSourcesUnfiltered)
-        or nil
-
-    local completeSnapshot =
-        not searching
-        and learnedRecipesVisible == true
-        and makeableOnly == false
-        and skillUpOnly == false
-        and firstCraftOnly == false
-        and inventorySlotsFiltered == false
-        and categoriesFiltered == false
-        and sourcesUnfiltered == true
-
-    if completeSnapshot then
-        saved.recipes = discoveredRecipes
-        saved.recipesCached = true
-        saved.recipeCacheVersion = RECIPE_CACHE_VERSION
-    else
-        saved.recipes = saved.recipes or {}
-
-        for recipeID, recipe in pairs(discoveredRecipes) do
-            saved.recipes[recipeID] = recipe
-        end
-
-        if saved.recipeCacheVersion ~= RECIPE_CACHE_VERSION then
-            saved.recipesCached = false
-        end
-    end
+    saved.recipes = discoveredRecipes
+    saved.recipesCached = true
+    saved.recipeCacheVersion = RECIPE_CACHE_VERSION
 
     professions[professionID] = saved
 end
