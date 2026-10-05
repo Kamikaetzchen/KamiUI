@@ -319,43 +319,22 @@ function Module:SnapshotCurrentProfession()
 end
 
 local function SavePosition(frame)
-    local frameX, frameY = frame:GetCenter()
-    local parentX, parentY = UIParent:GetCenter()
-
-    if not frameX or not frameY or not parentX or not parentY then
-        return
-    end
-
-    EnsureDatabase().position = {
-        x = frameX - parentX,
-        y = frameY - parentY,
-    }
-
-    frame:ClearAllPoints()
-    frame:SetPoint(
-        "CENTER",
-        UIParent,
-        "CENTER",
-        EnsureDatabase().position.x,
-        EnsureDatabase().position.y
-    )
-end
-
-local function ApplySavedPosition(frame)
-    local position = EnsureDatabase().position
+    local position = UI:GetFrameCenterOffset(frame)
 
     if not position then
         return
     end
 
-    frame:ClearAllPoints()
-    frame:SetPoint(
-        "CENTER",
-        UIParent,
-        "CENTER",
-        position.x or 0,
-        position.y or 0
-    )
+    EnsureDatabase().position = position
+    UI:SetFrameCenterOffset(frame, position)
+end
+
+local function ApplySavedPosition(frame)
+    local position = EnsureDatabase().position
+
+    if position then
+        UI:SetFrameCenterOffset(frame, position)
+    end
 end
 
 local function StyleRankBar(

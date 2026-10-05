@@ -349,35 +349,20 @@ local function CountFreeSlots(bagID)
 end
 
 local function SavePosition(frame)
-    local frameX, frameY = frame:GetCenter()
-    local parentX, parentY = UIParent:GetCenter()
+    local position = UI:GetFrameCenterOffset(frame)
 
-    if not frameX or not frameY or not parentX or not parentY then
-        return
+    if position then
+        EnsureDatabase().bankPosition = position
     end
-
-    EnsureDatabase().bankPosition = {
-        x = frameX - parentX,
-        y = frameY - parentY,
-    }
 end
 
 local function ApplySavedPosition(frame)
-    local position = EnsureDatabase().bankPosition
-
-    frame:ClearAllPoints()
-
-    if position then
-        frame:SetPoint(
-            "CENTER",
-            UIParent,
-            "CENTER",
-            position.x or 0,
-            position.y or 0
-        )
-    else
-        frame:SetPoint("CENTER", UIParent, "CENTER", -280, 0)
-    end
+    UI:SetFrameCenterOffset(
+        frame,
+        EnsureDatabase().bankPosition,
+        -280,
+        0
+    )
 end
 
 local function FormatMoney(copper)
