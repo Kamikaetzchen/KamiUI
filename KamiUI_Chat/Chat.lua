@@ -5,7 +5,7 @@ local Components = UI.Components
 
 local Module = UI:NewModule("Chat", "KamiUI_Chat")
 
-Module.version = "0.4.3"
+Module.version = "0.4.4"
 
 local SETUP_VERSION = 4
 
@@ -400,6 +400,17 @@ local function HideEditBoxDecorations(editBox)
     HideObject(editBox.prompt)
 end
 
+local function ApplyEditBoxInsets(editBox)
+    if editBox and editBox.SetTextInsets then
+        editBox:SetTextInsets(
+            defaults.padding,
+            defaults.padding,
+            0,
+            0
+        )
+    end
+end
+
 local function StyleEditBox(frame)
     local editBox = frame and frame.editBox
 
@@ -412,6 +423,7 @@ local function StyleEditBox(frame)
     end
 
     HideEditBoxDecorations(editBox)
+    ApplyEditBoxInsets(editBox)
 
     editBox:ClearAllPoints()
     editBox:SetPoint("TOPLEFT", Module.inputPanel, "TOPLEFT", 0, 0)
@@ -773,6 +785,25 @@ function Module:Initialize()
     KamiUIDB = KamiUIDB or {}
     KamiUIDB.chat = KamiUIDB.chat or {}
 
+    if ChatFrameEditBoxMixin
+        and ChatFrameEditBoxMixin.UpdateHeader
+        and hooksecurefunc
+        and not self.editBoxHeaderHooked
+    then
+        self.editBoxHeaderHooked = true
+
+        hooksecurefunc(
+            ChatFrameEditBoxMixin,
+            "UpdateHeader",
+            function(editBox)
+                if IsManagedEditBox(editBox) then
+                    HideEditBoxDecorations(editBox)
+                    ApplyEditBoxInsets(editBox)
+                end
+            end
+        )
+    end
+
     if EventRegistry and EventRegistry.RegisterCallback then
         EventRegistry:RegisterCallback(
             "ChatFrame.OnEditBoxFocusGained",
@@ -782,6 +813,7 @@ function Module:Initialize()
                 end
 
                 HideEditBoxDecorations(editBox)
+                ApplyEditBoxInsets(editBox)
                 UpdateInputPanelVisibility()
             end,
             Module
