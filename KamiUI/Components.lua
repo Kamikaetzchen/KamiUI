@@ -1081,9 +1081,21 @@ function Components:SetItemSlotData(button, data)
 
     if button.Count then
         local count = data.count or 0
+        local countText = data.countText
 
-        button.Count:SetText(count > 1 and count or "")
+        if countText == nil then
+            countText = count > 1 and tostring(count) or ""
+        end
+
+        button.Count:SetText(countText)
         button.Count:SetAlpha(alpha)
+
+        if data.countColor then
+            Styles:SetTextColor(button.Count, data.countColor)
+        else
+            Styles:SetTextColor(button.Count, Palette.text)
+        end
+
         button.Count:Show()
     end
 
