@@ -445,11 +445,11 @@ local function StyleOverviewCard(card, isPrimary)
             8
         )
         card.rankBar:SetPoint(
-            "RIGHT",
+            "BOTTOMRIGHT",
             card,
-            "RIGHT",
+            "BOTTOMRIGHT",
             -8,
-            0
+            8
         )
     else
         card:SetHeight(46)
@@ -474,11 +474,11 @@ local function StyleOverviewCard(card, isPrimary)
             7
         )
         card.rankBar:SetPoint(
-            "RIGHT",
+            "BOTTOMRIGHT",
             card,
-            "RIGHT",
+            "BOTTOMRIGHT",
             -8,
-            0
+            7
         )
     end
 end
