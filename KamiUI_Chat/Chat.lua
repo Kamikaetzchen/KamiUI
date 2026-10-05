@@ -5,7 +5,7 @@ local Components = UI.Components
 
 local Module = UI:NewModule("Chat", "KamiUI_Chat")
 
-Module.version = "0.4.4"
+Module.version = "0.4.5"
 
 local SETUP_VERSION = 4
 
@@ -422,6 +422,22 @@ local function StyleEditBox(frame)
         editBox:SetParent(UIParent)
     end
 
+    if not editBox.KamiUIInsetHooked
+        and hooksecurefunc
+        and editBox.UpdateHeader
+    then
+        editBox.KamiUIInsetHooked = true
+
+        hooksecurefunc(
+            editBox,
+            "UpdateHeader",
+            function(self)
+                HideEditBoxDecorations(self)
+                ApplyEditBoxInsets(self)
+            end
+        )
+    end
+
     HideEditBoxDecorations(editBox)
     ApplyEditBoxInsets(editBox)
 
@@ -784,25 +800,6 @@ function Module:Initialize()
 
     KamiUIDB = KamiUIDB or {}
     KamiUIDB.chat = KamiUIDB.chat or {}
-
-    if ChatFrameEditBoxMixin
-        and ChatFrameEditBoxMixin.UpdateHeader
-        and hooksecurefunc
-        and not self.editBoxHeaderHooked
-    then
-        self.editBoxHeaderHooked = true
-
-        hooksecurefunc(
-            ChatFrameEditBoxMixin,
-            "UpdateHeader",
-            function(editBox)
-                if IsManagedEditBox(editBox) then
-                    HideEditBoxDecorations(editBox)
-                    ApplyEditBoxInsets(editBox)
-                end
-            end
-        )
-    end
 
     if EventRegistry and EventRegistry.RegisterCallback then
         EventRegistry:RegisterCallback(
