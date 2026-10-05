@@ -1208,8 +1208,8 @@ local function BuildLiveRecipeEntries(frame)
         frame.searchBox:GetText() or ""
     )
     local ids = C_TradeSkillUI
-        and C_TradeSkillUI.GetFilteredRecipeIDs
-        and UI:SafeCall(C_TradeSkillUI.GetFilteredRecipeIDs)
+        and C_TradeSkillUI.GetAllRecipeIDs
+        and UI:SafeCall(C_TradeSkillUI.GetAllRecipeIDs)
         or {}
     local categories = {}
     local seenRecipes = {}
