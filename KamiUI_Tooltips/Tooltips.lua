@@ -642,13 +642,26 @@ local function ScheduleSpecInspect(unit, guid)
         end
 
         if pendingInspect then
-            if C_Timer and C_Timer.After then
-                C_Timer.After(
-                    0.20,
-                    TryStart
+            local now = GetTime and GetTime() or 0
+
+            if now - (pendingInspect.requestedAt or 0)
+                >= INSPECT_TIMEOUT_SECONDS
+            then
+                CacheSpec(
+                    pendingInspect.guid,
+                    nil,
+                    INSPECT_MISS_CACHE_SECONDS
                 )
+                pendingInspect = nil
+            else
+                if C_Timer and C_Timer.After then
+                    C_Timer.After(
+                        0.20,
+                        TryStart
+                    )
+                end
+                return
             end
-            return
         end
 
         queuedInspect = nil
@@ -1127,6 +1140,7 @@ local function HandleInspectReady(guid)
             pendingInspect = nil
         end
 
+        RefreshVisiblePlayerTooltip(guid)
         return
     end
 
@@ -1140,6 +1154,8 @@ local function HandleInspectReady(guid)
 
     local unit = request.unit
 
+    local cachedResult = false
+
     if IsValidPlayerUnit(unit) then
         local currentGuid = UnitGUID(unit)
 
@@ -1150,7 +1166,16 @@ local function HandleInspectReady(guid)
             local specText = ResolveInspectedSpec(unit)
 
             CacheSpec(guid, specText)
+            cachedResult = true
         end
+    end
+
+    if not cachedResult then
+        CacheSpec(
+            guid,
+            nil,
+            INSPECT_MISS_CACHE_SECONDS
+        )
     end
 
     if ClearInspectPlayer
