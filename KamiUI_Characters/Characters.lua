@@ -325,45 +325,22 @@ local LoadEquipmentIgnoreState
 local ApplyEquipmentIgnoreState
 
 local function CreateEquipmentSlot(parent, definition)
-    local button = CreateFrame("Button", nil, parent)
     local slotSize = definition.size or SLOT_SIZE
+    local button = Components:CreateItemSlot(parent, {
+        size = slotSize,
+        borderColor = Palette.emptyBorder,
+        label = definition.label,
+        labelFontSize = 8,
+        labelColor = { 0.45, 0.45, 0.48, 1 },
+        highlight = false,
+    })
 
-    button:SetSize(slotSize, slotSize)
     button:RegisterForClicks(
         "LeftButtonUp",
         "RightButtonUp",
         "MiddleButtonUp"
     )
     button:RegisterForDrag("LeftButton")
-
-    local background = button:CreateTexture(nil, "BACKGROUND")
-    background:SetAllPoints()
-    background:SetColorTexture(unpack(Palette.slot))
-    button.background = background
-
-    local icon = button:CreateTexture(nil, "ARTWORK")
-    icon:SetPoint("TOPLEFT", 1, -1)
-    icon:SetPoint("BOTTOMRIGHT", -1, 1)
-    icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
-    button.icon = icon
-
-    local label = button:CreateFontString(nil, "OVERLAY")
-    label:SetPoint("CENTER")
-    label:SetFont("Fonts\\FRIZQT__.TTF", 8, "OUTLINE")
-    label:SetTextColor(0.45, 0.45, 0.48)
-    label:SetText(definition.label)
-    button.label = label
-
-    button.KamiBorders = Styles:CreateBorder(button, Palette.emptyBorder)
-
-    local rarityGlow = button:CreateTexture(nil, "OVERLAY", nil, 1)
-    rarityGlow:SetPoint("CENTER", button, "CENTER", 1, 0)
-    rarityGlow:SetSize(slotSize + 26, slotSize + 26)
-    rarityGlow:SetTexture("Interface\\Buttons\\UI-ActionButton-Border")
-    rarityGlow:SetBlendMode("ADD")
-    rarityGlow:SetAlpha(0.45)
-    rarityGlow:Hide()
-    button.KamiRarityGlow = rarityGlow
 
     local ignoreOverlay = button:CreateTexture(nil, "OVERLAY", nil, 3)
     ignoreOverlay:SetPoint("CENTER")
@@ -618,29 +595,6 @@ local function LayoutEquipmentSlot(button, definition, frame)
     end
 end
 
-local function UpdateRarityGlow(button, quality)
-    local glow = button.KamiRarityGlow
-
-    if not glow then
-        return
-    end
-
-    if quality == nil or quality <= 1 then
-        glow:Hide()
-        return
-    end
-
-    local color = ITEM_QUALITY_COLORS
-        and ITEM_QUALITY_COLORS[quality]
-
-    if color then
-        glow:SetVertexColor(color.r, color.g, color.b, 1)
-        glow:Show()
-    else
-        glow:Hide()
-    end
-end
-
 local function UpdateEquipmentSlot(button)
     local slotID = button.slotID
 
@@ -648,8 +602,8 @@ local function UpdateEquipmentSlot(button)
         button.cachedLink = nil
         button.icon:SetTexture(nil)
         button.label:Show()
-        Styles:SetBorderColor(button.KamiBorders, Palette.emptyBorder)
-        UpdateRarityGlow(button, nil)
+        Components:SetItemSlotBorderColor(button, Palette.emptyBorder)
+        Components:SetItemSlotQuality(button, nil)
         return
     end
 
@@ -678,13 +632,13 @@ local function UpdateEquipmentSlot(button)
     button.cachedLink = link
     button.icon:SetTexture(texture)
     button.label:SetShown(not texture)
-    Styles:SetBorderColor(button.KamiBorders, Palette.emptyBorder)
+    Components:SetItemSlotBorderColor(button, Palette.emptyBorder)
 
     if quality == nil and link and GetItemInfo then
         _, _, quality = GetItemInfo(link)
     end
 
-    UpdateRarityGlow(button, quality)
+    Components:SetItemSlotQuality(button, quality)
 end
 
 local SetSidebarMode
