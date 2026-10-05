@@ -1539,25 +1539,6 @@ local function UpdateEquipmentPane(frame)
 
     pane.equip:SetEnabled(equipEnabled)
     pane.save:SetEnabled(saveEnabled)
-
-    local equipText = pane.equip:GetFontString()
-    local saveText = pane.save:GetFontString()
-
-    if equipText then
-        if equipEnabled then
-            equipText:SetTextColor(1.00, 0.82, 0.00)
-        else
-            equipText:SetTextColor(0.45, 0.45, 0.48)
-        end
-    end
-
-    if saveText then
-        if saveEnabled then
-            saveText:SetTextColor(1.00, 0.82, 0.00)
-        else
-            saveText:SetTextColor(0.45, 0.45, 0.48)
-        end
-    end
 end
 
 SetSidebarMode = function(frame, mode)
@@ -1573,17 +1554,19 @@ SetSidebarMode = function(frame, mode)
         mode = "stats"
     end
 
-    sidebar.equipmentTab:SetEnabled(isCurrent)
-    sidebar.equipmentTab:SetAlpha(isCurrent and 1 or 0.35)
     sidebar.mode = mode
     sidebar.statsPane:SetShown(mode == "stats")
     sidebar.equipmentPane:SetShown(mode == "equipment")
 
-    sidebar.statsTab.background:SetColorTexture(
-        1, 1, 1, mode == "stats" and 0.18 or 0.07
+    Components:SetTabState(
+        sidebar.statsTab,
+        mode == "stats",
+        true
     )
-    sidebar.equipmentTab.background:SetColorTexture(
-        1, 1, 1, mode == "equipment" and 0.18 or 0.07
+    Components:SetTabState(
+        sidebar.equipmentTab,
+        mode == "equipment",
+        isCurrent
     )
 
     if mode == "stats" then
@@ -3368,20 +3351,11 @@ local function CreateSidebar(frame)
     statsTab:SetPoint("TOPLEFT", sidebar, "TOPLEFT", 1, -1)
     statsTab:SetPoint("TOPRIGHT", sidebar, "TOP", 0, -1)
     statsTab:SetHeight(24)
-    statsTab:SetNormalFontObject("GameFontNormalSmall")
-    statsTab:SetHighlightFontObject("GameFontHighlightSmall")
-    statsTab:SetText("Stats")
-    statsTab.background = statsTab:CreateTexture(nil, "BACKGROUND")
-    statsTab.background:SetAllPoints()
-    statsTab.background:SetColorTexture(1, 1, 1, 0.18)
-    local statsBorders = Styles:CreateBorder(statsTab, Palette.border)
-    statsBorders[1]:Hide()
-    statsBorders[3]:Hide()
-    statsBorders[4]:Hide()
-
-    local statsHighlight = statsTab:CreateTexture(nil, "HIGHLIGHT")
-    statsHighlight:SetAllPoints()
-    statsHighlight:SetColorTexture(1, 1, 1, 0.08)
+    Components:StyleTab(statsTab, {
+        orientation = "top",
+        text = "Stats",
+        active = true,
+    })
 
     statsTab:SetScript("OnClick", function()
         SetSidebarMode(frame, "stats")
@@ -3392,26 +3366,11 @@ local function CreateSidebar(frame)
     equipmentTab:SetPoint("TOPLEFT", sidebar, "TOP", 0, -1)
     equipmentTab:SetPoint("TOPRIGHT", sidebar, "TOPRIGHT", -1, -1)
     equipmentTab:SetHeight(24)
-    equipmentTab:SetNormalFontObject("GameFontNormalSmall")
-    equipmentTab:SetHighlightFontObject("GameFontHighlightSmall")
-    equipmentTab:SetText("Equipment")
-    equipmentTab.background = equipmentTab:CreateTexture(nil, "BACKGROUND")
-    equipmentTab.background:SetAllPoints()
-    equipmentTab.background:SetColorTexture(1, 1, 1, 0.07)
-    local equipmentBorders = Styles:CreateBorder(equipmentTab, Palette.border)
-    equipmentBorders[1]:Hide()
-    equipmentBorders[3]:Hide()
-    equipmentBorders[4]:Hide()
-
-    local tabDivider = equipmentTab:CreateTexture(nil, "OVERLAY")
-    tabDivider:SetPoint("TOPLEFT")
-    tabDivider:SetPoint("BOTTOMLEFT")
-    tabDivider:SetWidth(1)
-    tabDivider:SetColorTexture(unpack(Palette.border))
-
-    local equipmentHighlight = equipmentTab:CreateTexture(nil, "HIGHLIGHT")
-    equipmentHighlight:SetAllPoints()
-    equipmentHighlight:SetColorTexture(1, 1, 1, 0.08)
+    Components:StyleTab(equipmentTab, {
+        orientation = "top",
+        text = "Equipment",
+        joinLeft = true,
+    })
 
     equipmentTab:SetScript("OnClick", function()
         SetSidebarMode(frame, "equipment")
@@ -3644,18 +3603,7 @@ local function CreateSidebar(frame)
     local newSet = CreateFrame("Button", nil, equipmentPane)
     newSet:SetSize(44, 18)
     newSet:SetPoint("TOPRIGHT", equipmentPane, "TOPRIGHT", -6, -5)
-    newSet:SetNormalFontObject("GameFontNormalSmall")
-    newSet:SetHighlightFontObject("GameFontHighlightSmall")
-    newSet:SetText("New")
-
-    local newBackground = newSet:CreateTexture(nil, "BACKGROUND")
-    newBackground:SetAllPoints()
-    newBackground:SetColorTexture(1, 1, 1, 0.10)
-    Styles:CreateBorder(newSet, Palette.border)
-
-    local newHighlight = newSet:CreateTexture(nil, "HIGHLIGHT")
-    newHighlight:SetAllPoints()
-    newHighlight:SetColorTexture(1, 1, 1, 0.10)
+    Components:StyleButton(newSet, { text = "New" })
     equipmentPane.newSet = newSet
 
     local createDialog = CreateFrame(
@@ -3700,34 +3648,12 @@ local function CreateSidebar(frame)
     local createButton = CreateFrame("Button", nil, createDialog)
     createButton:SetSize(56, 18)
     createButton:SetPoint("BOTTOMLEFT", createDialog, "BOTTOMLEFT", 9, 7)
-    createButton:SetNormalFontObject("GameFontNormalSmall")
-    createButton:SetHighlightFontObject("GameFontHighlightSmall")
-    createButton:SetText("Create")
-
-    local createBackground = createButton:CreateTexture(nil, "BACKGROUND")
-    createBackground:SetAllPoints()
-    createBackground:SetColorTexture(1, 1, 1, 0.12)
-    Styles:CreateBorder(createButton, Palette.border)
-
-    local createHighlight = createButton:CreateTexture(nil, "HIGHLIGHT")
-    createHighlight:SetAllPoints()
-    createHighlight:SetColorTexture(1, 1, 1, 0.10)
+    Components:StyleButton(createButton, { text = "Create" })
 
     local cancelButton = CreateFrame("Button", nil, createDialog)
     cancelButton:SetSize(56, 18)
     cancelButton:SetPoint("BOTTOMRIGHT", createDialog, "BOTTOMRIGHT", -9, 7)
-    cancelButton:SetNormalFontObject("GameFontNormalSmall")
-    cancelButton:SetHighlightFontObject("GameFontHighlightSmall")
-    cancelButton:SetText("Cancel")
-
-    local cancelBackground = cancelButton:CreateTexture(nil, "BACKGROUND")
-    cancelBackground:SetAllPoints()
-    cancelBackground:SetColorTexture(1, 1, 1, 0.08)
-    Styles:CreateBorder(cancelButton, Palette.border)
-
-    local cancelHighlight = cancelButton:CreateTexture(nil, "HIGHLIGHT")
-    cancelHighlight:SetAllPoints()
-    cancelHighlight:SetColorTexture(1, 1, 1, 0.08)
+    Components:StyleButton(cancelButton, { text = "Cancel" })
 
     local function CloseCreateDialog()
         nameInput:ClearFocus()
@@ -3781,18 +3707,7 @@ local function CreateSidebar(frame)
     local equip = CreateFrame("Button", nil, equipmentPane)
     equip:SetSize(66, 20)
     equip:SetPoint("BOTTOMRIGHT", equipmentPane, "BOTTOM", -3, 8)
-    equip:SetNormalFontObject("GameFontNormalSmall")
-    equip:SetHighlightFontObject("GameFontHighlightSmall")
-    equip:SetText("Equip")
-
-    local equipBackground = equip:CreateTexture(nil, "BACKGROUND")
-    equipBackground:SetAllPoints()
-    equipBackground:SetColorTexture(1, 1, 1, 0.12)
-    Styles:CreateBorder(equip, Palette.border)
-
-    local equipHighlight = equip:CreateTexture(nil, "HIGHLIGHT")
-    equipHighlight:SetAllPoints()
-    equipHighlight:SetColorTexture(1, 1, 1, 0.10)
+    Components:StyleButton(equip, { text = "Equip" })
 
     equip:SetScript("OnClick", function()
         local setID = equipmentPane.selectedSetID
@@ -3812,18 +3727,7 @@ local function CreateSidebar(frame)
     local save = CreateFrame("Button", nil, equipmentPane)
     save:SetSize(66, 20)
     save:SetPoint("BOTTOMLEFT", equipmentPane, "BOTTOM", 3, 8)
-    save:SetNormalFontObject("GameFontNormalSmall")
-    save:SetHighlightFontObject("GameFontHighlightSmall")
-    save:SetText("Save")
-
-    local saveBackground = save:CreateTexture(nil, "BACKGROUND")
-    saveBackground:SetAllPoints()
-    saveBackground:SetColorTexture(1, 1, 1, 0.12)
-    Styles:CreateBorder(save, Palette.border)
-
-    local saveHighlight = save:CreateTexture(nil, "HIGHLIGHT")
-    saveHighlight:SetAllPoints()
-    saveHighlight:SetColorTexture(1, 1, 1, 0.10)
+    Components:StyleButton(save, { text = "Save" })
 
     save:SetScript("OnClick", function()
         local setID = equipmentPane.selectedSetID
@@ -4160,9 +4064,7 @@ local function CreateFrameUI()
     close:SetPoint("TOPRIGHT", header, "TOPRIGHT", -3, -3)
     close:SetFrameLevel(header:GetFrameLevel() + 10)
     close:RegisterForClicks("LeftButtonUp")
-    close:SetNormalFontObject("GameFontNormal")
-    close:SetHighlightFontObject("GameFontHighlight")
-    close:SetText("x")
+    Components:StyleButton(close, { text = "x" })
     close:SetScript("OnClick", function()
         Module:Hide()
     end)
