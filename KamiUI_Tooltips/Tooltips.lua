@@ -1497,6 +1497,13 @@ local function InstallWorldCursorAnchor()
 
     Module.worldCursorAnchorInstalled = true
 
+    if GameTooltip.HookScript then
+        GameTooltip:HookScript("OnHide", function(self)
+            queuedInspect = nil
+            self.KamiPendingRefreshGuid = nil
+        end)
+    end
+
     hooksecurefunc(
         GameTooltip,
         "SetWorldCursor",
