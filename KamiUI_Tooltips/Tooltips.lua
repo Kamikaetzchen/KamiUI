@@ -13,6 +13,27 @@ local INSPECT_THROTTLE_SECONDS = 1.5
 local INSPECT_TIMEOUT_SECONDS = 10
 local INSPECT_READY_RETRY_SECONDS = 0.05
 local INSPECT_READY_RETRY_COUNT = 20
+local INSPECT_DEBUG = true
+
+local function DebugInspect(...)
+    if not INSPECT_DEBUG then
+        return
+    end
+
+    UI:Print("|cffffcc00Tooltip Inspect:|r", ...)
+end
+
+local function DebugValue(value)
+    if value == nil then
+        return "nil"
+    end
+
+    if not UI:CanAccessValue(value) then
+        return "<secret>"
+    end
+
+    return tostring(value)
+end
 
 local GUILD_COLOR = { 0.50, 1.00, 0.50, 1.00 }
 local GUILD_RANK_COLOR = Palette.gold
@@ -520,16 +541,40 @@ local function IsBlizzardInspectActive()
 end
 
 local function CanRequestInspect(unit)
-    if not IsValidPlayerUnit(unit)
-        or UnitIsUnit(unit, "player")
-        or IsBlizzardInspectActive()
-        or not NotifyInspect
-        or not CanInspect
-    then
+    if not IsValidPlayerUnit(unit) then
+        DebugInspect(
+            "blocked: invalid unit",
+            DebugValue(unit)
+        )
+        return false
+    end
+
+    if UnitIsUnit(unit, "player") then
+        DebugInspect("blocked: player unit")
+        return false
+    end
+
+    if IsBlizzardInspectActive() then
+        DebugInspect("blocked: Blizzard inspect active")
+        return false
+    end
+
+    if not NotifyInspect or not CanInspect then
+        DebugInspect(
+            "blocked: inspect API missing",
+            "NotifyInspect=" .. DebugValue(NotifyInspect),
+            "CanInspect=" .. DebugValue(CanInspect)
+        )
         return false
     end
 
     local canInspect = UI:SafeCall(CanInspect, unit)
+
+    DebugInspect(
+        "CanInspect",
+        "unit=" .. DebugValue(unit),
+        "result=" .. DebugValue(canInspect)
+    )
 
     return canInspect == true
 end
@@ -559,7 +604,15 @@ local function StartSpecInspect(unit, guid)
     pendingInspect = request
     lastInspectRequest = now
 
+    DebugInspect(
+        "request",
+        "unit=" .. DebugValue(unit),
+        "guid=" .. DebugValue(guid)
+    )
+
     NotifyInspect(unit)
+
+    DebugInspect("NotifyInspect called")
 
     if C_Timer and C_Timer.After then
         C_Timer.After(
@@ -570,6 +623,12 @@ local function StartSpecInspect(unit, guid)
                 end
 
                 pendingInspect = nil
+
+                DebugInspect(
+                    "timeout",
+                    "guid=" .. DebugValue(guid)
+                )
+
                 CacheSpec(
                     guid,
                     nil,
@@ -1184,11 +1243,36 @@ local function ResolveInspectReady(
             guid,
             preferredUnit
         )
+
+        local inspectSpecID
+        if unit
+            and C_SpecializationInfo
+            and C_SpecializationInfo.GetInspectSpecialization
+        then
+            inspectSpecID = UI:SafeCall(
+                C_SpecializationInfo.GetInspectSpecialization,
+                unit
+            )
+        end
+
         local specText = unit
             and ResolveInspectedSpec(unit)
             or nil
 
+        DebugInspect(
+            "ready attempt " .. tostring(attempts),
+            "unit=" .. DebugValue(unit),
+            "specID=" .. DebugValue(inspectSpecID),
+            "resolved=" .. DebugValue(specText)
+        )
+
         if specText then
+            DebugInspect(
+                "success",
+                "guid=" .. DebugValue(guid),
+                "spec=" .. DebugValue(specText)
+            )
+
             CacheSpec(guid, specText)
             FinishInspectRequest(request)
             RefreshVisiblePlayerTooltip(guid)
@@ -1207,6 +1291,11 @@ local function ResolveInspectReady(
         end
 
         if request then
+            DebugInspect(
+                "ready but unresolved",
+                "guid=" .. DebugValue(guid)
+            )
+
             CacheSpec(
                 guid,
                 nil,
@@ -1225,7 +1314,16 @@ local function ResolveInspectReady(
 end
 
 local function HandleInspectReady(guid)
+    DebugInspect(
+        "INSPECT_READY",
+        "guid=" .. DebugValue(guid),
+        "pending=" .. DebugValue(
+            pendingInspect and pendingInspect.guid
+        )
+    )
+
     if not guid or not UI:CanAccessValue(guid) then
+        DebugInspect("ignored: invalid INSPECT_READY guid")
         return
     end
 
