@@ -5,7 +5,7 @@ local Components = UI.Components
 
 local Module = UI:NewModule("Chat", "KamiUI_Chat")
 
-Module.version = "0.4.2"
+Module.version = "0.4.3"
 
 local SETUP_VERSION = 4
 
@@ -417,6 +417,10 @@ local function StyleEditBox(frame)
     editBox:SetPoint("TOPLEFT", Module.inputPanel, "TOPLEFT", 0, 0)
     editBox:SetPoint("BOTTOMRIGHT", Module.inputPanel, "BOTTOMRIGHT", 0, 0)
 
+    if editBox ~= ACTIVE_CHAT_EDIT_BOX then
+        editBox:Hide()
+    end
+
     local font, _, flags = editBox:GetFont()
 
     if font then
@@ -602,22 +606,9 @@ local function IsManagedEditBox(editBox)
 end
 
 local function UpdateInputPanelVisibility()
-    local visible = false
-
-    for _, config in ipairs(leftTabs) do
-        local frame = Module.backends[config.key]
-        local editBox = frame and frame.editBox
-
-        if editBox
-            and editBox.IsShown
-            and editBox:IsShown()
-        then
-            visible = true
-            break
-        end
-    end
-
-    Module.inputPanel:SetShown(visible)
+    Module.inputPanel:SetShown(
+        IsManagedEditBox(ACTIVE_CHAT_EDIT_BOX)
+    )
 end
 
 local function PositionManagedChatFrames()
@@ -688,6 +679,21 @@ function Module:SelectTab(key)
         and backend.editBox
     then
         ChatFrameUtil.SetLastActiveWindow(backend.editBox)
+
+        if backend.editBox ~= ACTIVE_CHAT_EDIT_BOX then
+            backend.editBox:Hide()
+        end
+    end
+
+    for _, config in ipairs(leftTabs) do
+        local frame = self.backends[config.key]
+        local editBox = frame and frame.editBox
+
+        if editBox
+            and editBox ~= ACTIVE_CHAT_EDIT_BOX
+        then
+            editBox:Hide()
+        end
     end
 
     UpdateTabStyles()
@@ -769,36 +775,38 @@ function Module:Initialize()
 
     if EventRegistry and EventRegistry.RegisterCallback then
         EventRegistry:RegisterCallback(
-            "ChatFrame.OnEditBoxShow",
+            "ChatFrame.OnEditBoxFocusGained",
             function(_, editBox)
                 if not IsManagedEditBox(editBox) then
                     return
                 end
 
                 HideEditBoxDecorations(editBox)
-
-                if C_Timer and C_Timer.After then
-                    C_Timer.After(0, function()
-                        HideEditBoxDecorations(editBox)
-                        UpdateInputPanelVisibility()
-                    end)
-                else
-                    UpdateInputPanelVisibility()
-                end
+                UpdateInputPanelVisibility()
             end,
             Module
         )
 
         EventRegistry:RegisterCallback(
-            "ChatFrame.OnEditBoxHide",
+            "ChatFrame.OnEditBoxFocusLost",
             function(_, editBox)
                 if not IsManagedEditBox(editBox) then
                     return
                 end
 
                 if C_Timer and C_Timer.After then
-                    C_Timer.After(0, UpdateInputPanelVisibility)
+                    C_Timer.After(0, function()
+                        if editBox ~= ACTIVE_CHAT_EDIT_BOX then
+                            editBox:Hide()
+                        end
+
+                        UpdateInputPanelVisibility()
+                    end)
                 else
+                    if editBox ~= ACTIVE_CHAT_EDIT_BOX then
+                        editBox:Hide()
+                    end
+
                     UpdateInputPanelVisibility()
                 end
             end,
