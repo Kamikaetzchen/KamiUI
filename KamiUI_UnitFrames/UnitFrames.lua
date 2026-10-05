@@ -3,7 +3,7 @@ local Palette = UI.Palette
 
 local UF = UI:NewModule("UnitFrames", "KamiUI_UnitFrames")
 
-UF.version = "0.1.0"
+UF.version = "0.1.1"
 
 UF.flatTexture = "Interface\\Buttons\\WHITE8X8"
 UF.colorMultiplier = 0.60
@@ -212,4 +212,33 @@ function UF:ConfigureUnitButton(frame, unit)
     frame:SetAttribute("unit", unit)
     frame:SetAttribute("*type1", "target")
     frame:SetAttribute("*type2", "togglemenu")
+
+    if frame.HookScript
+        and not frame.KamiUnitTooltipHooked
+    then
+        frame.KamiUnitTooltipHooked = true
+
+        frame:HookScript("OnEnter", function(self)
+            local tooltipUnit = self.unit
+
+            if not GameTooltip
+                or not tooltipUnit
+                or not UnitExists(tooltipUnit)
+            then
+                return
+            end
+
+            GameTooltip:SetOwner(
+                self,
+                "ANCHOR_CURSOR_RIGHT"
+            )
+            GameTooltip:SetUnit(tooltipUnit)
+        end)
+
+        frame:HookScript("OnLeave", function()
+            if GameTooltip then
+                GameTooltip:Hide()
+            end
+        end)
+    end
 end
