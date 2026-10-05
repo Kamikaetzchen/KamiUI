@@ -1,27 +1,10 @@
 local UI = KamiUI
-local Palette = UI.Palette
-local Styles = UI.Styles
-local Components = UI.Components
 
 local Module = UI:NewModule("Professions", "KamiUI_Professions")
 
 Module.version = "0.3.0"
 
 local RECIPE_CACHE_VERSION = 3
-
-local CRAFTING_RANK_X = 110
-local CRAFTING_RANK_Y = -38
-local CRAFTING_LINK_GAP = 10
-
--- The crafting bar and the overview bars use different Blizzard anchors,
--- so keep their fill offsets separate.
-local CRAFTING_FILL_X_OFFSET = -5
-local CRAFTING_FILL_Y_OFFSET = 3
-local OVERVIEW_FILL_X_OFFSET = -2
-local OVERVIEW_FILL_Y_OFFSET = 3
-
-local RECIPE_CATEGORY_INSET = 2
-local RECIPE_ROW_INSET = 8
 
 local function GetDatabase()
     return UI:GetDatabase("professions")
