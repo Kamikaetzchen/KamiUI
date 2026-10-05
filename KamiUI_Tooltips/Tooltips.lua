@@ -1313,6 +1313,46 @@ local function ResolveInspectReady(
     end
 end
 
+local function DebugInspectUnitToken(label, unit)
+    local exists
+    local isPlayer
+    local unitGuid
+
+    if unit then
+        exists = UI:SafeCall(UnitExists, unit)
+        isPlayer = UI:SafeCall(UnitIsPlayer, unit)
+        unitGuid = UI:SafeCall(UnitGUID, unit)
+    end
+
+    DebugInspect(
+        "unit probe",
+        label .. "=" .. DebugValue(unit),
+        "exists=" .. DebugValue(exists),
+        "player=" .. DebugValue(isPlayer),
+        "guid=" .. DebugValue(unitGuid)
+    )
+end
+
+local function DebugInspectUnitState()
+    local tooltipUnit
+
+    if GameTooltip
+        and GameTooltip.GetUnit
+        and GameTooltip:IsShown()
+    then
+        local _name
+        _name, tooltipUnit = GameTooltip:GetUnit()
+    end
+
+    DebugInspectUnitToken(
+        "pendingUnit",
+        pendingInspect and pendingInspect.unit
+    )
+    DebugInspectUnitToken("tooltipUnit", tooltipUnit)
+    DebugInspectUnitToken("mouseover", "mouseover")
+    DebugInspectUnitToken("target", "target")
+end
+
 local function HandleInspectReady(guid)
     DebugInspect(
         "INSPECT_READY",
@@ -1321,6 +1361,8 @@ local function HandleInspectReady(guid)
             pendingInspect and pendingInspect.guid
         )
     )
+
+    DebugInspectUnitState()
 
     if not guid or not UI:CanAccessValue(guid) then
         DebugInspect("ignored: invalid INSPECT_READY guid")
