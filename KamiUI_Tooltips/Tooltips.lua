@@ -4,7 +4,7 @@ local Styles = UI.Styles
 
 local Module = UI:NewModule("Tooltips", "KamiUI_Tooltips")
 
-Module.version = "0.2.4"
+Module.version = "0.2.5"
 
 local INSPECT_CACHE_SECONDS = 600
 local INSPECT_MISS_CACHE_SECONDS = 60
@@ -1266,6 +1266,42 @@ local function ResolveInspectReady(
             preferredUnit
         )
 
+        local hasValidInspectData = true
+        if C_Traits and C_Traits.HasValidInspectData then
+            hasValidInspectData =
+                UI:SafeCall(C_Traits.HasValidInspectData)
+                    == true
+        end
+
+        if not hasValidInspectData then
+            DebugInspect(
+                "ready attempt " .. tostring(attempts),
+                "unit=" .. DebugValue(unit),
+                "talentData=false"
+            )
+
+            if attempts < INSPECT_READY_RETRY_COUNT
+                and C_Timer
+                and C_Timer.After
+            then
+                C_Timer.After(
+                    INSPECT_READY_RETRY_SECONDS,
+                    TryResolve
+                )
+                return
+            end
+
+            if request then
+                DebugInspect(
+                    "inspect talent data unavailable",
+                    "guid=" .. DebugValue(guid)
+                )
+
+                FinishInspectRequest(request)
+            end
+            return
+        end
+
         local inspectSpecID
         if unit
             and C_SpecializationInfo
@@ -1284,6 +1320,7 @@ local function ResolveInspectReady(
         DebugInspect(
             "ready attempt " .. tostring(attempts),
             "unit=" .. DebugValue(unit),
+            "talentData=true",
             "specID=" .. DebugValue(inspectSpecID),
             "resolved=" .. DebugValue(specText)
         )
