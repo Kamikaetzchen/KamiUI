@@ -4,13 +4,13 @@ local Styles = UI.Styles
 
 local Module = UI:NewModule("Tooltips", "KamiUI_Tooltips")
 
-Module.version = "0.2.2"
+Module.version = "0.2.3"
 
 local INSPECT_CACHE_SECONDS = 600
 local INSPECT_MISS_CACHE_SECONDS = 60
 local INSPECT_HOVER_DELAY_SECONDS = 0.30
 local INSPECT_THROTTLE_SECONDS = 1.5
-local INSPECT_TIMEOUT_SECONDS = 20
+local INSPECT_TIMEOUT_SECONDS = 10
 
 local GUILD_COLOR = { 0.50, 1.00, 0.50, 1.00 }
 local GUILD_RANK_COLOR = Palette.gold
@@ -428,11 +428,11 @@ end
 
 local function ResolveInspectedSpec(unit)
     return NormalizeSpecText(
-        GetSpecFromTalentPoints(unit),
+        GetSpecFromInspectSpecialization(unit),
         unit
     )
         or NormalizeSpecText(
-            GetSpecFromInspectSpecialization(unit),
+            GetSpecFromTalentPoints(unit),
             unit
         )
         or NormalizeSpecText(
@@ -534,19 +534,6 @@ end
 
 local function StartSpecInspect(unit, guid)
     local now = GetTime and GetTime() or 0
-
-    if pendingInspect
-        and now - (pendingInspect.requestedAt or 0)
-            >= INSPECT_TIMEOUT_SECONDS
-    then
-        CacheSpec(
-            pendingInspect.guid,
-            nil,
-            INSPECT_MISS_CACHE_SECONDS
-        )
-        pendingInspect = nil
-    end
-
     local cached = select(1, GetCachedSpec(guid))
 
     if cached
@@ -561,14 +548,34 @@ local function StartSpecInspect(unit, guid)
         return false
     end
 
-    pendingInspect = {
-        unit = unit,
+    local request = {
         guid = guid,
         requestedAt = now,
     }
+
+    pendingInspect = request
     lastInspectRequest = now
 
     NotifyInspect(unit)
+
+    if C_Timer and C_Timer.After then
+        C_Timer.After(
+            INSPECT_TIMEOUT_SECONDS,
+            function()
+                if pendingInspect ~= request then
+                    return
+                end
+
+                pendingInspect = nil
+                CacheSpec(
+                    guid,
+                    nil,
+                    INSPECT_MISS_CACHE_SECONDS
+                )
+            end
+        )
+    end
+
     return true
 end
 
@@ -625,46 +632,40 @@ local function ScheduleSpecInspect(unit, guid)
             return
         end
 
+        queuedInspect = nil
+
         local currentUnit =
             GetVisibleTooltipUnit(request.guid)
 
         if not currentUnit then
-            queuedInspect = nil
             return
         end
 
         local hasCached =
             select(1, GetCachedSpec(request.guid))
 
-        if hasCached then
-            queuedInspect = nil
+        if hasCached or pendingInspect then
             return
         end
 
-        if pendingInspect then
-            local now = GetTime and GetTime() or 0
+        local now = GetTime and GetTime() or 0
+        local throttleRemaining =
+            INSPECT_THROTTLE_SECONDS
+            - (now - lastInspectRequest)
 
-            if now - (pendingInspect.requestedAt or 0)
-                >= INSPECT_TIMEOUT_SECONDS
-            then
-                CacheSpec(
-                    pendingInspect.guid,
-                    nil,
-                    INSPECT_MISS_CACHE_SECONDS
-                )
-                pendingInspect = nil
-            else
-                if C_Timer and C_Timer.After then
-                    C_Timer.After(
-                        0.20,
-                        TryStart
-                    )
-                end
-                return
-            end
+        if throttleRemaining > 0
+            and C_Timer
+            and C_Timer.After
+        then
+            queuedInspect = request
+
+            C_Timer.After(
+                throttleRemaining,
+                TryStart
+            )
+            return
         end
 
-        queuedInspect = nil
         StartSpecInspect(
             currentUnit,
             request.guid
@@ -1106,7 +1107,6 @@ local function RefreshVisiblePlayerTooltip(guid)
         tooltip:SetUnit(currentUnit)
 
         if tooltip:IsShown() then
-            AddPlayerDetails(tooltip)
             AnchorGameTooltipToCursor(tooltip)
         end
     end
@@ -1119,19 +1119,20 @@ local function RefreshVisiblePlayerTooltip(guid)
 end
 
 local function HandleInspectReady(guid)
-    if IsBlizzardInspectActive() then
-        local inspectUnit = GetBlizzardInspectUnit()
-        local inspectGuid = inspectUnit
-            and UnitGUID(inspectUnit)
+    local inspectUnit = GetBlizzardInspectUnit()
+
+    if inspectUnit then
+        local inspectGuid = UnitGUID(inspectUnit)
 
         if inspectGuid
             and UI:CanAccessValue(inspectGuid)
             and inspectGuid == guid
         then
-            local specText =
+            CacheSpec(
+                guid,
                 ResolveInspectedSpec(inspectUnit)
-
-            CacheSpec(guid, specText)
+            )
+            RefreshVisiblePlayerTooltip(guid)
         end
 
         if pendingInspect
@@ -1140,7 +1141,6 @@ local function HandleInspectReady(guid)
             pendingInspect = nil
         end
 
-        RefreshVisiblePlayerTooltip(guid)
         return
     end
 
@@ -1152,38 +1152,14 @@ local function HandleInspectReady(guid)
 
     pendingInspect = nil
 
-    local unit = request.unit
+    local unit = GetVisibleTooltipUnit(guid)
+    local specText
 
-    local cachedResult = false
-
-    if IsValidPlayerUnit(unit) then
-        local currentGuid = UnitGUID(unit)
-
-        if currentGuid
-            and UI:CanAccessValue(currentGuid)
-            and currentGuid == guid
-        then
-            local specText = ResolveInspectedSpec(unit)
-
-            CacheSpec(guid, specText)
-            cachedResult = true
-        end
+    if unit then
+        specText = ResolveInspectedSpec(unit)
     end
 
-    if not cachedResult then
-        CacheSpec(
-            guid,
-            nil,
-            INSPECT_MISS_CACHE_SECONDS
-        )
-    end
-
-    if ClearInspectPlayer
-        and not IsBlizzardInspectActive()
-    then
-        ClearInspectPlayer()
-    end
-
+    CacheSpec(guid, specText)
     RefreshVisiblePlayerTooltip(guid)
 end
 
