@@ -705,7 +705,14 @@ function Module:Refresh()
         "|TInterface\\Minimap\\Tracking\\Repair:13:13:0:2|t %d%%",
         durability
     ))
-    self.texts.gold:SetText(UI:FormatMoney(GetMoney and GetMoney(, { iconSize = 12, iconYOffset = 2, showAll = true }) or 0))
+    self.texts.gold:SetText(UI:FormatMoney(
+        GetMoney and GetMoney() or 0,
+        {
+            iconSize = 12,
+            iconYOffset = 2,
+            showAll = true,
+        }
+    ))
     self.texts.latency:SetText(string.format("     %d ms", latency))
     self.texts.clock:SetText(string.format(
         "|TInterface\\Icons\\INV_Misc_PocketWatch_01:13:13:0:2:64:64:4:60:4:60|t %s",
