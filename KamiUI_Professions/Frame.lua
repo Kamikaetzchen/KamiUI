@@ -8,7 +8,7 @@ if not Module then
     return
 end
 
-local FRAME_WIDTH = 790
+local FRAME_WIDTH = 640
 local FRAME_HEIGHT = 520
 local HEADER_HEIGHT = 40
 local RECIPE_PANEL_WIDTH = 300
@@ -940,9 +940,15 @@ local function CreateCraftingPage(frame)
     reagentsTitle:SetText("Reagents")
     frame.reagentsTitle = reagentsTitle
 
+    local craftAll = CreateFrame("Button", nil, right)
+    craftAll:SetSize(64, 24)
+    craftAll:SetPoint("BOTTOMLEFT", right, "BOTTOMLEFT", 0, 0)
+    Components:StyleButton(craftAll, { text = "Craft All" })
+    frame.craftAllButton = craftAll
+
     local minus = CreateFrame("Button", nil, right)
     minus:SetSize(24, 24)
-    minus:SetPoint("BOTTOMLEFT", right, "BOTTOMLEFT", 0, 0)
+    minus:SetPoint("LEFT", craftAll, "RIGHT", 6, 0)
     Components:StyleButton(minus, { text = "-" })
     frame.quantityMinus = minus
 
@@ -988,6 +994,10 @@ local function CreateCraftingPage(frame)
     quantity:SetScript("OnEnterPressed", function(self)
         self:ClearFocus()
         Module:SetCraftQuantity(tonumber(self:GetText()) or 1)
+    end)
+
+    craftAll:SetScript("OnClick", function()
+        Module:CraftSelectedRecipe(Module.maxCraftable)
     end)
 
     craft:SetScript("OnClick", function()
@@ -1704,6 +1714,7 @@ function Module:RefreshRecipeDetails()
     frame.quantityMinus:Disable()
     frame.quantityPlus:Disable()
     frame.quantity:Disable()
+    frame.craftAllButton:Disable()
     frame.craftButton:Disable()
     frame.craftButton:SetText("Craft")
     self.maxCraftable = 0
@@ -1949,6 +1960,7 @@ function Module:RefreshRecipeDetails()
         frame.quantityMinus:Enable()
         frame.quantityPlus:Enable()
         frame.quantity:Enable()
+        frame.craftAllButton:Enable()
         frame.craftButton:Enable()
         frame.craftButton:SetText(
             info.alternateVerb
@@ -1963,8 +1975,6 @@ function Module:RefreshRecipeDetails()
         frame.craftButton:SetText("Salvage not supported")
     elseif hasUnsupportedSelection then
         frame.craftButton:SetText("Select reagent")
-    elseif self.maxCraftable <= 0 then
-        frame.craftButton:SetText("Missing reagents")
     end
 
     self:SetCraftQuantity(
@@ -1972,7 +1982,7 @@ function Module:RefreshRecipeDetails()
     )
 end
 
-function Module:CraftSelectedRecipe()
+function Module:CraftSelectedRecipe(quantityOverride)
     if not self.selectedRecipeID
         or not C_TradeSkillUI
         or not C_TradeSkillUI.CraftRecipe
@@ -1985,7 +1995,9 @@ function Module:CraftSelectedRecipe()
         1,
         math.min(
             self.maxCraftable,
-            tonumber(self.frame.quantity:GetText()) or 1
+            tonumber(quantityOverride)
+                or tonumber(self.frame.quantity:GetText())
+                or 1
         )
     )
 
