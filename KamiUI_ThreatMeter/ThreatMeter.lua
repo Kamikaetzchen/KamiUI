@@ -19,18 +19,6 @@ local frame
 local rows = {}
 local updateQueued = false
 
-local function CanAccessValue(value)
-    if canaccessvalue then
-        return canaccessvalue(value)
-    end
-
-    if issecretvalue then
-        return not issecretvalue(value)
-    end
-
-    return true
-end
-
 local function CreateBorder(parent)
     local top = parent:CreateTexture(nil, "OVERLAY")
     top:SetColorTexture(0, 0, 0, 1)
@@ -176,7 +164,7 @@ local function GetUnitColor(unit)
     if UnitIsPlayer(unit) then
         local _, class = UnitClass(unit)
 
-        if CanAccessValue(class) and class then
+        if UI:CanAccessValue(class) and class then
             local color = RAID_CLASS_COLORS and RAID_CLASS_COLORS[class]
 
             if color then
@@ -229,10 +217,10 @@ local function GetThreatEntry(unit)
 
     -- Forever can mark threat values secret in restricted contexts. Never
     -- branch on or do arithmetic with them unless the client says we may.
-    if not CanAccessValue(isTanking)
-        or not CanAccessValue(scaledPercentage)
-        or not CanAccessValue(rawPercentage)
-        or not CanAccessValue(rawThreat)
+    if not UI:CanAccessValue(isTanking)
+        or not UI:CanAccessValue(scaledPercentage)
+        or not UI:CanAccessValue(rawPercentage)
+        or not UI:CanAccessValue(rawThreat)
         or rawThreat == nil
         or rawThreat <= 0
     then
@@ -241,7 +229,7 @@ local function GetThreatEntry(unit)
 
     local firstName, surname = UnitName(unit)
 
-    if not CanAccessValue(firstName)
+    if not UI:CanAccessValue(firstName)
         or not firstName
         or firstName == ""
     then
@@ -251,7 +239,7 @@ local function GetThreatEntry(unit)
     local name = firstName
 
     if surname
-        and CanAccessValue(surname)
+        and UI:CanAccessValue(surname)
         and surname ~= ""
     then
         name = firstName .. " " .. surname
@@ -302,7 +290,7 @@ local function UpdateTitle()
     if UnitExists("target") then
         local targetName = UnitName("target")
 
-        if CanAccessValue(targetName) and targetName and targetName ~= "" then
+        if UI:CanAccessValue(targetName) and targetName and targetName ~= "" then
             title = title .. " - " .. targetName
         end
     end

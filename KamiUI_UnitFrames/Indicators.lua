@@ -47,7 +47,7 @@ for _, group in ipairs(UF.partyFrames or {}) do
 end
 
 local function IsTruthy(value)
-    return UF:CanAccessValue(value) and value and true or false
+    return UI:CanAccessValue(value) and value and true or false
 end
 
 local function CreateIcon(parent)
@@ -164,7 +164,7 @@ local function UpdateReadyCheck(frame)
     local icon = frame.centerIndicators.icons.ready
     local status = GetReadyCheckStatus and GetReadyCheckStatus(frame.unit)
 
-    if not UF:CanAccessValue(status) then
+    if not UI:CanAccessValue(status) then
         icon:Hide()
         return
     end
@@ -239,7 +239,7 @@ local function UpdateConnection(frame)
     local ghostIcon = frame.centerIndicators.icons.ghost
 
     local connected = UnitIsConnected and UnitIsConnected(frame.unit)
-    if UF:CanAccessValue(connected) and connected == false then
+    if UI:CanAccessValue(connected) and connected == false then
         offlineIcon:SetTexture("Interface\\CharacterFrame\\Disconnect-Icon")
         offlineIcon:SetTexCoord(0, 1, 0, 1)
         offlineIcon:Show()
@@ -312,7 +312,7 @@ local function IsMasterLooter(unit)
     end
 
     local method, partyID, raidID = C_PartyInfo.GetLootMethod()
-    if not UF:CanAccessValue(method) or method ~= 2 then
+    if not UI:CanAccessValue(method) or method ~= 2 then
         return false
     end
 
@@ -365,7 +365,7 @@ local function UpdatePortraitIndicators(frame)
     local role = UnitGroupRolesAssigned
         and UnitGroupRolesAssigned(frame.unit)
 
-    if UF:CanAccessValue(role)
+    if UI:CanAccessValue(role)
         and (role == "TANK" or role == "HEALER" or role == "DAMAGER")
     then
         frame.roleIndicator:SetTexture(
@@ -514,7 +514,7 @@ local function UpdateComboPoints()
     end
 
     local points = GetComboPoints("player", "target")
-    if not UF:CanAccessValue(points) then
+    if not UI:CanAccessValue(points) then
         return
     end
 
@@ -609,8 +609,8 @@ rangeUpdater:SetScript("OnUpdate", function(_, elapsed)
         if frame and UnitExists(frame.unit) then
             local inRange, checkedRange = UnitInRange(frame.unit)
 
-            if UF:CanAccessValue(checkedRange) and checkedRange
-                and UF:CanAccessValue(inRange)
+            if UI:CanAccessValue(checkedRange) and checkedRange
+                and UI:CanAccessValue(inRange)
             then
                 frame:SetAlpha(inRange and 1 or OUT_OF_RANGE_ALPHA)
             else

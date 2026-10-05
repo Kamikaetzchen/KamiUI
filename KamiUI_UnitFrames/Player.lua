@@ -213,9 +213,9 @@ local function UpdateCast()
     local spellName, startTime, endTime = GetCastInfo()
 
     if not spellName or not startTime or not endTime
-        or not UF:CanAccessValue(spellName)
-        or not UF:CanAccessValue(startTime)
-        or not UF:CanAccessValue(endTime)
+        or not UI:CanAccessValue(spellName)
+        or not UI:CanAccessValue(startTime)
+        or not UI:CanAccessValue(endTime)
     then
         castStart = nil
         castEnd = nil

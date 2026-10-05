@@ -860,20 +860,8 @@ function Module:Toggle()
     end
 end
 
-local function CanAccessValue(value)
-    if canaccessvalue then
-        return canaccessvalue(value)
-    end
-
-    if issecretvalue then
-        return not issecretvalue(value)
-    end
-
-    return true
-end
-
 local function FormatStatValue(value, suffix)
-    if not CanAccessValue(value) or type(value) ~= "number" then
+    if not UI:CanAccessValue(value) or type(value) ~= "number" then
         return "-"
     end
 
@@ -1047,7 +1035,7 @@ local function UpdateStatsPane(frame)
     if UnitPowerType then
         local _, token = UnitPowerType("player")
 
-        if token and CanAccessValue(token) then
+        if token and UI:CanAccessValue(token) then
             powerName = token:sub(1, 1) .. token:sub(2):lower()
         end
     end
@@ -1063,7 +1051,7 @@ local function UpdateStatsPane(frame)
     local speed = runSpeed or currentSpeed
     local baseSpeed = BASE_MOVEMENT_SPEED or 7
 
-    if CanAccessValue(speed)
+    if UI:CanAccessValue(speed)
         and type(speed) == "number"
         and speed >= 0
         and baseSpeed > 0
@@ -1089,9 +1077,9 @@ local function UpdateStatsPane(frame)
     local baseAP, posAP, negAP = SafeCall(UnitAttackPower, "player")
     local attackPower
 
-    if CanAccessValue(baseAP)
-        and CanAccessValue(posAP)
-        and CanAccessValue(negAP)
+    if UI:CanAccessValue(baseAP)
+        and UI:CanAccessValue(posAP)
+        and UI:CanAccessValue(negAP)
         and type(baseAP) == "number"
         and type(posAP) == "number"
         and type(negAP) == "number"
@@ -1121,7 +1109,7 @@ local function UpdateStatsPane(frame)
         local base, total = SafeCall(UnitResistance, "player", data[2])
         local value = total
 
-        if not CanAccessValue(value) or type(value) ~= "number" then
+        if not UI:CanAccessValue(value) or type(value) ~= "number" then
             value = base
         end
 

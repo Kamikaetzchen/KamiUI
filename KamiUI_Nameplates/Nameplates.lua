@@ -32,18 +32,6 @@ local CLASSIFICATION_SUFFIX = {
     worldboss = "B",
 }
 
-local function CanAccessValue(value)
-    if canaccessvalue then
-        return canaccessvalue(value)
-    end
-
-    if issecretvalue then
-        return not issecretvalue(value)
-    end
-
-    return true
-end
-
 local function ConfigureSingleLine(fontString)
     if fontString.SetWordWrap then
         fontString:SetWordWrap(false)
@@ -57,7 +45,7 @@ end
 local function GetDisplayIdentity(unit)
     local name = GetUnitName and GetUnitName(unit) or UnitName(unit)
 
-    if not name or not CanAccessValue(name) then
+    if not name or not UI:CanAccessValue(name) then
         return "", "", 1, 0.10, 0.10
     end
 
@@ -68,7 +56,7 @@ local function GetDisplayIdentity(unit)
     local suffix = ""
     local levelR, levelG, levelB = 1, 0.10, 0.10
 
-    if level and CanAccessValue(level) then
+    if level and UI:CanAccessValue(level) then
         levelText = level > 0 and tostring(level) or "??"
 
         if level > 0 then
@@ -82,7 +70,7 @@ local function GetDisplayIdentity(unit)
         end
     end
 
-    if classification and CanAccessValue(classification) then
+    if classification and UI:CanAccessValue(classification) then
         suffix = CLASSIFICATION_SUFFIX[classification] or ""
     end
 
@@ -92,23 +80,23 @@ end
 local function GetUnitColor(unit)
     local tapDenied = UnitIsTapDenied and UnitIsTapDenied(unit)
 
-    if CanAccessValue(tapDenied) and tapDenied then
+    if UI:CanAccessValue(tapDenied) and tapDenied then
         return 0.35, 0.35, 0.35
     end
 
     local multiplier = 0.60
     local threat = UnitThreatSituation and UnitThreatSituation("player", unit)
 
-    if threat and CanAccessValue(threat) and threat >= 2 then
+    if threat and UI:CanAccessValue(threat) and threat >= 2 then
         multiplier = 0.90
     end
 
     local isPlayer = UnitIsPlayer(unit)
 
-    if CanAccessValue(isPlayer) and isPlayer then
+    if UI:CanAccessValue(isPlayer) and isPlayer then
         local _, class = UnitClass(unit)
 
-        if class and CanAccessValue(class) then
+        if class and UI:CanAccessValue(class) then
             local color = Palette:GetClassColor(class)
 
             if color then
@@ -125,7 +113,7 @@ local function GetUnitColor(unit)
 
     local reaction = UnitReaction(unit, "player")
 
-    if reaction and CanAccessValue(reaction) and FACTION_BAR_COLORS then
+    if reaction and UI:CanAccessValue(reaction) and FACTION_BAR_COLORS then
         local color = FACTION_BAR_COLORS[reaction]
 
         if color then
@@ -440,7 +428,7 @@ local function UpdateIdentity(data)
 
     local isTarget = UnitIsUnit and UnitIsUnit(data.unit, "target")
 
-    if CanAccessValue(isTarget) and isTarget then
+    if UI:CanAccessValue(isTarget) and isTarget then
         Styles:SetBorderColor(data.healthBorder, Palette.highlight)
     else
         Styles:SetBorderColor(data.healthBorder, Palette.black)

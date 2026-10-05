@@ -16,29 +16,17 @@ local HAPPINESS_COLORS = {
     [3] = { 0.10, 0.75, 0.20 },
 }
 
-function UF:CanAccessValue(value)
-    if canaccessvalue then
-        return canaccessvalue(value)
-    end
-
-    if issecretvalue then
-        return not issecretvalue(value)
-    end
-
-    return true
-end
-
 function UF:GetUnitColor(unit)
     local tapDenied = UnitIsTapDenied and UnitIsTapDenied(unit)
 
-    if self:CanAccessValue(tapDenied) and tapDenied then
+    if UI:CanAccessValue(tapDenied) and tapDenied then
         return 0.35, 0.35, 0.35
     end
 
     if unit == "pet" and C_PetInfo and C_PetInfo.GetPetHappiness then
         local happiness = C_PetInfo.GetPetHappiness()
 
-        if happiness and self:CanAccessValue(happiness) then
+        if happiness and UI:CanAccessValue(happiness) then
             local color = HAPPINESS_COLORS[happiness]
 
             if color then
@@ -50,7 +38,7 @@ function UF:GetUnitColor(unit)
     if UnitIsPlayer(unit) then
         local _, class = UnitClass(unit)
 
-        if class and self:CanAccessValue(class) then
+        if class and UI:CanAccessValue(class) then
             local color = Palette:GetClassColor(class)
 
             if color then
@@ -65,7 +53,7 @@ function UF:GetUnitColor(unit)
 
     local reaction = UnitReaction(unit, "player")
 
-    if reaction and self:CanAccessValue(reaction) and FACTION_BAR_COLORS then
+    if reaction and UI:CanAccessValue(reaction) and FACTION_BAR_COLORS then
         local color = FACTION_BAR_COLORS[reaction]
 
         if color then
@@ -132,9 +120,9 @@ function UF:GetUnitDisplayName(unit)
     local isAFK = UnitIsAFK and UnitIsAFK(unit)
     local isDND = UnitIsDND and UnitIsDND(unit)
 
-    if self:CanAccessValue(isAFK) and isAFK then
+    if UI:CanAccessValue(isAFK) and isAFK then
         status = "<AFK> "
-    elseif self:CanAccessValue(isDND) and isDND then
+    elseif UI:CanAccessValue(isDND) and isDND then
         status = "<DND> "
     end
 
@@ -173,19 +161,19 @@ function UF:SetUnitDisplayName(fontString, unit)
     local display = self:GetUnitDisplayName(unit)
     fontString:SetText(display)
 
-    if not self:CanAccessValue(display) then
+    if not UI:CanAccessValue(display) then
         return
     end
 
     local width = fontString:GetWidth()
 
-    if not self:CanAccessValue(width) or not width or width <= 0 then
+    if not UI:CanAccessValue(width) or not width or width <= 0 then
         return
     end
 
     local stringWidth = fontString:GetStringWidth()
 
-    if not self:CanAccessValue(stringWidth) or stringWidth <= width then
+    if not UI:CanAccessValue(stringWidth) or stringWidth <= width then
         return
     end
 
@@ -206,7 +194,7 @@ function UF:SetUnitDisplayName(fontString, unit)
 
         stringWidth = fontString:GetStringWidth()
 
-        if not self:CanAccessValue(stringWidth) then
+        if not UI:CanAccessValue(stringWidth) then
             fontString:SetText(display)
             return
         end
