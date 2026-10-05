@@ -2,7 +2,7 @@
 ## Title: KamiUI - ActionBars
 ## Notes: Action bars module for KamiUI
 ## Author: Kami Katze
-## Version: 0.1.0
+## Version: 0.2.0
 ## RequiredDeps: KamiUI
 
 libs\LibStub\LibStub.lua

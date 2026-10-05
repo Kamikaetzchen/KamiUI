@@ -2,7 +2,7 @@
 ## Title: KamiUI - Professions
 ## Notes: Flat profession overview and crafting UI for KamiUI
 ## Author: Kami Katze
-## Version: 0.1.0
+## Version: 0.3.0
 ## RequiredDeps: KamiUI
 
 Professions.lua

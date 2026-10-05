@@ -2,7 +2,7 @@
 ## Title: KamiUI - Chat
 ## Notes: Chat frame module for KamiUI
 ## Author: Kami Katze
-## Version: 0.1.0
+## Version: 0.4.5
 ## RequiredDeps: KamiUI
 
 Chat.lua

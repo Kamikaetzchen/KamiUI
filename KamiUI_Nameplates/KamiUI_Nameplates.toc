@@ -2,7 +2,7 @@
 ## Title: KamiUI - Nameplates
 ## Notes: Nameplate module for KamiUI
 ## Author: Kami Katze
-## Version: 0.1.0
+## Version: 0.3.2
 ## RequiredDeps: KamiUI
 
 Nameplates.lua
