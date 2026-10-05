@@ -382,10 +382,24 @@ local function AcquireOverviewCard(frame, index)
     card = CreateFrame(
         "Button",
         nil,
-        frame.overviewContent,
+        frame.overviewPage,
         "SecureActionButtonTemplate"
     )
     card:SetHeight(54)
+    card:SetPoint(
+        "TOPLEFT",
+        frame.overviewPage,
+        "TOPLEFT",
+        4,
+        -46 - ((index - 1) * 60)
+    )
+    card:SetPoint(
+        "TOPRIGHT",
+        frame.overviewPage,
+        "TOPRIGHT",
+        -4,
+        -46 - ((index - 1) * 60)
+    )
     card:RegisterForClicks("LeftButtonUp")
 
     Styles:EnsureBackground(
@@ -1113,21 +1127,6 @@ function Module:RefreshOverview()
         local card = AcquireOverviewCard(frame, index)
 
         card.profession = profession
-        card:ClearAllPoints()
-        card:SetPoint(
-            "TOPLEFT",
-            frame.overviewContent,
-            "TOPLEFT",
-            0,
-            -y
-        )
-        card:SetPoint(
-            "TOPRIGHT",
-            frame.overviewContent,
-            "TOPRIGHT",
-            0,
-            -y
-        )
 
         card.icon:SetTexture(profession.icon)
         card.name:SetText(
@@ -1198,7 +1197,7 @@ function Module:RefreshOverview()
     SetScrollHeight(
         frame.overviewPage.scroll,
         frame.overviewContent,
-        y
+        1
     )
 end
 
