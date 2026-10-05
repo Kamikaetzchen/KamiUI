@@ -18,7 +18,6 @@ local BAG_BAR_HEIGHT = 42
 local defaults = {
 }
 
-local originalFunctions = {}
 local pendingRebuild = false
 local sortingBags = false
 local pendingSortRefresh = false
@@ -1594,45 +1593,30 @@ local function CreateFrameUI()
         GameTooltip:Hide()
     end)
 
+    frame:EnableKeyboard(true)
+
+    if frame.SetPropagateKeyboardInput then
+        frame:SetPropagateKeyboardInput(true)
+    end
+
+    frame:SetScript("OnKeyDown", function(self, key)
+        if key == "ESCAPE" then
+            if self.SetPropagateKeyboardInput then
+                self:SetPropagateKeyboardInput(false)
+            end
+
+            Module:Hide()
+            return
+        end
+
+        if self.SetPropagateKeyboardInput then
+            self:SetPropagateKeyboardInput(true)
+        end
+    end)
+
     UI:ApplyFramePosition(frame, GetDatabase(), "position", 280, 0)
 
-    tinsert(UISpecialFrames, frame:GetName())
-
     return frame
-end
-
-local function InstallBagHooks()
-    if Module.hooksInstalled then
-        return
-    end
-
-    Module.hooksInstalled = true
-
-    originalFunctions.ToggleAllBags = ToggleAllBags
-    originalFunctions.OpenAllBags = OpenAllBags
-    originalFunctions.CloseAllBags = CloseAllBags
-    originalFunctions.ToggleBackpack = ToggleBackpack
-    originalFunctions.ToggleBag = ToggleBag
-
-    ToggleAllBags = function()
-        Module:Toggle()
-    end
-
-    OpenAllBags = function()
-        Module:Show()
-    end
-
-    CloseAllBags = function()
-        Module:Hide()
-    end
-
-    ToggleBackpack = function()
-        Module:Toggle()
-    end
-
-    ToggleBag = function()
-        Module:Toggle()
-    end
 end
 
 UI:RegisterCommand(
@@ -1818,19 +1802,56 @@ function Module:Initialize()
     self.hotkeyButton = hotkeyButton
 
     if SetOverrideBindingClick then
-        SetOverrideBindingClick(
-            hotkeyButton,
-            true,
-            "B",
-            "KamiUIBagsHotkeyButton",
-            "LeftButton"
-        )
+        if ClearOverrideBindings then
+            ClearOverrideBindings(hotkeyButton)
+        end
+
+        local boundKeys = {}
+
+        local function BindKey(key)
+            if not key or boundKeys[key] then
+                return
+            end
+
+            boundKeys[key] = true
+
+            SetOverrideBindingClick(
+                hotkeyButton,
+                true,
+                key,
+                "KamiUIBagsHotkeyButton",
+                "LeftButton"
+            )
+        end
+
+        local function BindCommand(command)
+            if not GetBindingKey then
+                return
+            end
+
+            local key1, key2 = GetBindingKey(command)
+            BindKey(key1)
+            BindKey(key2)
+        end
+
+        for _, command in ipairs({
+            "TOGGLEBACKPACK",
+            "OPENALLBAGS",
+            "TOGGLEBAG1",
+            "TOGGLEBAG2",
+            "TOGGLEBAG3",
+            "TOGGLEBAG4",
+            "TOGGLEBAG5",
+        }) do
+            BindCommand(command)
+        end
+
+        BindKey("B")
     end
 
     self:UpdateBagBarVisibility()
     self:Rebuild()
 
-    InstallBagHooks()
     InstallTooltipHook()
 
     UI:RegisterEvent("BAG_UPDATE_DELAYED", function()
