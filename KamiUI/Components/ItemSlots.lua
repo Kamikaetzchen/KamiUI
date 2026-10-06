@@ -13,14 +13,14 @@ Components.ItemRarityGlowStyle =
     Components.ItemRarityGlowStyle or "nineSlice"
 
 local RARITY_GLOW_TEXCOORDS = {
-    topLeft = { 0.00, 0.25, 0.00, 0.25 },
-    top = { 0.25, 0.75, 0.00, 0.25 },
-    topRight = { 0.75, 1.00, 0.00, 0.25 },
-    left = { 0.00, 0.25, 0.25, 0.75 },
-    right = { 0.75, 1.00, 0.25, 0.75 },
-    bottomLeft = { 0.00, 0.25, 0.75, 1.00 },
-    bottom = { 0.25, 0.75, 0.75, 1.00 },
-    bottomRight = { 0.75, 1.00, 0.75, 1.00 },
+    topLeft = { 0.0000, 0.4375, 0.0000, 0.4375 },
+    top = { 0.4375, 0.5625, 0.0000, 0.4375 },
+    topRight = { 0.5625, 1.0000, 0.0000, 0.4375 },
+    left = { 0.0000, 0.4375, 0.4375, 0.5625 },
+    right = { 0.5625, 1.0000, 0.4375, 0.5625 },
+    bottomLeft = { 0.0000, 0.4375, 0.5625, 1.0000 },
+    bottom = { 0.4375, 0.5625, 0.5625, 1.0000 },
+    bottomRight = { 0.5625, 1.0000, 0.5625, 1.0000 },
 }
 
 local function CreateRarityGlowController(textures)
