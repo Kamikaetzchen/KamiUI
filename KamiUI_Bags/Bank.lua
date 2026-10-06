@@ -18,8 +18,14 @@ local defaults = {
 local bankOpen = false
 local pendingRefresh = false
 local sortingBank = false
-local hiddenBankParent = CreateFrame("Frame")
-hiddenBankParent:Hide()
+-- Keep Blizzard's bank technically visible so its normal OnShow/OnHide
+-- lifecycle still runs. Forever grants the free 48-slot base bank from
+-- BankFrameMixin:SetTab() -> PurchaseFirstSlot(), so parenting BankFrame to
+-- an actually hidden frame prevents that initialization.
+local hiddenBankParent = CreateFrame("Frame", nil, UIParent)
+hiddenBankParent:SetAlpha(0)
+hiddenBankParent:SetScale(0.001)
+hiddenBankParent:EnableMouse(false)
 
 local BANK_DATABASE_DEFAULTS = {
     characters = {},
