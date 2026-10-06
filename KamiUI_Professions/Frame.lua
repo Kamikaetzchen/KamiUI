@@ -558,6 +558,223 @@ local function AcquireRecipeRow(frame, index)
     return row
 end
 
+local function SetOverviewAbilityTooltip(button)
+    if not button or not button.ability then
+        return
+    end
+
+    GameTooltip:SetOwner(button, "ANCHOR_RIGHT")
+
+    local ability = button.ability
+    local shown = false
+
+    if button.isCurrent
+        and ability.spellBookIndex
+        and GameTooltip.SetSpellBookItem
+        and C_SpellBook
+        and Enum
+        and Enum.SpellBookSpellBank
+    then
+        shown = GameTooltip:SetSpellBookItem(
+            ability.spellBookIndex,
+            Enum.SpellBookSpellBank.Player
+        ) ~= false
+    end
+
+    if not shown
+        and ability.spellID
+        and GameTooltip.SetSpellByID
+    then
+        GameTooltip:SetSpellByID(ability.spellID)
+        shown = true
+    end
+
+    if not shown then
+        GameTooltip:SetText(ability.name or "Profession ability")
+    end
+
+    if not button.isCurrent then
+        GameTooltip:AddLine(
+            "Cached character ability",
+            0.62,
+            0.62,
+            0.66
+        )
+    elseif ability.isPassive then
+        GameTooltip:AddLine(
+            "Passive",
+            0.62,
+            0.62,
+            0.66
+        )
+    else
+        GameTooltip:AddLine(
+            "Drag to an action bar",
+            0.62,
+            0.62,
+            0.66
+        )
+    end
+
+    GameTooltip:Show()
+end
+
+local function UseOverviewAbility(button)
+    local ability = button and button.ability
+
+    if not ability
+        or not button.isCurrent
+        or ability.isPassive
+    then
+        return
+    end
+
+    if ability.spellBookIndex
+        and C_SpellBook
+        and C_SpellBook.CastSpellBookItem
+        and Enum
+        and Enum.SpellBookSpellBank
+    then
+        C_SpellBook.CastSpellBookItem(
+            ability.spellBookIndex,
+            Enum.SpellBookSpellBank.Player
+        )
+        return
+    end
+
+    if ability.spellID
+        and C_Spell
+        and C_Spell.CastSpell
+    then
+        C_Spell.CastSpell(ability.spellID)
+    end
+end
+
+local function PickupOverviewAbility(button)
+    local ability = button and button.ability
+
+    if not ability
+        or not button.isCurrent
+        or ability.isPassive
+    then
+        return
+    end
+
+    if ability.spellBookIndex
+        and C_SpellBook
+        and C_SpellBook.PickupSpellBookItem
+        and Enum
+        and Enum.SpellBookSpellBank
+    then
+        C_SpellBook.PickupSpellBookItem(
+            ability.spellBookIndex,
+            Enum.SpellBookSpellBank.Player
+        )
+        return
+    end
+
+    if ability.spellID
+        and C_Spell
+        and C_Spell.PickupSpell
+    then
+        C_Spell.PickupSpell(ability.spellID)
+    end
+end
+
+local function AcquireOverviewAbilityButton(card, index)
+    card.abilityButtons = card.abilityButtons or {}
+
+    local button = card.abilityButtons[index]
+
+    if button then
+        return button
+    end
+
+    button = CreateFrame("Button", nil, card)
+    button:RegisterForClicks("LeftButtonUp")
+    button:RegisterForDrag("LeftButton")
+
+    button.background = Styles:EnsureBackground(
+        button,
+        "KamiBackground",
+        Palette.slot
+    )
+    button.KamiBorders = Styles:CreateBorder(
+        button,
+        Palette.slotBorder
+    )
+
+    local icon = button:CreateTexture(nil, "ARTWORK")
+    icon:SetPoint("TOPLEFT", button, "TOPLEFT", 1, -1)
+    icon:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", -1, 1)
+    icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
+    button.icon = icon
+
+    local highlight = button:CreateTexture(nil, "HIGHLIGHT")
+    highlight:SetAllPoints()
+    Styles:SetColor(
+        highlight,
+        Palette.white,
+        Styles.State.hoverAlpha
+    )
+
+    button:SetScript("OnEnter", SetOverviewAbilityTooltip)
+    button:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
+    button:SetScript("OnClick", UseOverviewAbility)
+    button:SetScript("OnDragStart", PickupOverviewAbility)
+
+    card.abilityButtons[index] = button
+    return button
+end
+
+local function LayoutOverviewAbilities(
+    card,
+    profession,
+    isCurrent,
+    isPrimary
+)
+    local abilities = profession.abilities or {}
+    local size = isPrimary and 30 or 24
+    local spacing = 4
+    local visible = 0
+
+    for index, ability in ipairs(abilities) do
+        visible = visible + 1
+
+        local button = AcquireOverviewAbilityButton(card, index)
+        button.ability = ability
+        button.isCurrent = isCurrent
+        button:SetSize(size, size)
+        button:ClearAllPoints()
+        button:SetPoint(
+            "RIGHT",
+            card,
+            "RIGHT",
+            -8 - (visible - 1) * (size + spacing),
+            0
+        )
+        button.icon:SetTexture(ability.icon)
+        button:SetAlpha(
+            isCurrent and not ability.isPassive
+                and 1
+                or 0.55
+        )
+        button:Show()
+    end
+
+    for index = visible + 1, #(card.abilityButtons or {}) do
+        card.abilityButtons[index]:Hide()
+    end
+
+    local reservedWidth = visible > 0
+        and (visible * size + (visible - 1) * spacing + 8)
+        or 0
+
+    return reservedWidth
+end
+
 local function AcquireOverviewCard(frame, index)
     local card = frame.overviewCards[index]
 
@@ -626,6 +843,7 @@ local function AcquireOverviewCard(frame, index)
         end
     end)
 
+    card.abilityButtons = {}
     frame.overviewCards[index] = card
     return card
 end
@@ -644,6 +862,22 @@ local function StyleOverviewCard(card, isPrimary)
         )
         Styles:ApplyText(card.name, 12, Palette.gold)
         Styles:ApplyText(card.rank, 9, Palette.text)
+        card.name:ClearAllPoints()
+        card.name:SetPoint(
+            "TOPLEFT",
+            card.icon,
+            "TOPRIGHT",
+            8,
+            -1
+        )
+        card.rank:ClearAllPoints()
+        card.rank:SetPoint(
+            "TOPLEFT",
+            card.name,
+            "BOTTOMLEFT",
+            0,
+            -3
+        )
         card.rankBar:SetHeight(10)
         card.rankBar:ClearAllPoints()
         card.rankBar:SetPoint(
@@ -673,6 +907,22 @@ local function StyleOverviewCard(card, isPrimary)
         )
         Styles:ApplyText(card.name, 10, Palette.text)
         Styles:ApplyText(card.rank, 8, Palette.muted)
+        card.name:ClearAllPoints()
+        card.name:SetPoint(
+            "TOPLEFT",
+            card.icon,
+            "TOPRIGHT",
+            8,
+            -1
+        )
+        card.rank:ClearAllPoints()
+        card.rank:SetPoint(
+            "TOPLEFT",
+            card.name,
+            "BOTTOMLEFT",
+            0,
+            -3
+        )
         card.rankBar:SetHeight(6)
         card.rankBar:ClearAllPoints()
         card.rankBar:SetPoint(
@@ -690,6 +940,51 @@ local function StyleOverviewCard(card, isPrimary)
             7
         )
     end
+end
+
+local function FinishOverviewCardLayout(
+    card,
+    profession,
+    isCurrent,
+    isPrimary
+)
+    local reservedWidth = LayoutOverviewAbilities(
+        card,
+        profession,
+        isCurrent,
+        isPrimary
+    )
+
+    card.name:SetPoint(
+        "RIGHT",
+        card,
+        "RIGHT",
+        -8 - reservedWidth,
+        0
+    )
+    card.rank:SetPoint(
+        "RIGHT",
+        card,
+        "RIGHT",
+        -8 - reservedWidth,
+        0
+    )
+
+    card.rankBar:ClearAllPoints()
+    card.rankBar:SetPoint(
+        "BOTTOMLEFT",
+        card,
+        "BOTTOMLEFT",
+        isPrimary and 62 or 46,
+        isPrimary and 8 or 7
+    )
+    card.rankBar:SetPoint(
+        "BOTTOMRIGHT",
+        card,
+        "BOTTOMRIGHT",
+        -8 - reservedWidth,
+        isPrimary and 8 or 7
+    )
 end
 
 local function AcquireReagentRow(frame, index)
@@ -1504,6 +1799,12 @@ function Module:RefreshOverview()
                 math.max(1, maximum)
             )
             card.rankBar:SetValue(skill)
+            FinishOverviewCardLayout(
+                card,
+                profession,
+                isCurrent,
+                true
+            )
             card:Enable()
             card:Show()
 
@@ -1585,6 +1886,12 @@ function Module:RefreshOverview()
                 math.max(1, maximum)
             )
             card.rankBar:SetValue(skill)
+            FinishOverviewCardLayout(
+                card,
+                profession,
+                isCurrent,
+                false
+            )
             card:Enable()
             card:Show()
 

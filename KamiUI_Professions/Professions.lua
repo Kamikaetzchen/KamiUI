@@ -58,6 +58,42 @@ local function EnsureCharacterProfessions(character)
     return character.professions
 end
 
+local function GetProfessionAbilities(numSpells, spellOffset)
+    local abilities = {}
+
+    if not C_SpellBook
+        or not C_SpellBook.GetSpellBookItemInfo
+        or not Enum
+        or not Enum.SpellBookSpellBank
+    then
+        return abilities
+    end
+
+    local spellBank = Enum.SpellBookSpellBank.Player
+
+    for index = 1, numSpells or 0 do
+        local spellBookIndex = (spellOffset or 0) + index
+        local info = UI:SafeCall(
+            C_SpellBook.GetSpellBookItemInfo,
+            spellBookIndex,
+            spellBank
+        )
+
+        if info then
+            abilities[#abilities + 1] = {
+                name = info.name,
+                icon = info.iconID,
+                spellID = info.spellID,
+                spellBookIndex = spellBookIndex,
+                itemType = info.itemType,
+                isPassive = info.isPassive == true,
+            }
+        end
+    end
+
+    return abilities
+end
+
 function Module:SnapshotProfessionSkills()
     local _, character = GetCurrentCharacterData()
     local professions = EnsureCharacterProfessions(character)
@@ -79,8 +115,8 @@ function Module:SnapshotProfessionSkills()
                 icon,
                 rank,
                 maxRank,
-                _numSpells,
-                _spellOffset,
+                numSpells,
+                spellOffset,
                 skillLineID,
                 rankModifier,
                 _specializationIndex,
@@ -120,6 +156,10 @@ function Module:SnapshotProfessionSkills()
                     maxRank or saved.maxSkillLevel or 0
                 saved.skillModifier =
                     rankModifier or saved.skillModifier or 0
+                saved.abilities = GetProfessionAbilities(
+                    numSpells,
+                    spellOffset
+                )
                 if saved.recipeCacheVersion ~= RECIPE_CACHE_VERSION then
                     saved.recipes = {}
                     saved.recipesCached = false
