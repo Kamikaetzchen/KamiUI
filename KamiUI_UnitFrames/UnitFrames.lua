@@ -3,11 +3,102 @@ local Palette = UI.Palette
 
 local UF = UI:NewModule("UnitFrames", "KamiUI_UnitFrames")
 
-UF.version = "0.2.0"
+UF.version = "0.3.0"
 
 UF.flatTexture = "Interface\\Buttons\\WHITE8X8"
 UF.colorMultiplier = 0.60
 UF.powerColorMultiplier = 0.70
+
+UF.frames = {}
+UF.framesByUnit = {}
+
+local function CopyFeatures(features)
+    local copy = {}
+
+    for key, value in pairs(features or {}) do
+        copy[key] = value
+    end
+
+    return copy
+end
+
+function UF:RegisterFrame(frame, features)
+    if not frame or frame.KamiUIRegistered then
+        return frame
+    end
+
+    frame.KamiUIRegistered = true
+    frame.features = CopyFeatures(features)
+
+    self.frames[#self.frames + 1] = frame
+
+    local unit = frame.unit
+
+    if unit then
+        self.framesByUnit[unit] = self.framesByUnit[unit] or {}
+        self.framesByUnit[unit][#self.framesByUnit[unit] + 1] = frame
+    end
+
+    return frame
+end
+
+function UF:HasFeature(frame, feature)
+    return frame
+        and frame.features
+        and frame.features[feature] == true
+end
+
+function UF:ForEachFrame(callback, feature)
+    if type(callback) ~= "function" then
+        return
+    end
+
+    for _, frame in ipairs(self.frames) do
+        if not feature or self:HasFeature(frame, feature) then
+            callback(frame)
+        end
+    end
+end
+
+function UF:ForEachUnitFrame(unit, callback, feature)
+    if not unit or type(callback) ~= "function" then
+        return
+    end
+
+    for _, frame in ipairs(self.framesByUnit[unit] or {}) do
+        if not feature or self:HasFeature(frame, feature) then
+            callback(frame)
+        end
+    end
+end
+
+function UF:ForEachMatchingUnitFrame(unit, callback, feature)
+    if not unit or type(callback) ~= "function" then
+        return
+    end
+
+    for _, frame in ipairs(self.frames) do
+        if not feature or self:HasFeature(frame, feature) then
+            local matches = frame.unit == unit
+
+            if not matches
+                and UnitExists(frame.unit)
+                and UnitExists(unit)
+                and UnitIsUnit
+            then
+                matches = UnitIsUnit(frame.unit, unit)
+
+                if not UI:CanAccessValue(matches) then
+                    matches = false
+                end
+            end
+
+            if matches then
+                callback(frame)
+            end
+        end
+    end
+end
 
 local HAPPINESS_COLORS = {
     [1] = { 0.85, 0.10, 0.10 },
@@ -346,6 +437,10 @@ function UF:CreatePrimaryFrame(options)
         watch = options.watch,
     })
 
+    local features = CopyFeatures(options.features)
+    features.cast = true
+    self:RegisterFrame(frame, features)
+
     local content = CreateFrame("Frame", nil, frame)
     content:SetPoint("TOPLEFT", borderSize, -borderSize)
     content:SetPoint("BOTTOMRIGHT", -borderSize, borderSize)
@@ -453,6 +548,8 @@ function UF:CreateCompactFrame(options)
         watch = options.watch,
     })
 
+    self:RegisterFrame(frame, options.features)
+
     local content = CreateFrame("Frame", nil, frame)
     content:SetPoint("TOPLEFT", borderSize, -borderSize)
     content:SetPoint("BOTTOMRIGHT", -borderSize, borderSize)
@@ -515,6 +612,8 @@ function UF:CreateHealthFrame(options)
         height = height,
         watch = options.watch,
     })
+
+    self:RegisterFrame(frame, options.features)
 
     local health = self:CreateBar(
         frame,
@@ -714,3 +813,63 @@ function UF:UpdateUnitFrame(frame)
     self:UpdatePower(frame)
     self:UpdateCast(frame)
 end
+
+function UF:UpdateAllFrames()
+    self:ForEachFrame(function(frame)
+        self:UpdateUnitFrame(frame)
+    end)
+end
+
+local function DispatchUnitUpdate(unit, updater)
+    if not unit then
+        return
+    end
+
+    UF:ForEachUnitFrame(unit, function(frame)
+        updater(UF, frame)
+    end)
+end
+
+local function DispatchHealth(_, unit)
+    DispatchUnitUpdate(unit, UF.UpdateHealth)
+end
+
+local function DispatchPower(_, unit)
+    DispatchUnitUpdate(unit, UF.UpdatePower)
+end
+
+local function DispatchIdentity(_, unit)
+    DispatchUnitUpdate(unit, UF.UpdateIdentity)
+end
+
+local function DispatchCast(_, unit)
+    DispatchUnitUpdate(unit, UF.UpdateCast)
+end
+
+UI:RegisterEvent("PLAYER_ENTERING_WORLD", function()
+    UF:UpdateAllFrames()
+end)
+
+UI:RegisterEvent("UNIT_HEALTH", DispatchHealth)
+UI:RegisterEvent("UNIT_MAXHEALTH", DispatchHealth)
+UI:RegisterEvent("UNIT_FACTION", DispatchHealth)
+
+UI:RegisterEvent("UNIT_POWER_UPDATE", DispatchPower)
+UI:RegisterEvent("UNIT_POWER_FREQUENT", DispatchPower)
+UI:RegisterEvent("UNIT_MAXPOWER", DispatchPower)
+UI:RegisterEvent("UNIT_DISPLAYPOWER", DispatchPower)
+
+UI:RegisterEvent("UNIT_NAME_UPDATE", DispatchIdentity)
+UI:RegisterEvent("UNIT_PORTRAIT_UPDATE", DispatchIdentity)
+UI:RegisterEvent("UNIT_MODEL_CHANGED", DispatchIdentity)
+UI:RegisterEvent("UNIT_FLAGS", DispatchIdentity)
+UI:RegisterEvent("UNIT_LEVEL", DispatchIdentity)
+
+UI:RegisterEvent("UNIT_SPELLCAST_START", DispatchCast)
+UI:RegisterEvent("UNIT_SPELLCAST_STOP", DispatchCast)
+UI:RegisterEvent("UNIT_SPELLCAST_FAILED", DispatchCast)
+UI:RegisterEvent("UNIT_SPELLCAST_INTERRUPTED", DispatchCast)
+UI:RegisterEvent("UNIT_SPELLCAST_DELAYED", DispatchCast)
+UI:RegisterEvent("UNIT_SPELLCAST_CHANNEL_START", DispatchCast)
+UI:RegisterEvent("UNIT_SPELLCAST_CHANNEL_UPDATE", DispatchCast)
+UI:RegisterEvent("UNIT_SPELLCAST_CHANNEL_STOP", DispatchCast)

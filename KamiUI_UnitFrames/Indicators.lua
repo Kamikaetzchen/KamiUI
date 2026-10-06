@@ -2,52 +2,39 @@ local UI = KamiUI
 local UF = UI:GetModule("UnitFrames")
 
 local STATUS_ICON_SIZE = 12
-local STATUS_ICON_GAP = 2
 local STATUS_ALPHA = 0.75
 local OUT_OF_RANGE_ALPHA = 0.45
 
-local HEAL_PREDICTION_UNITS = {
-    player = true,
-    target = true,
-    focus = true,
-    pet = true,
-    party1 = true,
-    party2 = true,
-    party3 = true,
-    party4 = true,
-}
+local READY_CHECK_STAY_TIME = DEFAULT_READY_CHECK_STAY_TIME or 5
+local readyCheckGeneration = 0
 
-
-local RAID_MARKER_COORDS = {
-    [1] = { 0.00, 0.25, 0.00, 0.25 },
-    [2] = { 0.25, 0.50, 0.00, 0.25 },
-    [3] = { 0.50, 0.75, 0.00, 0.25 },
-    [4] = { 0.75, 1.00, 0.00, 0.25 },
-    [5] = { 0.00, 0.25, 0.25, 0.50 },
-    [6] = { 0.25, 0.50, 0.25, 0.50 },
-    [7] = { 0.50, 0.75, 0.25, 0.50 },
-    [8] = { 0.75, 1.00, 0.25, 0.50 },
-}
-
-local frames = {
-    UF.playerFrame,
-    UF.targetFrame,
-    UF.targetTargetFrame,
-    UF.targetTargetTargetFrame,
-    UF.focusFrame,
-    UF.focusTargetFrame,
-    UF.petFrame,
-    UF.petTargetFrame,
-}
-
-for _, group in ipairs(UF.partyFrames or {}) do
-    if group.main then
-        frames[#frames + 1] = group.main
-    end
-end
 
 local function IsTruthy(value)
     return UI:CanAccessValue(value) and value and true or false
+end
+
+local function SetIndicatorAtlas(icon, atlas, fallbackTexture)
+    if icon.SetAtlas and atlas then
+        local ok = pcall(icon.SetAtlas, icon, atlas, false)
+
+        if ok then
+            return
+        end
+    end
+
+    icon:SetTexture(fallbackTexture or atlas)
+    icon:SetTexCoord(0, 1, 0, 1)
+end
+
+local function IsReadyCheckUnit(unit)
+    if unit == "player" then
+        return true
+    end
+
+    local inParty = UnitInParty and UnitInParty(unit)
+    local inRaid = UnitInRaid and UnitInRaid(unit)
+
+    return IsTruthy(inParty) or IsTruthy(inRaid)
 end
 
 local function CreateIcon(parent)
@@ -145,50 +132,54 @@ local function LayoutCenterIndicators(frame)
     end
 end
 
+
 local function UpdateRaidMarker(frame)
     local icon = frame.centerIndicators.icons.raid
     local index = GetRaidTargetIndex and GetRaidTargetIndex(frame.unit)
 
-    icon:SetTexture("Interface\\TargetingFrame\\UI-RaidTargetingIcons")
-
-    local valid = false
-
-    if SetRaidTargetIconTexture then
-        valid = pcall(SetRaidTargetIconTexture, icon, index)
-    end
-
-    icon:SetShown(valid)
-end
-
-local function UpdateReadyCheck(frame)
-    local icon = frame.centerIndicators.icons.ready
-    local status = GetReadyCheckStatus and GetReadyCheckStatus(frame.unit)
-
-    if not UI:CanAccessValue(status) then
+    if not index or not UI:CanAccessValue(index) then
         icon:Hide()
         return
     end
 
+    icon:SetTexture("Interface\\TargetingFrame\\UI-RaidTargetingIcons")
+
+    if SetRaidTargetIconTexture
+        and pcall(SetRaidTargetIconTexture, icon, index)
+    then
+        icon:Show()
+    else
+        icon:Hide()
+    end
+end
+
+local function UpdateReadyCheck(frame)
+    local icon = frame.centerIndicators.icons.ready
+    local status = frame.readyCheckStatus
+
     if status == "ready" then
-        icon:SetTexture(
-            READY_CHECK_READY_TEXTURE
-                or "Interface\\RaidFrame\\ReadyCheck-Ready"
+        SetIndicatorAtlas(
+            icon,
+            READY_CHECK_READY_TEXTURE_RAID
+                or "UI-LFG-ReadyMark-Raid",
+            "Interface\\RaidFrame\\ReadyCheck-Ready"
         )
-        icon:SetTexCoord(0, 1, 0, 1)
         icon:Show()
     elseif status == "notready" then
-        icon:SetTexture(
-            READY_CHECK_NOT_READY_TEXTURE
-                or "Interface\\RaidFrame\\ReadyCheck-NotReady"
+        SetIndicatorAtlas(
+            icon,
+            READY_CHECK_NOT_READY_TEXTURE_RAID
+                or "UI-LFG-DeclineMark-Raid",
+            "Interface\\RaidFrame\\ReadyCheck-NotReady"
         )
-        icon:SetTexCoord(0, 1, 0, 1)
         icon:Show()
     elseif status == "waiting" then
-        icon:SetTexture(
-            READY_CHECK_WAITING_TEXTURE
-                or "Interface\\RaidFrame\\ReadyCheck-Waiting"
+        SetIndicatorAtlas(
+            icon,
+            READY_CHECK_WAITING_TEXTURE_RAID
+                or "UI-LFG-PendingMark-Raid",
+            "Interface\\RaidFrame\\ReadyCheck-Waiting"
         )
-        icon:SetTexCoord(0, 1, 0, 1)
         icon:Show()
     else
         icon:Hide()
@@ -201,8 +192,11 @@ local function UpdateResurrection(frame)
         and UnitHasIncomingResurrection(frame.unit)
 
     if IsTruthy(incoming) then
-        icon:SetTexture("Interface\\RaidFrame\\Raid-Icon-Rez")
-        icon:SetTexCoord(0, 1, 0, 1)
+        SetIndicatorAtlas(
+            icon,
+            "RaidFrame-Icon-Rez",
+            "Interface\\RaidFrame\\Raid-Icon-Rez"
+        )
         icon:Show()
     else
         icon:Hide()
@@ -215,25 +209,45 @@ local function UpdateSummon(frame)
         and C_IncomingSummon.HasIncomingSummon
         and C_IncomingSummon.HasIncomingSummon(frame.unit)
 
-    if IsTruthy(incoming) then
-        local status = C_IncomingSummon.IncomingSummonStatus
-            and C_IncomingSummon.IncomingSummonStatus(frame.unit)
-
-        if status == 2 then
-            icon:SetTexture("Interface\\RaidFrame\\Raid-Icon-SummonAccepted")
-        elseif status == 3 then
-            icon:SetTexture("Interface\\RaidFrame\\Raid-Icon-SummonDeclined")
-        else
-            icon:SetTexture("Interface\\RaidFrame\\Raid-Icon-SummonPending")
-        end
-
-        icon:SetTexCoord(0, 1, 0, 1)
-        icon:Show()
-    else
+    if not IsTruthy(incoming) then
         icon:Hide()
+        return
     end
-end
 
+    local status = C_IncomingSummon.IncomingSummonStatus
+        and C_IncomingSummon.IncomingSummonStatus(frame.unit)
+
+    local accepted = Enum
+        and Enum.SummonStatus
+        and Enum.SummonStatus.Accepted
+        or 2
+    local declined = Enum
+        and Enum.SummonStatus
+        and Enum.SummonStatus.Declined
+        or 3
+
+    if status == accepted then
+        SetIndicatorAtlas(
+            icon,
+            "RaidFrame-Icon-SummonAccepted",
+            "Interface\\RaidFrame\\Raid-Icon-SummonAccepted"
+        )
+    elseif status == declined then
+        SetIndicatorAtlas(
+            icon,
+            "RaidFrame-Icon-SummonDeclined",
+            "Interface\\RaidFrame\\Raid-Icon-SummonDeclined"
+        )
+    else
+        SetIndicatorAtlas(
+            icon,
+            "RaidFrame-Icon-SummonPending",
+            "Interface\\RaidFrame\\Raid-Icon-SummonPending"
+        )
+    end
+
+    icon:Show()
+end
 local function UpdateConnection(frame)
     local offlineIcon = frame.centerIndicators.icons.offline
     local ghostIcon = frame.centerIndicators.icons.ghost
@@ -332,7 +346,10 @@ local function IsMasterLooter(unit)
 end
 
 local function UpdatePortraitIndicators(frame)
-    if not frame.portrait or not UnitExists(frame.unit) then
+    if not frame.portrait
+        or not frame.portraitIndicatorOverlay
+        or not UnitExists(frame.unit)
+    then
         return
     end
 
@@ -386,6 +403,7 @@ local function UpdatePortraitIndicators(frame)
     end
 end
 
+
 local function UpdateUnitLabel(frame)
     if frame.nameText and UnitExists(frame.unit) then
         UF:SetUnitDisplayName(frame.nameText, frame.unit)
@@ -393,7 +411,7 @@ local function UpdateUnitLabel(frame)
 end
 
 local function CreateHealPrediction(frame)
-    if not HEAL_PREDICTION_UNITS[frame.unit]
+    if not UF:HasFeature(frame, "healPrediction")
         or not frame.health
         or not CreateUnitHealPredictionCalculator
         or not UnitGetDetailedHealPrediction
@@ -534,40 +552,159 @@ local function UpdateFrame(frame)
     UpdateHealPrediction(frame)
 end
 
+
 local function UpdateAll()
-    for _, frame in ipairs(frames) do
-        if frame then
+    UF:ForEachFrame(function(frame)
+        if UF:HasFeature(frame, "indicators")
+            or UF:HasFeature(frame, "healPrediction")
+        then
             UpdateFrame(frame)
         end
-    end
+    end)
 
     UpdateComboPoints()
 end
-
 local function UpdateUnit(_, unit)
     if not unit then
         UpdateAll()
         return
     end
 
-    for _, frame in ipairs(frames) do
-        if frame and frame.unit == unit then
+    UF:ForEachMatchingUnitFrame(unit, function(frame)
+        if UF:HasFeature(frame, "indicators")
+            or UF:HasFeature(frame, "healPrediction")
+        then
             UpdateFrame(frame)
         end
-    end
+    end)
 
     if unit == "target" or unit == "player" then
         UpdateComboPoints()
     end
 end
 
-for _, frame in ipairs(frames) do
-    if frame then
-        CreateCenterIndicators(frame)
-        CreatePortraitIndicators(frame)
-        CreateHealPrediction(frame)
+local function RefreshCenterIndicatorsForUnit(_, unit)
+    local function Refresh()
+        if unit then
+            UF:ForEachMatchingUnitFrame(
+                unit,
+                UpdateCenterIndicators,
+                "indicators"
+            )
+        else
+            UF:ForEachFrame(UpdateCenterIndicators, "indicators")
+        end
+    end
+
+    Refresh()
+
+    if C_Timer and C_Timer.After then
+        C_Timer.After(0, Refresh)
     end
 end
+
+local function SyncReadyCheckStatuses()
+    UF:ForEachFrame(function(frame)
+        if not UnitExists(frame.unit) or not IsReadyCheckUnit(frame.unit) then
+            frame.readyCheckStatus = nil
+            UpdateCenterIndicators(frame)
+            return
+        end
+
+        local status = GetReadyCheckStatus
+            and GetReadyCheckStatus(frame.unit)
+
+        if UI:CanAccessValue(status)
+            and (
+                status == "ready"
+                or status == "notready"
+                or status == "waiting"
+            )
+        then
+            frame.readyCheckStatus = status
+        elseif not frame.readyCheckStatus then
+            frame.readyCheckStatus = "waiting"
+        end
+
+        UpdateCenterIndicators(frame)
+    end, "indicators")
+end
+
+local function BeginReadyCheck()
+    readyCheckGeneration = readyCheckGeneration + 1
+
+    UF:ForEachFrame(function(frame)
+        frame.readyCheckStatus = IsReadyCheckUnit(frame.unit)
+            and "waiting"
+            or nil
+        UpdateCenterIndicators(frame)
+    end, "indicators")
+
+    if C_Timer and C_Timer.After then
+        local generation = readyCheckGeneration
+
+        C_Timer.After(0, function()
+            if generation == readyCheckGeneration then
+                SyncReadyCheckStatuses()
+            end
+        end)
+    else
+        SyncReadyCheckStatuses()
+    end
+end
+
+local function ConfirmReadyCheck(_, unit, isReady)
+    if not unit then
+        return
+    end
+
+    local status = (isReady == true or isReady == 1)
+        and "ready"
+        or "notready"
+
+    UF:ForEachMatchingUnitFrame(unit, function(frame)
+        frame.readyCheckStatus = status
+        UpdateCenterIndicators(frame)
+    end, "indicators")
+end
+
+local function FinishReadyCheck()
+    local generation = readyCheckGeneration
+
+    UF:ForEachFrame(function(frame)
+        if frame.readyCheckStatus == "waiting" then
+            frame.readyCheckStatus = "notready"
+        end
+
+        UpdateCenterIndicators(frame)
+    end, "indicators")
+
+    if not C_Timer or not C_Timer.After then
+        return
+    end
+
+    C_Timer.After(READY_CHECK_STAY_TIME, function()
+        if generation ~= readyCheckGeneration then
+            return
+        end
+
+        UF:ForEachFrame(function(frame)
+            frame.readyCheckStatus = nil
+            UpdateCenterIndicators(frame)
+        end, "indicators")
+    end)
+end
+
+UF:ForEachFrame(function(frame)
+    if UF:HasFeature(frame, "indicators") then
+        CreateCenterIndicators(frame)
+        CreatePortraitIndicators(frame)
+    end
+
+    if UF:HasFeature(frame, "healPrediction") then
+        CreateHealPrediction(frame)
+    end
+end)
 
 CreateComboPoints()
 UpdateAll()
@@ -580,11 +717,17 @@ UI:RegisterEvent("PLAYER_ROLES_ASSIGNED", UpdateAll)
 UI:RegisterEvent("ROLE_CHANGED_INFORM", UpdateAll)
 UI:RegisterEvent("RAID_TARGET_UPDATE", UpdateAll)
 
-UI:RegisterEvent("READY_CHECK", UpdateAll)
-UI:RegisterEvent("READY_CHECK_CONFIRM", UpdateAll)
-UI:RegisterEvent("READY_CHECK_FINISHED", UpdateAll)
-UI:RegisterEvent("INCOMING_RESURRECT_CHANGED", UpdateAll)
-UI:RegisterEvent("INCOMING_SUMMON_CHANGED", UpdateAll)
+UI:RegisterEvent("READY_CHECK", BeginReadyCheck)
+UI:RegisterEvent("READY_CHECK_CONFIRM", ConfirmReadyCheck)
+UI:RegisterEvent("READY_CHECK_FINISHED", FinishReadyCheck)
+UI:RegisterEvent(
+    "INCOMING_RESURRECT_CHANGED",
+    RefreshCenterIndicatorsForUnit
+)
+UI:RegisterEvent(
+    "INCOMING_SUMMON_CHANGED",
+    RefreshCenterIndicatorsForUnit
+)
 
 UI:RegisterEvent("UNIT_FLAGS", UpdateUnit)
 UI:RegisterEvent("UNIT_CONNECTION", UpdateUnit)
@@ -605,17 +748,19 @@ rangeUpdater:SetScript("OnUpdate", function(_, elapsed)
 
     rangeElapsed = 0
 
-    for _, frame in ipairs(frames) do
-        if frame and UnitExists(frame.unit) then
-            local inRange, checkedRange = UnitInRange(frame.unit)
-
-            if UI:CanAccessValue(checkedRange) and checkedRange
-                and UI:CanAccessValue(inRange)
-            then
-                frame:SetAlpha(inRange and 1 or OUT_OF_RANGE_ALPHA)
-            else
-                frame:SetAlpha(1)
-            end
+    UF:ForEachFrame(function(frame)
+        if not UnitExists(frame.unit) then
+            return
         end
-    end
+
+        local inRange, checkedRange = UnitInRange(frame.unit)
+
+        if UI:CanAccessValue(checkedRange) and checkedRange
+            and UI:CanAccessValue(inRange)
+        then
+            frame:SetAlpha(inRange and 1 or OUT_OF_RANGE_ALPHA)
+        else
+            frame:SetAlpha(1)
+        end
+    end, "range")
 end)

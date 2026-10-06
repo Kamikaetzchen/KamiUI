@@ -18,6 +18,11 @@ local function CreatePartyMember(index)
         height = PARTY_HEIGHT,
         portraitSide = "LEFT",
         nameWidth = 112,
+        features = {
+            indicators = true,
+            healPrediction = true,
+            range = true,
+        },
     })
 
     frame:SetPoint(
@@ -62,18 +67,6 @@ local function CreatePartyTarget(index, petFrame, ownerFrame)
     return frame
 end
 
-local function UpdateMain(frame)
-    UF:UpdateUnitFrame(frame)
-end
-
-local function UpdatePet(frame)
-    UF:UpdateUnitFrame(frame)
-end
-
-local function UpdateTarget(frame)
-    UF:UpdateUnitFrame(frame)
-end
-
 local function UpdateGroup(index)
     local group = frames[index]
 
@@ -81,9 +74,9 @@ local function UpdateGroup(index)
         return
     end
 
-    UpdateMain(group.main)
-    UpdatePet(group.pet)
-    UpdateTarget(group.target)
+    UF:UpdateUnitFrame(group.main)
+    UF:UpdateUnitFrame(group.pet)
+    UF:UpdateUnitFrame(group.target)
 end
 
 local function UpdateAll()
@@ -104,77 +97,23 @@ for index = 1, 4 do
     }
 end
 
-local function OnUnitEvent(_, unit)
-    if not unit then
-        UpdateAll()
-        return
-    end
-
-    for _, group in ipairs(frames) do
-        if unit == group.main.unit then
-            UpdateMain(group.main)
-            UpdateTarget(group.target)
-            return
-        elseif unit == group.pet.unit then
-            UpdatePet(group.pet)
-            return
-        elseif unit == group.target.unit then
-            UpdateTarget(group.target)
-            return
-        end
-    end
-end
-
-local function OnTargetEvent(_, unit)
-    if not unit then
-        return
-    end
-
-    for _, group in ipairs(frames) do
-        if unit == group.main.unit then
-            UpdateTarget(group.target)
-            return
-        end
-    end
-end
-
-local function OnCastEvent(_, unit)
-    if not unit then
-        return
-    end
-
-    for _, group in ipairs(frames) do
-        if unit == group.main.unit then
-            UF:UpdateCast(group.main)
-            return
-        end
-    end
-end
-
-UI:RegisterEvent("PLAYER_ENTERING_WORLD", UpdateAll)
 UI:RegisterEvent("GROUP_ROSTER_UPDATE", UpdateAll)
-UI:RegisterEvent("UNIT_HEALTH", OnUnitEvent)
-UI:RegisterEvent("UNIT_MAXHEALTH", OnUnitEvent)
-UI:RegisterEvent("UNIT_FACTION", OnUnitEvent)
-UI:RegisterEvent("UNIT_POWER_UPDATE", OnUnitEvent)
-UI:RegisterEvent("UNIT_POWER_FREQUENT", OnUnitEvent)
-UI:RegisterEvent("UNIT_MAXPOWER", OnUnitEvent)
-UI:RegisterEvent("UNIT_DISPLAYPOWER", OnUnitEvent)
-UI:RegisterEvent("UNIT_NAME_UPDATE", OnUnitEvent)
-UI:RegisterEvent("UNIT_PORTRAIT_UPDATE", OnUnitEvent)
-UI:RegisterEvent("UNIT_MODEL_CHANGED", OnUnitEvent)
-UI:RegisterEvent("UNIT_TARGET", OnTargetEvent)
+
+UI:RegisterEvent("UNIT_TARGET", function(_, unit)
+    if not unit then
+        return
+    end
+
+    for _, group in ipairs(frames) do
+        if unit == group.main.unit then
+            UF:UpdateUnitFrame(group.target)
+            return
+        end
+    end
+end)
+
 UI:RegisterEvent("UNIT_PET", function()
     UpdateAll()
 end)
-
-UI:RegisterEvent("UNIT_SPELLCAST_START", OnCastEvent)
-UI:RegisterEvent("UNIT_SPELLCAST_STOP", OnCastEvent)
-UI:RegisterEvent("UNIT_SPELLCAST_FAILED", OnCastEvent)
-UI:RegisterEvent("UNIT_SPELLCAST_INTERRUPTED", OnCastEvent)
-UI:RegisterEvent("UNIT_SPELLCAST_DELAYED", OnCastEvent)
-UI:RegisterEvent("UNIT_SPELLCAST_CHANNEL_START", OnCastEvent)
-UI:RegisterEvent("UNIT_SPELLCAST_CHANNEL_UPDATE", OnCastEvent)
-UI:RegisterEvent("UNIT_SPELLCAST_CHANNEL_STOP", OnCastEvent)
 
 UF.partyFrames = frames
