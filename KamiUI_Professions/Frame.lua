@@ -1047,57 +1047,59 @@ local function AcquireReagentRow(frame, index)
 end
 
 local function CreateCharacterMenu(frame, header)
-    local characterButton = CreateFrame("Button", nil, header)
-    characterButton:SetSize(22, 22)
-    characterButton:SetPoint("TOPLEFT", header, "TOPLEFT", 4, -8)
+    local characterDropdown =
+        Components:CreateCharacterDropdown(
+            frame,
+            {
+                buttonParent = header,
+                buttonWidth = 22,
+                buttonHeight = 22,
+                styleButton = false,
+                iconTexCoord = { 0.07, 0.93, 0.07, 0.93 },
+                direction = "down",
+                align = "left",
+                menuParent = frame,
+                menuFrameLevel = frame:GetFrameLevel() + 30,
+                backgroundColor = { 0, 0, 0, 0.96 },
+                borderColor = Palette.border,
+                fontSize = 9,
+                prepare = function()
+                    local characters = GetCharactersModule()
 
-    local icon = characterButton:CreateTexture(nil, "ARTWORK")
-    icon:SetAllPoints()
-    icon:SetTexture("Interface\\Icons\\INV_Misc_GroupLooking")
-    icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
-    characterButton.icon = icon
+                    if characters
+                        and characters.UpdateCurrentCharacter
+                    then
+                        characters:UpdateCurrentCharacter()
+                    end
+                end,
+                getEntries = function()
+                    local characters = GetCharactersModule()
+
+                    return characters
+                        and characters:GetSortedCharacters()
+                        or {}
+                end,
+                selectedKey = function()
+                    return select(1, GetViewedCharacter())
+                end,
+                onSelect = function(key)
+                    Module:SetViewedCharacter(key)
+                end,
+            }
+        )
+
+    local characterButton = characterDropdown.button
+    characterButton:SetPoint(
+        "TOPLEFT",
+        header,
+        "TOPLEFT",
+        4,
+        -8
+    )
+
     frame.characterButton = characterButton
-
-    local menu = Components:CreatePopupMenu(
-        frame,
-        characterButton,
-        {
-            frameLevel = frame:GetFrameLevel() + 30,
-            backgroundColor = { 0, 0, 0, 0.96 },
-            borderColor = Palette.border,
-            fontSize = 9,
-        }
-    )
-    frame.characterMenu = menu
-
-    Components:BindCharacterMenu(
-        characterButton,
-        menu,
-        {
-            prepare = function()
-                local characters = GetCharactersModule()
-
-                if characters
-                    and characters.UpdateCurrentCharacter
-                then
-                    characters:UpdateCurrentCharacter()
-                end
-            end,
-            getEntries = function()
-                local characters = GetCharactersModule()
-
-                return characters
-                    and characters:GetSortedCharacters()
-                    or {}
-            end,
-            selectedKey = function()
-                return select(1, GetViewedCharacter())
-            end,
-            onSelect = function(key)
-                Module:SetViewedCharacter(key)
-            end,
-        }
-    )
+    frame.characterMenu = characterDropdown.menu
+    frame.characterDropdown = characterDropdown
 
     characterButton:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
