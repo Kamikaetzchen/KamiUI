@@ -478,9 +478,13 @@ local function CreateBankPurchaseButton(parent)
                 Enum.BankType.Character
             )
 
-            if data and data.tabCost then
+            if data and data.tabCost ~= nil then
+                local cost = data.tabCost == 0
+                    and (FREE or "Free")
+                    or UI:FormatMoney(data.tabCost)
+
                 GameTooltip:AddLine(
-                    "Cost: " .. UI:FormatMoney(data.tabCost),
+                    "Cost: " .. cost,
                     1,
                     1,
                     1
@@ -586,15 +590,20 @@ function Module:UpdateBagBar()
             Enum.BankType.Character
         ) or {}
         local purchasedCount = #purchased
+        local canPurchase = maxTabs > purchasedCount
+            and (
+                not C_Bank.CanPurchaseBankTab
+                or C_Bank.CanPurchaseBankTab(Enum.BankType.Character)
+            )
 
-        for index = purchasedCount + 1, maxTabs do
-            purchaseCount = purchaseCount + 1
+        if canPurchase then
+            purchaseCount = 1
 
-            local button = frame.purchaseButtons[purchaseCount]
+            local button = frame.purchaseButtons[1]
 
             if not button then
                 button = CreateBankPurchaseButton(frame.bagBar)
-                frame.purchaseButtons[purchaseCount] = button
+                frame.purchaseButtons[1] = button
             end
 
             button:ClearAllPoints()
@@ -602,7 +611,7 @@ function Module:UpdateBagBar()
                 "LEFT",
                 frame.bagBar,
                 "LEFT",
-                (#tabs + purchaseCount - 1) * 35,
+                #tabs * 35,
                 0
             )
             button:Show()
