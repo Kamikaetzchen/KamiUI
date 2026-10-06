@@ -306,7 +306,10 @@ function Components:CreateCachedItemButton(parent, options)
     local button = self:CreateItemSlot(parent, options)
 
     button:SetScript("OnEnter", function(self)
-        if not self.itemLink then
+        if not self.itemTooltip
+            and not self.itemLink
+            and not self.itemID
+        then
             return
         end
 
@@ -314,8 +317,37 @@ function Components:CreateCachedItemButton(parent, options)
             self,
             options.tooltipAnchor or "ANCHOR_RIGHT"
         )
-        GameTooltip:SetHyperlink(self.itemLink)
-        GameTooltip:Show()
+
+        local handled = false
+
+        if self.itemTooltip then
+            local ok, result = pcall(
+                self.itemTooltip,
+                GameTooltip,
+                self
+            )
+
+            handled = ok and result ~= false
+        end
+
+        if not handled and self.itemLink then
+            GameTooltip:SetHyperlink(self.itemLink)
+            handled = true
+        elseif not handled and self.itemID then
+            if GameTooltip.SetItemByID then
+                GameTooltip:SetItemByID(self.itemID)
+            else
+                GameTooltip:SetHyperlink(
+                    "item:" .. tostring(self.itemID)
+                )
+            end
+
+            handled = true
+        end
+
+        if handled then
+            GameTooltip:Show()
+        end
     end)
 
     button:SetScript("OnLeave", function()
@@ -335,7 +367,9 @@ function Components:SetItemSlotData(button, data)
     local icon = GetItemSlotIcon(button)
     local alpha = data.alpha or 1
 
+    button.itemID = data.itemID
     button.itemLink = data.link
+    button.itemTooltip = data.tooltip
     button:SetAlpha(alpha)
 
     if icon then

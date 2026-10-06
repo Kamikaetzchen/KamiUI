@@ -241,6 +241,105 @@ local function GetItemDisplayData(itemID, link, fallbackIcon)
     }
 end
 
+local function TooltipHasLines(tooltip)
+    return tooltip
+        and tooltip.NumLines
+        and tooltip:NumLines() > 0
+end
+
+local function SetRecipeResultTooltip(tooltip, recipeID)
+    if not tooltip or not recipeID then
+        return false
+    end
+
+    tooltip:ClearLines()
+
+    if tooltip.SetRecipeResultItem then
+        local ok = pcall(
+            tooltip.SetRecipeResultItem,
+            tooltip,
+            recipeID
+        )
+
+        if ok and TooltipHasLines(tooltip) then
+            return true
+        end
+    end
+
+    tooltip:ClearLines()
+
+    if tooltip.SetSpellByID then
+        local ok = pcall(
+            tooltip.SetSpellByID,
+            tooltip,
+            recipeID
+        )
+
+        if ok and TooltipHasLines(tooltip) then
+            return true
+        end
+    end
+
+    return false
+end
+
+local function SetRecipeReagentTooltip(
+    tooltip,
+    recipeID,
+    dataSlotIndex,
+    itemID
+)
+    if not tooltip then
+        return false
+    end
+
+    tooltip:ClearLines()
+
+    if recipeID
+        and dataSlotIndex
+        and tooltip.SetRecipeReagentItem
+    then
+        local ok = pcall(
+            tooltip.SetRecipeReagentItem,
+            tooltip,
+            recipeID,
+            dataSlotIndex
+        )
+
+        if ok and TooltipHasLines(tooltip) then
+            return true
+        end
+    end
+
+    tooltip:ClearLines()
+
+    if itemID then
+        if tooltip.SetItemByID then
+            local ok = pcall(
+                tooltip.SetItemByID,
+                tooltip,
+                itemID
+            )
+
+            if ok and TooltipHasLines(tooltip) then
+                return true
+            end
+        elseif tooltip.SetHyperlink then
+            local ok = pcall(
+                tooltip.SetHyperlink,
+                tooltip,
+                "item:" .. tostring(itemID)
+            )
+
+            if ok and TooltipHasLines(tooltip) then
+                return true
+            end
+        end
+    end
+
+    return false
+end
+
 local function GetDifficultyColor(difficulty)
     if not Enum
         or not Enum.TradeskillRelativeDifficulty
@@ -1814,13 +1913,25 @@ function Module:RefreshRecipeDetails()
     end
 
     Components:SetItemSlotData(frame.outputSlot, {
+        itemID = outputData.itemID,
         icon = outputData.icon,
         link = outputData.link,
         quality = outputData.quality,
         countText = quantityText,
+        tooltip = function(tooltip)
+            return SetRecipeResultTooltip(
+                tooltip,
+                recipeID
+            )
+        end,
     })
     frame.outputSlot:Show()
-    frame.outputName:SetText(outputData.name)
+    frame.outputName:SetText(
+        outputData.itemID
+            and outputData.name
+            or info.name
+            or outputData.name
+    )
     frame.outputName:SetTextColor(unpack(Palette.text))
 
     local description = C_TradeSkillUI.GetRecipeDescription
@@ -1875,6 +1986,7 @@ function Module:RefreshRecipeDetails()
             )
 
             Components:SetItemSlotData(row.slot, {
+                itemID = itemID,
                 icon = item.icon,
                 link = item.link,
                 quality = item.quality,
@@ -1882,6 +1994,14 @@ function Module:RefreshRecipeDetails()
                     and string.format("%d/%d", owned, required)
                     or tostring(owned),
                 countColor = countColor,
+                tooltip = function(tooltip)
+                    return SetRecipeReagentTooltip(
+                        tooltip,
+                        recipeID,
+                        slot.dataSlotIndex,
+                        itemID
+                    )
+                end,
             })
 
             local slotText = slot.slotInfo
