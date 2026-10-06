@@ -9,9 +9,6 @@ end
 local RARITY_GLOW_TEXTURE =
     "Interface\\AddOns\\KamiUI\\Media\\ItemRarityGlow_16x16.tga"
 
-Components.ItemRarityGlowStyle =
-    Components.ItemRarityGlowStyle or "nineSlice"
-
 local RARITY_GLOW_TEXCOORDS = {
     topLeft = { 0.0000, 0.4375, 0.0000, 0.4375 },
     top = { 0.4375, 0.5625, 0.0000, 0.4375 },
@@ -71,7 +68,7 @@ local function CreateRarityGlowSlice(button, coords, alpha)
     return texture
 end
 
-local function CreateNineSliceRarityGlow(
+local function CreateRarityGlow(
     button,
     size,
     iconInset,
@@ -89,7 +86,6 @@ local function CreateNineSliceRarityGlow(
 
     local alpha = options.rarityAlpha or 1
     local parts = {}
-    local slices = {}
 
     local function AddSlice(key)
         local texture = CreateRarityGlowSlice(
@@ -97,7 +93,6 @@ local function CreateNineSliceRarityGlow(
             RARITY_GLOW_TEXCOORDS[key],
             alpha
         )
-        slices[key] = texture
         parts[#parts + 1] = texture
         return texture
     end
@@ -210,35 +205,7 @@ local function CreateNineSliceRarityGlow(
     )
     right:SetWidth(glowDepth)
 
-    button.KamiRarityGlowDepth = glowDepth
-    button.KamiRarityGlowSlices = slices
-
     return CreateRarityGlowController(parts)
-end
-
-local function CreateLegacyRarityGlow(button, size, options)
-    local rarityGlow = button:CreateTexture(
-        nil,
-        "OVERLAY",
-        nil,
-        1
-    )
-    rarityGlow:SetPoint(
-        "CENTER",
-        button,
-        "CENTER",
-        0.5,
-        0.5
-    )
-    rarityGlow:SetSize(size + 33, size + 33)
-    rarityGlow:SetTexture(
-        "Interface\\Buttons\\UI-ActionButton-Border"
-    )
-    rarityGlow:SetBlendMode("ADD")
-    rarityGlow:SetAlpha(options.rarityAlpha or 0.45)
-    rarityGlow:Hide()
-
-    return rarityGlow
 end
 
 function Components:SetItemSlotBorderColor(button, color)
@@ -457,25 +424,12 @@ function Components:StyleItemSlot(button, options)
     end
 
     if options.rarityGlow ~= false then
-        local glowStyle = options.rarityGlowStyle
-            or Components.ItemRarityGlowStyle
-
-        if glowStyle == "legacy" then
-            button.KamiRarityGlow = CreateLegacyRarityGlow(
-                button,
-                size,
-                options
-            )
-        else
-            button.KamiRarityGlow = CreateNineSliceRarityGlow(
-                button,
-                size,
-                iconInset,
-                options
-            )
-        end
-
-        button.KamiRarityGlowStyle = glowStyle
+        button.KamiRarityGlow = CreateRarityGlow(
+            button,
+            size,
+            iconInset,
+            options
+        )
     end
 
     local icon = GetItemSlotIcon(button)
