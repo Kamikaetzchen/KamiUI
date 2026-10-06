@@ -729,7 +729,7 @@ function Module:Rebuild()
                     local button = frame.cachedButtons[index]
 
                     if not button then
-                        button = Components:CreateCachedItemButton(frame.content, {
+                        button = Components:CreateItemDisplayButton(frame.content, {
                 size = SLOT_SIZE,
                 corners = true,
             })

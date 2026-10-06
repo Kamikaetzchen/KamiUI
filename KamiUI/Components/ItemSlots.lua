@@ -298,7 +298,7 @@ function Components:CreateContainerItemButton(parent, options)
     return button
 end
 
-function Components:CreateCachedItemButton(parent, options)
+function Components:CreateItemDisplayButton(parent, options)
     options = options or {}
     options.count = options.count ~= false
     options.createIcon = true

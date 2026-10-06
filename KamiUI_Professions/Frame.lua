@@ -607,7 +607,7 @@ local function AcquireReagentRow(frame, index)
     row = CreateFrame("Frame", nil, frame.detailContent)
     row:SetHeight(REAGENT_ROW_HEIGHT)
 
-    local slot = Components:CreateCachedItemButton(row, {
+    local slot = Components:CreateItemDisplayButton(row, {
         size = 34,
         count = true,
         countFontSize = 8,
@@ -969,7 +969,7 @@ local function CreateCraftingPage(frame)
         REAGENT_ROW_HEIGHT
     )
 
-    local outputSlot = Components:CreateCachedItemButton(
+    local outputSlot = Components:CreateItemDisplayButton(
         detailContent,
         {
             size = 44,
