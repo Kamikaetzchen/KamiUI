@@ -539,6 +539,20 @@ local function AcquireRecipeRow(frame, index)
         Styles.State.hoverAlpha
     )
 
+    local selectionBorder = Styles:CreateBorder(
+        row,
+        {
+            color = { 1, 1, 1, 0.70 },
+            size = 1,
+        }
+    )
+
+    for _, edge in ipairs(selectionBorder or {}) do
+        edge:Hide()
+    end
+
+    row.selectionBorder = selectionBorder
+
     row:SetScript("OnClick", function(self)
         if self.categoryID then
             frame.collapsedCategories[self.categoryID] =
@@ -2122,6 +2136,10 @@ function Module:RefreshRecipeList()
                 Palette.white,
                 Styles.State.sectionAlpha
             )
+
+            for _, edge in ipairs(row.selectionBorder or {}) do
+                edge:Hide()
+            end
         else
             row.recipeID = entry.recipeID
             row.cachedRecipe = entry.cached
@@ -2153,11 +2171,13 @@ function Module:RefreshRecipeList()
 
             Styles:SetColor(
                 row.background,
-                selected and Palette.white or color,
-                selected
-                    and Styles.State.selectedAlpha
-                    or 0.24
+                color,
+                0.24
             )
+
+            for _, edge in ipairs(row.selectionBorder or {}) do
+                edge:SetShown(selected)
+            end
 
             if selected then
                 selectedVisible = true
