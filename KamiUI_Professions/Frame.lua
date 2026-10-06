@@ -1010,35 +1010,20 @@ function Module:CreateFrame()
         return self.frame
     end
 
-    local frame = CreateFrame(
-        "Frame",
-        "KamiUIProfessionFrame",
-        UIParent,
-        "BackdropTemplate"
-    )
-    frame:SetSize(FRAME_WIDTH, FRAME_HEIGHT)
-    frame:SetFrameStrata("HIGH")
-    frame:SetToplevel(true)
-    frame:SetMovable(true)
-    frame:SetClampedToScreen(true)
-    frame:EnableMouse(true)
-    frame:Hide()
-
-    Styles:ApplyBackdrop(
-        frame,
-        Palette.window.neutral,
-        Palette.border
-    )
-
-    local header = Components:CreateWindowHeader(frame, {
-        height = HEADER_HEIGHT - 1,
-        hasSubtitle = true,
-        draggable = true,
-        onDragStop = function()
-            UI:SaveFramePosition(frame, GetDatabase())
+    local frame, header = Components:CreateWindow("KamiUIProfessionFrame", {
+        width = FRAME_WIDTH,
+        height = FRAME_HEIGHT,
+        toplevel = true,
+        backgroundColor = Palette.window.neutral,
+        borderColor = Palette.border,
+        onDragStop = function(target)
+            UI:SaveFramePosition(target, GetDatabase())
         end,
+        header = {
+            height = HEADER_HEIGHT - 1,
+            hasSubtitle = true,
+        },
     })
-    frame.header = header
 
     CreateCharacterMenu(frame, header)
 

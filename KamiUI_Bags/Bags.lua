@@ -1255,123 +1255,37 @@ function Module:ResetPosition()
 end
 
 local function CreateFrameUI()
-    local frame = CreateFrame("Frame", "KamiUIBagFrame", UIParent, "BackdropTemplate")
-    frame:SetFrameStrata("HIGH")
-    frame:SetMovable(true)
-    frame:SetClampedToScreen(true)
-    frame:EnableMouse(true)
-    frame:Hide()
-
-    Styles:ApplyBackdrop(
-        frame,
-        Palette.window.inventory,
-        Palette.windowBorder.inventory
-    )
-
-    frame:RegisterForDrag("LeftButton")
-    frame:SetScript("OnDragStart", function(self)
-        self:StartMoving()
-    end)
-    frame:SetScript("OnDragStop", function(self)
-        self:StopMovingOrSizing()
-        UI:SaveFramePosition(self, GetDatabase())
-    end)
-
-    local header = Components:CreateWindowHeader(frame, {
-        height = HEADER_HEIGHT,
-        title = UI:GetCurrentCharacterName() .. "'s Inventory",
-        draggable = true,
-        onDragStop = function()
-            UI:SaveFramePosition(frame, GetDatabase())
+    local frame, header = Components:CreateWindow("KamiUIBagFrame", {
+        backgroundColor = Palette.window.inventory,
+        borderColor = Palette.windowBorder.inventory,
+        onDragStop = function(target)
+            UI:SaveFramePosition(target, GetDatabase())
         end,
+        header = {
+            height = HEADER_HEIGHT,
+            title = UI:GetCurrentCharacterName() .. "'s Inventory",
+        },
     })
-    frame.header = header
 
     local title = header.Title
     frame.title = title
 
-    local titleButton = CreateFrame("Button", nil, header)
-    titleButton:SetPoint("TOPLEFT", header, "TOPLEFT", 90, -1)
-    titleButton:SetPoint("TOPRIGHT", header, "TOPRIGHT", -90, -1)
-    titleButton:SetHeight(24)
-    titleButton:RegisterForDrag("LeftButton")
-    titleButton:SetScript("OnDragStart", function()
-        frame:StartMoving()
-    end)
-    titleButton:SetScript("OnDragStop", function()
-        frame:StopMovingOrSizing()
-        UI:SaveFramePosition(frame, GetDatabase())
-    end)
-    frame.titleButton = titleButton
+    Components:AttachHeaderSearch(frame, header, {
+        closeOnFocusLost = true,
+        onTextChanged = function(text)
+            local _, _, isCurrent = GetViewedCharacter()
 
-    local search = CreateFrame("EditBox", nil, header, "InputBoxTemplate")
-    search:SetPoint("TOPLEFT", titleButton, "TOPLEFT", 0, -1)
-    search:SetPoint("TOPRIGHT", titleButton, "TOPRIGHT", 0, -1)
-    search:SetHeight(22)
-    search:SetAutoFocus(false)
-    search:SetTextInsets(6, 6, 0, 0)
-
-    if search.SetPropagateKeyboardInput then
-        search:SetPropagateKeyboardInput(false)
-    end
-
-    search:Hide()
-    frame.search = search
-
-    local function CloseSearch(clear)
-        if clear then
-            search:SetText("")
-
-            if C_Container and C_Container.SetItemSearch then
-                C_Container.SetItemSearch("")
-            elseif SetItemSearch then
-                SetItemSearch("")
+            if isCurrent then
+                if C_Container and C_Container.SetItemSearch then
+                    C_Container.SetItemSearch(text)
+                elseif SetItemSearch then
+                    SetItemSearch(text)
+                end
             end
 
             Module:Refresh()
-        end
-
-        search:ClearFocus()
-        search:Hide()
-        title:Show()
-    end
-
-    titleButton:SetScript("OnDoubleClick", function()
-        title:Hide()
-        search:Show()
-        search:SetFocus()
-        search:HighlightText()
-    end)
-
-    search:SetScript("OnTextChanged", function(self)
-        local text = self:GetText() or ""
-        local _, _, isCurrent = GetViewedCharacter()
-
-        if isCurrent then
-            if C_Container and C_Container.SetItemSearch then
-                C_Container.SetItemSearch(text)
-            elseif SetItemSearch then
-                SetItemSearch(text)
-            end
-        end
-
-        Module:Refresh()
-    end)
-
-    search:SetScript("OnEscapePressed", function()
-        CloseSearch(true)
-    end)
-
-    search:SetScript("OnEnterPressed", function(self)
-        self:ClearFocus()
-        CloseSearch(false)
-    end)
-
-    search:SetScript("OnEditFocusLost", function()
-        if search:IsShown() then
-            CloseSearch(false)
-        end
-    end)
+        end,
+    })
 
     local close = CreateFrame("Button", nil, header)
     close:SetSize(22, 22)

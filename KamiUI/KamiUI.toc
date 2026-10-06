@@ -9,7 +9,14 @@
 Core.lua
 Palette.lua
 Styles.lua
-Components.lua
+Components\Core.lua
+Components\Tabs.lua
+Components\Buttons.lua
+Components\Inputs.lua
+Components\ItemSlots.lua
+Components\Popups.lua
+Components\Sections.lua
+Components\Windows.lua
 Config.lua
 Events.lua
 Modules.lua

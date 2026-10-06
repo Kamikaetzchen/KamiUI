@@ -3755,25 +3755,19 @@ local function CreateSidebar(frame)
 end
 
 local function CreateFrameUI()
-    local frame = CreateFrame(
-        "Frame",
-        "KamiUICharacterFrame",
-        UIParent,
-        "BackdropTemplate"
-    )
-
-    frame:SetSize(FRAME_WIDTH, FRAME_HEIGHT)
-    frame:SetFrameStrata("HIGH")
-    frame:SetClampedToScreen(true)
-    frame:SetMovable(true)
-    frame:EnableMouse(true)
-    frame:Hide()
-
-    Styles:ApplyBackdrop(
-        frame,
-        Palette.window.neutral,
-        Palette.border
-    )
+    local frame, header = Components:CreateWindow("KamiUICharacterFrame", {
+        width = FRAME_WIDTH,
+        height = FRAME_HEIGHT,
+        backgroundColor = Palette.window.neutral,
+        borderColor = Palette.border,
+        onDragStop = function(target)
+            UI:SaveFramePosition(target, GetDatabase())
+        end,
+        header = {
+            height = HEADER_HEIGHT - 1,
+            hasSubtitle = true,
+        },
+    })
 
     local characterPane = CreateFrame("Frame", nil, frame)
     characterPane:SetPoint("TOPLEFT", frame, "TOPLEFT", 1, -1)
@@ -3835,16 +3829,6 @@ local function CreateFrameUI()
     )
     nativeDivider:SetWidth(1)
     nativeDivider:SetColorTexture(unpack(Palette.border))
-
-    local header = Components:CreateWindowHeader(frame, {
-        height = HEADER_HEIGHT - 1,
-        hasSubtitle = true,
-        draggable = true,
-        onDragStop = function()
-            UI:SaveFramePosition(frame, GetDatabase())
-        end,
-    })
-    frame.header = header
 
     local characterButton = CreateFrame("Button", nil, header)
     characterButton:SetSize(22, 22)

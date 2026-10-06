@@ -708,20 +708,6 @@ function Module:UpdateBagBar()
     end
 end
 
-function Module:UpdateMoney()
-    if not self.frame or not self.frame.money then
-        return
-    end
-
-    local key, character, isCurrent = GetViewedCharacter()
-    local profile = UI:GetCharacterProfile(key, character)
-    local money = isCurrent and GetMoney()
-        or profile.money
-        or 0
-
-    self.frame.money:SetText(UI:FormatMoney(money))
-end
-
 function Module:UpdateTitle()
     if not self.frame or not self.frame.title then
         return
@@ -874,7 +860,6 @@ function Module:Rebuild()
         frame.sort:Hide()
         frame.bagBarToggle:Show()
         self:UpdateBagBar()
-        self:UpdateMoney()
         self:UpdateTitle()
         self:UpdateBagBarVisibility()
         return
@@ -932,7 +917,6 @@ function Module:Rebuild()
     frame.sort:Show()
     frame.bagBarToggle:Show()
     self:UpdateBagBar()
-    self:UpdateMoney()
     self:UpdateTitle()
     self:UpdateBagBarVisibility()
 end
@@ -957,97 +941,26 @@ local function ScheduleRefresh()
 end
 
 local function CreateFrameUI()
-    local frame = CreateFrame(
-        "Frame",
-        "KamiUIBankFrame",
-        UIParent,
-        "BackdropTemplate"
-    )
-
-    frame:SetFrameStrata("HIGH")
-    frame:SetMovable(true)
-    frame:SetClampedToScreen(true)
-    frame:EnableMouse(true)
-    frame:Hide()
-
-    Styles:ApplyBackdrop(
-        frame,
-        Palette.window.bank,
-        Palette.windowBorder.bank
-    )
-
-    frame:RegisterForDrag("LeftButton")
-    frame:SetScript("OnDragStart", function(self)
-        self:StartMoving()
-    end)
-    frame:SetScript("OnDragStop", function(self)
-        self:StopMovingOrSizing()
-        UI:SaveFramePosition(self, GetDatabase(), "bankPosition")
-    end)
-
-    local header = Components:CreateWindowHeader(frame, {
-        height = HEADER_HEIGHT,
-        title = UI:GetCurrentCharacterName() .. "'s Bank",
-        draggable = true,
-        onDragStop = function()
-            UI:SaveFramePosition(frame, GetDatabase(), "bankPosition")
+    local frame, header = Components:CreateWindow("KamiUIBankFrame", {
+        backgroundColor = Palette.window.bank,
+        borderColor = Palette.windowBorder.bank,
+        onDragStop = function(target)
+            UI:SaveFramePosition(target, GetDatabase(), "bankPosition")
         end,
+        header = {
+            height = HEADER_HEIGHT,
+            title = UI:GetCurrentCharacterName() .. "'s Bank",
+        },
     })
-    frame.header = header
 
     local title = header.Title
     frame.title = title
 
-    local titleButton = CreateFrame("Button", nil, header)
-    titleButton:SetPoint("TOPLEFT", header, "TOPLEFT", 90, -1)
-    titleButton:SetPoint("TOPRIGHT", header, "TOPRIGHT", -90, -1)
-    titleButton:SetHeight(24)
-    titleButton:RegisterForDrag("LeftButton")
-    titleButton:SetScript("OnDragStart", function()
-        frame:StartMoving()
-    end)
-    titleButton:SetScript("OnDragStop", function()
-        frame:StopMovingOrSizing()
-        UI:SaveFramePosition(frame, GetDatabase(), "bankPosition")
-    end)
-    frame.titleButton = titleButton
-
-    local search = CreateFrame("EditBox", nil, header, "InputBoxTemplate")
-    search:SetPoint("TOPLEFT", titleButton, "TOPLEFT", 0, -1)
-    search:SetPoint("TOPRIGHT", titleButton, "TOPRIGHT", 0, -1)
-    search:SetHeight(22)
-    search:SetAutoFocus(false)
-    search:SetTextInsets(6, 6, 0, 0)
-    search:Hide()
-    frame.search = search
-
-    local function CloseSearch(clear)
-        if clear then
-            search:SetText("")
+    local searchControl = Components:AttachHeaderSearch(frame, header, {
+        onTextChanged = function()
             Module:Rebuild()
-        end
-
-        search:ClearFocus()
-        search:Hide()
-        title:Show()
-    end
-
-    titleButton:SetScript("OnDoubleClick", function()
-        title:Hide()
-        search:Show()
-        search:SetFocus()
-        search:HighlightText()
-    end)
-
-    search:SetScript("OnTextChanged", function()
-        Module:Rebuild()
-    end)
-    search:SetScript("OnEscapePressed", function()
-        CloseSearch(true)
-    end)
-    search:SetScript("OnEnterPressed", function()
-        CloseSearch(false)
-    end)
+        end,
+    })
 
     local close = CreateFrame("Button", nil, header)
     close:SetSize(22, 22)
@@ -1189,59 +1102,6 @@ local function CreateFrameUI()
     end)
     frame.sort = sort
 
-    local money = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    money:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -FRAME_PADDING, 8)
-    money:SetTextColor(0.85, 0.85, 0.85)
-    frame.money = money
-
-    local moneyButton = CreateFrame("Button", nil, frame)
-    moneyButton:SetPoint("TOPLEFT", money, "TOPLEFT", -4, 4)
-    moneyButton:SetPoint("BOTTOMRIGHT", money, "BOTTOMRIGHT", 4, -4)
-
-    moneyButton:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_TOPRIGHT")
-        GameTooltip:SetText("Money")
-
-        local total = 0
-
-        for _, entry in ipairs(UI:GetSortedCharacterProfiles(GetDatabase().characters)) do
-            local character = entry.character
-            local amount = character.money or 0
-            local color = Palette:GetClassColor(character.classFile)
-            local r = color and color.r or 0.75
-            local g = color and color.g or 0.75
-            local b = color and color.b or 0.75
-
-            total = total + amount
-
-            GameTooltip:AddDoubleLine(
-                character.name or "Unknown",
-                UI:FormatMoney(amount),
-                r,
-                g,
-                b,
-                1,
-                1,
-                1
-            )
-        end
-
-        GameTooltip:AddLine(" ")
-        GameTooltip:AddDoubleLine(
-            "Total",
-            UI:FormatMoney(total),
-            1,
-            0.82,
-            0,
-            1,
-            1,
-            1
-        )
-        GameTooltip:Show()
-    end)
-    moneyButton:SetScript("OnLeave", function()
-        GameTooltip:Hide()
-    end)
 
     frame:EnableKeyboard(true)
 
@@ -1261,8 +1121,10 @@ local function CreateFrameUI()
             self:SetPropagateKeyboardInput(false)
         end
 
-        if search:IsShown() then
-            CloseSearch(true)
+        if searchControl
+            and searchControl.editBox:IsShown()
+        then
+            searchControl:Close(true)
         else
             Module:Hide()
         end
@@ -1344,7 +1206,6 @@ eventFrame:RegisterEvent("PLAYERBANKSLOTS_CHANGED")
 eventFrame:RegisterEvent("BANK_TABS_CHANGED")
 eventFrame:RegisterEvent("BANK_TAB_SETTINGS_UPDATED")
 eventFrame:RegisterEvent("BAG_CONTAINER_UPDATE")
-eventFrame:RegisterEvent("PLAYER_MONEY")
 
 eventFrame:SetScript("OnEvent", function(_, event)
     if event == "BANKFRAME_OPENED" then
@@ -1383,12 +1244,6 @@ eventFrame:SetScript("OnEvent", function(_, event)
         return
     end
 
-    if event == "PLAYER_MONEY" then
-        if Module.frame and Module.frame:IsShown() then
-            Module:UpdateMoney()
-        end
-        return
-    end
 
     if bankOpen and not sortingBank then
         ScheduleRefresh()
