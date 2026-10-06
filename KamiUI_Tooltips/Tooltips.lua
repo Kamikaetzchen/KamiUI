@@ -4,7 +4,7 @@ local Styles = UI.Styles
 
 local Module = UI:NewModule("Tooltips", "KamiUI_Tooltips")
 
-Module.version = "0.2.18"
+Module.version = "0.2.19"
 
 local INSPECT_CACHE_SECONDS = 600
 local INSPECT_MISS_CACHE_SECONDS = 60
@@ -46,6 +46,7 @@ local SPEC_LABELS = {
     },
     SHAMAN = {
         elemental = "Ele",
+        ["elemental combat"] = "Ele",
         enhancement = "Enh",
         restoration = "Resto",
     },
