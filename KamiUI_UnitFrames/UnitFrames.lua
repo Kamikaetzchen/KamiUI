@@ -3,7 +3,7 @@ local Palette = UI.Palette
 
 local UF = UI:NewModule("UnitFrames", "KamiUI_UnitFrames")
 
-UF.version = "0.3.0"
+UF.version = "0.4.0"
 
 UF.flatTexture = "Interface\\Buttons\\WHITE8X8"
 UF.colorMultiplier = 0.60
@@ -238,6 +238,24 @@ function UF:GetUnitDisplayName(unit)
     )
 
     return status .. levelColor .. levelText .. suffix .. "|r " .. name
+end
+
+function UF:GetUnitFirstName(unit)
+    local firstName = UnitName(unit)
+
+    if firstName and UI:CanAccessValue(firstName) then
+        return firstName
+    end
+
+    return ""
+end
+
+function UF:SetUnitFirstName(fontString, unit)
+    if not fontString then
+        return
+    end
+
+    fontString:SetText(self:GetUnitFirstName(unit))
 end
 
 function UF:ConfigureNameText(fontString)
@@ -638,6 +656,70 @@ function UF:CreateHealthFrame(options)
     return frame
 end
 
+function UF:CreateRaidFrame(options)
+    options = options or {}
+
+    local width = options.width or 75
+    local height = options.height or 25
+    local borderSize = options.borderSize or 1
+    local separatorSize = options.separatorSize or 1
+    local healthHeight = options.healthHeight or 13
+    local powerHeight = options.powerHeight or 9
+    local contentWidth = width - borderSize * 2
+
+    local frame = self:CreateUnitFrameBase({
+        name = options.name,
+        unit = options.unit,
+        parent = options.parent,
+        width = width,
+        height = height,
+        watch = options.watch,
+    })
+
+    self:RegisterFrame(frame, options.features)
+
+    local content = CreateFrame("Frame", nil, frame)
+    content:SetPoint("TOPLEFT", borderSize, -borderSize)
+    content:SetPoint("BOTTOMRIGHT", -borderSize, borderSize)
+
+    local health = self:CreateBar(content, contentWidth, healthHeight)
+    health:SetPoint("TOPLEFT")
+
+    local power = self:CreateBar(content, contentWidth, powerHeight)
+    power:SetPoint("TOPLEFT", health, "BOTTOMLEFT", 0, -separatorSize)
+
+    local nameText = self:CreateText(
+        health,
+        healthHeight,
+        "CENTER",
+        options.nameFontOffset or -1
+    )
+    nameText:SetPoint("CENTER", health, "CENTER", 0, 0)
+    nameText:SetWidth(contentWidth - 38)
+    self:ConfigureNameText(nameText)
+
+    local deficitText = self:CreateText(
+        power,
+        powerHeight,
+        "CENTER",
+        options.healthFontOffset or -1
+    )
+    deficitText:SetPoint("CENTER", power, "CENTER", 0, 0)
+    deficitText:SetWidth(contentWidth - 4)
+
+    frame.frameType = "raid"
+    frame.nameMode = "first"
+    frame.healthTextMode = "deficit"
+    frame.content = content
+    frame.health = health
+    frame.power = power
+    frame.nameText = nameText
+    frame.healthText = deficitText
+    frame.deficitText = deficitText
+
+    return frame
+end
+
 function UF:UpdateHealth(frame)
     if not frame or not frame.health or not UnitExists(frame.unit) then
         return
@@ -650,7 +732,17 @@ function UF:UpdateHealth(frame)
     frame.health:SetValue(current)
 
     if frame.healthText then
-        frame.healthText:SetFormattedText("%d/%d", current, maximum)
+        if frame.healthTextMode == "deficit" then
+            local deficit = current - maximum
+
+            if deficit < 0 then
+                frame.healthText:SetText(tostring(deficit))
+            else
+                frame.healthText:SetText("")
+            end
+        else
+            frame.healthText:SetFormattedText("%d/%d", current, maximum)
+        end
     end
 
     local r, g, b = self:GetUnitColor(frame.unit)
@@ -682,7 +774,11 @@ function UF:UpdateIdentity(frame)
     end
 
     if frame.nameText then
-        self:SetUnitDisplayName(frame.nameText, frame.unit)
+        if frame.nameMode == "first" then
+            self:SetUnitFirstName(frame.nameText, frame.unit)
+        else
+            self:SetUnitDisplayName(frame.nameText, frame.unit)
+        end
     end
 
     if frame.portrait then

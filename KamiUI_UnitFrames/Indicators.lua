@@ -405,7 +405,13 @@ end
 
 
 local function UpdateUnitLabel(frame)
-    if frame.nameText and UnitExists(frame.unit) then
+    if not frame.nameText or not UnitExists(frame.unit) then
+        return
+    end
+
+    if frame.nameMode == "first" then
+        UF:SetUnitFirstName(frame.nameText, frame.unit)
+    else
         UF:SetUnitDisplayName(frame.nameText, frame.unit)
     end
 end

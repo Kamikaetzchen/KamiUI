@@ -12,6 +12,8 @@ local BLIZZARD_FRAMES = {
     "TargetFrameSpellBar",
     "PartyFrame",
     "CompactPartyFrame",
+    "CompactRaidFrameManager",
+    "CompactRaidFrameContainer",
 }
 
 local function DisableBlizzardFrame(frameName)

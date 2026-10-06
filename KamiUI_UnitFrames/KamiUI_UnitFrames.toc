@@ -2,7 +2,7 @@
 ## Title: KamiUI - UnitFrames
 ## Notes: UnitFrames module for KamiUI
 ## Author: Kami Katze
-## Version: 0.3.0
+## Version: 0.4.0
 ## IconTexture: Interface\Icons\INV_Misc_GroupLooking
 ## RequiredDeps: KamiUI
 
@@ -12,6 +12,7 @@ Pet.lua
 Target.lua
 SecondaryFrames.lua
 Party.lua
+Raid.lua
 UnitAuras.lua
 Indicators.lua
 DisableBlizzard.lua
