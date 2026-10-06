@@ -716,7 +716,7 @@ local function AcquireReagentRow(frame, index)
         "OVERLAY",
         "GameFontNormalSmall"
     )
-    name:SetPoint("TOPLEFT", slot, "TOPRIGHT", 8, -2)
+    name:SetPoint("BOTTOMLEFT", slot, "RIGHT", 8, 2)
     name:SetPoint("RIGHT", row, "RIGHT", -4, 0)
     name:SetJustifyH("LEFT")
     Styles:ApplyText(name, 9, Palette.text)
@@ -727,7 +727,7 @@ local function AcquireReagentRow(frame, index)
         "OVERLAY",
         "GameFontNormalSmall"
     )
-    status:SetPoint("TOPLEFT", name, "BOTTOMLEFT", 0, -3)
+    status:SetPoint("TOPLEFT", slot, "RIGHT", 8, -2)
     status:SetPoint("RIGHT", row, "RIGHT", -4, 0)
     status:SetJustifyH("LEFT")
     Styles:ApplyText(status, 8, Palette.muted)
