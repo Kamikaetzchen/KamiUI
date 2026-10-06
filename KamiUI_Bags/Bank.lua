@@ -16,16 +16,57 @@ local defaults = {
 }
 
 local bankOpen = false
+local bankInitialized = true
+local bankBootstrapPending = false
 local pendingRefresh = false
 local sortingBank = false
--- Keep Blizzard's bank technically visible so its normal OnShow/OnHide
--- lifecycle still runs. Forever grants the free 48-slot base bank from
--- BankFrameMixin:SetTab() -> PurchaseFirstSlot(), so parenting BankFrame to
--- an actually hidden frame prevents that initialization.
-local hiddenBankParent = CreateFrame("Frame", nil, UIParent)
-hiddenBankParent:SetAlpha(0)
-hiddenBankParent:SetScale(0.001)
-hiddenBankParent:EnableMouse(false)
+
+local hiddenBankParent = CreateFrame("Frame")
+hiddenBankParent:Hide()
+
+local function HasInitializedBank()
+    if not C_Bank
+        or not C_Bank.FetchNumPurchasedBankTabs
+        or not Enum
+        or not Enum.BankType
+    then
+        return true
+    end
+
+    return C_Bank.FetchNumPurchasedBankTabs(
+        Enum.BankType.Character
+    ) > 0
+end
+
+local function FinishBankBootstrap()
+    if bankInitialized then
+        return false
+    end
+
+    if not HasInitializedBank() then
+        return false
+    end
+
+    bankInitialized = true
+    bankBootstrapPending = true
+
+    C_Timer.After(0, function()
+        if BankFrame and BankFrame:IsShown() then
+            BankFrame:Hide()
+        elseif bankOpen
+            and C_Bank
+            and C_Bank.CloseBankFrame
+        then
+            C_Bank.CloseBankFrame()
+        end
+
+        UI:Print(
+            "Bank initialized. Please open the bank again."
+        )
+    end)
+
+    return true
+end
 
 local BANK_DATABASE_DEFAULTS = {
     characters = {},
@@ -1110,6 +1151,7 @@ UI:RegisterCommand(
 )
 
 local eventFrame = CreateFrame("Frame")
+eventFrame:RegisterEvent("PLAYER_LOGIN")
 eventFrame:RegisterEvent("BANKFRAME_OPENED")
 eventFrame:RegisterEvent("BANKFRAME_CLOSED")
 eventFrame:RegisterEvent("BAG_UPDATE")
@@ -1118,9 +1160,22 @@ eventFrame:RegisterEvent("BANK_TABS_CHANGED")
 eventFrame:RegisterEvent("BANK_TAB_SETTINGS_UPDATED")
 eventFrame:RegisterEvent("BAG_CONTAINER_UPDATE")
 
-eventFrame:SetScript("OnEvent", function(_, event)
+eventFrame:SetScript("OnEvent", function(_, event, ...)
+    if event == "PLAYER_LOGIN" then
+        bankInitialized = HasInitializedBank()
+        return
+    end
+
     if event == "BANKFRAME_OPENED" then
         bankOpen = true
+
+        if not bankInitialized or bankBootstrapPending then
+            -- Forever grants CharacterBankTab_1 from Blizzard's normal
+            -- BankFrame:SetTab() -> PurchaseFirstSlot() path. Leave the
+            -- Blizzard frame alone for this one bootstrap visit.
+            bankBootstrapPending = true
+            return
+        end
 
         if BankFrame then
             BankFrame:SetParent(hiddenBankParent)
@@ -1146,6 +1201,7 @@ eventFrame:SetScript("OnEvent", function(_, event)
 
     if event == "BANKFRAME_CLOSED" then
         bankOpen = false
+        bankBootstrapPending = false
         Module.viewCharacterKey = nil
 
         if Module.frame then
@@ -1155,6 +1211,15 @@ eventFrame:SetScript("OnEvent", function(_, event)
         return
     end
 
+    if event == "BANK_TABS_CHANGED" and not bankInitialized then
+        local bankType = ...
+
+        if bankType == Enum.BankType.Character
+            and FinishBankBootstrap()
+        then
+            return
+        end
+    end
 
     if bankOpen and not sortingBank then
         ScheduleRefresh()
