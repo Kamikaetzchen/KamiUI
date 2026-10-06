@@ -80,7 +80,7 @@ local function CreateNineSliceRarityGlow(
     local innerSize = math.max(1, size - iconInset * 2)
     local glowDepth = math.max(
         3,
-        math.floor(size * 0.11 + 0.5)
+        math.floor(size * 0.17 + 0.5)
     )
     glowDepth = math.min(
         glowDepth,
