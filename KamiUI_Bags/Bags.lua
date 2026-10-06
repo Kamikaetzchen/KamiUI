@@ -1374,25 +1374,49 @@ local function InstallBagHooks()
 
     Module.hooksInstalled = true
 
-    ToggleAllBags = function()
-        Module:Toggle()
+    -- Do not replace Blizzard's global bag functions. BankFrame:OnShow()
+    -- calls OpenAllBags() before Forever's protected PurchaseFirstSlot()
+    -- path, so replacing OpenAllBags/CloseAllBags taints that execution
+    -- and blocks C_Bank.PurchaseBankTab().
+    local hiddenParent = CreateFrame("Frame")
+    hiddenParent:Hide()
+    Module.blizzardBagParent = hiddenParent
+
+    if ContainerFrameCombinedBags then
+        ContainerFrameCombinedBags:SetParent(hiddenParent)
     end
 
-    OpenAllBags = function()
-        Module:Show()
+    local containerCount = NUM_CONTAINER_FRAMES or 20
+
+    for index = 1, containerCount do
+        local frame = _G["ContainerFrame" .. index]
+
+        if frame then
+            frame:SetParent(hiddenParent)
+        end
     end
 
-    CloseAllBags = function()
-        Module:Hide()
+    local function HookBagButton(button)
+        if not button
+            or not button.HookScript
+            or button.KamiUIBagsHooked
+        then
+            return
+        end
+
+        button.KamiUIBagsHooked = true
+        button:HookScript("OnClick", function()
+            Module:Toggle()
+        end)
     end
 
-    ToggleBackpack = function()
-        Module:Toggle()
+    HookBagButton(MainMenuBarBackpackButton)
+
+    for index = 0, 4 do
+        HookBagButton(_G["CharacterBag" .. index .. "Slot"])
     end
 
-    ToggleBag = function()
-        Module:Toggle()
-    end
+    HookBagButton(_G.CharacterReagentBag0Slot)
 end
 
 UI:RegisterCommand(
