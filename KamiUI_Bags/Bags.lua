@@ -1,6 +1,5 @@
 local UI = KamiUI
 local Palette = UI.Palette
-local Styles = UI.Styles
 local Components = UI.Components
 
 local Module = UI:NewModule("Bags", "KamiUI_Bags")
@@ -415,111 +414,20 @@ local function GetInventoryBags()
 end
 
 local function UpdateItemButton(button, bagID, slotID)
-    if button.SetBagID then
-        button:SetBagID(bagID)
-    elseif button.SetAttribute then
-        button:SetAttribute("bagid", bagID)
-    end
+    local search = Module.frame
+        and Module.frame.search
+        and Module.frame.search:GetText()
+        or ""
 
-    button:SetID(slotID)
-
-    local borderColor = GetBagFamilyColor(bagID)
-
-    Components:SetItemSlotBorderColor(button, borderColor)
-
-    if ContainerFrameItemButton_Update then
-        ContainerFrameItemButton_Update(button)
-    end
-
-    Components:SuppressItemButtonFlash(button)
-
-    local info = UI:GetContainerItemInfo(bagID, slotID)
-    local icon = button.icon or button.Icon
-
-    if info then
-        Components:SetItemSlotQuality(button, info.quality)
-
-        local filtered = info.isFiltered == true
-        local search = Module.frame
-            and Module.frame.search
-            and Module.frame.search:GetText()
-            or ""
-
-        if search ~= "" then
-            local itemName = info.itemName
-
-            if not itemName and info.hyperlink and GetItemInfo then
-                itemName = GetItemInfo(info.hyperlink)
-            end
-
-            local haystack = string.lower(
-                itemName or info.hyperlink or ""
-            )
-
-            filtered = not string.find(
-                haystack,
-                string.lower(search),
-                1,
-                true
-            )
-        end
-
-        local alpha = filtered and 0.20 or 1.00
-
-        button:SetAlpha(alpha)
-
-        if icon then
-            icon:SetTexture(info.iconFileID)
-            icon:SetAlpha(alpha)
-
-            if icon.SetDesaturated then
-                icon:SetDesaturated(info.isLocked == true)
-            end
-        end
-
-        if button.Count then
-            button.Count:SetAlpha(alpha)
-        end
-
-        if button.Count then
-            local count = info.stackCount or 1
-            button.Count:SetText(count > 1 and count or "")
-            button.Count:Show()
-        end
-
-        if button.Cooldown and C_Container.GetContainerItemCooldown then
-            local start, duration, enable = C_Container.GetContainerItemCooldown(
-                bagID,
-                slotID
-            )
-
-            CooldownFrame_Set(
-                button.Cooldown,
-                start or 0,
-                duration or 0,
-                enable or 0
-            )
-        end
-    else
-        Components:SetItemSlotQuality(button, nil)
-        button:SetAlpha(1)
-
-        if icon then
-            icon:SetTexture(nil)
-
-            if icon.SetDesaturated then
-                icon:SetDesaturated(false)
-            end
-        end
-
-        if button.Count then
-            button.Count:SetText("")
-        end
-
-        if button.Cooldown then
-            button.Cooldown:Clear()
-        end
-    end
+    Components:SetContainerItemSlotData(
+        button,
+        bagID,
+        slotID,
+        {
+            borderColor = GetBagFamilyColor(bagID),
+            search = search,
+        }
+    )
 end
 
 local function UpdateCachedItemButton(button, slot, bag)
@@ -680,57 +588,24 @@ local function SaveCurrentCharacter()
 end
 
 local function GetViewedCharacter()
-    local db = GetDatabase()
-    local currentKey = UI:GetCurrentCharacterKey()
-    local key = Module.viewCharacterKey or currentKey
-
-    return key, db.characters[key], key == currentKey
+    return UI:GetViewedCharacterData(
+        Module.viewCharacterKey,
+        GetDatabase().characters
+    )
 end
 
 local function GetSortedCharacters()
-    local characters = {}
-
-    for key, character in pairs(GetDatabase().characters) do
-        characters[#characters + 1] = {
-            key = key,
-            character = character,
-            profile = UI:GetCharacterProfile(key, character),
-        }
-    end
-
-    return UI:SortCharacterEntries(
-        characters,
-        function(entry)
-            return entry.profile
-        end
-    )
+    return UI:GetSortedCharacterData(GetDatabase().characters)
 end
 
 function Module:SetBagSlotHighlight(bagID, shown)
     self.highlightedBagID = shown and bagID or nil
 
-    local frame = self.frame
-
-    if not frame then
-        return
-    end
-
-    for _, button in ipairs(frame.activeButtons or {}) do
-        if not button.KamiBagHighlight then
-            local highlight = button:CreateTexture(nil, "ARTWORK", nil, 7)
-            highlight:SetPoint("TOPLEFT", button, "TOPLEFT", 1, -1)
-            highlight:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", -1, 1)
-            highlight:SetColorTexture(1, 1, 1, 0.14)
-            highlight:Hide()
-            button.KamiBagHighlight = highlight
-        end
-
-        local buttonBagID = button.GetBagID
-            and button:GetBagID()
-            or button.bagID
-
-        button.KamiBagHighlight:SetShown(
-            shown and buttonBagID == bagID
+    if self.frame then
+        Components:SetContainerSlotHighlight(
+            self.frame.activeButtons,
+            bagID,
+            shown
         )
     end
 end
@@ -985,12 +860,9 @@ function Module:Layout()
     end
 
     local buttons = frame.activeButtons or frame.itemButtons
-    local buttonCount = #buttons
-    local rows = math.max(1, math.ceil(buttonCount / COLUMNS))
     local bagBarOffset = GetDatabase().bagBarExpanded
         and BAG_BAR_HEIGHT
         or 0
-
     local contentTop = HEADER_HEIGHT + FRAME_PADDING + bagBarOffset
 
     frame.content:ClearAllPoints()
@@ -1002,30 +874,20 @@ function Module:Layout()
         -contentTop
     )
 
-    for index, button in ipairs(buttons) do
-        local column = (index - 1) % COLUMNS
-        local row = math.floor((index - 1) / COLUMNS)
-
-        button:ClearAllPoints()
-        button:SetPoint(
-            "TOPLEFT",
-            frame.content,
-            "TOPLEFT",
-            column * (SLOT_SIZE + SLOT_SPACING),
-            -row * (SLOT_SIZE + SLOT_SPACING)
-        )
-    end
-
-    local gridWidth = COLUMNS * SLOT_SIZE
-        + (COLUMNS - 1) * SLOT_SPACING
-    local gridHeight = rows * SLOT_SIZE
-        + (rows - 1) * SLOT_SPACING
+    local gridWidth, gridHeight = Components:LayoutItemGrid(
+        buttons,
+        frame.content,
+        {
+            columns = COLUMNS,
+            slotSize = SLOT_SIZE,
+            spacing = SLOT_SPACING,
+        }
+    )
 
     frame:SetSize(
         gridWidth + FRAME_PADDING * 2,
         contentTop + gridHeight + FOOTER_HEIGHT + FRAME_PADDING
     )
-
     frame.content:SetSize(gridWidth, gridHeight)
 end
 
@@ -1287,13 +1149,11 @@ local function CreateFrameUI()
         end,
     })
 
-    local close = CreateFrame("Button", nil, header)
-    close:SetSize(22, 22)
-    close:SetPoint("TOPRIGHT", header, "TOPRIGHT", -3, -2)
-    Components:StyleButton(close, { text = "X" })
-    close:SetScript("OnClick", function()
-        Module:Hide()
-    end)
+    local close = Components:CreateWindowCloseButton(header, {
+        onClick = function()
+            Module:Hide()
+        end,
+    })
     frame.close = close
 
     local characterButton = CreateFrame("Button", nil, header)
@@ -1506,6 +1366,34 @@ local function CreateFrameUI()
     return frame
 end
 
+local function InstallBagHooks()
+    if Module.hooksInstalled then
+        return
+    end
+
+    Module.hooksInstalled = true
+
+    ToggleAllBags = function()
+        Module:Toggle()
+    end
+
+    OpenAllBags = function()
+        Module:Show()
+    end
+
+    CloseAllBags = function()
+        Module:Hide()
+    end
+
+    ToggleBackpack = function()
+        Module:Toggle()
+    end
+
+    ToggleBag = function()
+        Module:Toggle()
+    end
+end
+
 UI:RegisterCommand(
     "bags",
     "reset",
@@ -1681,6 +1569,7 @@ function Module:Initialize()
     SaveCurrentCharacter()
 
     self.frame = CreateFrameUI()
+    InstallBagHooks()
 
     local hotkeyButton = CreateFrame("Button", "KamiUIBagsHotkeyButton", UIParent)
     hotkeyButton:SetScript("OnClick", function()

@@ -4042,15 +4042,14 @@ local function CreateFrameUI()
         titleMenu:Show()
     end)
 
-    local close = CreateFrame("Button", nil, header)
-    close:SetSize(22, 22)
-    close:SetPoint("TOPRIGHT", header, "TOPRIGHT", -3, -3)
-    close:SetFrameLevel(header:GetFrameLevel() + 10)
-    close:RegisterForClicks("LeftButtonUp")
-    Components:StyleButton(close, { text = "X" })
-    close:SetScript("OnClick", function()
-        Module:Hide()
-    end)
+    local close = Components:CreateWindowCloseButton(header, {
+        y = -3,
+        frameLevelOffset = 10,
+        clicks = { "LeftButtonUp" },
+        onClick = function()
+            Module:Hide()
+        end,
+    })
     frame.close = close
 
     local modelPanel = CreateFrame("Frame", nil, characterPane, "BackdropTemplate")

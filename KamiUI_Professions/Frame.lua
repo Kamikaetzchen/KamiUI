@@ -1040,13 +1040,19 @@ function Module:CreateFrame()
     end)
     frame.backButton = back
 
-    local close = CreateFrame("Button", nil, header.RightActions)
-    close:SetSize(24, 22)
-    close:SetPoint("RIGHT", header.RightActions, "RIGHT", -4, 0)
-    Components:StyleButton(close, { text = "X" })
-    close:SetScript("OnClick", function()
-        Module:CloseFrame()
-    end)
+    local close = Components:CreateWindowCloseButton(
+        header.RightActions,
+        {
+            width = 24,
+            height = 22,
+            point = "RIGHT",
+            x = -4,
+            y = 0,
+            onClick = function()
+                Module:CloseFrame()
+            end,
+        }
+    )
     frame.closeButton = close
 
     CreateOverviewPage(frame)
@@ -2097,16 +2103,25 @@ function Module:CloseFrame()
 end
 
 local function DetachNativePanelLayout(frame)
-    if not frame or not SetUIPanelAttribute then
+    if not frame then
         return
     end
 
-    -- Keep Blizzard's hidden backend alive for C_TradeSkillUI, but stop
-    -- it behaving like a left-side UIPanel that moves other windows.
-    SetUIPanelAttribute(frame, "area", "center")
-    SetUIPanelAttribute(frame, "pushable", 0)
-    SetUIPanelAttribute(frame, "allowOtherPanels", 1)
-    SetUIPanelAttribute(frame, "checkFit", 0)
+    -- Keep Blizzard's backend alive for C_TradeSkillUI, but remove it
+    -- from UIPanel layout management so merchant/auction/mail panels
+    -- neither close it nor get closed by it.
+    if SetUIPanelAttribute then
+        SetUIPanelAttribute(frame, "enabled", false)
+        SetUIPanelAttribute(frame, "allowOtherPanels", 1)
+        SetUIPanelAttribute(frame, "checkFit", 0)
+    end
+
+    if frame.SetAttribute then
+        frame:SetAttribute("UIPanelLayout-defined", true)
+        frame:SetAttribute("UIPanelLayout-enabled", false)
+        frame:SetAttribute("UIPanelLayout-allowOtherPanels", 1)
+        frame:SetAttribute("UIPanelLayout-checkFit", 0)
+    end
 end
 
 local function DisableNativeMouse(frame)

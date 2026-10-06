@@ -251,6 +251,31 @@ function UI:GetSortedCharacterProfiles(fallbackCharacters)
     return self:SortCharacterEntries(entries)
 end
 
+function UI:GetViewedCharacterData(viewCharacterKey, dataByKey)
+    local currentKey = self:GetCurrentCharacterKey()
+    local key = viewCharacterKey or currentKey
+
+    return key, dataByKey and dataByKey[key] or nil, key == currentKey
+end
+
+function UI:GetSortedCharacterData(dataByKey)
+    local entries = {}
+
+    for _, entry in ipairs(self:GetSortedCharacterProfiles(dataByKey)) do
+        local data = dataByKey and dataByKey[entry.key]
+
+        if data then
+            entries[#entries + 1] = {
+                key = entry.key,
+                character = data,
+                profile = entry.character,
+            }
+        end
+    end
+
+    return entries
+end
+
 function UI:GetContainerNumSlots(bagID)
     if C_Container and C_Container.GetContainerNumSlots then
         return C_Container.GetContainerNumSlots(bagID) or 0

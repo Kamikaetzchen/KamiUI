@@ -1,6 +1,5 @@
 local UI = KamiUI
 local Palette = UI.Palette
-local Styles = UI.Styles
 local Components = UI.Components
 
 local Module = UI:NewModule("Bank", "KamiUI_Bags")
@@ -198,30 +197,14 @@ local function SaveCurrentBank()
 end
 
 local function GetViewedCharacter()
-    local db = GetDatabase()
-    local currentKey = UI:GetCurrentCharacterKey()
-    local key = Module.viewCharacterKey or currentKey
-
-    return key, db.characters[key], key == currentKey
+    return UI:GetViewedCharacterData(
+        Module.viewCharacterKey,
+        GetDatabase().characters
+    )
 end
 
 local function GetSortedCharacters()
-    local characters = {}
-
-    for key, character in pairs(GetDatabase().characters) do
-        characters[#characters + 1] = {
-            key = key,
-            character = character,
-            profile = UI:GetCharacterProfile(key, character),
-        }
-    end
-
-    return UI:SortCharacterEntries(
-        characters,
-        function(entry)
-            return entry.profile
-        end
-    )
+    return UI:GetSortedCharacterData(GetDatabase().characters)
 end
 
 local itemDragFrame = CreateFrame("Frame")
@@ -310,80 +293,20 @@ itemDragFrame:SetScript("OnUpdate", function(self)
 end)
 
 local function UpdateItemButton(button, bagID, slotID, family)
-    if button.SetBagID then
-        button:SetBagID(bagID)
-    elseif button.SetAttribute then
-        button:SetAttribute("bagid", bagID)
-    end
+    local search = Module.frame
+        and Module.frame.search
+        and Module.frame.search:GetText()
+        or ""
 
-    button:SetID(slotID)
-
-    local color = Palette:GetBagFamilyColor(family)
-
-    Components:SetItemSlotBorderColor(button, color)
-
-    if ContainerFrameItemButton_Update then
-        ContainerFrameItemButton_Update(button)
-    end
-
-    Components:SuppressItemButtonFlash(button)
-
-    local info = UI:GetContainerItemInfo(bagID, slotID)
-    local icon = button.icon or button.Icon
-
-    if info then
-        Components:SetItemSlotQuality(button, info.quality)
-
-        local search = Module.frame
-            and Module.frame.search
-            and Module.frame.search:GetText()
-            or ""
-        local filtered = false
-
-        if search ~= "" then
-            local itemName
-
-            if info.hyperlink and GetItemInfo then
-                itemName = GetItemInfo(info.hyperlink)
-            end
-
-            local haystack = string.lower(itemName or info.hyperlink or "")
-            filtered = not string.find(
-                haystack,
-                string.lower(search),
-                1,
-                true
-            )
-        end
-
-        local alpha = filtered and 0.20 or 1.00
-        button:SetAlpha(alpha)
-
-        if icon then
-            icon:SetTexture(info.iconFileID)
-            icon:SetAlpha(alpha)
-        end
-
-        if button.Count then
-            local count = info.stackCount or 1
-            button.Count:SetText(count > 1 and count or "")
-            button.Count:SetAlpha(alpha)
-            button.Count:Show()
-        end
-    else
-        Components:SetItemSlotQuality(button, nil)
-        button:SetAlpha(1)
-
-        if icon then
-            icon:SetTexture(nil)
-            icon:SetAlpha(1)
-        end
-
-        if button.Count then
-            button.Count:SetText("")
-            button.Count:SetAlpha(1)
-        end
-    end
+    Components:SetContainerItemSlotData(
+        button,
+        bagID,
+        slotID,
+        {
+            borderColor = Palette:GetBagFamilyColor(family),
+            search = search,
+        }
+    )
 end
 
 local function UpdateCachedItemButton(button, slot, tab)
@@ -422,28 +345,11 @@ end
 function Module:SetBagSlotHighlight(bagID, shown)
     self.highlightedBagID = shown and bagID or nil
 
-    local frame = self.frame
-
-    if not frame then
-        return
-    end
-
-    for _, button in ipairs(frame.activeButtons or {}) do
-        if not button.KamiBagHighlight then
-            local highlight = button:CreateTexture(nil, "ARTWORK", nil, 7)
-            highlight:SetPoint("TOPLEFT", button, "TOPLEFT", 1, -1)
-            highlight:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", -1, 1)
-            highlight:SetColorTexture(1, 1, 1, 0.14)
-            highlight:Hide()
-            button.KamiBagHighlight = highlight
-        end
-
-        local buttonBagID = button.GetBagID
-            and button:GetBagID()
-            or button.bagID
-
-        button.KamiBagHighlight:SetShown(
-            shown and buttonBagID == bagID
+    if self.frame then
+        Components:SetContainerSlotHighlight(
+            self.frame.activeButtons,
+            bagID,
+            shown
         )
     end
 end
@@ -731,7 +637,6 @@ function Module:Layout()
     end
 
     local buttons = frame.activeButtons or {}
-    local rows = math.max(1, math.ceil(#buttons / COLUMNS))
     local bagBarOffset = GetDatabase().bankBagBarExpanded
         and BAG_BAR_HEIGHT
         or 0
@@ -746,24 +651,15 @@ function Module:Layout()
         -contentTop
     )
 
-    for index, button in ipairs(buttons) do
-        local column = (index - 1) % COLUMNS
-        local row = math.floor((index - 1) / COLUMNS)
-
-        button:ClearAllPoints()
-        button:SetPoint(
-            "TOPLEFT",
-            frame.content,
-            "TOPLEFT",
-            column * (SLOT_SIZE + SLOT_SPACING),
-            -row * (SLOT_SIZE + SLOT_SPACING)
-        )
-    end
-
-    local gridWidth = COLUMNS * SLOT_SIZE
-        + (COLUMNS - 1) * SLOT_SPACING
-    local gridHeight = rows * SLOT_SIZE
-        + (rows - 1) * SLOT_SPACING
+    local gridWidth, gridHeight = Components:LayoutItemGrid(
+        buttons,
+        frame.content,
+        {
+            columns = COLUMNS,
+            slotSize = SLOT_SIZE,
+            spacing = SLOT_SPACING,
+        }
+    )
 
     frame:SetSize(
         gridWidth + FRAME_PADDING * 2,
@@ -962,13 +858,11 @@ local function CreateFrameUI()
         end,
     })
 
-    local close = CreateFrame("Button", nil, header)
-    close:SetSize(22, 22)
-    close:SetPoint("TOPRIGHT", header, "TOPRIGHT", -3, -2)
-    Components:StyleButton(close, { text = "X" })
-    close:SetScript("OnClick", function()
-        Module:Hide()
-    end)
+    local close = Components:CreateWindowCloseButton(header, {
+        onClick = function()
+            Module:Hide()
+        end,
+    })
     frame.close = close
 
     local characterButton = CreateFrame("Button", nil, header)

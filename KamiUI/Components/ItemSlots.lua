@@ -392,3 +392,157 @@ function Components:CreateCarrier(parent, id, shown)
     return carrier
 end
 
+function Components:SetContainerItemSlotData(
+    button,
+    bagID,
+    slotID,
+    options
+)
+    if not button then
+        return nil
+    end
+
+    options = options or {}
+
+    if button.SetBagID then
+        button:SetBagID(bagID)
+    elseif button.SetAttribute then
+        button:SetAttribute("bagid", bagID)
+    end
+
+    button:SetID(slotID)
+
+    if ContainerFrameItemButton_Update then
+        ContainerFrameItemButton_Update(button)
+    end
+
+    self:SuppressItemButtonFlash(button)
+
+    local info = UI:GetContainerItemInfo(bagID, slotID)
+    local search = options.search or ""
+    local filtered = info and info.isFiltered == true or false
+
+    if info and search ~= "" then
+        local itemName = info.itemName
+
+        if not itemName and info.hyperlink and GetItemInfo then
+            itemName = GetItemInfo(info.hyperlink)
+        end
+
+        local haystack = string.lower(
+            itemName or info.hyperlink or ""
+        )
+
+        filtered = not string.find(
+            haystack,
+            string.lower(search),
+            1,
+            true
+        )
+    end
+
+    self:SetItemSlotData(button, {
+        link = info and info.hyperlink or nil,
+        icon = info and info.iconFileID or nil,
+        count = info and (info.stackCount or 1) or 0,
+        quality = info and info.quality or nil,
+        borderColor = options.borderColor,
+        alpha = filtered and 0.20 or 1.00,
+        desaturated = info and info.isLocked == true or false,
+    })
+
+    if button.Cooldown then
+        if info
+            and C_Container
+            and C_Container.GetContainerItemCooldown
+        then
+            local start, duration, enable =
+                C_Container.GetContainerItemCooldown(bagID, slotID)
+
+            CooldownFrame_Set(
+                button.Cooldown,
+                start or 0,
+                duration or 0,
+                enable or 0
+            )
+        else
+            button.Cooldown:Clear()
+        end
+    end
+
+    return info
+end
+
+function Components:SetContainerSlotHighlight(
+    buttons,
+    bagID,
+    shown
+)
+    for _, button in ipairs(buttons or {}) do
+        if not button.KamiBagHighlight then
+            local highlight = button:CreateTexture(
+                nil,
+                "ARTWORK",
+                nil,
+                7
+            )
+            highlight:SetPoint(
+                "TOPLEFT",
+                button,
+                "TOPLEFT",
+                1,
+                -1
+            )
+            highlight:SetPoint(
+                "BOTTOMRIGHT",
+                button,
+                "BOTTOMRIGHT",
+                -1,
+                1
+            )
+            highlight:SetColorTexture(1, 1, 1, 0.14)
+            highlight:Hide()
+            button.KamiBagHighlight = highlight
+        end
+
+        local buttonBagID = button.GetBagID
+            and button:GetBagID()
+            or button.bagID
+
+        button.KamiBagHighlight:SetShown(
+            shown and buttonBagID == bagID
+        )
+    end
+end
+
+function Components:LayoutItemGrid(buttons, parent, options)
+    options = options or {}
+    buttons = buttons or {}
+
+    local columns = options.columns or 1
+    local slotSize = options.slotSize or 36
+    local spacing = options.spacing or 0
+    local rows = math.max(1, math.ceil(#buttons / columns))
+
+    for index, button in ipairs(buttons) do
+        local column = (index - 1) % columns
+        local row = math.floor((index - 1) / columns)
+
+        button:ClearAllPoints()
+        button:SetPoint(
+            "TOPLEFT",
+            parent,
+            "TOPLEFT",
+            column * (slotSize + spacing),
+            -row * (slotSize + spacing)
+        )
+    end
+
+    local width = columns * slotSize
+        + (columns - 1) * spacing
+    local height = rows * slotSize
+        + (rows - 1) * spacing
+
+    return width, height, rows
+end
+

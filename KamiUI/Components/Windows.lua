@@ -187,6 +187,52 @@ function Components:CreateWindow(name, options)
     return frame, header
 end
 
+function Components:CreateWindowCloseButton(parent, options)
+    if not parent then
+        return nil
+    end
+
+    options = options or {}
+
+    local button = CreateFrame("Button", options.name, parent)
+
+    button:SetSize(
+        options.width or 22,
+        options.height or 22
+    )
+
+    local point = options.point or "TOPRIGHT"
+    button:SetPoint(
+        point,
+        options.relativeTo or parent,
+        options.relativePoint or point,
+        options.x == nil and -3 or options.x,
+        options.y == nil and -2 or options.y
+    )
+
+    if options.frameLevelOffset then
+        button:SetFrameLevel(
+            parent:GetFrameLevel() + options.frameLevelOffset
+        )
+    elseif options.frameLevel then
+        button:SetFrameLevel(options.frameLevel)
+    end
+
+    if options.clicks then
+        button:RegisterForClicks(unpack(options.clicks))
+    end
+
+    self:StyleButton(button, {
+        text = options.text or "X",
+    })
+
+    if options.onClick then
+        button:SetScript("OnClick", options.onClick)
+    end
+
+    return button
+end
+
 function Components:AttachHeaderSearch(frame, header, options)
     if not frame or not header then
         return nil
