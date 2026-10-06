@@ -41,6 +41,76 @@ function Components:SetItemSlotQuality(button, quality)
     end
 end
 
+local function GetItemSlotQuality(data)
+    if data.quality ~= nil then
+        return data.quality
+    end
+
+    local item = data.itemID or data.link
+
+    if item
+        and C_Item
+        and C_Item.GetItemQualityByID
+    then
+        return UI:SafeCall(
+            C_Item.GetItemQualityByID,
+            item
+        )
+    end
+
+    return nil
+end
+
+function Components:RefreshItemSlotQuality(button, data)
+    if not button then
+        return
+    end
+
+    data = data or {}
+
+    button.KamiQualityLoadToken =
+        (button.KamiQualityLoadToken or 0) + 1
+
+    local loadToken = button.KamiQualityLoadToken
+    local quality = GetItemSlotQuality(data)
+
+    self:SetItemSlotQuality(button, quality)
+
+    if quality ~= nil
+        or not data.itemID
+        or not Item
+        or not Item.CreateFromItemID
+    then
+        return
+    end
+
+    local item = data.link
+        and Item.CreateFromItemLink
+        and Item:CreateFromItemLink(data.link)
+        or Item:CreateFromItemID(data.itemID)
+
+    if not item or not item.ContinueOnItemLoad then
+        return
+    end
+
+    item:ContinueOnItemLoad(function()
+        if button.KamiQualityLoadToken ~= loadToken
+            or button.itemID ~= data.itemID
+        then
+            return
+        end
+
+        local loadedQuality = item.GetItemQuality
+            and item:GetItemQuality()
+            or GetItemSlotQuality(data)
+
+        Components:SetItemSlotQuality(
+            button,
+            loadedQuality
+        )
+    end)
+end
+
 function Components:SuppressItemButtonFlash(button)
     if not button then
         return
@@ -409,7 +479,7 @@ function Components:SetItemSlotData(button, data)
         self:SetItemSlotBorderColor(button, data.borderColor)
     end
 
-    self:SetItemSlotQuality(button, data.quality)
+    self:RefreshItemSlotQuality(button, data)
 end
 
 function Components:CreateCarrier(parent, id, shown)
