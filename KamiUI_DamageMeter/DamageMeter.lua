@@ -5,7 +5,6 @@ local Components = UI.Components
 
 local Module = UI:NewModule("DamageMeter", "KamiUI_DamageMeter")
 
-Module.version = "0.4.0"
 
 local defaults = {
     width = 400,

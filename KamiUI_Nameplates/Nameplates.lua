@@ -4,7 +4,6 @@ local Styles = UI.Styles
 
 local Module = UI:NewModule("Nameplates", "KamiUI_Nameplates")
 
-Module.version = "0.3.2"
 
 local PLATE_WIDTH = 200
 local HEALTH_HEIGHT = 12

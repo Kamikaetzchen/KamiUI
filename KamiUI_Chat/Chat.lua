@@ -5,7 +5,6 @@ local Components = UI.Components
 
 local Module = UI:NewModule("Chat", "KamiUI_Chat")
 
-Module.version = "0.4.5"
 
 local SETUP_VERSION = 4
 

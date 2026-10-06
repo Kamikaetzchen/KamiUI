@@ -2,7 +2,6 @@ local UI = KamiUI
 
 local Module = UI:NewModule("Cooldowns", "KamiUI_Cooldowns")
 
-Module.version = "0.1.0"
 
 local viewerNames = {
     "EssentialCooldownViewer",

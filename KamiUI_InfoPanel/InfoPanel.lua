@@ -3,7 +3,6 @@ local Palette = UI.Palette
 
 local Module = UI:NewModule("InfoPanel", "KamiUI_InfoPanel")
 
-Module.version = "0.1.0"
 
 local defaults = {
     height = 20,

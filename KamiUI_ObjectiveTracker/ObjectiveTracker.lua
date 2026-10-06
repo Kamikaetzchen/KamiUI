@@ -5,7 +5,6 @@ local Components = UI.Components
 
 local Module = UI:NewModule("ObjectiveTracker", "KamiUI_ObjectiveTracker")
 
-Module.version = "0.1.0"
 Module.providers = {}
 Module.providerOrder = {}
 

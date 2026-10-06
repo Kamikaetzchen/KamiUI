@@ -3,7 +3,6 @@ local Palette = UI.Palette
 
 local UF = UI:NewModule("UnitFrames", "KamiUI_UnitFrames")
 
-UF.version = "0.4.0"
 
 UF.flatTexture = "Interface\\Buttons\\WHITE8X8"
 UF.colorMultiplier = 0.60

@@ -4,8 +4,6 @@ local LAB = LibStub("LibActionButton-1.0")
 
 local Module = UI:NewModule("ActionBars", "KamiUI_ActionBars")
 
-Module.version = "0.2.0"
-
 local defaults = {
     buttonSize = 40,
     secondaryButtonSize = 30,

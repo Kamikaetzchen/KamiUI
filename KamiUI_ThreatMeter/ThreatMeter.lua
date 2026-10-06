@@ -3,7 +3,6 @@ local Styles = UI.Styles
 
 local Module = UI:NewModule("ThreatMeter", "KamiUI_ThreatMeter")
 
-Module.version = "0.1.0"
 
 local defaults = {
     width = 260,

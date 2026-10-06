@@ -3,8 +3,6 @@ local Styles = UI.Styles
 
 local Module = UI:NewModule("Auras", "KamiUI_Auras")
 
-Module.version = "0.1.0"
-
 local defaults = {
     width = 300,
     height = 25,

@@ -5,7 +5,6 @@ local Components = UI.Components
 
 local Module = UI:NewModule("Characters", "KamiUI_Characters")
 
-Module.version = "0.2.0"
 
 local LEFT_PANE_WIDTH = 323
 local RIGHT_PANE_WIDTH = 210

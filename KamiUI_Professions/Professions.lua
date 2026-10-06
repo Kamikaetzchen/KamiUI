@@ -2,7 +2,6 @@ local UI = KamiUI
 
 local Module = UI:NewModule("Professions", "KamiUI_Professions")
 
-Module.version = "0.3.0"
 
 local RECIPE_CACHE_VERSION = 3
 

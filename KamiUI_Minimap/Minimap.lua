@@ -2,7 +2,6 @@ local UI = KamiUI
 
 local Module = UI:NewModule("Minimap", "KamiUI_Minimap")
 
-Module.version = "0.1.0"
 
 local defaults = {
     size = 220,

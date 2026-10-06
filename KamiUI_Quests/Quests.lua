@@ -2,7 +2,6 @@ local UI = KamiUI
 
 local Module = UI:NewModule("Quests", "KamiUI_Quests")
 
-Module.version = "0.1.0"
 
 local function ShouldBypass()
     return IsShiftKeyDown and IsShiftKeyDown()

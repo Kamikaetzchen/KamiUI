@@ -5,8 +5,6 @@ local Components = UI.Components
 
 local Module = UI:NewModule("Bags", "KamiUI_Bags")
 
-Module.version = "0.2.0"
-
 local SLOT_SIZE = 36
 local SLOT_SPACING = 3
 local COLUMNS = 10
