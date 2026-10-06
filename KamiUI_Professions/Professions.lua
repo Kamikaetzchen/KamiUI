@@ -80,14 +80,25 @@ local function GetProfessionAbilities(numSpells, spellOffset)
         )
 
         if info then
-            abilities[#abilities + 1] = {
-                name = info.name,
-                icon = info.iconID,
-                spellID = info.spellID,
-                spellBookIndex = spellBookIndex,
-                itemType = info.itemType,
-                isPassive = info.isPassive == true,
-            }
+            local tradeSkillLink =
+                C_SpellBook.GetSpellBookItemTradeSkillLink
+                and UI:SafeCall(
+                    C_SpellBook.GetSpellBookItemTradeSkillLink,
+                    spellBookIndex,
+                    spellBank
+                )
+                or nil
+
+            if not tradeSkillLink then
+                abilities[#abilities + 1] = {
+                    name = info.name,
+                    icon = info.iconID,
+                    spellID = info.spellID,
+                    spellBookIndex = spellBookIndex,
+                    itemType = info.itemType,
+                    isPassive = info.isPassive == true,
+                }
+            end
         end
     end
 
