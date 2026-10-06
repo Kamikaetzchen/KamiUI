@@ -59,6 +59,7 @@ local function EnsureCharacterProfessions(character)
 end
 
 local FOREVER_PROFESSION_OPENER_SPELLS = {
+    [2656] = true, -- Smelting
     [1278062] = true, -- Gardening
     [1278067] = true, -- Bait and Tackle
     [1278068] = true, -- Tanning
