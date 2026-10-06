@@ -229,7 +229,7 @@ function Components:StyleItemSlot(button, options)
             1
         )
         rarityGlow:SetPoint("CENTER", button, "CENTER", 0.5, 0.5)
-        rarityGlow:SetSize(size + 29, size + 29)
+        rarityGlow:SetSize(size + 33, size + 33)
         rarityGlow:SetTexture(
             "Interface\\Buttons\\UI-ActionButton-Border"
         )
