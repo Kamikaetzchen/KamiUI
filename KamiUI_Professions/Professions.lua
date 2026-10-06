@@ -58,6 +58,12 @@ local function EnsureCharacterProfessions(character)
     return character.professions
 end
 
+local FOREVER_PROFESSION_OPENER_SPELLS = {
+    [1278062] = true, -- Gardening
+    [1278067] = true, -- Bait and Tackle
+    [1278068] = true, -- Tanning
+}
+
 local function GetProfessionAbilities(numSpells, spellOffset)
     local abilities = {}
 
@@ -89,7 +95,13 @@ local function GetProfessionAbilities(numSpells, spellOffset)
                 )
                 or nil
 
-            if not tradeSkillLink then
+            local isProfessionOpener =
+                tradeSkillLink ~= nil
+                or FOREVER_PROFESSION_OPENER_SPELLS[
+                    info.spellID
+                ] == true
+
+            if not isProfessionOpener then
                 abilities[#abilities + 1] = {
                     name = info.name,
                     icon = info.iconID,
