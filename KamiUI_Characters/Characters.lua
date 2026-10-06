@@ -3830,52 +3830,51 @@ local function CreateFrameUI()
     nativeDivider:SetWidth(1)
     nativeDivider:SetColorTexture(unpack(Palette.border))
 
-    local characterButton = CreateFrame("Button", nil, header)
-    characterButton:SetSize(22, 22)
-    characterButton:SetPoint("TOPLEFT", header, "TOPLEFT", 4, -4)
-    characterButton:SetFrameLevel(header:GetFrameLevel() + 10)
+    local characterDropdown =
+        Components:CreateCharacterDropdown(
+            frame,
+            {
+                buttonParent = header,
+                buttonWidth = 22,
+                buttonHeight = 22,
+                styleButton = false,
+                iconTexCoord = { 0.07, 0.93, 0.07, 0.93 },
+                direction = "down",
+                align = "left",
+                anchor = header,
+                menuX = 3,
+                menuY = -2,
+                menuFrameLevel = frame:GetFrameLevel() + 30,
+                backgroundColor = { 0, 0, 0, 0.94 },
+                borderColor = Palette.border,
+                fontSize = 9,
+                getEntries = function()
+                    return Module:GetSortedCharacters()
+                end,
+                selectedKey = function()
+                    return select(
+                        1,
+                        Module:GetViewedCharacter()
+                    )
+                end,
+                onSelect = function(key)
+                    Module:SetViewedCharacter(key)
+                end,
+            }
+        )
 
-    local characterIcon = characterButton:CreateTexture(nil, "ARTWORK")
-    characterIcon:SetAllPoints()
-    characterIcon:SetTexture("Interface\\Icons\\INV_Misc_GroupLooking")
-    characterIcon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
-    characterButton.icon = characterIcon
-    frame.characterButton = characterButton
-
-    local characterMenu = Components:CreatePopupMenu(
-        frame,
+    local characterButton = characterDropdown.button
+    characterButton:SetPoint(
+        "TOPLEFT",
         header,
-        {
-            point = "TOPLEFT",
-            relativePoint = "BOTTOMLEFT",
-            x = 3,
-            y = -2,
-            frameLevel = frame:GetFrameLevel() + 30,
-            backgroundColor = { 0, 0, 0, 0.94 },
-            borderColor = Palette.border,
-            fontSize = 9,
-        }
+        "TOPLEFT",
+        4,
+        -4
     )
-    frame.characterMenu = characterMenu
-
-    Components:BindCharacterMenu(
-        characterButton,
-        characterMenu,
-        {
-            getEntries = function()
-                return Module:GetSortedCharacters()
-            end,
-            selectedKey = function()
-                return select(
-                    1,
-                    Module:GetViewedCharacter()
-                )
-            end,
-            onSelect = function(key)
-                Module:SetViewedCharacter(key)
-            end,
-        }
-    )
+    characterButton:SetFrameLevel(header:GetFrameLevel() + 10)
+    frame.characterButton = characterButton
+    frame.characterMenu = characterDropdown.menu
+    frame.characterDropdown = characterDropdown
 
     characterButton:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")

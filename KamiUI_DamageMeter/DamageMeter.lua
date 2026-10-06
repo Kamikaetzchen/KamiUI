@@ -174,8 +174,8 @@ local VIEWS = {
 
 local frame
 local rows = {}
-local viewPopup
-local sessionPopup
+local viewDropdown
+local sessionDropdown
 local updateQueued = false
 local blizzardDamageMeterSink
 
@@ -255,83 +255,9 @@ local function GetClassColor(classFile)
         (color.b or color[3]) * 0.60
 end
 
-local function SetButtonText(button, text)
-    if button.SetText and button:GetFontString() then
-        button:SetText(text)
-        return
-    end
-
-    if button.KamiButtonText then
-        button.KamiButtonText:SetText(text)
-    end
-end
-
-local function SetPopupButtonState(button, active)
-    if not button or not button.KamiButtonBackground then
-        return
-    end
-
-    if active then
-        Styles:SetColor(
-            button.KamiButtonBackground,
-            Palette.panelStrong,
-            0.85
-        )
-    else
-        Styles:SetColor(
-            button.KamiButtonBackground,
-            Palette.panel,
-            0.55
-        )
-    end
-end
-
 local function HidePopups()
-    if viewPopup then
-        viewPopup:Hide()
-    end
-
-    if sessionPopup then
-        sessionPopup:Hide()
-    end
-end
-
-local function CreatePopup(parent, width)
-    local popup = CreateFrame("Frame", nil, parent)
-    popup:SetFrameStrata("DIALOG")
-    popup:SetFrameLevel(parent:GetFrameLevel() + 100)
-    popup:SetWidth(width)
-    popup:EnableMouse(true)
-
-    CreateBackground(popup, 0.96)
-    Styles:CreateBorder(popup, Palette.border)
-
-    popup.buttons = {}
-
-    return popup
-end
-
-local function CreatePopupButton(parent)
-    local button = CreateFrame("Button", nil, parent)
-    button:SetHeight(defaults.popupRowHeight)
-
-    Components:StyleButton(button, {
-        text = " ",
-        backgroundColor = Palette.panel,
-        backgroundAlpha = 0.55,
-        textRole = "normal",
-    })
-
-    local text = button:GetFontString() or button.KamiButtonText
-    if text then
-        ApplyMeterText(text, defaults.fontSize, Palette.text)
-        text:ClearAllPoints()
-        text:SetPoint("LEFT", button, "LEFT", 7, 0)
-        text:SetPoint("RIGHT", button, "RIGHT", -7, 0)
-        text:SetJustifyH("LEFT")
-    end
-
-    return button
+    Components:CloseDropdown(viewDropdown)
+    Components:CloseDropdown(sessionDropdown)
 end
 
 local function GetView()
@@ -339,10 +265,7 @@ local function GetView()
 end
 
 local function UpdateViewButton()
-    SetButtonText(
-        frame.viewButton,
-        GetView().label .. "  v"
-    )
+    Components:RefreshDropdown(viewDropdown)
 end
 
 local function GetSessionLabel()
@@ -366,7 +289,7 @@ local function GetSessionLabel()
 end
 
 local function UpdateSessionButton()
-    SetButtonText(frame.sessionButton, GetSessionLabel() .. "  v")
+    Components:RefreshDropdown(sessionDropdown)
 end
 
 local function GetCombatSession(damageType)
@@ -721,75 +644,20 @@ local function QueueUpdate()
     end)
 end
 
-local function BuildViewPopup()
-    if not viewPopup then
-        viewPopup = CreatePopup(frame, 230)
-        viewPopup:SetPoint(
-            "BOTTOMLEFT",
-            frame.header,
-            "TOPLEFT",
-            0,
-            2
-        )
+local function GetViewDropdownEntries()
+    local entries = {}
+
+    for _, viewKey in ipairs(VIEW_ORDER) do
+        entries[#entries + 1] = {
+            text = VIEWS[viewKey].label,
+            viewKey = viewKey,
+        }
     end
 
-    for _, button in ipairs(viewPopup.buttons) do
-        button:Hide()
-    end
-
-    local y = -4
-
-    for index, viewKey in ipairs(VIEW_ORDER) do
-        local selectedView = viewKey
-        local button = viewPopup.buttons[index]
-
-        if not button then
-            button = CreatePopupButton(viewPopup)
-            viewPopup.buttons[index] = button
-        end
-
-        button:ClearAllPoints()
-        button:SetPoint("TOPLEFT", viewPopup, "TOPLEFT", 4, y)
-        button:SetPoint("TOPRIGHT", viewPopup, "TOPRIGHT", -4, y)
-
-        SetButtonText(
-            button,
-            VIEWS[selectedView].label
-        )
-        SetPopupButtonState(
-            button,
-            state.view == selectedView
-        )
-
-        button:SetScript("OnClick", function()
-            state.view = selectedView
-            viewPopup:Hide()
-            QueueUpdate()
-        end)
-
-        button:Show()
-        y = y - defaults.popupRowHeight
-    end
-
-    viewPopup:SetHeight(-y + 4)
+    return entries
 end
 
-local function BuildSessionPopup()
-    if not sessionPopup then
-        sessionPopup = CreatePopup(frame, 230)
-        sessionPopup:SetPoint(
-            "BOTTOMRIGHT",
-            frame.header,
-            "TOPRIGHT",
-            0,
-            2
-        )
-    end
-
-    for _, button in ipairs(sessionPopup.buttons) do
-        button:Hide()
-    end
-
+local function GetSessionDropdownEntries()
     local entries = {}
 
     for _, session in ipairs(
@@ -815,75 +683,16 @@ local function BuildSessionPopup()
         sessionType = DamageMeterSessionType.Current,
     }
 
-    local y = -4
-
-    for index, entry in ipairs(entries) do
-        local selectedEntry = entry
-        local button = sessionPopup.buttons[index]
-
-        if not button then
-            button = CreatePopupButton(sessionPopup)
-            sessionPopup.buttons[index] = button
-        end
-
-        button:ClearAllPoints()
-        button:SetPoint("TOPLEFT", sessionPopup, "TOPLEFT", 4, y)
-        button:SetPoint("TOPRIGHT", sessionPopup, "TOPRIGHT", -4, y)
-
-        SetButtonText(button, selectedEntry.text)
-
-        local active
-        if selectedEntry.sessionID then
-            active = state.sessionID == selectedEntry.sessionID
-        else
-            active =
-                state.sessionID == nil
-                and state.sessionType == selectedEntry.sessionType
-        end
-
-        SetPopupButtonState(button, active)
-
-        button:SetScript("OnClick", function()
-            state.sessionID = selectedEntry.sessionID
-            state.sessionType = selectedEntry.sessionType
-                or DamageMeterSessionType.Overall
-            sessionPopup:Hide()
-            QueueUpdate()
-        end)
-
-        button:Show()
-        y = y - defaults.popupRowHeight
-    end
-
-    sessionPopup:SetHeight(-y + 4)
+    return entries
 end
 
-local function ToggleViewPopup()
-    if viewPopup and viewPopup:IsShown() then
-        viewPopup:Hide()
-        return
+local function IsSessionDropdownEntrySelected(entry)
+    if entry.sessionID then
+        return state.sessionID == entry.sessionID
     end
 
-    if sessionPopup then
-        sessionPopup:Hide()
-    end
-
-    BuildViewPopup()
-    viewPopup:Show()
-end
-
-local function ToggleSessionPopup()
-    if sessionPopup and sessionPopup:IsShown() then
-        sessionPopup:Hide()
-        return
-    end
-
-    if viewPopup then
-        viewPopup:Hide()
-    end
-
-    BuildSessionPopup()
-    sessionPopup:Show()
+    return state.sessionID == nil
+        and state.sessionType == entry.sessionType
 end
 
 local function ResetData()
@@ -904,12 +713,12 @@ local function ToggleMinimized()
         frame.body:Hide()
         frame.columnHeader:Hide()
         frame:SetHeight(defaults.headerHeight)
-        SetButtonText(frame.minimizeButton, "+")
+        Components:SetButtonText(frame.minimizeButton, "+")
     else
         frame.columnHeader:Show()
         frame.body:Show()
         frame:SetHeight(defaults.height)
-        SetButtonText(frame.minimizeButton, "-")
+        Components:SetButtonText(frame.minimizeButton, "-")
         QueueUpdate()
     end
 end
@@ -1063,16 +872,88 @@ local function CreateFrameUI()
 
     local sessionButton = CreateFlatButton(header, "Overall  v", 112)
     sessionButton:SetPoint("RIGHT", resetButton, "LEFT", -2, 0)
-    sessionButton:SetScript("OnClick", ToggleSessionPopup)
 
     local viewButton = CreateFlatButton(header, "Damage  v", 1)
     viewButton:SetPoint("LEFT", header, "LEFT", 0, 0)
     viewButton:SetPoint("RIGHT", sessionButton, "LEFT", -2, 0)
-    viewButton:SetScript("OnClick", ToggleViewPopup)
 
     frame.header = header
     frame.viewButton = viewButton
     frame.sessionButton = sessionButton
+
+    local dropdownOptions = {
+        direction = "up",
+        menuParent = frame,
+        anchor = header,
+        menuWidth = 230,
+        menuFrameStrata = "DIALOG",
+        menuFrameLevel = frame:GetFrameLevel() + 100,
+        rowHeight = defaults.popupRowHeight,
+        inset = 4,
+        textInset = 7,
+        backgroundColor = { 0.02, 0.02, 0.025, 0.96 },
+        borderColor = Palette.border,
+        rowBackgroundColor = Palette.panel,
+        rowBackgroundAlpha = 0.55,
+        selectedBackgroundColor = Palette.panelStrong,
+        selectedBackgroundAlpha = 0.85,
+        rowBorder = true,
+        rowBorderColor = Palette.border,
+        fontSize = defaults.fontSize,
+        textColor = Palette.text,
+        arrowText = "  v",
+        closeWith = frame,
+        styleRow = function(button)
+            ApplyMeterText(
+                button.text,
+                defaults.fontSize,
+                Palette.text
+            )
+        end,
+    }
+
+    local viewOptions = {}
+
+    for key, value in pairs(dropdownOptions) do
+        viewOptions[key] = value
+    end
+
+    viewOptions.button = viewButton
+    viewOptions.align = "left"
+    viewOptions.getButtonText = function()
+        return GetView().label
+    end
+    viewOptions.getEntries = GetViewDropdownEntries
+    viewOptions.isSelected = function(entry)
+        return state.view == entry.viewKey
+    end
+    viewOptions.onSelect = function(entry)
+        state.view = entry.viewKey
+        QueueUpdate()
+    end
+    viewDropdown = Components:CreateDropdown(frame, viewOptions)
+
+    local sessionOptions = {}
+
+    for key, value in pairs(dropdownOptions) do
+        sessionOptions[key] = value
+    end
+
+    sessionOptions.button = sessionButton
+    sessionOptions.align = "right"
+    sessionOptions.getButtonText = GetSessionLabel
+    sessionOptions.getEntries = GetSessionDropdownEntries
+    sessionOptions.isSelected = IsSessionDropdownEntrySelected
+    sessionOptions.onSelect = function(entry)
+        state.sessionID = entry.sessionID
+        state.sessionType = entry.sessionType
+            or DamageMeterSessionType.Overall
+        QueueUpdate()
+    end
+    sessionDropdown = Components:CreateDropdown(
+        frame,
+        sessionOptions
+    )
     frame.resetButton = resetButton
     frame.minimizeButton = minimizeButton
 
