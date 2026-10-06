@@ -340,6 +340,18 @@ local function SetRecipeReagentTooltip(
     return false
 end
 
+local function ColorText(text, color)
+    local r, g, b = Styles:GetColorChannels(color)
+
+    return string.format(
+        "|cff%02x%02x%02x%s|r",
+        math.floor(r * 255 + 0.5),
+        math.floor(g * 255 + 0.5),
+        math.floor(b * 255 + 0.5),
+        text or ""
+    )
+end
+
 local function GetDifficultyColor(difficulty)
     if not Enum
         or not Enum.TradeskillRelativeDifficulty
@@ -1022,6 +1034,36 @@ local function CreateCraftingPage(frame)
     description:SetWordWrap(true)
     Styles:ApplyText(description, 9, Palette.muted)
     frame.description = description
+
+    local requirementsTitle = detailContent:CreateFontString(
+        nil,
+        "OVERLAY",
+        "GameFontNormalSmall"
+    )
+    requirementsTitle:SetJustifyH("LEFT")
+    Styles:ApplyText(requirementsTitle, 9, Palette.gold)
+    requirementsTitle:SetText("Requirements")
+    requirementsTitle:Hide()
+    frame.requirementsTitle = requirementsTitle
+
+    local requirementsText = detailContent:CreateFontString(
+        nil,
+        "OVERLAY",
+        "GameFontNormalSmall"
+    )
+    requirementsText:SetPoint(
+        "RIGHT",
+        detailContent,
+        "RIGHT",
+        -4,
+        0
+    )
+    requirementsText:SetJustifyH("LEFT")
+    requirementsText:SetJustifyV("TOP")
+    requirementsText:SetWordWrap(true)
+    Styles:ApplyText(requirementsText, 9, Palette.muted)
+    requirementsText:Hide()
+    frame.requirementsText = requirementsText
 
     local reagentsTitle = detailContent:CreateFontString(
         nil,
@@ -1799,6 +1841,9 @@ function Module:RefreshRecipeDetails()
     frame.outputSlot:Hide()
     frame.outputName:SetText("")
     frame.description:SetText("")
+    frame.requirementsTitle:Hide()
+    frame.requirementsText:Hide()
+    frame.requirementsText:SetText("")
     frame.reagentsTitle:Hide()
     frame.recipeSubTitle:SetText("")
     frame.quantityMinus:Disable()
@@ -1942,6 +1987,74 @@ function Module:RefreshRecipeDetails()
         or nil
 
     frame.description:SetText(description or "")
+
+    local requirements = C_TradeSkillUI.GetRecipeRequirements
+        and UI:SafeCall(
+            C_TradeSkillUI.GetRecipeRequirements,
+            recipeID
+        )
+        or nil
+    local requirementLines = {}
+    local requirementsMet = true
+
+    for _, requirement in ipairs(requirements or {}) do
+        local met = requirement.met ~= false
+        local name = requirement.name or "Requirement"
+
+        if not met then
+            requirementsMet = false
+        end
+
+        requirementLines[#requirementLines + 1] = ColorText(
+            name,
+            met and Palette.success
+                or Palette.difficulty.veryHard
+        )
+    end
+
+    local hasRequirements = #requirementLines > 0
+
+    if hasRequirements then
+        frame.requirementsTitle:ClearAllPoints()
+        frame.requirementsTitle:SetPoint(
+            "TOPLEFT",
+            frame.description,
+            "BOTTOMLEFT",
+            0,
+            -12
+        )
+        frame.requirementsTitle:Show()
+
+        frame.requirementsText:ClearAllPoints()
+        frame.requirementsText:SetPoint(
+            "TOPLEFT",
+            frame.requirementsTitle,
+            "BOTTOMLEFT",
+            0,
+            -4
+        )
+        frame.requirementsText:SetPoint(
+            "RIGHT",
+            frame.detailContent,
+            "RIGHT",
+            -4,
+            0
+        )
+        frame.requirementsText:SetText(
+            table.concat(requirementLines, "\n")
+        )
+        frame.requirementsText:Show()
+    end
+
+    frame.reagentsTitle:ClearAllPoints()
+    frame.reagentsTitle:SetPoint(
+        "TOPLEFT",
+        hasRequirements and frame.requirementsText
+            or frame.description,
+        "BOTTOMLEFT",
+        0,
+        -12
+    )
     frame.reagentsTitle:Show()
 
     local reagentIndex = 0
@@ -1949,7 +2062,20 @@ function Module:RefreshRecipeDetails()
     y = y + math.max(
         18,
         frame.description:GetStringHeight() or 0
-    ) + 22
+    )
+
+    if hasRequirements then
+        y = y
+            + 12
+            + 12
+            + 4
+            + math.max(
+                12,
+                frame.requirementsText:GetStringHeight() or 0
+            )
+    end
+
+    y = y + 22
 
     local hasUnsupportedSelection = false
 
@@ -2040,15 +2166,6 @@ function Module:RefreshRecipeDetails()
         end
     end
 
-    frame.reagentsTitle:ClearAllPoints()
-    frame.reagentsTitle:SetPoint(
-        "TOPLEFT",
-        frame.description,
-        "BOTTOMLEFT",
-        0,
-        -12
-    )
-
     SetScrollHeight(
         frame.detailScroll,
         frame.detailContent,
@@ -2064,6 +2181,7 @@ function Module:RefreshRecipeDetails()
     local canCraft =
         info.learned
         and not info.disabled
+        and requirementsMet
         and self.maxCraftable > 0
         and not unsupportedRecipe
 
