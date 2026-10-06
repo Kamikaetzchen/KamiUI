@@ -340,16 +340,99 @@ local function SetRecipeReagentTooltip(
     return false
 end
 
-local function ColorText(text, color)
-    local r, g, b = Styles:GetColorChannels(color)
+local function BuildDefaultCraftingReagents(schematic)
+    local craftingReagents = {}
 
-    return string.format(
-        "|cff%02x%02x%02x%s|r",
-        math.floor(r * 255 + 0.5),
-        math.floor(g * 255 + 0.5),
-        math.floor(b * 255 + 0.5),
-        text or ""
-    )
+    for _, slot in ipairs(
+        schematic and schematic.reagentSlotSchematics or {}
+    ) do
+        local reagent = slot.reagents and slot.reagents[1]
+        local quantity = slot.quantityRequired or 0
+
+        if reagent
+            and slot.dataSlotIndex
+            and quantity > 0
+            and slot.required ~= false
+        then
+            craftingReagents[#craftingReagents + 1] = {
+                reagent = reagent,
+                dataSlotIndex = slot.dataSlotIndex,
+                quantity = quantity,
+            }
+        end
+    end
+
+    return craftingReagents
+end
+
+local RequirementTypeToString = {}
+
+if Enum and Enum.RecipeRequirementType then
+    RequirementTypeToString[
+        Enum.RecipeRequirementType.SpellFocus
+    ] = "SpellFocusRequirement"
+    RequirementTypeToString[
+        Enum.RecipeRequirementType.Totem
+    ] = "TotemRequirement"
+    RequirementTypeToString[
+        Enum.RecipeRequirementType.Area
+    ] = "AreaRequirement"
+end
+
+local function FormatRecipeRequirements(requirements)
+    local formatted = {}
+    local fallback = {}
+
+    for _, requirement in ipairs(requirements or {}) do
+        local name = requirement.name or ""
+        local met = requirement.met ~= false
+        local linkType = RequirementTypeToString[requirement.type]
+
+        if name ~= "" then
+            local displayName = name
+
+            if linkType
+                and LinkUtil
+                and LinkUtil.FormatLink
+            then
+                displayName = LinkUtil.FormatLink(linkType, name)
+            end
+
+            formatted[#formatted + 1] = displayName
+            formatted[#formatted + 1] = met
+
+            local color = met
+                and Palette.success
+                or Palette.difficulty.veryHard
+            local r, g, b = Styles:GetColorChannels(color)
+
+            fallback[#fallback + 1] = string.format(
+                "|cff%02x%02x%02x%s|r",
+                math.floor(r * 255 + 0.5),
+                math.floor(g * 255 + 0.5),
+                math.floor(b * 255 + 0.5),
+                name
+            )
+        end
+    end
+
+    local text
+
+    if #formatted > 0 and BuildColoredListString then
+        text = BuildColoredListString(unpack(formatted))
+    elseif #fallback > 0 then
+        text = table.concat(fallback, ", ")
+    end
+
+    if not text or text == "" then
+        return ""
+    end
+
+    if PROFESSIONS_REQUIRED_TOOLS then
+        return string.format(PROFESSIONS_REQUIRED_TOOLS, text)
+    end
+
+    return "Requires: " .. text
 end
 
 local function GetDifficultyColor(difficulty)
@@ -970,10 +1053,17 @@ local function CreateCraftingPage(frame)
     frame.detailScroll = detailScroll
 
     local detailContent = CreateFrame("Frame", nil, detailScroll)
-    detailContent:SetSize(1, 1)
+    detailContent:SetSize(
+        math.max(1, detailScroll:GetWidth()),
+        1
+    )
     detailScroll:SetScrollChild(detailContent)
     frame.detailContent = detailContent
     frame.reagentRows = {}
+
+    detailScroll:SetScript("OnSizeChanged", function(self, width)
+        detailContent:SetWidth(math.max(1, width))
+    end)
 
     ConfigureMouseWheelScroll(
         detailScroll,
@@ -1035,33 +1125,15 @@ local function CreateCraftingPage(frame)
     Styles:ApplyText(description, 9, Palette.muted)
     frame.description = description
 
-    local requirementsTitle = detailContent:CreateFontString(
-        nil,
-        "OVERLAY",
-        "GameFontNormalSmall"
-    )
-    requirementsTitle:SetJustifyH("LEFT")
-    Styles:ApplyText(requirementsTitle, 9, Palette.gold)
-    requirementsTitle:SetText("Requirements")
-    requirementsTitle:Hide()
-    frame.requirementsTitle = requirementsTitle
-
     local requirementsText = detailContent:CreateFontString(
         nil,
         "OVERLAY",
         "GameFontNormalSmall"
     )
-    requirementsText:SetPoint(
-        "RIGHT",
-        detailContent,
-        "RIGHT",
-        -4,
-        0
-    )
     requirementsText:SetJustifyH("LEFT")
     requirementsText:SetJustifyV("TOP")
     requirementsText:SetWordWrap(true)
-    Styles:ApplyText(requirementsText, 9, Palette.muted)
+    Styles:ApplyText(requirementsText, 9, Palette.gold)
     requirementsText:Hide()
     frame.requirementsText = requirementsText
 
@@ -1841,7 +1913,6 @@ function Module:RefreshRecipeDetails()
     frame.outputSlot:Hide()
     frame.outputName:SetText("")
     frame.description:SetText("")
-    frame.requirementsTitle:Hide()
     frame.requirementsText:Hide()
     frame.requirementsText:SetText("")
     frame.reagentsTitle:Hide()
@@ -1923,12 +1994,6 @@ function Module:RefreshRecipeDetails()
         )
     )
 
-    local output = C_TradeSkillUI.GetRecipeOutputItemData
-        and UI:SafeCall(
-            C_TradeSkillUI.GetRecipeOutputItemData,
-            recipeID
-        )
-        or nil
     local schematic = C_TradeSkillUI.GetRecipeSchematic
         and UI:SafeCall(
             C_TradeSkillUI.GetRecipeSchematic,
@@ -1936,14 +2001,30 @@ function Module:RefreshRecipeDetails()
             false
         )
         or nil
+    local craftingReagents = BuildDefaultCraftingReagents(schematic)
+    local output = C_TradeSkillUI.GetRecipeOutputItemData
+        and UI:SafeCall(
+            C_TradeSkillUI.GetRecipeOutputItemData,
+            recipeID,
+            craftingReagents
+        )
+        or nil
+    local outputItemID = output and output.itemID
+        or schematic and schematic.outputItemID
+        or nil
 
     local outputData = GetItemDisplayData(
-        output and output.itemID,
+        outputItemID,
         output and output.hyperlink,
         output and output.icon
             or schematic and schematic.icon
             or info.icon
     )
+    local outputName = outputData.itemID
+        and outputData.name
+        or schematic and schematic.name
+        or info.name
+        or outputData.name
     local quantityText = ""
 
     if schematic then
@@ -1956,6 +2037,8 @@ function Module:RefreshRecipeDetails()
                 or string.format("%d-%d", minQuantity, maxQuantity)
         end
     end
+
+    frame.recipeTitle:SetText(outputName or "Recipe")
 
     Components:SetItemSlotData(frame.outputSlot, {
         itemID = outputData.itemID,
@@ -1971,77 +2054,61 @@ function Module:RefreshRecipeDetails()
         end,
     })
     frame.outputSlot:Show()
-    frame.outputName:SetText(
-        outputData.itemID
-            and outputData.name
-            or info.name
-            or outputData.name
-    )
-    frame.outputName:SetTextColor(unpack(Palette.text))
+    frame.outputName:SetText("")
 
     local description = C_TradeSkillUI.GetRecipeDescription
         and UI:SafeCall(
             C_TradeSkillUI.GetRecipeDescription,
-            recipeID
+            recipeID,
+            craftingReagents
         )
         or nil
 
     frame.description:SetText(description or "")
+    frame.description:SetHeight(
+        math.max(1, frame.description:GetStringHeight() or 0)
+    )
 
     local requirements = C_TradeSkillUI.GetRecipeRequirements
         and UI:SafeCall(
             C_TradeSkillUI.GetRecipeRequirements,
             recipeID
         )
-        or nil
-    local requirementLines = {}
+        or {}
     local requirementsMet = true
 
-    for _, requirement in ipairs(requirements or {}) do
-        local met = requirement.met ~= false
-        local name = requirement.name or "Requirement"
-
-        if not met then
+    for _, requirement in ipairs(requirements) do
+        if requirement.met == false then
             requirementsMet = false
+            break
         end
-
-        requirementLines[#requirementLines + 1] = ColorText(
-            name,
-            met and Palette.success
-                or Palette.difficulty.veryHard
-        )
     end
 
-    local hasRequirements = #requirementLines > 0
+    local requirementsText = FormatRecipeRequirements(requirements)
+    local hasRequirements = requirementsText ~= ""
 
     if hasRequirements then
-        frame.requirementsTitle:ClearAllPoints()
-        frame.requirementsTitle:SetPoint(
+        frame.requirementsText:ClearAllPoints()
+        frame.requirementsText:SetPoint(
             "TOPLEFT",
             frame.description,
             "BOTTOMLEFT",
             0,
             -12
         )
-        frame.requirementsTitle:Show()
-
-        frame.requirementsText:ClearAllPoints()
         frame.requirementsText:SetPoint(
-            "TOPLEFT",
-            frame.requirementsTitle,
-            "BOTTOMLEFT",
+            "TOPRIGHT",
+            frame.description,
+            "BOTTOMRIGHT",
             0,
-            -4
+            -12
         )
-        frame.requirementsText:SetPoint(
-            "RIGHT",
-            frame.detailContent,
-            "RIGHT",
-            -4,
-            0
-        )
-        frame.requirementsText:SetText(
-            table.concat(requirementLines, "\n")
+        frame.requirementsText:SetText(requirementsText)
+        frame.requirementsText:SetHeight(
+            math.max(
+                12,
+                frame.requirementsText:GetStringHeight() or 0
+            )
         )
         frame.requirementsText:Show()
     end
@@ -2067,8 +2134,6 @@ function Module:RefreshRecipeDetails()
     if hasRequirements then
         y = y
             + 12
-            + 12
-            + 4
             + math.max(
                 12,
                 frame.requirementsText:GetStringHeight() or 0
