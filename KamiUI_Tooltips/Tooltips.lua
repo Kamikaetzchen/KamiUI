@@ -1496,6 +1496,30 @@ local function PositionCursorTooltip(tooltip)
     Module.reanchoringCursorTooltip = false
 end
 
+local function ScheduleCursorTooltipPosition(tooltip)
+    if not tooltip or tooltip.KamiCursorPositionPending then
+        return
+    end
+
+    tooltip.KamiCursorPositionPending = true
+
+    local function Reposition()
+        tooltip.KamiCursorPositionPending = nil
+
+        if tooltip.KamiCursorPositioned
+            and (not tooltip.IsShown or tooltip:IsShown())
+        then
+            PositionCursorTooltip(tooltip)
+        end
+    end
+
+    if C_Timer and C_Timer.After then
+        C_Timer.After(0, Reposition)
+    else
+        Reposition()
+    end
+end
+
 local function InstallCursorAnchor()
     if Module.cursorAnchorInstalled
         or not GameTooltip
@@ -1505,15 +1529,27 @@ local function InstallCursorAnchor()
 
     Module.cursorAnchorInstalled = true
 
+    if hooksecurefunc and GameTooltip.SetOwner then
+        hooksecurefunc(
+            GameTooltip,
+            "SetOwner",
+            function(self)
+                self.KamiCursorPositioned = true
+                ScheduleCursorTooltipPosition(self)
+            end
+        )
+    end
+
     if GameTooltip.HookScript then
         GameTooltip:HookScript("OnShow", function(self)
             self.KamiCursorPositioned = true
             PositionCursorTooltip(self)
+            ScheduleCursorTooltipPosition(self)
         end)
 
         GameTooltip:HookScript("OnSizeChanged", function(self)
             if self.KamiCursorPositioned then
-                PositionCursorTooltip(self)
+                ScheduleCursorTooltipPosition(self)
             end
         end)
 
@@ -1521,6 +1557,7 @@ local function InstallCursorAnchor()
             queuedInspect = nil
             self.KamiPendingRefreshGuid = nil
             self.KamiCursorPositioned = nil
+            self.KamiCursorPositionPending = nil
         end)
     end
 
@@ -1547,6 +1584,7 @@ local function InstallCursorAnchor()
                 )
                 self.KamiCursorPositioned = true
                 PositionCursorTooltip(self)
+                ScheduleCursorTooltipPosition(self)
                 Module.reanchoringWorldCursor = false
             end
         )
