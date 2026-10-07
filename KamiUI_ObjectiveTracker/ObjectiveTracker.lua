@@ -35,6 +35,7 @@ local OBJECTIVE_COUNT_GAP = 5
 
 local OBJECTIVE_DATABASE_DEFAULTS = {
     minimized = false,
+    heightLimited = true,
     collapsedSections = {},
 }
 
@@ -664,6 +665,31 @@ function Module:RegisterProvider(id, provider)
     end
 end
 
+local function UpdateHeightModeButton(frame)
+    if not frame or not frame.heightModeButton then
+        return
+    end
+
+    local limited = GetDatabase().heightLimited ~= false
+
+    frame.heightModeButton:SetText(limited and "35%" or "MAX")
+end
+
+function Module:SetHeightLimited(limited)
+    GetDatabase().heightLimited = limited ~= false
+
+    if self.frame then
+        UpdateHeightModeButton(self.frame)
+        self:Refresh()
+    end
+end
+
+function Module:ToggleHeightLimited()
+    self:SetHeightLimited(
+        GetDatabase().heightLimited == false
+    )
+end
+
 function Module:SetMinimized(minimized)
     local db = GetDatabase()
     db.minimized = minimized == true
@@ -674,6 +700,7 @@ function Module:SetMinimized(minimized)
 
     self.frame.content:SetShown(not db.minimized)
     self.frame.toggle:SetText(db.minimized and "+" or "-")
+    self.frame.heightModeButton:SetShown(not db.minimized)
     self.frame:SetWidth(db.minimized and COLLAPSED_WIDTH or PANEL_WIDTH)
 
     if db.minimized then
@@ -786,15 +813,21 @@ function Module:Refresh()
     end
 
     local contentHeight = y + CONTENT_PADDING
-    local parentHeight = UIParent:GetHeight() or 0
-    local maxFrameHeight = math.max(
-        HEADER_HEIGHT + 40,
-        math.floor(parentHeight * MAX_HEIGHT_RATIO)
-    )
-    local viewportHeight = math.min(
-        contentHeight,
-        maxFrameHeight - HEADER_HEIGHT
-    )
+    local viewportHeight = contentHeight
+
+    if GetDatabase().heightLimited ~= false then
+        local parentHeight = UIParent:GetHeight() or 0
+        local maxFrameHeight = math.max(
+            HEADER_HEIGHT + 40,
+            math.floor(parentHeight * MAX_HEIGHT_RATIO)
+        )
+
+        viewportHeight = math.min(
+            contentHeight,
+            maxFrameHeight - HEADER_HEIGHT
+        )
+    end
+
     local maxScroll = math.max(
         0,
         contentHeight - viewportHeight
@@ -915,9 +948,47 @@ local function CreateFrameUI()
     end)
     frame.toggle = toggle
 
+    local heightModeButton = CreateFrame("Button", nil, header)
+    heightModeButton:SetSize(34, 18)
+    heightModeButton:SetPoint("RIGHT", header, "RIGHT", -2, 0)
+    heightModeButton:SetNormalFontObject("GameFontNormalSmall")
+    heightModeButton:SetHighlightFontObject("GameFontHighlightSmall")
+    Components:StyleButton(heightModeButton)
+    heightModeButton:SetScript("OnClick", function()
+        Module:ToggleHeightLimited()
+    end)
+    heightModeButton:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_CURSOR_RIGHT")
+
+        if GetDatabase().heightLimited ~= false then
+            GameTooltip:SetText("Tracker height: 35%")
+            GameTooltip:AddLine(
+                "Click for unrestricted height.",
+                1,
+                1,
+                1
+            )
+        else
+            GameTooltip:SetText("Tracker height: unrestricted")
+            GameTooltip:AddLine(
+                "Click to limit height to 35%.",
+                1,
+                1,
+                1
+            )
+        end
+
+        GameTooltip:Show()
+    end)
+    heightModeButton:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
+    frame.heightModeButton = heightModeButton
+    UpdateHeightModeButton(frame)
+
     local title = header:CreateFontString(nil, "OVERLAY")
     title:SetPoint("LEFT", toggle, "RIGHT", 2, 0)
-    title:SetPoint("RIGHT", header, "RIGHT", -6, 0)
+    title:SetPoint("RIGHT", heightModeButton, "LEFT", -4, 0)
     title:SetJustifyH("LEFT")
     Styles:ApplyText(title, "panelTitle")
     title:SetText("Objectives")
