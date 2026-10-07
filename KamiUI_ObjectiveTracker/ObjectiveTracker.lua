@@ -11,6 +11,7 @@ Module.providerOrder = {}
 local PANEL_WIDTH = 300
 local COLLAPSED_WIDTH = 120
 local HEADER_HEIGHT = 24
+local MAX_HEIGHT_RATIO = 0.50
 local CONTENT_PADDING = 6
 local SECTION_HEADER_HEIGHT = 20
 local HEADER_INDENT = 2
@@ -18,12 +19,15 @@ local SECTION_INDENT = 4
 local QUEST_INDENT = 2
 local QUEST_SELECT_SIZE = 10
 local QUEST_SELECT_GAP = 1
-local QUEST_LEVEL_WIDTH = 34
+local QUEST_LEVEL_WIDTH = 28
 local QUEST_TITLE_GAP = 5
 local QUEST_ITEM_SIZE = 18
 local QUEST_ITEM_GAP = 4
 local OBJECTIVE_INDENT =
-    52 + QUEST_SELECT_SIZE + QUEST_SELECT_GAP
+    QUEST_SELECT_SIZE
+        + QUEST_SELECT_GAP
+        + QUEST_LEVEL_WIDTH
+        + QUEST_TITLE_GAP
 local QUEST_SPACING = 5
 local OBJECTIVE_SPACING = 1
 
@@ -565,6 +569,15 @@ function Module:SetMinimized(minimized)
 
     if db.minimized then
         self.frame:SetHeight(HEADER_HEIGHT)
+
+        if self.frame.scrollFrame then
+            self.frame.scrollFrame:SetVerticalScroll(0)
+        end
+
+        if self.frame.scrollbar then
+            self.frame.scrollbar:SetValue(0)
+            self.frame.scrollbar:Hide()
+        end
     else
         self:Refresh()
     end
@@ -663,8 +676,58 @@ function Module:Refresh()
         y = 24
     end
 
-    frame.content:SetHeight(y)
-    frame:SetHeight(HEADER_HEIGHT + y + CONTENT_PADDING)
+    local contentHeight = y + CONTENT_PADDING
+    local parentHeight = UIParent:GetHeight() or 0
+    local maxFrameHeight = math.max(
+        HEADER_HEIGHT + 40,
+        math.floor(parentHeight * MAX_HEIGHT_RATIO)
+    )
+    local viewportHeight = math.min(
+        contentHeight,
+        maxFrameHeight - HEADER_HEIGHT
+    )
+    local maxScroll = math.max(
+        0,
+        contentHeight - viewportHeight
+    )
+
+    frame.content:SetHeight(contentHeight)
+    frame:SetHeight(HEADER_HEIGHT + viewportHeight)
+
+    if frame.scrollbar then
+        frame.scrollbar:SetMinMaxValues(0, maxScroll)
+
+        if maxScroll > 0 then
+            local current = math.min(
+                frame.scrollbar:GetValue() or 0,
+                maxScroll
+            )
+            frame.scrollbar:SetValue(current)
+            frame.scrollFrame:SetVerticalScroll(current)
+
+            if frame.scrollThumb then
+                local trackHeight = math.max(
+                    1,
+                    frame.scrollbar:GetHeight() or 1
+                )
+                local thumbHeight = math.max(
+                    20,
+                    trackHeight
+                        * viewportHeight
+                        / math.max(contentHeight, 1)
+                )
+                frame.scrollThumb:SetHeight(
+                    math.min(trackHeight, thumbHeight)
+                )
+            end
+
+            frame.scrollbar:Show()
+        else
+            frame.scrollbar:SetValue(0)
+            frame.scrollFrame:SetVerticalScroll(0)
+            frame.scrollbar:Hide()
+        end
+    end
 end
 
 local function ScheduleRefresh()
@@ -751,11 +814,77 @@ local function CreateFrameUI()
     title:SetText("Objectives")
     frame.title = title
 
-    local content = CreateFrame("Frame", nil, frame)
-    content:SetPoint("TOPLEFT", frame, "TOPLEFT", 1, -HEADER_HEIGHT)
-    content:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -1, -HEADER_HEIGHT)
+    local scrollFrame = CreateFrame("ScrollFrame", nil, frame)
+    scrollFrame:SetPoint(
+        "TOPLEFT",
+        frame,
+        "TOPLEFT",
+        1,
+        -HEADER_HEIGHT
+    )
+    scrollFrame:SetPoint(
+        "BOTTOMRIGHT",
+        frame,
+        "BOTTOMRIGHT",
+        -1,
+        1
+    )
+    scrollFrame:EnableMouseWheel(true)
+    frame.scrollFrame = scrollFrame
+
+    local content = CreateFrame("Frame", nil, scrollFrame)
+    content:SetWidth(PANEL_WIDTH - 2)
     content:SetHeight(1)
+    scrollFrame:SetScrollChild(content)
     frame.content = content
+
+    local scrollbar = CreateFrame("Slider", nil, frame)
+    scrollbar:SetOrientation("VERTICAL")
+    scrollbar:SetPoint(
+        "TOPRIGHT",
+        scrollFrame,
+        "TOPRIGHT",
+        -3,
+        -4
+    )
+    scrollbar:SetPoint(
+        "BOTTOMRIGHT",
+        scrollFrame,
+        "BOTTOMRIGHT",
+        -3,
+        4
+    )
+    scrollbar:SetWidth(6)
+    scrollbar:SetMinMaxValues(0, 0)
+    scrollbar:SetValueStep(20)
+    local _, scrollThumb = Components:StyleScrollBar(scrollbar)
+
+    scrollbar:SetScript("OnValueChanged", function(_, value)
+        scrollFrame:SetVerticalScroll(value or 0)
+    end)
+    scrollbar:Hide()
+
+    frame.scrollbar = scrollbar
+    frame.scrollThumb = scrollThumb
+
+    scrollFrame:SetScript("OnMouseWheel", function(_, delta)
+        local _, maxScroll = scrollbar:GetMinMaxValues()
+
+        if not maxScroll or maxScroll <= 0 then
+            return
+        end
+
+        scrollbar:SetValue(
+            math.max(
+                0,
+                math.min(
+                    maxScroll,
+                    (scrollbar:GetValue() or 0)
+                        - delta * 32
+                )
+            )
+        )
+    end)
 
     local empty = content:CreateFontString(nil, "OVERLAY")
     empty:SetPoint("TOPLEFT", content, "TOPLEFT", CONTENT_PADDING, -5)
@@ -801,6 +930,8 @@ function Module:Initialize()
         "QUEST_DATA_LOAD_RESULT",
         "SUPER_TRACKING_CHANGED",
         "SUPER_TRACKING_PATH_UPDATED",
+        "DISPLAY_SIZE_CHANGED",
+        "UI_SCALE_CHANGED",
     }) do
         UI:RegisterEvent(event, ScheduleRefresh)
     end
