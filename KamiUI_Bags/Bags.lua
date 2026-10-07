@@ -584,7 +584,12 @@ local function GetBagSlotFlag(bagID, flag)
     return C_Container.GetBagSlotFlag(bagID, flag) == true
 end
 
-local function SetBagSlotFlag(bagID, flag, value)
+local function SetBagSlotFlag(
+    bagID,
+    flag,
+    value,
+    syncFilterCache
+)
     if not flag
         or not C_Container
         or not C_Container.SetBagSlotFlag
@@ -596,7 +601,8 @@ local function SetBagSlotFlag(bagID, flag, value)
 
     C_Container.SetBagSlotFlag(bagID, flag, value)
 
-    if ContainerFrameSettingsManager
+    if syncFilterCache
+        and ContainerFrameSettingsManager
         and ContainerFrameSettingsManager.SetFilterFlag
     then
         ContainerFrameSettingsManager:SetFilterFlag(
@@ -721,7 +727,8 @@ local function GetBagFilterEntries(bagID)
                         SetBagSlotFlag(
                             bagID,
                             flag,
-                            not GetBagSlotFlag(bagID, flag)
+                            not GetBagSlotFlag(bagID, flag),
+                            true
                         )
                     end,
                 }
