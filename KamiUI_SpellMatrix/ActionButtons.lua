@@ -138,8 +138,9 @@ local function RefreshButton(button)
         local resourceToken = analysis.resourceType
             and string.upper(analysis.resourceType)
             or "MANA"
-        local resourceColor =
-            Palette:GetPowerColor(resourceToken)
+        local r, g, b =
+            Palette:GetReadablePowerColor(resourceToken)
+        local resourceColor = { r, g, b, 1 }
 
         value = value
             .. "\n"
