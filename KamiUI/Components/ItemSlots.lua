@@ -556,19 +556,32 @@ function Components:CreateContainerItemButton(parent, options)
         button:HookScript("OnDragStart", options.onDragStart)
     end
 
-    button:HookScript("OnEnter", function(self)
-        if not GameTooltip
-            or not GameTooltip.GetOwner
-            or GameTooltip:GetOwner() ~= self
-        then
-            return
-        end
+    button.KamiContainerTooltipAnchor =
+        options.tooltipAnchor or "ANCHOR_CURSOR_RIGHT"
 
-        GameTooltip:SetOwner(
-            self,
-            options.tooltipAnchor or "ANCHOR_CURSOR_RIGHT"
+    if not Components.containerTooltipAnchorHookInstalled
+        and hooksecurefunc
+        and ContainerFrameItemButton_CalculateItemTooltipAnchors
+    then
+        Components.containerTooltipAnchorHookInstalled = true
+
+        hooksecurefunc(
+            "ContainerFrameItemButton_CalculateItemTooltipAnchors",
+            function(itemButton, mainTooltip)
+                local anchor = itemButton
+                    and itemButton.KamiContainerTooltipAnchor
+
+                if not anchor
+                    or not mainTooltip
+                    or mainTooltip ~= GameTooltip
+                then
+                    return
+                end
+
+                mainTooltip:SetOwner(itemButton, anchor)
+            end
         )
-    end)
+    end
 
     self:StyleItemSlot(button, options)
 
