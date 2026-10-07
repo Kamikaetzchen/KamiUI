@@ -9,3 +9,4 @@
 
 ObjectiveTracker.lua
 Quests.lua
+Professions.lua
