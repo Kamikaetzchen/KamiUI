@@ -342,7 +342,7 @@ local function CreateEquipmentSlot(parent, definition)
 
         local _, _, isCurrent = Module:GetViewedCharacter()
 
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetOwner(self, "ANCHOR_CURSOR_RIGHT")
 
         if isCurrent then
             if GameTooltip:SetInventoryItem("player", self.slotID) then
@@ -1200,7 +1200,7 @@ ShowStatTooltip = function(row)
     local updated = UpdateBlizzardStatProxy(proxy, key)
     local tooltip = updated and proxy.tooltip
 
-    GameTooltip:SetOwner(row, "ANCHOR_LEFT")
+    GameTooltip:SetOwner(row, "ANCHOR_CURSOR_RIGHT")
 
     if type(tooltip) == "string" and tooltip ~= "" then
         GameTooltip:SetText(tooltip)
@@ -1347,7 +1347,7 @@ local function UpdateEquipmentPane(frame)
 
             edit:SetScript("OnEnter", function(self)
                 self.texture:SetAlpha(1)
-                GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+                GameTooltip:SetOwner(self, "ANCHOR_CURSOR_RIGHT")
                 GameTooltip:SetText(
                     EQUIPMENT_SET_SETTINGS or "Edit equipment set"
                 )
@@ -1386,7 +1386,7 @@ local function UpdateEquipmentPane(frame)
 
             delete:SetScript("OnEnter", function(self)
                 self.texture:SetAlpha(1)
-                GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+                GameTooltip:SetOwner(self, "ANCHOR_CURSOR_RIGHT")
                 GameTooltip:SetText(DELETE or "Delete")
                 GameTooltip:Show()
             end)
@@ -1466,7 +1466,7 @@ local function UpdateEquipmentPane(frame)
                     return
                 end
 
-                GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+                GameTooltip:SetOwner(self, "ANCHOR_CURSOR_RIGHT")
 
                 if GameTooltip.SetEquipmentSet then
                     GameTooltip:SetEquipmentSet(self.setID)
@@ -3871,7 +3871,7 @@ local function CreateFrameUI()
     frame.characterDropdown = characterDropdown
 
     characterButton:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetOwner(self, "ANCHOR_CURSOR_RIGHT")
         GameTooltip:SetText("Characters")
         GameTooltip:Show()
     end)
