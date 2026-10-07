@@ -151,6 +151,16 @@ local function ParseResourceAmount(lower, token)
         )
     end
 
+    if not amount then
+        amount = lower:match(
+            "^"
+            .. NUMBER
+            .. "%s+"
+            .. token
+            .. "%s+%d+%s+to%s+%d+%s+combo%s+points?%.?$"
+        )
+    end
+
     return ParseNumber(amount)
 end
 
