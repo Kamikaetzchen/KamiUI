@@ -176,6 +176,197 @@ function Components:StyleScrollBar(scrollbar, options)
     return scrollbar, thumb
 end
 
+local function CreateToggleControl(parent, kind, options)
+    options = options or {}
+
+    local button = CreateFrame("CheckButton", nil, parent)
+    local size = options.size or 14
+    local labelSide = options.labelSide or "RIGHT"
+    local labelGap = options.labelGap or 6
+
+    button:SetSize(
+        options.width or size,
+        options.height or size
+    )
+    button.KamiToggleKind = kind
+    button.KamiToggleOptions = options
+
+    local art = CreateFrame("Frame", nil, button)
+    art:SetSize(size, size)
+    art:EnableMouse(false)
+
+    if options.label then
+        if labelSide == "LEFT" then
+            art:SetPoint("RIGHT", button, "RIGHT", 0, 0)
+        else
+            art:SetPoint("LEFT", button, "LEFT", 0, 0)
+        end
+    else
+        art:SetPoint("CENTER", button, "CENTER", 0, 0)
+    end
+
+    button.KamiToggleArt = art
+
+    local checked
+
+    if kind == "radio" then
+        local normal = art:CreateTexture(nil, "BACKGROUND")
+        normal:SetAllPoints()
+        normal:SetTexture("Interface\\Buttons\\UI-RadioButton")
+        normal:SetTexCoord(0, 0.25, 0, 1)
+
+        checked = art:CreateTexture(nil, "ARTWORK")
+        checked:SetAllPoints()
+        checked:SetTexture("Interface\\Buttons\\UI-RadioButton")
+        checked:SetTexCoord(0.25, 0.5, 0, 1)
+
+        local highlight = button:CreateTexture(nil, "HIGHLIGHT")
+        highlight:SetAllPoints(art)
+        highlight:SetTexture("Interface\\Buttons\\UI-RadioButton")
+        highlight:SetTexCoord(0.5, 0.75, 0, 1)
+        highlight:SetBlendMode("ADD")
+    else
+        local background = art:CreateTexture(nil, "BACKGROUND")
+        background:SetAllPoints()
+        Styles:SetColor(
+            background,
+            options.backgroundColor or Palette.panelStrong
+        )
+
+        Styles:CreateBorder(art, {
+            key = "KamiToggleBorder",
+            color = options.borderColor or Palette.border,
+        })
+
+        checked = art:CreateTexture(nil, "ARTWORK")
+        checked:SetPoint("TOPLEFT", art, "TOPLEFT", 1, -1)
+        checked:SetPoint("BOTTOMRIGHT", art, "BOTTOMRIGHT", -1, 1)
+        checked:SetTexture("Interface\\Buttons\\UI-CheckBox-Check")
+        Styles:SetColor(
+            checked,
+            options.checkedColor or Palette.highlight
+        )
+
+        local highlight = button:CreateTexture(nil, "HIGHLIGHT")
+        highlight:SetAllPoints(art)
+        Styles:SetColor(
+            highlight,
+            Palette.white,
+            options.hoverAlpha or Styles.State.hoverAlpha
+        )
+    end
+
+    checked:Hide()
+    button.KamiToggleChecked = checked
+
+    if options.label then
+        local label = button:CreateFontString(
+            nil,
+            "OVERLAY",
+            "GameFontNormalSmall"
+        )
+
+        if labelSide == "LEFT" then
+            label:SetPoint(
+                "RIGHT",
+                art,
+                "LEFT",
+                -labelGap,
+                0
+            )
+            label:SetPoint("LEFT", button, "LEFT", 0, 0)
+            label:SetJustifyH("RIGHT")
+        else
+            label:SetPoint(
+                "LEFT",
+                art,
+                "RIGHT",
+                labelGap,
+                0
+            )
+            label:SetPoint("RIGHT", button, "RIGHT", 0, 0)
+            label:SetJustifyH("LEFT")
+        end
+
+        Styles:ApplyText(
+            label,
+            options.textRole or "normal",
+            options.textColor or Palette.muted
+        )
+        label:SetText(options.label)
+        button.KamiToggleLabel = label
+        button.label = label
+    end
+
+    function button:RefreshKamiToggleStyle()
+        local config = self.KamiToggleOptions or {}
+        local isChecked = self.GetChecked and self:GetChecked()
+        local enabled = not self.IsEnabled or self:IsEnabled()
+
+        self.KamiToggleChecked:SetShown(isChecked == true)
+        self:SetAlpha(
+            enabled
+                and 1
+                or Styles.State.disabledAlpha
+        )
+
+        if self.KamiToggleLabel then
+            Styles:ApplyText(
+                self.KamiToggleLabel,
+                config.textRole or "normal",
+                enabled
+                    and (config.textColor or Palette.muted)
+                    or (config.disabledTextColor or Palette.muted)
+            )
+        end
+    end
+
+    button:HookScript("OnClick", function(self)
+        self:RefreshKamiToggleStyle()
+    end)
+    button:HookScript("OnEnable", function(self)
+        self:RefreshKamiToggleStyle()
+    end)
+    button:HookScript("OnDisable", function(self)
+        self:RefreshKamiToggleStyle()
+    end)
+    button:HookScript("OnShow", function(self)
+        self:RefreshKamiToggleStyle()
+    end)
+
+    button:RefreshKamiToggleStyle()
+
+    return button
+end
+
+function Components:CreateCheckbox(parent, options)
+    return CreateToggleControl(parent, "checkbox", options)
+end
+
+function Components:CreateRadioButton(parent, options)
+    return CreateToggleControl(parent, "radio", options)
+end
+
+function Components:SetToggleState(button, checked, enabled)
+    if not button then
+        return
+    end
+
+    if button.SetChecked then
+        button:SetChecked(checked == true)
+    end
+
+    if enabled == false then
+        button:Disable()
+    else
+        button:Enable()
+    end
+
+    if button.RefreshKamiToggleStyle then
+        button:RefreshKamiToggleStyle()
+    end
+end
+
 local function ConfigureCheckboxTexture(
     texture,
     button,
