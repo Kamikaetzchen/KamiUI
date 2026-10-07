@@ -176,41 +176,25 @@ function Components:StyleScrollBar(scrollbar, options)
     return scrollbar, thumb
 end
 
-local function CreatePixelCircle(parent, size, layer, color, alpha)
-    local circle = CreateFrame("Frame", nil, parent)
-    circle:SetSize(size, size)
-    circle:EnableMouse(false)
+local RADIO_CIRCLE_MASK =
+    "Interface\\CharacterFrame\\TempPortraitAlphaMask"
 
-    local edge = math.max(1, math.floor(size * 0.14))
-    local shoulder = math.max(1, math.floor(size * 0.14))
-    local topWidth = math.max(2, size - edge * 4)
-    local shoulderWidth = math.max(2, size - edge * 2)
-    local centerHeight = math.max(
-        1,
-        size - (edge + shoulder) * 2
+local function CreateSmoothCircle(parent, size, layer, color, alpha)
+    local texture = parent:CreateTexture(nil, layer)
+    texture:SetSize(size, size)
+    texture:SetColorTexture(1, 1, 1, 1)
+    Styles:SetColor(texture, color, alpha)
+
+    local mask = parent:CreateMaskTexture()
+    mask:SetTexture(
+        RADIO_CIRCLE_MASK,
+        "CLAMPTOBLACKADDITIVE",
+        "CLAMPTOBLACKADDITIVE"
     )
+    mask:SetAllPoints(texture)
+    texture:AddMaskTexture(mask)
 
-    local function AddBand(width, height, point, x, y)
-        local texture = circle:CreateTexture(nil, layer)
-        texture:SetSize(width, height)
-        texture:SetPoint(point, circle, point, x or 0, y or 0)
-        Styles:SetColor(texture, color, alpha)
-        return texture
-    end
-
-    AddBand(topWidth, edge, "TOP", 0, 0)
-    AddBand(shoulderWidth, shoulder, "TOP", 0, -edge)
-    AddBand(size, centerHeight, "CENTER", 0, 0)
-    AddBand(
-        shoulderWidth,
-        shoulder,
-        "BOTTOM",
-        0,
-        edge
-    )
-    AddBand(topWidth, edge, "BOTTOM", 0, 0)
-
-    return circle
+    return texture
 end
 
 local function CreateToggleControl(parent, kind, options)
@@ -248,7 +232,7 @@ local function CreateToggleControl(parent, kind, options)
     local highlight
 
     if kind == "radio" then
-        local border = CreatePixelCircle(
+        local border = CreateSmoothCircle(
             art,
             size,
             "BACKGROUND",
@@ -257,8 +241,8 @@ local function CreateToggleControl(parent, kind, options)
         )
         border:SetPoint("CENTER")
 
-        local innerSize = math.max(4, size - 4)
-        local background = CreatePixelCircle(
+        local innerSize = math.max(4, size - 2)
+        local background = CreateSmoothCircle(
             art,
             innerSize,
             "BORDER",
@@ -268,7 +252,7 @@ local function CreateToggleControl(parent, kind, options)
         background:SetPoint("CENTER")
 
         local checkedSize = math.max(4, size - 8)
-        checked = CreatePixelCircle(
+        checked = CreateSmoothCircle(
             art,
             checkedSize,
             "ARTWORK",
@@ -276,7 +260,7 @@ local function CreateToggleControl(parent, kind, options)
         )
         checked:SetPoint("CENTER")
 
-        highlight = CreatePixelCircle(
+        highlight = CreateSmoothCircle(
             art,
             size,
             "HIGHLIGHT",
@@ -296,13 +280,13 @@ local function CreateToggleControl(parent, kind, options)
         })
 
         checked = art:CreateTexture(nil, "ARTWORK")
-        checked:SetPoint("TOPLEFT", art, "TOPLEFT", 3, -3)
+        checked:SetPoint("TOPLEFT", art, "TOPLEFT", 4, -4)
         checked:SetPoint(
             "BOTTOMRIGHT",
             art,
             "BOTTOMRIGHT",
-            -3,
-            3
+            -4,
+            4
         )
         Styles:SetColor(
             checked,
@@ -508,7 +492,7 @@ function Components:StyleCheckbox(button, options)
     SetTexture(
         "SetCheckedTexture",
         "GetCheckedTexture",
-        8,
+        6,
         options.checkedColor or Palette.gold
     )
 
