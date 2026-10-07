@@ -251,7 +251,7 @@ function Components:StyleCloseButton(button, options)
             or { 0.22, 0.22, 0.24, 1 },
     })
 
-    local crossSize = options.crossSize or 8
+    local crossSize = options.crossSize or 6
     local crossThickness = options.crossThickness or 1.5
     local crossInset = math.max(0, (artSize - crossSize) / 2)
     local crossA = button.KamiCloseButtonCrossA
