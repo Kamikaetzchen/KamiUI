@@ -255,9 +255,20 @@ function Components:CreateWindowCloseButton(parent, options)
         button:RegisterForClicks(unpack(options.clicks))
     end
 
-    self:StyleButton(button, {
-        text = options.text or "X",
-    })
+    if options.text and options.text ~= "X" then
+        self:StyleButton(button, {
+            text = options.text,
+        })
+    else
+        self:StyleCloseButton(button, {
+            artSize = options.artSize,
+            crossSize = options.crossSize,
+            crossThickness = options.crossThickness,
+            crossColor = options.crossColor,
+            borderColor = options.borderColor,
+            hoverAlpha = options.hoverAlpha,
+        })
+    end
 
     if options.onClick then
         button:SetScript("OnClick", options.onClick)

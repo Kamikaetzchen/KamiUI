@@ -205,3 +205,127 @@ function Components:StyleButton(button, options)
     return button
 end
 
+function Components:StyleCloseButton(button, options)
+    if not button then
+        return nil
+    end
+
+    options = options or {}
+    self:ClearButtonArt(button)
+
+    local label = button.GetFontString
+        and button:GetFontString()
+        or button.Text
+
+    if label then
+        label:SetText("")
+        label:Hide()
+    end
+
+    local art = button.KamiCloseButtonArt
+
+    if not art then
+        art = CreateFrame("Frame", nil, button)
+        art:EnableMouse(false)
+        button.KamiCloseButtonArt = art
+    end
+
+    local artSize = options.artSize or 14
+    art:ClearAllPoints()
+    art:SetPoint("CENTER")
+    art:SetSize(artSize, artSize)
+
+    local background = button.KamiCloseButtonBackground
+
+    if not background then
+        background = art:CreateTexture(nil, "BACKGROUND")
+        background:SetAllPoints()
+        button.KamiCloseButtonBackground = background
+    end
+
+    background:SetColorTexture(0, 0, 0, 0.55)
+
+    Styles:CreateBorder(art, {
+        key = "KamiCloseButtonBorder",
+        color = options.borderColor
+            or { 0.22, 0.22, 0.24, 1 },
+    })
+
+    local crossSize = options.crossSize or 8
+    local crossThickness = options.crossThickness or 1
+    local crossA = button.KamiCloseButtonCrossA
+    local crossB = button.KamiCloseButtonCrossB
+
+    if not crossA then
+        crossA = art:CreateTexture(nil, "ARTWORK")
+        crossA:SetPoint("CENTER")
+        button.KamiCloseButtonCrossA = crossA
+    end
+
+    if not crossB then
+        crossB = art:CreateTexture(nil, "ARTWORK")
+        crossB:SetPoint("CENTER")
+        button.KamiCloseButtonCrossB = crossB
+    end
+
+    crossA:SetSize(crossSize, crossThickness)
+    crossA:SetColorTexture(1, 1, 1, 1)
+    crossA:SetRotation(math.rad(45))
+
+    crossB:SetSize(crossSize, crossThickness)
+    crossB:SetColorTexture(1, 1, 1, 1)
+    crossB:SetRotation(math.rad(-45))
+
+    local highlight = button.KamiCloseButtonHighlight
+
+    if not highlight then
+        highlight = button:CreateTexture(nil, "HIGHLIGHT")
+        highlight:SetAllPoints(art)
+        button.KamiCloseButtonHighlight = highlight
+    end
+
+    Styles:SetColor(
+        highlight,
+        Palette.white,
+        options.hoverAlpha or 0.08
+    )
+
+    button.KamiCloseButtonOptions = options
+
+    function button:RefreshKamiCloseButtonStyle()
+        local config = self.KamiCloseButtonOptions or {}
+        local enabled = not self.IsEnabled or self:IsEnabled()
+        local color = enabled
+            and (config.crossColor or Palette.text)
+            or (config.disabledCrossColor or Palette.muted)
+
+        Styles:SetColor(self.KamiCloseButtonCrossA, color)
+        Styles:SetColor(self.KamiCloseButtonCrossB, color)
+        self:SetAlpha(
+            enabled
+                and 1
+                or Styles.State.disabledAlpha
+        )
+    end
+
+    if not button.KamiCloseButtonStateHooked then
+        button.KamiCloseButtonStateHooked = true
+
+        button:HookScript("OnEnable", function(self)
+            self:RefreshKamiCloseButtonStyle()
+        end)
+
+        button:HookScript("OnDisable", function(self)
+            self:RefreshKamiCloseButtonStyle()
+        end)
+
+        button:HookScript("OnShow", function(self)
+            self:RefreshKamiCloseButtonStyle()
+        end)
+    end
+
+    button:RefreshKamiCloseButtonStyle()
+
+    return button
+end
+
