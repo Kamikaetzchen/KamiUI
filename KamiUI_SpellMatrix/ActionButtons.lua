@@ -142,11 +142,9 @@ local function RefreshButton(button)
             Palette:GetReadablePowerColor(resourceToken)
 
         if resourceToken == "MANA" then
-            local whiteMix = 0.25
-
-            r = r * (1 - whiteMix) + whiteMix
-            g = g * (1 - whiteMix) + whiteMix
-            b = b * (1 - whiteMix) + whiteMix
+            r = 0x00 / 255
+            g = 0x88 / 255
+            b = 0xFF / 255
         end
 
         local resourceColor = { r, g, b, 1 }
