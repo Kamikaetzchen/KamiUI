@@ -30,6 +30,8 @@ local OBJECTIVE_INDENT =
         + QUEST_TITLE_GAP
 local QUEST_SPACING = 5
 local OBJECTIVE_SPACING = 1
+local OBJECTIVE_COUNT_WIDTH = 34
+local OBJECTIVE_COUNT_GAP = 5
 
 local OBJECTIVE_DATABASE_DEFAULTS = {
     minimized = false,
@@ -316,6 +318,7 @@ local function CreateQuestRow(parent)
     highlight:SetColorTexture(1, 1, 1, 0.05)
 
     row.objectives = {}
+    row.objectiveCounts = {}
 
     row:SetScript("OnClick", function(self)
         if self.onClick then
@@ -352,6 +355,24 @@ local function GetObjectiveFont(row, index)
     row.objectives[index] = text
 
     return text
+end
+
+local function GetObjectiveCountFont(row, index)
+    local count = row.objectiveCounts[index]
+
+    if count then
+        return count
+    end
+
+    count = row:CreateFontString(nil, "OVERLAY")
+    count:SetWidth(OBJECTIVE_COUNT_WIDTH)
+    count:SetJustifyH("RIGHT")
+    count:SetJustifyV("TOP")
+    count:SetWordWrap(false)
+    count:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+    row.objectiveCounts[index] = count
+
+    return count
 end
 
 local function UpdateQuestItemButton(row, questItem)
@@ -496,44 +517,77 @@ local function UpdateQuestRow(row, item, y)
 
     for index, objective in ipairs(item.objectives or {}) do
         local text = GetObjectiveFont(row, index)
-
-        text:SetWidth(
+        local count = GetObjectiveCountFont(row, index)
+        local hasCount =
+            objective.countText ~= nil
+            and objective.countText ~= ""
+        local textWidth =
             PANEL_WIDTH
                 - SECTION_INDENT
                 - QUEST_INDENT
                 - objectiveIndent
                 - CONTENT_PADDING
                 - 4
-        )
+
+        if hasCount then
+            textWidth = textWidth
+                - OBJECTIVE_COUNT_WIDTH
+                - OBJECTIVE_COUNT_GAP
+        end
+
+        text:SetWidth(textWidth)
         text:ClearAllPoints()
-        text:SetPoint(
-            "TOPLEFT",
-            row,
-            "TOPLEFT",
-            objectiveIndent,
-            -titleHeight
-        )
 
         if index > 1 then
             local previousText = row.objectives[index - 1]
 
-            if previousText and previousText:IsShown() then
-                text:ClearAllPoints()
-                text:SetPoint(
-                    "TOPLEFT",
-                    previousText,
-                    "BOTTOMLEFT",
-                    0,
-                    -OBJECTIVE_SPACING
-                )
-            end
+            text:SetPoint(
+                "TOPLEFT",
+                previousText,
+                "BOTTOMLEFT",
+                hasCount
+                    and OBJECTIVE_COUNT_WIDTH
+                        + OBJECTIVE_COUNT_GAP
+                    or 0,
+                -OBJECTIVE_SPACING
+            )
+        else
+            text:SetPoint(
+                "TOPLEFT",
+                row,
+                "TOPLEFT",
+                objectiveIndent
+                    + (hasCount
+                        and OBJECTIVE_COUNT_WIDTH
+                            + OBJECTIVE_COUNT_GAP
+                        or 0),
+                -titleHeight
+            )
         end
-        text:SetText("- " .. (objective.text or ""))
+
+        if hasCount then
+            count:ClearAllPoints()
+            count:SetPoint(
+                "TOPRIGHT",
+                text,
+                "TOPLEFT",
+                -OBJECTIVE_COUNT_GAP,
+                0
+            )
+            count:SetText(objective.countText)
+            count:Show()
+            text:SetText(objective.text or "")
+        else
+            count:Hide()
+            text:SetText("- " .. (objective.text or ""))
+        end
 
         if objective.finished then
             text:SetTextColor(unpack(Palette.success))
+            count:SetTextColor(unpack(Palette.success))
         else
             text:SetTextColor(unpack(Palette.muted))
+            count:SetTextColor(unpack(Palette.muted))
         end
 
         text:Show()
@@ -552,6 +606,10 @@ local function UpdateQuestRow(row, item, y)
 
     for index = #(item.objectives or {}) + 1, #row.objectives do
         row.objectives[index]:Hide()
+
+        if row.objectiveCounts[index] then
+            row.objectiveCounts[index]:Hide()
+        end
     end
 
     row:SetHeight(height)
