@@ -16,11 +16,14 @@ local SECTION_HEADER_HEIGHT = 20
 local HEADER_INDENT = 2
 local SECTION_INDENT = 4
 local QUEST_INDENT = 2
+local QUEST_SELECT_SIZE = 10
+local QUEST_SELECT_GAP = 3
 local QUEST_LEVEL_WIDTH = 34
 local QUEST_TITLE_GAP = 5
 local QUEST_ITEM_SIZE = 18
 local QUEST_ITEM_GAP = 4
-local OBJECTIVE_INDENT = 52
+local OBJECTIVE_INDENT =
+    52 + QUEST_SELECT_SIZE + QUEST_SELECT_GAP
 local QUEST_SPACING = 4
 local OBJECTIVE_SPACING = 1
 
@@ -136,13 +139,98 @@ local function OpenQuest(questID)
     end
 end
 
+local function GetSuperTrackedQuestID()
+    if C_SuperTrack
+        and C_SuperTrack.GetSuperTrackedQuestID
+    then
+        return C_SuperTrack.GetSuperTrackedQuestID()
+    end
+
+    return nil
+end
+
+local function ToggleSuperTrackedQuest(questID)
+    if not questID
+        or not C_SuperTrack
+        or not C_SuperTrack.SetSuperTrackedQuestID
+    then
+        return
+    end
+
+    local current = GetSuperTrackedQuestID()
+
+    C_SuperTrack.SetSuperTrackedQuestID(
+        current == questID and 0 or questID
+    )
+
+    Module:Refresh()
+end
+
 local function CreateQuestRow(parent)
     local row = CreateFrame("Button", nil, parent)
     row:SetHeight(18)
     row:RegisterForClicks("LeftButtonUp")
 
+    local selectButton = CreateFrame("Button", nil, row)
+    selectButton:SetSize(QUEST_SELECT_SIZE, QUEST_SELECT_SIZE)
+    selectButton:SetPoint("TOPLEFT", row, "TOPLEFT", 0, -3)
+    selectButton:RegisterForClicks("LeftButtonUp")
+
+    local selectBackground =
+        selectButton:CreateTexture(nil, "BACKGROUND")
+    selectBackground:SetAllPoints()
+    selectBackground:SetColorTexture(0, 0, 0, 0.55)
+
+    local selectBorder =
+        selectButton:CreateTexture(nil, "BORDER")
+    selectBorder:SetPoint("TOPLEFT", -1, 1)
+    selectBorder:SetPoint("BOTTOMRIGHT", 1, -1)
+    selectBorder:SetColorTexture(0.22, 0.22, 0.24, 1)
+
+    local selectMark =
+        selectButton:CreateTexture(nil, "ARTWORK")
+    selectMark:SetPoint("TOPLEFT", 2, -2)
+    selectMark:SetPoint("BOTTOMRIGHT", -2, 2)
+    Styles:SetColor(selectMark, Palette.highlight)
+    selectMark:Hide()
+    selectButton.mark = selectMark
+
+    local selectHighlight =
+        selectButton:CreateTexture(nil, "HIGHLIGHT")
+    selectHighlight:SetAllPoints()
+    selectHighlight:SetColorTexture(1, 1, 1, 0.08)
+
+    selectButton:SetScript("OnClick", function()
+        ToggleSuperTrackedQuest(row.questID)
+    end)
+
+    selectButton:SetScript("OnEnter", function()
+        GameTooltip:SetOwner(
+            selectButton,
+            "ANCHOR_CURSOR_RIGHT"
+        )
+        GameTooltip:SetText(
+            row.questID == GetSuperTrackedQuestID()
+                and "Stop tracking quest"
+                or "Track quest"
+        )
+        GameTooltip:Show()
+    end)
+
+    selectButton:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
+
+    row.selectButton = selectButton
+
     local level = row:CreateFontString(nil, "OVERLAY")
-    level:SetPoint("TOPLEFT", row, "TOPLEFT", 0, -1)
+    level:SetPoint(
+        "TOPLEFT",
+        selectButton,
+        "TOPRIGHT",
+        QUEST_SELECT_GAP,
+        2
+    )
     level:SetWidth(QUEST_LEVEL_WIDTH)
     level:SetJustifyH("RIGHT")
     level:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
@@ -160,6 +248,8 @@ local function CreateQuestRow(parent)
         PANEL_WIDTH
             - SECTION_INDENT
             - QUEST_INDENT
+            - QUEST_SELECT_SIZE
+            - QUEST_SELECT_GAP
             - QUEST_LEVEL_WIDTH
             - QUEST_TITLE_GAP
             - CONTENT_PADDING
@@ -323,12 +413,20 @@ local function UpdateQuestRow(row, item, y)
     Styles:SetTextColor(row.level, difficultyColor)
     row.title:SetText(item.title or "Unknown Quest")
 
+    if row.selectButton and row.selectButton.mark then
+        row.selectButton.mark:SetShown(
+            item.questID == GetSuperTrackedQuestID()
+        )
+    end
+
     UpdateQuestItemButton(row, item.questItem)
 
     local titleWidth =
         PANEL_WIDTH
             - SECTION_INDENT
             - QUEST_INDENT
+            - QUEST_SELECT_SIZE
+            - QUEST_SELECT_GAP
             - QUEST_LEVEL_WIDTH
             - QUEST_TITLE_GAP
             - CONTENT_PADDING
@@ -381,10 +479,12 @@ local function UpdateQuestRow(row, item, y)
 
         text:Show()
 
-        local objectiveHeight = math.max(
-            14,
-            math.ceil(text:GetStringHeight() or 14)
-        )
+        local objectiveHeight =
+            math.ceil(text:GetStringHeight() or 0)
+
+        if objectiveHeight <= 0 then
+            objectiveHeight = 10
+        end
 
         height = height + OBJECTIVE_SPACING + objectiveHeight
     end
@@ -697,6 +797,8 @@ function Module:Initialize()
         "QUEST_TURNED_IN",
         "QUEST_POI_UPDATE",
         "QUEST_DATA_LOAD_RESULT",
+        "SUPER_TRACKING_CHANGED",
+        "SUPER_TRACKING_PATH_UPDATED",
     }) do
         UI:RegisterEvent(event, ScheduleRefresh)
     end
