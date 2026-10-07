@@ -1346,52 +1346,19 @@ local function CreateCraftingPage(frame)
     Styles:ApplyText(recipeSubTitle, 9, Palette.muted)
     frame.recipeSubTitle = recipeSubTitle
 
-    local trackRecipe = CreateFrame("CheckButton", nil, right)
-    trackRecipe:SetSize(14, 14)
+    local trackRecipe = Components:CreateCheckbox(
+        right,
+        {
+            size = 14,
+            width = 116,
+            height = 14,
+            label = PROFESSIONS_TRACK_RECIPE or "Track Recipe",
+            labelSide = "LEFT",
+            labelGap = 5,
+        }
+    )
     trackRecipe:SetPoint("TOPRIGHT", right, "TOPRIGHT", -2, -1)
     trackRecipe:RegisterForClicks("LeftButtonUp")
-
-    local trackBackground =
-        trackRecipe:CreateTexture(nil, "BACKGROUND")
-    trackBackground:SetAllPoints()
-    Styles:SetColor(trackBackground, Palette.panelStrong)
-
-    local trackBorder =
-        trackRecipe:CreateTexture(nil, "BORDER")
-    trackBorder:SetPoint("TOPLEFT", -1, 1)
-    trackBorder:SetPoint("BOTTOMRIGHT", 1, -1)
-    Styles:SetColor(trackBorder, Palette.border)
-
-    local trackMark =
-        trackRecipe:CreateTexture(nil, "ARTWORK")
-    trackMark:SetPoint("TOPLEFT", 3, -3)
-    trackMark:SetPoint("BOTTOMRIGHT", -3, 3)
-    Styles:SetColor(trackMark, Palette.highlight)
-    trackMark:Hide()
-    trackRecipe.mark = trackMark
-
-    local trackHighlight =
-        trackRecipe:CreateTexture(nil, "HIGHLIGHT")
-    trackHighlight:SetAllPoints()
-    Styles:SetColor(trackHighlight, Palette.white, 0.08)
-
-    local trackLabel = right:CreateFontString(
-        nil,
-        "OVERLAY",
-        "GameFontNormalSmall"
-    )
-    trackLabel:SetPoint(
-        "RIGHT",
-        trackRecipe,
-        "LEFT",
-        -5,
-        0
-    )
-    trackLabel:SetJustifyH("RIGHT")
-    Styles:ApplyText(trackLabel, 9, Palette.muted)
-    trackLabel:SetText(PROFESSIONS_TRACK_RECIPE or "Track Recipe")
-    trackLabel:Hide()
-    trackRecipe.label = trackLabel
 
     trackRecipe:SetScript("OnClick", function(self)
         local recipeID = Module.selectedRecipeID
@@ -2333,10 +2300,12 @@ function Module:RefreshRecipeDetails()
     frame.recipeSubTitle:SetText("")
 
     if frame.trackRecipe then
-        frame.trackRecipe:SetChecked(false)
-        frame.trackRecipe.mark:Hide()
+        Components:SetToggleState(
+            frame.trackRecipe,
+            false,
+            true
+        )
         frame.trackRecipe:Hide()
-        frame.trackRecipe.label:Hide()
     end
 
     frame.quantityMinus:Disable()
@@ -2406,10 +2375,12 @@ function Module:RefreshRecipeDetails()
             isRecraft
         ) == true
 
-        frame.trackRecipe:SetChecked(tracked)
-        frame.trackRecipe.mark:SetShown(tracked)
+        Components:SetToggleState(
+            frame.trackRecipe,
+            tracked,
+            true
+        )
         frame.trackRecipe:Show()
-        frame.trackRecipe.label:Show()
     end
 
     local craftable = C_TradeSkillUI.GetCraftableCount
