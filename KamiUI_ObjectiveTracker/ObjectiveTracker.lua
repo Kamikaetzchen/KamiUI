@@ -672,7 +672,10 @@ local function UpdateHeightModeButton(frame)
 
     local limited = GetDatabase().heightLimited ~= false
 
-    frame.heightModeButton:SetText(limited and "35%" or "MAX")
+    Components:SetButtonText(
+        frame.heightModeButton,
+        limited and "35%" or "Max"
+    )
 end
 
 function Module:SetHeightLimited(limited)
