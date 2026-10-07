@@ -577,7 +577,7 @@ local function SetOverviewAbilityTooltip(button)
         return
     end
 
-    GameTooltip:SetOwner(button, "ANCHOR_RIGHT")
+    GameTooltip:SetOwner(button, "ANCHOR_CURSOR_RIGHT")
 
     local ability = button.ability
     local shown = false
@@ -1102,7 +1102,7 @@ local function CreateCharacterMenu(frame, header)
     frame.characterDropdown = characterDropdown
 
     characterButton:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetOwner(self, "ANCHOR_CURSOR_RIGHT")
         GameTooltip:SetText("Characters")
         GameTooltip:Show()
     end)
