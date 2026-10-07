@@ -145,27 +145,15 @@ local function GetOwnedQuantity(slot)
     return quantity
 end
 
-local function FormatReagentText(owned, required, name)
-    local countText
-
+local function FormatReagentCount(owned, required)
     if PROFESSIONS_TRACKER_REAGENT_COUNT_FORMAT then
-        countText =
-            PROFESSIONS_TRACKER_REAGENT_COUNT_FORMAT:format(
-                owned,
-                required
-            )
-    else
-        countText = string.format("%d/%d", owned, required)
-    end
-
-    if PROFESSIONS_TRACKER_REAGENT_FORMAT then
-        return PROFESSIONS_TRACKER_REAGENT_FORMAT:format(
-            countText,
-            name
+        return PROFESSIONS_TRACKER_REAGENT_COUNT_FORMAT:format(
+            owned,
+            required
         )
     end
 
-    return countText .. " " .. name
+    return string.format("%d/%d", owned, required)
 end
 
 local function GetRecipeData(recipeID, isRecraft)
@@ -223,11 +211,11 @@ local function GetRecipeData(recipeID, isRecraft)
 
             if required > 0 then
                 objectives[#objectives + 1] = {
-                    text = FormatReagentText(
+                    countText = FormatReagentCount(
                         owned,
-                        required,
-                        reagentName
+                        required
                     ),
+                    text = reagentName,
                     finished = owned >= required,
                 }
             end
