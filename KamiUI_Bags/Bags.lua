@@ -1,6 +1,7 @@
 local UI = KamiUI
 local Palette = UI.Palette
 local Components = UI.Components
+local Styles = UI.Styles
 
 local Module = UI:NewModule("Bags", "KamiUI_Bags")
 
@@ -518,6 +519,435 @@ local function GetBagName(bagID)
     return "Bag " .. tostring(bagID)
 end
 
+local bagContextMenu
+
+local function IsMouseFocusInside(frame)
+    if not frame then
+        return false
+    end
+
+    local foci = {}
+
+    if GetMouseFoci then
+        foci = { GetMouseFoci() }
+    elseif GetMouseFocus then
+        local focus = GetMouseFocus()
+
+        if focus then
+            foci[1] = focus
+        end
+    end
+
+    for _, focus in ipairs(foci) do
+        local current = focus
+
+        while current do
+            if current == frame then
+                return true
+            end
+
+            current = current.GetParent
+                and current:GetParent()
+                or nil
+        end
+    end
+
+    return false
+end
+
+local function HideBagContextMenu()
+    if bagContextMenu then
+        bagContextMenu:Hide()
+    end
+end
+
+local function IsBackpack(bagID)
+    return bagID == (BACKPACK_CONTAINER or 0)
+end
+
+local function IsReagentBag(bagID)
+    return Enum
+        and Enum.BagIndex
+        and Enum.BagIndex.ReagentBag ~= nil
+        and bagID == Enum.BagIndex.ReagentBag
+end
+
+local function IsProfessionBag(bagID)
+    if IsBackpack(bagID) or IsReagentBag(bagID) then
+        return false
+    end
+
+    if not IsInventoryItemProfessionBag then
+        return false
+    end
+
+    local inventoryID = UI:GetBagInventoryID(bagID)
+
+    return inventoryID ~= nil
+        and IsInventoryItemProfessionBag("player", inventoryID)
+end
+
+local function CanAssignBagFilters(bagID)
+    local keyring = KEYRING_CONTAINER
+        or (Enum and Enum.BagIndex and Enum.BagIndex.Keyring)
+
+    return bagID ~= keyring
+        and not IsBackpack(bagID)
+        and not IsReagentBag(bagID)
+        and not IsProfessionBag(bagID)
+end
+
+local function GetBagSlotFlag(bagID, flag)
+    if not flag
+        or not C_Container
+        or not C_Container.GetBagSlotFlag
+    then
+        return false
+    end
+
+    return C_Container.GetBagSlotFlag(bagID, flag) == true
+end
+
+local function SetBagSlotFlag(bagID, flag, value)
+    if not flag
+        or not C_Container
+        or not C_Container.SetBagSlotFlag
+    then
+        return
+    end
+
+    C_Container.SetBagSlotFlag(bagID, flag, value == true)
+end
+
+local function GetCleanupIgnored(bagID)
+    if IsBackpack(bagID)
+        and C_Container
+        and C_Container.GetBackpackAutosortDisabled
+    then
+        return C_Container.GetBackpackAutosortDisabled() == true
+    end
+
+    local flag = Enum
+        and Enum.BagSlotFlags
+        and Enum.BagSlotFlags.DisableAutoSort
+
+    return GetBagSlotFlag(bagID, flag)
+end
+
+local function SetCleanupIgnored(bagID, value)
+    if IsBackpack(bagID)
+        and C_Container
+        and C_Container.SetBackpackAutosortDisabled
+    then
+        C_Container.SetBackpackAutosortDisabled(value == true)
+        return
+    end
+
+    local flag = Enum
+        and Enum.BagSlotFlags
+        and Enum.BagSlotFlags.DisableAutoSort
+
+    SetBagSlotFlag(bagID, flag, value)
+end
+
+local function GetJunkSellIgnored(bagID)
+    if IsBackpack(bagID)
+        and C_Container
+        and C_Container.GetBackpackSellJunkDisabled
+    then
+        return C_Container.GetBackpackSellJunkDisabled() == true
+    end
+
+    local flag = Enum
+        and Enum.BagSlotFlags
+        and Enum.BagSlotFlags.ExcludeJunkSell
+
+    return GetBagSlotFlag(bagID, flag)
+end
+
+local function SetJunkSellIgnored(bagID, value)
+    if IsBackpack(bagID)
+        and C_Container
+        and C_Container.SetBackpackSellJunkDisabled
+    then
+        C_Container.SetBackpackSellJunkDisabled(value == true)
+        return
+    end
+
+    local flag = Enum
+        and Enum.BagSlotFlags
+        and Enum.BagSlotFlags.ExcludeJunkSell
+
+    SetBagSlotFlag(bagID, flag, value)
+end
+
+local function GetBagFilterEntries(bagID)
+    local entries = {}
+    local flags = Enum and Enum.BagSlotFlags
+
+    if CanAssignBagFilters(bagID) and flags then
+        entries[#entries + 1] = {
+            kind = "title",
+            text = BAG_FILTER_ASSIGN_TO or "Assign to Bag",
+        }
+
+        local filters = {
+            {
+                BAG_FILTER_EQUIPMENT or "Equipment",
+                flags.ClassEquipment,
+            },
+            {
+                BAG_FILTER_CONSUMABLES or "Consumables",
+                flags.ClassConsumables,
+            },
+            {
+                BAG_FILTER_PROFESSION_GOODS or "Profession Goods",
+                flags.ClassProfessionGoods,
+            },
+            {
+                BAG_FILTER_JUNK or "Junk",
+                flags.ClassJunk,
+            },
+            {
+                BAG_FILTER_QUEST_ITEMS or "Quest Items",
+                flags.ClassQuestItems,
+            },
+            {
+                BAG_FILTER_REAGENTS or "Reagents",
+                flags.ClassReagents,
+            },
+        }
+
+        for _, filter in ipairs(filters) do
+            local label = filter[1]
+            local flag = filter[2]
+
+            if flag then
+                entries[#entries + 1] = {
+                    kind = "check",
+                    text = label,
+                    checked = function()
+                        return GetBagSlotFlag(bagID, flag)
+                    end,
+                    onClick = function()
+                        SetBagSlotFlag(
+                            bagID,
+                            flag,
+                            not GetBagSlotFlag(bagID, flag)
+                        )
+                    end,
+                }
+            end
+        end
+    end
+
+    entries[#entries + 1] = {
+        kind = "title",
+        text = BAG_FILTER_IGNORE or "Ignore this bag",
+    }
+    entries[#entries + 1] = {
+        kind = "check",
+        text = BAG_FILTER_CLEANUP or "Cleanup",
+        checked = function()
+            return GetCleanupIgnored(bagID)
+        end,
+        onClick = function()
+            SetCleanupIgnored(
+                bagID,
+                not GetCleanupIgnored(bagID)
+            )
+        end,
+    }
+    entries[#entries + 1] = {
+        kind = "check",
+        text = SELL_ALL_JUNK_ITEMS_EXCLUDE_FLAG or "Sell Junk",
+        checked = function()
+            return GetJunkSellIgnored(bagID)
+        end,
+        onClick = function()
+            SetJunkSellIgnored(
+                bagID,
+                not GetJunkSellIgnored(bagID)
+            )
+        end,
+    }
+
+    return entries
+end
+
+local function AcquireBagContextRow(menu, index)
+    local row = Components:AcquirePopupMenuButton(
+        menu,
+        index,
+        menu.KamiPopupOptions
+    )
+
+    if not row.KamiBagContextCheck then
+        local check = CreateFrame(
+            "Frame",
+            nil,
+            row,
+            "BackdropTemplate"
+        )
+        check:SetSize(10, 10)
+        check:SetPoint("LEFT", row, "LEFT", 2, 0)
+        Styles:ApplyBackdrop(
+            check,
+            { 0, 0, 0, 0.55 },
+            Palette.emptyBorder
+        )
+
+        local fill = check:CreateTexture(nil, "ARTWORK")
+        fill:SetSize(6, 6)
+        fill:SetPoint("CENTER")
+        Styles:SetColor(fill, Palette.highlight)
+        check.fill = fill
+
+        row.KamiBagContextCheck = check
+    end
+
+    return row
+end
+
+local function BuildBagContextMenu(menu, bagID)
+    local entries = GetBagFilterEntries(bagID)
+    local options = menu.KamiPopupOptions or {}
+
+    for index, entry in ipairs(entries) do
+        local row = AcquireBagContextRow(menu, index)
+        local check = row.KamiBagContextCheck
+
+        row.text:ClearAllPoints()
+        row.text:SetPoint(
+            "LEFT",
+            row,
+            "LEFT",
+            entry.kind == "check" and 16 or 3,
+            0
+        )
+        row.text:SetPoint("RIGHT", row, "RIGHT", -3, 0)
+        row.text:SetText(entry.text or "")
+
+        row:SetScript("OnClick", nil)
+
+        if entry.kind == "title" then
+            check:Hide()
+            row:SetEnabled(false)
+            row:SetAlpha(1)
+            Styles:SetTextColor(row.text, Palette.gold)
+        else
+            check:Show()
+            check.fill:SetShown(
+                entry.checked and entry.checked() or false
+            )
+            row:SetEnabled(true)
+            row:SetAlpha(1)
+            Styles:SetTextColor(row.text, Palette.text)
+            row:SetScript("OnClick", function()
+                if entry.onClick then
+                    entry.onClick()
+                end
+
+                menu:Hide()
+            end)
+        end
+
+        row:Show()
+    end
+
+    Components:FinishPopupMenu(
+        menu,
+        #entries,
+        options
+    )
+end
+
+local function EnsureBagContextMenu(parent)
+    if bagContextMenu then
+        return bagContextMenu
+    end
+
+    local menu = Components:CreatePopupMenu(
+        parent,
+        parent,
+        {
+            width = 164,
+            rowHeight = 18,
+            inset = 4,
+            textInset = 3,
+            fontSize = 9,
+            frameStrata = "DIALOG",
+        }
+    )
+
+    menu:SetScript("OnEvent", function(self, event)
+        if event ~= "GLOBAL_MOUSE_DOWN" then
+            return
+        end
+
+        if IsMouseFocusInside(self)
+            or IsMouseFocusInside(self.anchor)
+        then
+            return
+        end
+
+        self:Hide()
+    end)
+
+    menu:HookScript("OnShow", function(self)
+        if self.RegisterEvent then
+            pcall(
+                self.RegisterEvent,
+                self,
+                "GLOBAL_MOUSE_DOWN"
+            )
+        end
+    end)
+
+    menu:HookScript("OnHide", function(self)
+        if self.UnregisterEvent then
+            pcall(
+                self.UnregisterEvent,
+                self,
+                "GLOBAL_MOUSE_DOWN"
+            )
+        end
+
+        self.anchor = nil
+    end)
+
+    bagContextMenu = menu
+
+    return menu
+end
+
+local function ShowBagContextMenu(button)
+    if not button or button.isCached then
+        return
+    end
+
+    local menu = EnsureBagContextMenu(Module.frame)
+
+    if menu:IsShown() and menu.anchor == button then
+        menu:Hide()
+        return
+    end
+
+    menu:Hide()
+    menu.anchor = button
+    menu:ClearAllPoints()
+    menu:SetPoint(
+        "TOPLEFT",
+        button,
+        "BOTTOMLEFT",
+        0,
+        -2
+    )
+
+    BuildBagContextMenu(menu, button.bagID)
+    menu:Show()
+end
+
 local function SaveCurrentCharacter()
     local db = GetDatabase()
     local key = UI:GetCurrentCharacterKey()
@@ -619,10 +1049,20 @@ local function CreateBagBarButton(parent)
         border = false,
     })
 
-    button:RegisterForClicks("LeftButtonUp")
+    button:RegisterForClicks(
+        "LeftButtonUp",
+        "RightButtonUp"
+    )
     button:RegisterForDrag("LeftButton")
 
-    button:SetScript("OnClick", function(self)
+    button:SetScript("OnClick", function(self, mouseButton)
+        if mouseButton == "RightButton" then
+            ShowBagContextMenu(self)
+            return
+        end
+
+        HideBagContextMenu()
+
         if self.isCached then
             local db = GetDatabase()
             db.hiddenBags[self.bagID] = not db.hiddenBags[self.bagID]
@@ -690,6 +1130,7 @@ local function CreateBagBarButton(parent)
         if inventoryID and GameTooltip:SetInventoryItem("player", inventoryID) then
             GameTooltip:AddLine(" ")
             GameTooltip:AddLine("Click: show/hide bag", 0.75, 0.75, 0.75)
+            GameTooltip:AddLine("Right-click: bag settings", 0.75, 0.75, 0.75)
             GameTooltip:AddLine("Drag: equip/swap bag", 0.75, 0.75, 0.75)
             GameTooltip:Show()
             return
@@ -697,6 +1138,7 @@ local function CreateBagBarButton(parent)
 
         GameTooltip:SetText(GetBagName(self.bagID))
         GameTooltip:AddLine("Click: show/hide bag", 0.75, 0.75, 0.75)
+        GameTooltip:AddLine("Right-click: bag settings", 0.75, 0.75, 0.75)
         GameTooltip:Show()
     end)
 
@@ -1331,6 +1773,7 @@ local function CreateFrameUI()
     end)
 
     frame:SetScript("OnHide", function()
+        HideBagContextMenu()
         Module.viewCharacterKey = nil
         GameTooltip:Hide()
 
