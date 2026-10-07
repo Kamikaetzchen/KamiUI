@@ -216,7 +216,7 @@ local function GetMoneyCharacters()
 end
 
 local function PrepareTooltip(owner, title)
-    GameTooltip:SetOwner(owner, "ANCHOR_BOTTOM")
+    GameTooltip:SetOwner(owner, "ANCHOR_CURSOR_RIGHT")
     GameTooltip:ClearLines()
     GameTooltip:AddLine(title, 1, 0.82, 0)
 end
