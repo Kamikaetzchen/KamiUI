@@ -48,12 +48,30 @@ local function GetCurrencyCount(currencyID)
 end
 
 local function GetReagentName(reagent, slot)
-    if reagent and reagent.itemID and GetItemInfo then
-        local name = GetItemInfo(reagent.itemID)
+    local itemID = reagent and reagent.itemID
 
-        if name then
-            return name
+    if itemID then
+        if GetItemInfo then
+            local name = GetItemInfo(itemID)
+
+            if name then
+                return name
+            end
         end
+
+        if C_Item and C_Item.GetItemNameByID then
+            local name = C_Item.GetItemNameByID(itemID)
+
+            if name then
+                return name
+            end
+        end
+
+        if C_Item and C_Item.RequestLoadItemDataByID then
+            C_Item.RequestLoadItemDataByID(itemID)
+        end
+
+        return "Item " .. tostring(itemID)
     end
 
     if reagent
