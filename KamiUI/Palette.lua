@@ -108,7 +108,7 @@ function Palette:GetReadablePowerColor(powerToken, multiplier)
     local b = color.b or color[3] or 1
 
     if powerToken == "MANA" then
-        local whiteMix = 0.30
+        local whiteMix = 0.20
 
         r = r * (1 - whiteMix) + whiteMix
         g = g * (1 - whiteMix) + whiteMix
