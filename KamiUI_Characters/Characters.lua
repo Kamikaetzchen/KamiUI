@@ -1900,14 +1900,10 @@ local function CreateReputationPane(frame)
     pane.rows = {}
     frame.reputationPane = pane
 
-    local listPanel = CreateFrame("Frame", nil, pane, "BackdropTemplate")
+    local listPanel = CreateFrame("Frame", nil, pane)
     listPanel:SetPoint("TOPLEFT", 0, 0)
     listPanel:SetPoint("BOTTOMLEFT", 0, 0)
     listPanel:SetWidth(SPLIT_WIDTH)
-    listPanel:SetBackdrop({
-        bgFile = "Interface\\Buttons\\WHITE8X8",
-    })
-    listPanel:SetBackdropColor(0, 0, 0, 0.24)
 
     local list = CreateFrame("ScrollFrame", nil, listPanel)
     list:SetPoint("TOPLEFT", 1, -1)
@@ -1997,20 +1993,10 @@ local function CreateReputationPane(frame)
         pane.UpdateScrollRange()
     end)
 
-    local detail = CreateFrame("Frame", nil, pane, "BackdropTemplate")
+    local detail = CreateFrame("Frame", nil, pane)
     detail:SetPoint("TOPLEFT", listPanel, "TOPRIGHT", 0, 0)
     detail:SetPoint("BOTTOMRIGHT", pane, "BOTTOMRIGHT", 0, 0)
-    detail:SetBackdrop({
-        bgFile = "Interface\\Buttons\\WHITE8X8",
-    })
-    detail:SetBackdropColor(0, 0, 0, 0.30)
     pane.detail = detail
-
-    local topDivider = pane:CreateTexture(nil, "OVERLAY")
-    topDivider:SetPoint("TOPLEFT", pane, "TOPLEFT", 0, 0)
-    topDivider:SetPoint("TOPRIGHT", pane, "TOPRIGHT", 0, 0)
-    topDivider:SetHeight(1)
-    topDivider:SetColorTexture(unpack(Palette.border))
 
     local splitDivider = pane:CreateTexture(nil, "OVERLAY")
     splitDivider:SetPoint(
@@ -2137,11 +2123,21 @@ local function CreateReputationPane(frame)
             return
         end
 
-        if C_Reputation.SetWatchedFactionByIndex then
-            UI:SafeCall(
-                C_Reputation.SetWatchedFactionByIndex,
-                pane.selectedIndex
-            )
+        local data = GetFactionData(pane.selectedIndex)
+        local isWatched = data and data.isWatched == true
+
+        if isWatched then
+            if C_Reputation.SetWatchedFactionByID then
+                UI:SafeCall(
+                    C_Reputation.SetWatchedFactionByID,
+                    0
+                )
+            elseif C_Reputation.SetWatchedFactionByIndex then
+                UI:SafeCall(
+                    C_Reputation.SetWatchedFactionByIndex,
+                    0
+                )
+            end
         elseif pane.selectedFactionID
             and C_Reputation.SetWatchedFactionByID
         then
@@ -2149,9 +2145,21 @@ local function CreateReputationPane(frame)
                 C_Reputation.SetWatchedFactionByID,
                 pane.selectedFactionID
             )
+        elseif C_Reputation.SetWatchedFactionByIndex then
+            UI:SafeCall(
+                C_Reputation.SetWatchedFactionByIndex,
+                pane.selectedIndex
+            )
         end
 
         UpdateReputationPane(frame)
+
+        local xpBar = UI.GetModule
+            and UI:GetModule("XPBar")
+
+        if xpBar and xpBar.Refresh then
+            xpBar:Refresh()
+        end
     end)
 
     SetReputationOptionState(pane.atWarOption, false, false)
@@ -2555,14 +2563,10 @@ local function CreateSkillsPane(frame)
     pane.elapsed = 0
     frame.skillsPane = pane
 
-    local listPanel = CreateFrame("Frame", nil, pane, "BackdropTemplate")
+    local listPanel = CreateFrame("Frame", nil, pane)
     listPanel:SetPoint("TOPLEFT", 0, 0)
     listPanel:SetPoint("BOTTOMLEFT", 0, 0)
     listPanel:SetWidth(SPLIT_WIDTH)
-    listPanel:SetBackdrop({
-        bgFile = "Interface\\Buttons\\WHITE8X8",
-    })
-    listPanel:SetBackdropColor(0, 0, 0, 0.24)
 
     local list = CreateFrame("ScrollFrame", nil, listPanel)
     list:SetPoint("TOPLEFT", 1, -1)
@@ -2655,20 +2659,10 @@ local function CreateSkillsPane(frame)
         pane.UpdateScrollRange()
     end)
 
-    local detail = CreateFrame("Frame", nil, pane, "BackdropTemplate")
+    local detail = CreateFrame("Frame", nil, pane)
     detail:SetPoint("TOPLEFT", listPanel, "TOPRIGHT", 0, 0)
     detail:SetPoint("BOTTOMRIGHT", pane, "BOTTOMRIGHT", 0, 0)
-    detail:SetBackdrop({
-        bgFile = "Interface\\Buttons\\WHITE8X8",
-    })
-    detail:SetBackdropColor(0, 0, 0, 0.30)
     pane.detail = detail
-
-    local topDivider = pane:CreateTexture(nil, "OVERLAY")
-    topDivider:SetPoint("TOPLEFT", pane, "TOPLEFT", 0, 0)
-    topDivider:SetPoint("TOPRIGHT", pane, "TOPRIGHT", 0, 0)
-    topDivider:SetHeight(1)
-    topDivider:SetColorTexture(unpack(Palette.border))
 
     local splitDivider = pane:CreateTexture(nil, "OVERLAY")
     splitDivider:SetPoint(
@@ -3327,7 +3321,7 @@ local function LayoutOuterTabs(frame)
 end
 
 local function CreateSidebar(frame)
-    local sidebar = CreateFrame("Frame", nil, frame, "BackdropTemplate")
+    local sidebar = CreateFrame("Frame", nil, frame)
     sidebar:SetPoint(
         "TOPRIGHT",
         frame,
@@ -3337,14 +3331,14 @@ local function CreateSidebar(frame)
     )
     sidebar:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -1, 1)
     sidebar:SetWidth(SIDEBAR_WIDTH)
-    sidebar:SetBackdrop({
-        bgFile = "Interface\\Buttons\\WHITE8X8",
-        edgeFile = "Interface\\Buttons\\WHITE8X8",
-        edgeSize = 1,
-    })
-    sidebar:SetBackdropColor(0, 0, 0, 0.40)
-    sidebar:SetBackdropBorderColor(unpack(Palette.border))
     frame.sidebar = sidebar
+
+    local divider = sidebar:CreateTexture(nil, "OVERLAY")
+    divider:SetPoint("TOPLEFT", sidebar, "TOPLEFT", 0, 0)
+    divider:SetPoint("BOTTOMLEFT", sidebar, "BOTTOMLEFT", 0, 0)
+    divider:SetWidth(1)
+    divider:SetColorTexture(unpack(Palette.border))
+    sidebar.divider = divider
 
     local statsTab = CreateFrame("Button", nil, sidebar)
     statsTab:SetPoint("TOPLEFT", sidebar, "TOPLEFT", 1, -1)

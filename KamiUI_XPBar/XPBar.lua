@@ -14,64 +14,108 @@ local defaults = {
     dividerColor = { 0, 0, 0, 0.9 },
 }
 
-local function HideNativeDividers(container)
-    local pool = container and container.HorizontalDividersPool
-
-    if not pool or not pool.EnumerateActive then
+local function SuppressNativeTrackingFrame(frame)
+    if not frame then
         return
     end
 
-    for divider in pool:EnumerateActive() do
-        divider:SetAlpha(0)
+    UI:SuppressFrame(frame)
+
+    if frame.KamiUITrackingSuppressed or not frame.HookScript then
+        return
     end
+
+    frame.KamiUITrackingSuppressed = true
+    frame:HookScript("OnShow", function(self)
+        UI:SuppressFrame(self)
+    end)
 end
 
-local function HideNativeXPBar()
-    if not StatusTrackingBarManager then
+local function SuppressNativeTrackingBars()
+    local manager = _G.StatusTrackingBarManager
+
+    if not manager then
         return
     end
 
-    for _, container in ipairs(
-        StatusTrackingBarManager.barContainers or {}
-    ) do
-        local shownBar = container.GetShownBar
-            and container:GetShownBar()
-            or nil
-        local showingXP = shownBar and shownBar.isExpBar
+    SuppressNativeTrackingFrame(manager)
 
-        if container.BarFrameTexture then
-            container.BarFrameTexture:SetAlpha(showingXP and 0 or 1)
-        end
-
-        if showingXP then
-            HideNativeDividers(container)
-        end
+    for _, container in ipairs(manager.barContainers or {}) do
+        SuppressNativeTrackingFrame(container)
 
         for _, bar in pairs(container.bars or {}) do
-            if bar.isExpBar then
-                bar:SetAlpha(0)
-
-                if bar.EnableMouse then
-                    bar:EnableMouse(false)
-                end
-
-            end
+            SuppressNativeTrackingFrame(bar)
         end
-
     end
-
 end
 
-local function ScheduleNativeXPBarHide()
-    HideNativeXPBar()
+local function GetWatchedFactionData()
+    if C_Reputation and C_Reputation.GetWatchedFactionData then
+        local data = UI:SafeCall(
+            C_Reputation.GetWatchedFactionData
+        )
 
-    if not C_Timer or not C_Timer.After then
-        return
+        if type(data) == "table" and data.name then
+            return data
+        end
     end
 
-    for _, delay in ipairs({ 0, 0.25, 1.0 }) do
-        C_Timer.After(delay, HideNativeXPBar)
+    if GetWatchedFactionInfo then
+        local name,
+            reaction,
+            lower,
+            upper,
+            standing,
+            factionID = GetWatchedFactionInfo()
+
+        if name then
+            return {
+                name = name,
+                reaction = reaction,
+                currentReactionThreshold = lower,
+                nextReactionThreshold = upper,
+                currentStanding = standing,
+                factionID = factionID,
+            }
+        end
     end
+
+    return nil
+end
+
+local function GetReputationProgress(data)
+    if not data then
+        return nil
+    end
+
+    local lower = tonumber(data.currentReactionThreshold) or 0
+    local upper = tonumber(data.nextReactionThreshold) or lower
+    local standing = tonumber(data.currentStanding) or lower
+
+    if upper <= lower then
+        return 1, 1
+    end
+
+    local maximum = upper - lower
+    local current = math.max(
+        0,
+        math.min(maximum, standing - lower)
+    )
+
+    return current, maximum
+end
+
+local function GetReputationColor(data)
+    local reaction = data and tonumber(data.reaction)
+    local color = reaction
+        and FACTION_BAR_COLORS
+        and FACTION_BAR_COLORS[reaction]
+
+    if color then
+        return color.r, color.g, color.b
+    end
+
+    return 0.18, 0.55, 0.18
 end
 
 local function UpdateDividers(frame)
@@ -94,25 +138,153 @@ local function UpdateDividers(frame)
 
     local innerWidth = width - 2
     local segmentWidth = innerWidth / defaults.segments
+    local topInset = frame.hasReputation and 4 or 1
 
     for index = 1, defaults.segments - 1 do
         local divider = frame.dividers[index]
         local x = 1 + math.floor(index * segmentWidth + 0.5)
 
         divider:ClearAllPoints()
-        divider:SetPoint("TOPLEFT", frame, "TOPLEFT", x, -1)
-        divider:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", x, 1)
+        divider:SetPoint(
+            "TOPLEFT",
+            frame,
+            "TOPLEFT",
+            x,
+            -topInset
+        )
+        divider:SetPoint(
+            "BOTTOMLEFT",
+            frame,
+            "BOTTOMLEFT",
+            x,
+            1
+        )
     end
 end
 
+local function LayoutBars(frame, hasReputation)
+    frame.hasReputation = hasReputation == true
+
+    frame.restedBar:ClearAllPoints()
+    frame.xpBar:ClearAllPoints()
+    frame.reputationBar:ClearAllPoints()
+
+    if frame.hasReputation then
+        frame.reputationBar:SetPoint(
+            "TOPLEFT",
+            frame,
+            "TOPLEFT",
+            1,
+            -1
+        )
+        frame.reputationBar:SetPoint(
+            "TOPRIGHT",
+            frame,
+            "TOPRIGHT",
+            -1,
+            -1
+        )
+        frame.reputationBar:SetHeight(2)
+        frame.reputationBar:Show()
+        frame.reputationDivider:Show()
+
+        frame.restedBar:SetPoint(
+            "TOPLEFT",
+            frame,
+            "TOPLEFT",
+            1,
+            -4
+        )
+        frame.restedBar:SetPoint(
+            "BOTTOMRIGHT",
+            frame,
+            "BOTTOMRIGHT",
+            -1,
+            1
+        )
+        frame.xpBar:SetPoint(
+            "TOPLEFT",
+            frame,
+            "TOPLEFT",
+            1,
+            -4
+        )
+        frame.xpBar:SetPoint(
+            "BOTTOMRIGHT",
+            frame,
+            "BOTTOMRIGHT",
+            -1,
+            1
+        )
+    else
+        frame.reputationBar:Hide()
+        frame.reputationDivider:Hide()
+
+        frame.restedBar:SetPoint(
+            "TOPLEFT",
+            frame,
+            "TOPLEFT",
+            1,
+            -1
+        )
+        frame.restedBar:SetPoint(
+            "BOTTOMRIGHT",
+            frame,
+            "BOTTOMRIGHT",
+            -1,
+            1
+        )
+        frame.xpBar:SetPoint(
+            "TOPLEFT",
+            frame,
+            "TOPLEFT",
+            1,
+            -1
+        )
+        frame.xpBar:SetPoint(
+            "BOTTOMRIGHT",
+            frame,
+            "BOTTOMRIGHT",
+            -1,
+            1
+        )
+    end
+
+    UpdateDividers(frame)
+end
+
 local function ShowTooltip(frame)
+    GameTooltip:SetOwner(frame, "ANCHOR_TOP")
+    GameTooltip:ClearLines()
+
+    if frame.reputationData then
+        local data = frame.reputationData
+        local r, g, b = GetReputationColor(data)
+
+        GameTooltip:AddLine(
+            data.name or "Reputation",
+            r,
+            g,
+            b
+        )
+        GameTooltip:AddLine(
+            string.format(
+                "%s/%s",
+                UI:FormatNumber(frame.reputationCurrent or 0),
+                UI:FormatNumber(frame.reputationMaximum or 0)
+            ),
+            1,
+            1,
+            1
+        )
+        GameTooltip:AddLine(" ")
+    end
+
     local currentXP = UnitXP("player") or 0
     local maxXP = UnitXPMax("player") or 0
     local restedXP = GetXPExhaustion and GetXPExhaustion() or 0
     restedXP = restedXP or 0
 
-    GameTooltip:SetOwner(frame, "ANCHOR_TOP")
-    GameTooltip:ClearLines()
     GameTooltip:AddLine("Experience", 1, 0.82, 0)
 
     local text = string.format(
@@ -151,16 +323,17 @@ local function CreateBar()
     background:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -1, 1)
     frame.background = background
 
+    local reputationBar = CreateFrame("StatusBar", nil, frame)
+    reputationBar:SetStatusBarTexture("Interface\\Buttons\\WHITE8X8")
+    reputationBar:EnableMouse(false)
+    reputationBar:Hide()
+
     local restedBar = CreateFrame("StatusBar", nil, frame)
-    restedBar:SetPoint("TOPLEFT", frame, "TOPLEFT", 1, -1)
-    restedBar:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -1, 1)
     restedBar:SetStatusBarTexture("Interface\\Buttons\\WHITE8X8")
     restedBar:SetStatusBarColor(unpack(defaults.restedColor))
     restedBar:EnableMouse(false)
 
     local xpBar = CreateFrame("StatusBar", nil, frame)
-    xpBar:SetPoint("TOPLEFT", frame, "TOPLEFT", 1, -1)
-    xpBar:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -1, 1)
     xpBar:SetStatusBarTexture("Interface\\Buttons\\WHITE8X8")
     xpBar:SetStatusBarColor(unpack(defaults.xpColor))
     xpBar:SetFrameLevel(restedBar:GetFrameLevel() + 1)
@@ -168,9 +341,35 @@ local function CreateBar()
 
     local overlay = CreateFrame("Frame", nil, frame)
     overlay:SetAllPoints(frame)
-    overlay:SetFrameLevel(xpBar:GetFrameLevel() + 100)
+    overlay:SetFrameLevel(
+        math.max(
+            reputationBar:GetFrameLevel(),
+            xpBar:GetFrameLevel()
+        ) + 100
+    )
     overlay:EnableMouse(true)
 
+    local reputationDivider = overlay:CreateTexture(nil, "OVERLAY")
+    reputationDivider:SetPoint(
+        "TOPLEFT",
+        frame,
+        "TOPLEFT",
+        0,
+        -3
+    )
+    reputationDivider:SetPoint(
+        "TOPRIGHT",
+        frame,
+        "TOPRIGHT",
+        0,
+        -3
+    )
+    reputationDivider:SetHeight(1)
+    reputationDivider:SetColorTexture(unpack(defaults.borderColor))
+    reputationDivider:Hide()
+
+    frame.reputationBar = reputationBar
+    frame.reputationDivider = reputationDivider
     frame.restedBar = restedBar
     frame.xpBar = xpBar
     frame.overlay = overlay
@@ -179,10 +378,11 @@ local function CreateBar()
         key = "KamiBorder",
         color = defaults.borderColor,
     })
-    UpdateDividers(overlay)
+
+    LayoutBars(frame, false)
 
     frame:SetScript("OnSizeChanged", function(self)
-        UpdateDividers(self.overlay)
+        UpdateDividers(self)
     end)
 
     overlay:SetScript("OnEnter", function()
@@ -198,7 +398,7 @@ end
 
 function Module:Refresh()
     CreateBar()
-    HideNativeXPBar()
+    SuppressNativeTrackingBars()
 
     if UI:GetBottomInset() <= 0 then
         self.frame:Hide()
@@ -217,12 +417,49 @@ function Module:Refresh()
     restedXP = restedXP or 0
 
     self.frame.restedBar:SetMinMaxValues(0, maxXP)
-    self.frame.restedBar:SetValue(math.min(currentXP + restedXP, maxXP))
+    self.frame.restedBar:SetValue(
+        math.min(currentXP + restedXP, maxXP)
+    )
 
     self.frame.xpBar:SetMinMaxValues(0, maxXP)
     self.frame.xpBar:SetValue(currentXP)
 
-    UpdateDividers(self.frame.overlay)
+    local reputationData = GetWatchedFactionData()
+    local reputationCurrent
+    local reputationMaximum
+
+    if reputationData then
+        reputationCurrent, reputationMaximum =
+            GetReputationProgress(reputationData)
+    end
+
+    local hasReputation =
+        reputationData ~= nil
+        and reputationCurrent ~= nil
+        and reputationMaximum ~= nil
+
+    self.frame.reputationData = hasReputation
+        and reputationData
+        or nil
+    self.frame.reputationCurrent = hasReputation
+        and reputationCurrent
+        or nil
+    self.frame.reputationMaximum = hasReputation
+        and reputationMaximum
+        or nil
+
+    if hasReputation then
+        local r, g, b = GetReputationColor(reputationData)
+
+        self.frame.reputationBar:SetMinMaxValues(
+            0,
+            reputationMaximum
+        )
+        self.frame.reputationBar:SetValue(reputationCurrent)
+        self.frame.reputationBar:SetStatusBarColor(r, g, b, 1)
+    end
+
+    LayoutBars(self.frame, hasReputation)
     self.frame:Show()
 end
 
@@ -234,10 +471,7 @@ function Module:Initialize()
     end)
 
     UI:RegisterEvent("PLAYER_ENTERING_WORLD", function()
-        C_Timer.After(0, function()
-            Module:Refresh()
-            ScheduleNativeXPBarHide()
-        end)
+        Module:Refresh()
     end)
 
     UI:RegisterEvent("PLAYER_XP_UPDATE", function()
@@ -245,27 +479,24 @@ function Module:Initialize()
     end)
 
     UI:RegisterEvent("PLAYER_LEVEL_UP", function()
-        C_Timer.After(0, function()
-            Module:Refresh()
-        end)
+        Module:Refresh()
     end)
 
     UI:RegisterEvent("UPDATE_EXHAUSTION", function()
         Module:Refresh()
     end)
 
+    UI:RegisterEvent("UPDATE_FACTION", function()
+        Module:Refresh()
+    end)
+
     UI:RegisterEvent("PLAYER_MAX_LEVEL_UPDATE", function()
-        C_Timer.After(0, function()
-            Module:Refresh()
-        end)
+        Module:Refresh()
     end)
 
     UI:RegisterEvent("ADDON_LOADED", function(_, addonName)
         if addonName == "Blizzard_StatusTrackingBar" then
-            C_Timer.After(0, function()
-                Module:Refresh()
-                ScheduleNativeXPBarHide()
-            end)
+            Module:Refresh()
         end
     end)
 end
