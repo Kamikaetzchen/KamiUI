@@ -140,16 +140,26 @@ function Module:GetSpellTooltipTexts(spellID)
     return ReadScannerSpell(spellID)
 end
 
+local function ParseResourceAmount(lower, token)
+    local amount = lower:match(
+        "^" .. NUMBER .. "%s+" .. token .. "$"
+    )
+
+    if not amount then
+        amount = lower:match(
+            "^" .. NUMBER .. "%s+" .. token .. "%s*/"
+        )
+    end
+
+    return ParseNumber(amount)
+end
+
 local function ParseResourceCost(texts)
     for _, text in ipairs(texts) do
         local lower = string.lower(text)
 
         for token, resourceType in pairs(RESOURCE_TYPES) do
-            local amount = lower:match(
-                "^" .. NUMBER .. "%s+" .. token .. "$"
-            )
-
-            amount = ParseNumber(amount)
+            local amount = ParseResourceAmount(lower, token)
 
             if amount then
                 return amount, resourceType
@@ -210,9 +220,7 @@ local function IsMetadataText(text, index)
     end
 
     for token in pairs(RESOURCE_TYPES) do
-        if lower:match(
-            "^" .. NUMBER .. "%s+" .. token .. "$"
-        ) then
+        if ParseResourceAmount(lower, token) then
             return true
         end
     end
@@ -246,6 +254,82 @@ local function IsPartialWeaponDamage(lower)
         1,
         true
     ) ~= nil
+end
+
+local function ParseComboPointDamage(lower)
+    local bestAmount
+    local bestDuration
+    local bestPoints = 0
+
+    local pointPatterns = {
+        "(%d+)%s+points?%s*:%s*",
+        "(%d+)%s+combo%s+points?%s*:%s*",
+    }
+
+    for _, pointPattern in ipairs(pointPatterns) do
+        local periodicPattern =
+            pointPattern
+            .. NUMBER
+            .. "%s+[%a%s]-damage%s+over%s+"
+            .. NUMBER
+            .. "%s*sec"
+
+        for points, amount, duration in lower:gmatch(
+            periodicPattern
+        ) do
+            points = tonumber(points)
+            amount = ParseNumber(amount)
+            duration = tonumber(duration)
+
+            if points
+                and amount
+                and duration
+                and (
+                    points == 5
+                    or (
+                        bestPoints ~= 5
+                        and points > bestPoints
+                    )
+                )
+            then
+                bestPoints = points
+                bestAmount = amount
+                bestDuration = duration
+            end
+        end
+    end
+
+    if bestAmount then
+        return bestAmount, bestDuration, bestPoints
+    end
+
+    for _, pointPattern in ipairs(pointPatterns) do
+        local directPattern =
+            pointPattern
+            .. NUMBER
+            .. "%s+[%a%s]-damage"
+
+        for points, amount in lower:gmatch(directPattern) do
+            points = tonumber(points)
+            amount = ParseNumber(amount)
+
+            if points
+                and amount
+                and (
+                    points == 5
+                    or (
+                        bestPoints ~= 5
+                        and points > bestPoints
+                    )
+                )
+            then
+                bestPoints = points
+                bestAmount = amount
+            end
+        end
+    end
+
+    return bestAmount, nil, bestPoints > 0 and bestPoints or nil
 end
 
 local function ParsePeriodicDamage(lower)
@@ -533,12 +617,25 @@ function Module:BuildSpellData(spellID)
 
     castTime = castTime or GetFallbackCastTime(spellID)
 
+    local comboDamage, comboDuration, comboPoints =
+        ParseComboPointDamage(lower)
     local periodicDamage, damageDuration =
         ParsePeriodicDamage(lower)
     local periodicHealing, healingDuration =
         ParsePeriodicHealing(lower)
 
-    local directDamage = ParseDirectDamage(
+    local comboDirectDamage
+
+    if comboDamage then
+        if comboDuration or damageDuration then
+            periodicDamage = comboDamage
+            damageDuration = comboDuration or damageDuration
+        else
+            comboDirectDamage = comboDamage
+        end
+    end
+
+    local directDamage = comboDirectDamage or ParseDirectDamage(
         lower,
         periodicDamage ~= nil
     )
@@ -603,6 +700,7 @@ function Module:BuildSpellData(spellID)
         periodicDuration = periodicDuration,
         resourceCost = cost,
         resourceType = resourceType,
+        comboPoints = comboPoints,
         castTime = castTime,
         instant = instant,
         channeled = channeled,
@@ -683,7 +781,10 @@ UI:RegisterCommand(
             "cost=" .. tostring(
                 analysis.resourceCost or 0
             ),
-            tostring(analysis.resourceType or "")
+            tostring(analysis.resourceType or ""),
+            "comboPoints=" .. tostring(
+                analysis.comboPoints or 0
+            )
         )
     end,
     "Dump parsed spell tooltip data"
