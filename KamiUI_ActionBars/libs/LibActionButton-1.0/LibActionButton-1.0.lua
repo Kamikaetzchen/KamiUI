@@ -2319,9 +2319,9 @@ end
 function UpdateTooltip(self)
 	if GameTooltip:IsForbidden() then return end
 	if (GetCVar("UberTooltips") == "1") then
-		GameTooltip_SetDefaultAnchor(GameTooltip, self);
+		GameTooltip:SetOwner(self, "ANCHOR_CURSOR_RIGHT");
 	else
-		GameTooltip:SetOwner(self, "ANCHOR_RIGHT");
+		GameTooltip:SetOwner(self, "ANCHOR_CURSOR_RIGHT");
 	end
 	if self:SetTooltip() then
 		self.UpdateTooltip = UpdateTooltip
