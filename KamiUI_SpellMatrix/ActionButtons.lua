@@ -1,4 +1,5 @@
 local UI = KamiUI
+local Palette = UI.Palette
 local Module = UI:GetModule("SpellMatrix")
 
 local refreshPending = false
@@ -6,6 +7,31 @@ local invalidatePending = false
 
 local fontPath, _, fontFlags =
     GameFontNormalSmall:GetFont()
+
+
+local function GetColorHex(color)
+    if not color then
+        return "ffffff"
+    end
+
+    local r = color.r or color[1] or 1
+    local g = color.g or color[2] or 1
+    local b = color.b or color[3] or 1
+
+    return string.format(
+        "%02x%02x%02x",
+        math.floor(r * 255 + 0.5),
+        math.floor(g * 255 + 0.5),
+        math.floor(b * 255 + 0.5)
+    )
+end
+
+local function ColorizeMetric(value, color)
+    return "|cff"
+        .. GetColorHex(color)
+        .. value
+        .. "|r"
+end
 
 local function GetActionBars()
     return UI.GetModule
@@ -99,12 +125,28 @@ local function RefreshButton(button)
         return
     end
 
-    local value = Module:FormatMetric(execution)
+    local outputColor = analysis.outputType == "healing"
+        and Palette.success
+        or Palette:GetPowerColor("RAGE")
+
+    local value = ColorizeMetric(
+        Module:FormatMetric(execution),
+        outputColor
+    )
 
     if full.efficiency then
+        local resourceToken = analysis.resourceType
+            and string.upper(analysis.resourceType)
+            or "MANA"
+        local resourceColor =
+            Palette:GetPowerColor(resourceToken)
+
         value = value
             .. "\n"
-            .. Module:FormatMetric(full.efficiency)
+            .. ColorizeMetric(
+                Module:FormatMetric(full.efficiency),
+                resourceColor
+            )
     end
 
     text:SetText(value)
