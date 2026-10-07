@@ -1610,26 +1610,7 @@ function Module:CreateFrame()
         end
     end)
 
-    frame:EnableKeyboard(true)
-
-    if frame.SetPropagateKeyboardInput then
-        frame:SetPropagateKeyboardInput(true)
-    end
-
-    frame:SetScript("OnKeyDown", function(self, key)
-        if key == "ESCAPE" then
-            if self.SetPropagateKeyboardInput then
-                self:SetPropagateKeyboardInput(false)
-            end
-
-            Module:CloseFrame()
-            return
-        end
-
-        if self.SetPropagateKeyboardInput then
-            self:SetPropagateKeyboardInput(true)
-        end
-    end)
+    Components:RegisterEscapeClose(frame)
 
     self.frame = frame
     return frame

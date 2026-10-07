@@ -57,7 +57,10 @@ end
 local function CreateLootRow(parent)
     local row = CreateFrame("Button", nil, parent)
     row:SetHeight(ROW_HEIGHT)
-    row:RegisterForClicks("LeftButtonUp")
+    row:RegisterForClicks(
+        "LeftButtonUp",
+        "RightButtonUp"
+    )
 
     Styles:EnsureBackground(
         row,

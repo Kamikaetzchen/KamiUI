@@ -4165,26 +4165,7 @@ local function CreateFrameUI()
         end
     end)
 
-    frame:EnableKeyboard(true)
-
-    if frame.SetPropagateKeyboardInput then
-        frame:SetPropagateKeyboardInput(true)
-    end
-
-    frame:SetScript("OnKeyDown", function(self, key)
-        if key == "ESCAPE" then
-            if self.SetPropagateKeyboardInput then
-                self:SetPropagateKeyboardInput(false)
-            end
-
-            Module:Hide()
-            return
-        end
-
-        if self.SetPropagateKeyboardInput then
-            self:SetPropagateKeyboardInput(true)
-        end
-    end)
+    Components:RegisterEscapeClose(frame)
 
     UI:ApplyFramePosition(frame, GetDatabase(), "position", 0, 10)
 
