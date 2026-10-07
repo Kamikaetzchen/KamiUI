@@ -199,6 +199,27 @@ function Components:CreateWindow(name, options)
     return frame, header
 end
 
+function Components:RegisterEscapeClose(frame)
+    if not frame or not frame.GetName then
+        return false
+    end
+
+    local name = frame:GetName()
+
+    if not name or name == "" or type(UISpecialFrames) ~= "table" then
+        return false
+    end
+
+    for _, registeredName in ipairs(UISpecialFrames) do
+        if registeredName == name then
+            return true
+        end
+    end
+
+    table.insert(UISpecialFrames, name)
+    return true
+end
+
 function Components:CreateWindowCloseButton(parent, options)
     if not parent then
         return nil

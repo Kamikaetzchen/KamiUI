@@ -1082,14 +1082,7 @@ end
 
 function Module:Hide()
     if self.frame and self.frame:IsShown() then
-        self.viewCharacterKey = nil
         self.frame:Hide()
-
-        if PlaySound then
-            PlaySound(
-                SOUNDKIT and SOUNDKIT.IG_BACKPACK_CLOSE or 863
-            )
-        end
     end
 end
 
@@ -1338,29 +1331,17 @@ local function CreateFrameUI()
     end)
 
     frame:SetScript("OnHide", function()
+        Module.viewCharacterKey = nil
         GameTooltip:Hide()
-    end)
 
-    frame:EnableKeyboard(true)
-
-    if frame.SetPropagateKeyboardInput then
-        frame:SetPropagateKeyboardInput(true)
-    end
-
-    frame:SetScript("OnKeyDown", function(self, key)
-        if key == "ESCAPE" then
-            if self.SetPropagateKeyboardInput then
-                self:SetPropagateKeyboardInput(false)
-            end
-
-            Module:Hide()
-            return
-        end
-
-        if self.SetPropagateKeyboardInput then
-            self:SetPropagateKeyboardInput(true)
+        if PlaySound then
+            PlaySound(
+                SOUNDKIT and SOUNDKIT.IG_BACKPACK_CLOSE or 863
+            )
         end
     end)
+
+    Components:RegisterEscapeClose(frame)
 
     UI:ApplyFramePosition(frame, GetDatabase(), "position", 280, 0)
 

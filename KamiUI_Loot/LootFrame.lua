@@ -392,26 +392,14 @@ function Module:CreateFrame()
     frame.content = content
     frame.rows = {}
 
-    frame:EnableKeyboard(true)
-
-    if frame.SetPropagateKeyboardInput then
-        frame:SetPropagateKeyboardInput(true)
-    end
-
-    frame:SetScript("OnKeyDown", function(self, key)
-        if key ~= "ESCAPE" then
-            if self.SetPropagateKeyboardInput then
-                self:SetPropagateKeyboardInput(true)
-            end
-            return
+    frame:SetScript("OnHide", function()
+        if Module.manualLootOpen then
+            Module.manualLootOpen = false
+            CloseLootWindow()
         end
-
-        if self.SetPropagateKeyboardInput then
-            self:SetPropagateKeyboardInput(false)
-        end
-
-        CloseLootWindow()
     end)
+
+    Components:RegisterEscapeClose(frame)
 
     self.frame = frame
 end
@@ -424,10 +412,12 @@ function Module:Initialize()
         if Module.ShouldAutoLoot
             and Module:ShouldAutoLoot(autoLoot)
         then
+            Module.manualLootOpen = false
             Module:Hide()
             return
         end
 
+        Module.manualLootOpen = true
         Module:Show()
     end)
 
@@ -450,6 +440,7 @@ function Module:Initialize()
     end)
 
     UI:RegisterEvent("LOOT_CLOSED", function()
+        Module.manualLootOpen = false
         Module:Hide()
     end)
 

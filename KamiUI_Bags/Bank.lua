@@ -1021,36 +1021,23 @@ local function CreateFrameUI()
     frame.sort = sort
 
 
-    frame:EnableKeyboard(true)
-
-    if frame.SetPropagateKeyboardInput then
-        frame:SetPropagateKeyboardInput(true)
-    end
-
-    frame:SetScript("OnKeyDown", function(self, key)
-        if key ~= "ESCAPE" then
-            if self.SetPropagateKeyboardInput then
-                self:SetPropagateKeyboardInput(true)
-            end
-            return
-        end
-
-        if self.SetPropagateKeyboardInput then
-            self:SetPropagateKeyboardInput(false)
-        end
-
-        if searchControl
-            and searchControl.editBox:IsShown()
-        then
-            searchControl:Close(true)
-        else
-            Module:Hide()
-        end
-    end)
-
     frame:SetScript("OnHide", function()
+        if bankOpen then
+            SaveCurrentBank()
+        end
+
+        Module.viewCharacterKey = nil
         GameTooltip:Hide()
+
+        if bankOpen
+            and C_Bank
+            and C_Bank.CloseBankFrame
+        then
+            C_Bank.CloseBankFrame()
+        end
     end)
+
+    Components:RegisterEscapeClose(frame)
 
     UI:ApplyFramePosition(frame, GetDatabase(), "bankPosition", -280, 0)
 
@@ -1069,19 +1056,8 @@ function Module:Show()
 end
 
 function Module:Hide()
-    if not self.frame or not self.frame:IsShown() then
-        return
-    end
-
-    if bankOpen then
-        SaveCurrentBank()
-    end
-
-    self.viewCharacterKey = nil
-    self.frame:Hide()
-
-    if bankOpen and C_Bank and C_Bank.CloseBankFrame then
-        C_Bank.CloseBankFrame()
+    if self.frame and self.frame:IsShown() then
+        self.frame:Hide()
     end
 end
 
