@@ -409,7 +409,7 @@ local function CreateBankBagButton(parent)
 
     button:SetScript("OnEnter", function(self)
         Module:SetBagSlotHighlight(self.bagID, true)
-        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:SetOwner(self, "ANCHOR_CURSOR_RIGHT")
         GameTooltip:SetText(self.tabName or "Bank")
 
         if self.emptyBagSlot then
@@ -481,7 +481,7 @@ local function CreateBankPurchaseButton(parent)
     highlight:SetColorTexture(1, 1, 1, 0.12)
 
     button:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:SetOwner(self, "ANCHOR_CURSOR_RIGHT")
         GameTooltip:SetText("Buy Bank Slot")
 
         if C_Bank and C_Bank.FetchNextPurchasableBankTabData
@@ -933,7 +933,7 @@ local function CreateFrameUI()
     frame.characterDropdown = characterDropdown
 
     characterButton:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetOwner(self, "ANCHOR_CURSOR_RIGHT")
         GameTooltip:SetText("Characters")
         GameTooltip:Show()
     end)
