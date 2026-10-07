@@ -791,7 +791,7 @@ local function CreateColumnHeader()
                 return
             end
 
-            GameTooltip:SetOwner(self, "ANCHOR_TOP")
+            GameTooltip:SetOwner(self, "ANCHOR_CURSOR_RIGHT")
             GameTooltip:SetText(self.tooltipText)
             GameTooltip:Show()
         end)
