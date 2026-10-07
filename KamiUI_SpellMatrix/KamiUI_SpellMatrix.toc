@@ -1,0 +1,14 @@
+## Interface: 16001
+## Title: KamiUI - Spell Matrix
+## Notes: Spell throughput and efficiency analysis for KamiUI
+## Author: Kami Katze
+## Version: 0.1.0
+## IconTexture: Interface\Icons\Spell_Holy_MagicalSentry
+## RequiredDeps: KamiUI, KamiUI_ActionBars
+## OptionalDeps: KamiUI_Tooltips
+
+Core.lua
+SpellData.lua
+Calculator.lua
+Tooltip.lua
+ActionButtons.lua
