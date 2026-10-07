@@ -25,7 +25,8 @@ local function IsShiftDown()
 
     local down = IsShiftKeyDown()
 
-    return UI:CanAccessValue(down) and down == true
+    return UI:CanAccessValue(down)
+        and (down == true or down == 1)
 end
 
 local function GetAutoLootDefault()
@@ -189,8 +190,8 @@ local function GetSlotState(slot)
     local texture,
         itemName,
         quantity,
-        _,
-        _,
+        currencyID,
+        quality,
         locked,
         isQuestItem = GetLootSlotInfo(slot)
 
@@ -370,9 +371,12 @@ end
 local function DisableNativeAutoLoot()
     local frame = _G.LootFrame
 
-    if frame
-        and frame.UnregisterEvent
-        and frame:IsEventRegistered("LOOT_OPENED")
+    if not frame or not frame.UnregisterEvent then
+        return
+    end
+
+    if not frame.IsEventRegistered
+        or frame:IsEventRegistered("LOOT_OPENED")
     then
         frame:UnregisterEvent("LOOT_OPENED")
     end
