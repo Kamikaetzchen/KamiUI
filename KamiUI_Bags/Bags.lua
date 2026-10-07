@@ -676,7 +676,7 @@ local function CreateBagBarButton(parent)
 
     button:SetScript("OnEnter", function(self)
         Module:SetBagSlotHighlight(self.bagID, true)
-        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:SetOwner(self, "ANCHOR_CURSOR_RIGHT")
 
         if self.isCached then
             GameTooltip:SetText(self.cachedName or ("Bag " .. tostring(self.bagID)))
@@ -1191,7 +1191,7 @@ local function CreateFrameUI()
     frame.characterDropdown = characterDropdown
 
     characterButton:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetOwner(self, "ANCHOR_CURSOR_RIGHT")
         GameTooltip:SetText("Characters")
         GameTooltip:Show()
     end)
@@ -1281,7 +1281,7 @@ local function CreateFrameUI()
     frame.moneyButton = moneyButton
 
     moneyButton:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_TOPRIGHT")
+        GameTooltip:SetOwner(self, "ANCHOR_CURSOR_RIGHT")
         GameTooltip:SetText("Money")
 
         local total = 0
