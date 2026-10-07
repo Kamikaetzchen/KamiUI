@@ -484,6 +484,7 @@ local function ParseDirectDamage(lower, hasPeriodic)
             "causes%s+" .. NUMBER .. "%s+[%a%s]*damage",
             "causing%s+" .. NUMBER .. "%s+[%a%s]*damage",
             "inflicts%s+" .. NUMBER .. "%s+[%a%s]*damage",
+            "inflicting%s+" .. NUMBER .. "%s+[%a%s]*damage",
             "for%s+" .. NUMBER .. "%s+[%a%s]*damage",
         }
     end
