@@ -173,23 +173,11 @@ end
 
 function UF:GetPowerColor(unit)
     local _, powerToken = UnitPowerType(unit)
-    local color = Palette:GetPowerColor(powerToken)
 
-    local r = color.r or color[1]
-    local g = color.g or color[2]
-    local b = color.b or color[3]
-
-    if powerToken == "MANA" then
-        local whiteMix = 0.15
-
-        r = r * (1 - whiteMix) + whiteMix
-        g = g * (1 - whiteMix) + whiteMix
-        b = b * (1 - whiteMix) + whiteMix
-    end
-
-    return r * self.powerColorMultiplier,
-        g * self.powerColorMultiplier,
-        b * self.powerColorMultiplier
+    return Palette:GetReadablePowerColor(
+        powerToken,
+        self.powerColorMultiplier
+    )
 end
 
 function UF:DarkenColor(r, g, b)
