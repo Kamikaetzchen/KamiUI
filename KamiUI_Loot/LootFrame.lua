@@ -191,7 +191,7 @@ local function PositionAtCursor(frame)
     local frameHeight = frame:GetHeight()
 
     local x = cursorX + CURSOR_OFFSET_X
-    local y = cursorY + CURSOR_OFFSET_Y
+    local y = cursorY - CURSOR_OFFSET_Y
 
     x = math.max(
         SCREEN_PADDING,
@@ -201,16 +201,16 @@ local function PositionAtCursor(frame)
         )
     )
     y = math.max(
-        frameHeight + SCREEN_PADDING,
+        SCREEN_PADDING,
         math.min(
             y,
-            screenHeight - SCREEN_PADDING
+            screenHeight - frameHeight - SCREEN_PADDING
         )
     )
 
     frame:ClearAllPoints()
     frame:SetPoint(
-        "TOPLEFT",
+        "BOTTOMLEFT",
         UIParent,
         "BOTTOMLEFT",
         x,
