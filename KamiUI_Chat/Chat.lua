@@ -339,7 +339,15 @@ local function EnsureWindow(config)
     local frame = FindChatWindow(config.name)
 
     if not frame then
-        frame = FCF_OpenNewWindow(config.name, true)
+        if securecallfunction then
+            frame = securecallfunction(
+                FCF_OpenNewWindow,
+                config.name,
+                true
+            )
+        else
+            frame = FCF_OpenNewWindow(config.name, true)
+        end
     end
 
     if not frame then
@@ -347,24 +355,6 @@ local function EnsureWindow(config)
     end
 
     return ConfigureWindow(frame, config)
-end
-
-local function DisableEditBox(editBox)
-    if not editBox then
-        return
-    end
-
-    editBox:SetAlpha(0)
-
-    if editBox.EnableMouse then
-        editBox:EnableMouse(false)
-    end
-
-    if editBox.ClearFocus and editBox:HasFocus() then
-        editBox:ClearFocus()
-    end
-
-    editBox:Hide()
 end
 
 local function HideEditBoxDecorations(editBox)
@@ -410,12 +400,14 @@ local function ApplyEditBoxInsets(editBox)
     end
 end
 
-local function StyleEditBox(frame)
-    local editBox = frame and frame.editBox
+local function StyleInputEditBox()
+    local editBox = ChatFrame1 and ChatFrame1.editBox
 
-    if not editBox then
+    if not editBox or not Module.inputPanel then
         return
     end
+
+    Module.inputEditBox = editBox
 
     if editBox.SetParent then
         editBox:SetParent(UIParent)
@@ -441,11 +433,24 @@ local function StyleEditBox(frame)
     ApplyEditBoxInsets(editBox)
 
     editBox:ClearAllPoints()
-    editBox:SetPoint("TOPLEFT", Module.inputPanel, "TOPLEFT", 0, 0)
-    editBox:SetPoint("BOTTOMRIGHT", Module.inputPanel, "BOTTOMRIGHT", 0, 0)
+    editBox:SetPoint(
+        "TOPLEFT",
+        Module.inputPanel,
+        "TOPLEFT",
+        0,
+        0
+    )
+    editBox:SetPoint(
+        "BOTTOMRIGHT",
+        Module.inputPanel,
+        "BOTTOMRIGHT",
+        0,
+        0
+    )
+    editBox:SetAlpha(1)
 
-    if editBox ~= ACTIVE_CHAT_EDIT_BOX then
-        editBox:Hide()
+    if editBox.EnableMouse then
+        editBox:EnableMouse(true)
     end
 
     local font, _, flags = editBox:GetFont()
@@ -473,6 +478,7 @@ local function HideFrameChrome(frame)
     end
 
     HideObject(frame.Background)
+    HideObject(frame.clickAnywhereButton)
     StashObject(frame.ScrollBar)
     StashObject(frame.ScrollToBottomButton)
     StashObject(frame.ResizeButton)
@@ -489,7 +495,7 @@ local function HideFrameChrome(frame)
     end
 end
 
-local function StyleNativeChatFrame(frame, parent, topInset, withInput)
+local function StyleNativeChatFrame(frame, parent, topInset)
     if not frame or not parent then
         return
     end
@@ -532,10 +538,6 @@ local function StyleNativeChatFrame(frame, parent, topInset, withInput)
         frame:SetFont(font, defaults.fontSize, flags)
     end
 
-    if withInput then
-        StyleEditBox(frame)
-    end
-
     frame:Show()
 
     -- Showing a native chat frame can re-show its Blizzard tab/chrome.
@@ -560,8 +562,6 @@ local function HideStockFrame(frame)
     end
 
     HideFrameChrome(frame)
-    DisableEditBox(frame.editBox)
-    frame:Hide()
 end
 
 local positioningCombatBar = false
@@ -617,22 +617,15 @@ local function SetupCombatLog()
 end
 
 local function IsManagedEditBox(editBox)
-    if not editBox then
-        return false
-    end
-
-    for _, config in ipairs(leftTabs) do
-        local frame = Module.backends[config.key]
-
-        if frame and frame.editBox == editBox then
-            return true
-        end
-    end
-
-    return false
+    return editBox ~= nil
+        and editBox == Module.inputEditBox
 end
 
 local function UpdateInputPanelVisibility()
+    if not Module.inputPanel then
+        return
+    end
+
     Module.inputPanel:SetShown(
         IsManagedEditBox(ACTIVE_CHAT_EDIT_BOX)
     )
@@ -646,8 +639,7 @@ local function PositionManagedChatFrames()
             StyleNativeChatFrame(
                 frame,
                 Module.leftPanel,
-                defaults.padding,
-                true
+                defaults.padding
             )
         end
     end
@@ -690,36 +682,18 @@ function Module:SelectTab(key)
         local frame = self.backends[config.key]
 
         if frame then
-            frame:SetShown(config.key == key)
+            local active = config.key == key
 
-            local editBox = frame.editBox
-            if editBox and editBox.EnableMouse then
-                editBox:EnableMouse(config.key == key)
+            frame:SetAlpha(active and 1 or 0)
+            frame:EnableMouse(active)
+
+            if frame.EnableMouseWheel then
+                frame:EnableMouseWheel(active)
             end
-        end
-    end
 
-    SELECTED_CHAT_FRAME = backend
-
-    if ChatFrameUtil
-        and ChatFrameUtil.SetLastActiveWindow
-        and backend.editBox
-    then
-        ChatFrameUtil.SetLastActiveWindow(backend.editBox)
-
-        if backend.editBox ~= ACTIVE_CHAT_EDIT_BOX then
-            backend.editBox:Hide()
-        end
-    end
-
-    for _, config in ipairs(leftTabs) do
-        local frame = self.backends[config.key]
-        local editBox = frame and frame.editBox
-
-        if editBox
-            and editBox ~= ACTIVE_CHAT_EDIT_BOX
-        then
-            editBox:Hide()
+            if frame.SetHyperlinksEnabled then
+                frame:SetHyperlinksEnabled(active)
+            end
         end
     end
 
@@ -734,6 +708,18 @@ function Module:SetupBackends()
     self.backends.whisper = EnsureWindow(managedWindows.whisper)
 
     SetupCombatLog()
+    StyleInputEditBox()
+
+    if ChatFrameUtil
+        and ChatFrameUtil.SetLastActiveWindow
+        and Module.inputEditBox
+        and securecallfunction
+    then
+        securecallfunction(
+            ChatFrameUtil.SetLastActiveWindow,
+            Module.inputEditBox
+        )
+    end
 end
 
 function Module:ApplyLayout()
@@ -743,6 +729,7 @@ function Module:ApplyLayout()
     PositionTabs()
     HideStockChatUI()
     PositionManagedChatFrames()
+    StyleInputEditBox()
     PositionCombatBar()
     self:SelectTab(self.selectedTab or "general")
 end
@@ -823,18 +810,11 @@ function Module:Initialize()
                 end
 
                 if C_Timer and C_Timer.After then
-                    C_Timer.After(0, function()
-                        if editBox ~= ACTIVE_CHAT_EDIT_BOX then
-                            editBox:Hide()
-                        end
-
-                        UpdateInputPanelVisibility()
-                    end)
+                    C_Timer.After(
+                        0,
+                        UpdateInputPanelVisibility
+                    )
                 else
-                    if editBox ~= ACTIVE_CHAT_EDIT_BOX then
-                        editBox:Hide()
-                    end
-
                     UpdateInputPanelVisibility()
                 end
             end,
