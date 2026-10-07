@@ -540,15 +540,25 @@ local function UpdateQuestRow(row, item, y)
 
         if index > 1 then
             local previousText = row.objectives[index - 1]
+            local previousObjective =
+                item.objectives[index - 1] or {}
+            local previousHasCount =
+                previousObjective.countText ~= nil
+                and previousObjective.countText ~= ""
+            local currentOffset = hasCount
+                and OBJECTIVE_COUNT_WIDTH
+                    + OBJECTIVE_COUNT_GAP
+                or 0
+            local previousOffset = previousHasCount
+                and OBJECTIVE_COUNT_WIDTH
+                    + OBJECTIVE_COUNT_GAP
+                or 0
 
             text:SetPoint(
                 "TOPLEFT",
                 previousText,
                 "BOTTOMLEFT",
-                hasCount
-                    and OBJECTIVE_COUNT_WIDTH
-                        + OBJECTIVE_COUNT_GAP
-                    or 0,
+                currentOffset - previousOffset,
                 -OBJECTIVE_SPACING
             )
         else
