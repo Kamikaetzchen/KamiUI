@@ -18,6 +18,8 @@ local SECTION_INDENT = 4
 local QUEST_INDENT = 2
 local QUEST_LEVEL_WIDTH = 34
 local QUEST_TITLE_GAP = 5
+local QUEST_ITEM_SIZE = 18
+local QUEST_ITEM_GAP = 4
 local OBJECTIVE_INDENT = 52
 local QUEST_SPACING = 4
 local OBJECTIVE_SPACING = 1
@@ -170,6 +172,51 @@ local function CreateQuestRow(parent)
     title:SetTextColor(unpack(Palette.text))
     row.title = title
 
+    local itemButton = CreateFrame(
+        "Button",
+        nil,
+        row,
+        "SecureActionButtonTemplate"
+    )
+    itemButton:SetSize(QUEST_ITEM_SIZE, QUEST_ITEM_SIZE)
+    itemButton:SetPoint("TOPRIGHT", row, "TOPRIGHT", -1, -1)
+    itemButton:RegisterForClicks("LeftButtonUp")
+    itemButton:SetAttribute("type", "item")
+    itemButton:Hide()
+
+    local itemIcon = itemButton:CreateTexture(nil, "ARTWORK")
+    itemIcon:SetAllPoints()
+    itemIcon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
+    itemButton.icon = itemIcon
+
+    local itemBorder = itemButton:CreateTexture(nil, "OVERLAY")
+    itemBorder:SetPoint("TOPLEFT", -1, 1)
+    itemBorder:SetPoint("BOTTOMRIGHT", 1, -1)
+    itemBorder:SetColorTexture(0, 0, 0, 0.85)
+    itemBorder:SetDrawLayer("OVERLAY", -1)
+
+    local itemCount = itemButton:CreateFontString(nil, "OVERLAY")
+    itemCount:SetPoint("BOTTOMRIGHT", itemButton, "BOTTOMRIGHT", -1, 1)
+    itemCount:SetFont("Fonts\\FRIZQT__.TTF", 8, "OUTLINE")
+    itemCount:SetJustifyH("RIGHT")
+    itemButton.count = itemCount
+
+    itemButton:SetScript("OnEnter", function(self)
+        if not self.itemLink then
+            return
+        end
+
+        GameTooltip:SetOwner(self, "ANCHOR_CURSOR_RIGHT")
+        GameTooltip:SetHyperlink(self.itemLink)
+        GameTooltip:Show()
+    end)
+
+    itemButton:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
+
+    row.itemButton = itemButton
+
     local highlight = row:CreateTexture(nil, "HIGHLIGHT")
     highlight:SetPoint("TOPLEFT", row, "TOPLEFT", -2, 1)
     highlight:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", 2, -1)
@@ -210,6 +257,48 @@ local function GetObjectiveFont(row, index)
     return text
 end
 
+local function UpdateQuestItemButton(row, questItem)
+    local button = row.itemButton
+
+    if not button then
+        return
+    end
+
+    if not questItem or not questItem.link then
+        button.itemLink = nil
+        button.icon:SetTexture(nil)
+        button.count:SetText("")
+
+        if not InCombatLockdown or not InCombatLockdown() then
+            button:SetAttribute("item", nil)
+            button:Hide()
+        else
+            Module.questItemRefreshPending = true
+        end
+
+        return
+    end
+
+    button.itemLink = questItem.link
+    button.icon:SetTexture(questItem.texture)
+
+    local charges = tonumber(questItem.charges) or 0
+    button.count:SetText(charges > 0 and charges or "")
+
+    if not InCombatLockdown or not InCombatLockdown() then
+        button:SetAttribute("item", questItem.link)
+        button:Show()
+    else
+        local currentItem = button:GetAttribute("item")
+
+        if currentItem == questItem.link then
+            button:Show()
+        else
+            Module.questItemRefreshPending = true
+        end
+    end
+end
+
 local function UpdateQuestRow(row, item, y)
     row:ClearAllPoints()
     row:SetPoint(
@@ -234,6 +323,25 @@ local function UpdateQuestRow(row, item, y)
     row.level:SetText(level > 0 and string.format("[%d]", level) or "[?]")
     Styles:SetTextColor(row.level, difficultyColor)
     row.title:SetText(item.title or "Unknown Quest")
+
+    UpdateQuestItemButton(row, item.questItem)
+
+    local titleWidth =
+        PANEL_WIDTH
+            - SECTION_INDENT
+            - QUEST_INDENT
+            - QUEST_LEVEL_WIDTH
+            - QUEST_TITLE_GAP
+            - CONTENT_PADDING
+            - 4
+
+    if item.questItem then
+        titleWidth = titleWidth
+            - QUEST_ITEM_SIZE
+            - QUEST_ITEM_GAP
+    end
+
+    row.title:SetWidth(titleWidth)
 
     local titleHeight = math.max(16, math.ceil(row.title:GetStringHeight() or 16))
     local height = titleHeight
@@ -597,6 +705,13 @@ function Module:Initialize()
     UI:RegisterEvent("ADDON_LOADED", function(_, addonName)
         if addonName == "Blizzard_ObjectiveTracker" then
             HideBlizzardTracker()
+        end
+    end)
+
+    UI:RegisterEvent("PLAYER_REGEN_ENABLED", function()
+        if Module.questItemRefreshPending then
+            Module.questItemRefreshPending = nil
+            Module:Refresh()
         end
     end)
 end
