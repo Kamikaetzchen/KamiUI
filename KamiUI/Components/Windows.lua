@@ -2,6 +2,25 @@ local UI = KamiUI
 local Palette = UI.Palette
 local Styles = UI.Styles
 local Components = UI.Components
+
+local function ConfigureDragHandle(handle, dragTarget, onDragStop)
+    if not handle or not dragTarget then
+        return
+    end
+
+    handle:RegisterForDrag("LeftButton")
+    handle:SetScript("OnDragStart", function()
+        dragTarget:StartMoving()
+    end)
+    handle:SetScript("OnDragStop", function()
+        dragTarget:StopMovingOrSizing()
+
+        if onDragStop then
+            onDragStop(dragTarget)
+        end
+    end)
+end
+
 function Components:CreateWindowHeader(parent, options)
     options = options or {}
 
@@ -25,13 +44,8 @@ function Components:CreateWindowHeader(parent, options)
     header:SetHeight(options.height or 32)
     header:SetFrameLevel(parent:GetFrameLevel() + 1)
 
-    Styles:EnsureBackground(
-        header,
-        "KamiHeaderBackground",
-        options.backgroundColor or Palette.header,
-        "BACKGROUND",
-        -6
-    )
+    -- The header is layout-only. The window backdrop is intentionally
+    -- continuous so title/actions feel like part of the same surface.
 
     local title = header:CreateFontString(nil, "OVERLAY")
     Styles:ApplyText(
@@ -97,20 +111,12 @@ function Components:CreateWindowHeader(parent, options)
     end
 
     if options.draggable then
-        local dragTarget = options.dragTarget or parent
-
         header:EnableMouse(true)
-        header:RegisterForDrag("LeftButton")
-        header:SetScript("OnDragStart", function()
-            dragTarget:StartMoving()
-        end)
-        header:SetScript("OnDragStop", function()
-            dragTarget:StopMovingOrSizing()
-
-            if options.onDragStop then
-                options.onDragStop(dragTarget)
-            end
-        end)
+        ConfigureDragHandle(
+            header,
+            options.dragTarget or parent,
+            options.onDragStop
+        )
     end
 
     parent.KamiHeader = header
@@ -154,6 +160,12 @@ function Components:CreateWindow(name, options)
 
     local onDragStop = options.onDragStop
     frame.KamiWindowOnDragStop = onDragStop
+
+    -- Any free, non-interactive area of the window is a drag surface.
+    -- Mouse-enabled child controls naturally keep handling their own input.
+    if options.movable ~= false then
+        ConfigureDragHandle(frame, frame, onDragStop)
+    end
 
     local header
     if options.header ~= false then
@@ -264,17 +276,7 @@ function Components:AttachHeaderSearch(frame, header, options)
         or frame.KamiWindowOnDragStop
 
     if options.draggable ~= false then
-        titleButton:RegisterForDrag("LeftButton")
-        titleButton:SetScript("OnDragStart", function()
-            frame:StartMoving()
-        end)
-        titleButton:SetScript("OnDragStop", function()
-            frame:StopMovingOrSizing()
-
-            if onDragStop then
-                onDragStop(frame)
-            end
-        end)
+        ConfigureDragHandle(titleButton, frame, onDragStop)
     end
 
     local search = CreateFrame(
