@@ -135,19 +135,12 @@ local function RefreshButton(button)
     )
 
     if full.efficiency then
-        local resourceToken = analysis.resourceType
-            and string.upper(analysis.resourceType)
-            or "MANA"
-        local r, g, b =
-            Palette:GetReadablePowerColor(resourceToken)
-
-        if resourceToken == "MANA" then
-            r = 0x00 / 255
-            g = 0x88 / 255
-            b = 0xFF / 255
-        end
-
-        local resourceColor = { r, g, b, 1 }
+        local resourceColor = {
+            0x33 / 255,
+            0xAA / 255,
+            0xFF / 255,
+            1,
+        }
 
         value = value
             .. "\n"
