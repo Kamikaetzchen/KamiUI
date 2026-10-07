@@ -251,53 +251,51 @@ function Components:StyleCloseButton(button, options)
             or { 0.22, 0.22, 0.24, 1 },
     })
 
-    local crossSize = options.crossSize or 4
+    local crossSize = options.crossSize or 8
     local crossThickness = options.crossThickness or 1.5
-    local crossInset = math.max(0, (artSize - crossSize) / 2)
+    local crossFrame = button.KamiCloseButtonCrossFrame
     local crossA = button.KamiCloseButtonCrossA
     local crossB = button.KamiCloseButtonCrossB
 
+    if not crossFrame then
+        crossFrame = CreateFrame("Frame", nil, art)
+        crossFrame:EnableMouse(false)
+        button.KamiCloseButtonCrossFrame = crossFrame
+    end
+
+    crossFrame:ClearAllPoints()
+    crossFrame:SetPoint("CENTER")
+    crossFrame:SetSize(crossSize, crossSize)
+
     if not crossA then
-        crossA = art:CreateLine(nil, "ARTWORK")
+        crossA = crossFrame:CreateLine(nil, "ARTWORK")
         button.KamiCloseButtonCrossA = crossA
     end
 
     if not crossB then
-        crossB = art:CreateLine(nil, "ARTWORK")
+        crossB = crossFrame:CreateLine(nil, "ARTWORK")
         button.KamiCloseButtonCrossB = crossB
     end
 
     crossA:ClearAllPoints()
-    crossA:SetStartPoint(
-        "TOPLEFT",
-        art,
-        "TOPLEFT",
-        crossInset,
-        -crossInset
-    )
+    crossA:SetStartPoint("TOPLEFT", crossFrame, "TOPLEFT", 0, 0)
     crossA:SetEndPoint(
         "BOTTOMRIGHT",
-        art,
+        crossFrame,
         "BOTTOMRIGHT",
-        -crossInset,
-        crossInset
+        0,
+        0
     )
     crossA:SetThickness(crossThickness)
 
     crossB:ClearAllPoints()
-    crossB:SetStartPoint(
-        "TOPRIGHT",
-        art,
-        "TOPRIGHT",
-        -crossInset,
-        -crossInset
-    )
+    crossB:SetStartPoint("TOPRIGHT", crossFrame, "TOPRIGHT", 0, 0)
     crossB:SetEndPoint(
         "BOTTOMLEFT",
-        art,
+        crossFrame,
         "BOTTOMLEFT",
-        crossInset,
-        crossInset
+        0,
+        0
     )
     crossB:SetThickness(crossThickness)
 
