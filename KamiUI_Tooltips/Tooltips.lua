@@ -1482,15 +1482,8 @@ end
 local function PositionCursorTooltip(tooltip)
     if not tooltip
         or not tooltip.SetAnchorType
-        or not tooltip.GetHeight
         or Module.reanchoringCursorTooltip
     then
-        return
-    end
-
-    local height = tooltip:GetHeight()
-
-    if not height or height <= 0 then
         return
     end
 
@@ -1498,7 +1491,7 @@ local function PositionCursorTooltip(tooltip)
     tooltip:SetAnchorType(
         "ANCHOR_CURSOR_RIGHT",
         14,
-        -(height + 12)
+        12
     )
     Module.reanchoringCursorTooltip = false
 end
