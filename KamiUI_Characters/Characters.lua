@@ -812,19 +812,11 @@ local function GetFactionBarColor(reaction)
 end
 
 local function SetReputationOptionState(option, checked, enabled)
-    if checked then
-        option.mark:Show()
-    else
-        option.mark:Hide()
-    end
-
-    if enabled then
-        option:Enable()
-        option:SetAlpha(1)
-    else
-        option:Disable()
-        option:SetAlpha(0.45)
-    end
+    Components:SetToggleState(
+        option,
+        checked,
+        enabled
+    )
 end
 
 local ShowStatTooltip
@@ -1591,41 +1583,18 @@ end
 
 
 local function CreateReputationOption(parent, labelText, y)
-    local button = CreateFrame("Button", nil, parent)
+    local button = Components:CreateCheckbox(
+        parent,
+        {
+            size = 14,
+            height = 20,
+            label = labelText,
+            labelGap = 7,
+            textColor = Palette.gold,
+        }
+    )
     button:SetPoint("TOPLEFT", parent, "TOPLEFT", 12, y)
     button:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -8, y)
-    button:SetHeight(20)
-
-    local box = CreateFrame("Frame", nil, button)
-    box:SetSize(14, 14)
-    box:SetPoint("LEFT", 0, 0)
-
-    local bg = box:CreateTexture(nil, "BACKGROUND")
-    bg:SetAllPoints()
-    bg:SetColorTexture(0, 0, 0, 0.55)
-    Styles:CreateBorder(box, Palette.border)
-
-    local mark = box:CreateFontString(nil, "OVERLAY")
-    mark:SetPoint("CENTER", 0, 0)
-    mark:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
-    mark:SetTextColor(0.90, 0.76, 0.18)
-    mark:SetText("x")
-    mark:Hide()
-    button.mark = mark
-
-    local label = button:CreateFontString(nil, "OVERLAY")
-    label:SetPoint("LEFT", box, "RIGHT", 7, 0)
-    label:SetPoint("RIGHT", button, "RIGHT", 0, 0)
-    label:SetJustifyH("LEFT")
-    label:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
-    label:SetTextColor(0.90, 0.78, 0.22)
-    label:SetText(labelText)
-    button.label = label
-
-    local highlight = button:CreateTexture(nil, "HIGHLIGHT")
-    highlight:SetPoint("TOPLEFT", box, "TOPLEFT", -2, 2)
-    highlight:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", 0, -2)
-    highlight:SetColorTexture(1, 1, 1, 0.05)
 
     return button
 end
