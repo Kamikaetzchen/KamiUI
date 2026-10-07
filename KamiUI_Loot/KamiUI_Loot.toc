@@ -7,4 +7,4 @@
 ## RequiredDeps: KamiUI
 
 LootFrame.lua
-SpeedLoot.lua
+QuickLoot.lua
