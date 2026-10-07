@@ -35,7 +35,7 @@ Palette.tabInactive = { 0.72, 0.72, 0.72, 1.00 }
 Palette.gold = { 0.88, 0.72, 0.16, 1.00 }
 Palette.highlight = { 1.00, 0.82, 0.00, 1.00 }
 Palette.success = { 0.32, 0.86, 0.38, 1.00 }
-Palette.damage = { 1.00, 0.55, 0.10, 1.00 }
+Palette.damage = { 1.00, 1.00, 0.00, 1.00 }
 
 Palette.bagFamily = {
     arrows = { 0.565, 0.000, 0.000, 1.00 },
