@@ -6,7 +6,7 @@ local UF = UI:NewModule("UnitFrames", "KamiUI_UnitFrames")
 
 UF.flatTexture = "Interface\\Buttons\\WHITE8X8"
 UF.colorMultiplier = 0.60
-UF.powerColorMultiplier = 0.70
+UF.powerColorMultiplier = 0.85
 
 UF.frames = {}
 UF.framesByUnit = {}
