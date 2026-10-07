@@ -2308,6 +2308,27 @@ function Module:RefreshRecipeDetails()
         frame.trackRecipe:Hide()
     end
 
+    frame.craftAllButton:Show()
+    frame.quantityMinus:Show()
+    frame.quantity:Show()
+    frame.quantityPlus:Show()
+
+    frame.craftButton:ClearAllPoints()
+    frame.craftButton:SetPoint(
+        "LEFT",
+        frame.quantityPlus,
+        "RIGHT",
+        10,
+        0
+    )
+    frame.craftButton:SetPoint(
+        "RIGHT",
+        frame.craftingPage,
+        "RIGHT",
+        0,
+        0
+    )
+
     frame.quantityMinus:Disable()
     frame.quantityPlus:Disable()
     frame.quantity:Disable()
@@ -2315,6 +2336,7 @@ function Module:RefreshRecipeDetails()
     frame.craftButton:Disable()
     Components:SetButtonText(frame.craftButton, "Craft")
     self.maxCraftable = 0
+    self.craftingReagents = nil
 
     if not recipeID then
         frame.recipeTitle:SetText("Select a recipe")
@@ -2412,6 +2434,8 @@ function Module:RefreshRecipeDetails()
         )
         or nil
     local craftingReagents = BuildDefaultCraftingReagents(schematic)
+    self.craftingReagents = craftingReagents
+
     local output = C_TradeSkillUI.GetRecipeOutputItemData
         and UI:SafeCall(
             C_TradeSkillUI.GetRecipeOutputItemData,
@@ -2647,9 +2671,9 @@ function Module:RefreshRecipeDetails()
         math.max(y + 10, frame.detailScroll:GetHeight())
     )
 
+    local isEnchantingRecipe = info.isEnchantingRecipe == true
     local unsupportedRecipe =
-        info.isEnchantingRecipe
-        or info.isRecraft
+        info.isRecraft
         or info.isSalvageRecipe
         or hasUnsupportedSelection
 
@@ -2660,19 +2684,48 @@ function Module:RefreshRecipeDetails()
         and self.maxCraftable > 0
         and not unsupportedRecipe
 
-    if canCraft then
+    if isEnchantingRecipe then
+        frame.craftAllButton:Hide()
+        frame.quantityMinus:Hide()
+        frame.quantity:Hide()
+        frame.quantityPlus:Hide()
+
+        frame.craftButton:ClearAllPoints()
+        frame.craftButton:SetPoint(
+            "BOTTOMLEFT",
+            frame.craftingPage,
+            "BOTTOMLEFT",
+            0,
+            0
+        )
+        frame.craftButton:SetPoint(
+            "BOTTOMRIGHT",
+            frame.craftingPage,
+            "BOTTOMRIGHT",
+            0,
+            0
+        )
+
+        Components:SetButtonText(
+            frame.craftButton,
+            CREATE_PROFESSION_ENCHANT or "Enchant"
+        )
+
+        if canCraft and C_TradeSkillUI.CraftEnchant then
+            frame.craftButton:Enable()
+        end
+    elseif canCraft then
         frame.quantityMinus:Enable()
         frame.quantityPlus:Enable()
         frame.quantity:Enable()
         frame.craftAllButton:Enable()
         frame.craftButton:Enable()
-        Components:SetButtonText(frame.craftButton, 
+        Components:SetButtonText(
+            frame.craftButton,
             info.alternateVerb
-            or info.abilityVerb
-            or "Craft"
+                or info.abilityVerb
+                or "Craft"
         )
-    elseif info.isEnchantingRecipe then
-        Components:SetButtonText(frame.craftButton, "Target required")
     elseif info.isRecraft then
         Components:SetButtonText(frame.craftButton, "Recraft not supported")
     elseif info.isSalvageRecipe then
@@ -2689,9 +2742,31 @@ end
 function Module:CraftSelectedRecipe(quantityOverride)
     if not self.selectedRecipeID
         or not C_TradeSkillUI
-        or not C_TradeSkillUI.CraftRecipe
         or (self.maxCraftable or 0) <= 0
     then
+        return
+    end
+
+    local info = C_TradeSkillUI.GetRecipeInfo
+        and UI:SafeCall(
+            C_TradeSkillUI.GetRecipeInfo,
+            self.selectedRecipeID
+        )
+        or nil
+
+    if info
+        and info.isEnchantingRecipe
+        and C_TradeSkillUI.CraftEnchant
+    then
+        C_TradeSkillUI.CraftEnchant(
+            self.selectedRecipeID,
+            1,
+            self.craftingReagents or {}
+        )
+        return
+    end
+
+    if not C_TradeSkillUI.CraftRecipe then
         return
     end
 
