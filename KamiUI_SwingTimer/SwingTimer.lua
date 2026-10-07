@@ -35,23 +35,6 @@ local function SetPoint(frame, ...)
     end
 end
 
-local function DetachFromFrameManager(frame)
-    if frame.BreakFromFrameManager then
-        frame:BreakFromFrameManager()
-        return
-    end
-
-    frame.ignoreFramePositionManager = true
-
-    if GetBottomManagedFrameContainer then
-        local container = GetBottomManagedFrameContainer()
-
-        if container and container.RemoveManagedFrame then
-            container:RemoveManagedFrame(frame)
-        end
-    end
-end
-
 local function StyleFrame(frame)
     if not frame or styledFrames[frame] then
         return
@@ -101,7 +84,7 @@ local function ConfigureFrame(frame)
         return
     end
 
-    DetachFromFrameManager(frame)
+    UI:DetachManagedFrame(frame)
     frame:SetScale(1)
     frame:SetSize(defaults.width, defaults.height)
     StyleFrame(frame)

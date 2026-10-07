@@ -1378,22 +1378,14 @@ local function InstallBagHooks()
     -- calls OpenAllBags() before Forever's protected PurchaseFirstSlot()
     -- path, so replacing OpenAllBags/CloseAllBags taints that execution
     -- and blocks C_Bank.PurchaseBankTab().
-    local hiddenParent = CreateFrame("Frame")
-    hiddenParent:Hide()
-    Module.blizzardBagParent = hiddenParent
+    Module.blizzardBagParent = UI:GetHiddenFrameSink()
 
-    if ContainerFrameCombinedBags then
-        ContainerFrameCombinedBags:SetParent(hiddenParent)
-    end
+    UI:KeepFrameHidden(ContainerFrameCombinedBags)
 
     local containerCount = NUM_CONTAINER_FRAMES or 20
 
     for index = 1, containerCount do
-        local frame = _G["ContainerFrame" .. index]
-
-        if frame then
-            frame:SetParent(hiddenParent)
-        end
+        UI:KeepFrameHidden(_G["ContainerFrame" .. index])
     end
 
     local function HookBagButton(button)

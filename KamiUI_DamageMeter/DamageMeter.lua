@@ -177,7 +177,6 @@ local rows = {}
 local viewDropdown
 local sessionDropdown
 local updateQueued = false
-local blizzardDamageMeterSink
 
 local state = {
     view = "damage",
@@ -739,16 +738,7 @@ local function ApplyPosition()
 end
 
 local function SuppressBlizzardDamageMeter()
-    if not blizzardDamageMeterSink then
-        blizzardDamageMeterSink = CreateFrame("Frame", nil, UIParent)
-        blizzardDamageMeterSink:Hide()
-    end
-
-    if DamageMeter
-        and DamageMeter:GetParent() ~= blizzardDamageMeterSink
-    then
-        DamageMeter:SetParent(blizzardDamageMeterSink)
-    end
+    UI:KeepFrameHidden(DamageMeter)
 end
 
 local function CreateColumnHeader()

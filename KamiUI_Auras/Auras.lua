@@ -18,28 +18,11 @@ local defaults = {
     backgroundColor = { 0.03, 0.03, 0.03 },
 }
 
-local hiddenObjects = setmetatable({}, { __mode = "k" })
 local container
 
-local function HideObject(object)
-    if not object then
-        return
-    end
-
-    object:Hide()
-
-    if not hiddenObjects[object] and object.HookScript then
-        hiddenObjects[object] = true
-
-        object:HookScript("OnShow", function(self)
-            self:Hide()
-        end)
-    end
-end
-
 local function HideBlizzardAuras()
-    HideObject(BuffFrame)
-    HideObject(DebuffFrame)
+    UI:KeepFrameHidden(BuffFrame)
+    UI:KeepFrameHidden(DebuffFrame)
 end
 
 local function InitializeAuraButton(button, color, useDispelColor)
@@ -235,17 +218,15 @@ function Module:Initialize()
     container = CreateAuraContainer()
 
     UI:RegisterEvent("PLAYER_ENTERING_WORLD", function()
-        C_Timer.After(0, function()
-            HideBlizzardAuras()
-            UpdatePosition()
-        end)
+        HideBlizzardAuras()
+        UpdatePosition()
     end)
 
     UI:RegisterBottomInsetCallback(UpdatePosition)
 
     UI:RegisterEvent("ADDON_LOADED", function(_, addonName)
         if addonName == "Blizzard_BuffFrame" then
-            C_Timer.After(0, HideBlizzardAuras)
+            HideBlizzardAuras()
         end
     end)
 end

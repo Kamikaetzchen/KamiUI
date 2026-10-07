@@ -2734,48 +2734,6 @@ function Module:CloseFrame()
     end
 end
 
-local function DetachNativePanelLayout(frame)
-    if not frame then
-        return
-    end
-
-    -- Keep Blizzard's backend alive for C_TradeSkillUI, but remove it
-    -- from UIPanel layout management so merchant/auction/mail panels
-    -- neither close it nor get closed by it.
-    if SetUIPanelAttribute then
-        SetUIPanelAttribute(frame, "enabled", false)
-        SetUIPanelAttribute(frame, "allowOtherPanels", 1)
-        SetUIPanelAttribute(frame, "checkFit", 0)
-    end
-
-    if frame.SetAttribute then
-        frame:SetAttribute("UIPanelLayout-defined", true)
-        frame:SetAttribute("UIPanelLayout-enabled", false)
-        frame:SetAttribute("UIPanelLayout-allowOtherPanels", 1)
-        frame:SetAttribute("UIPanelLayout-checkFit", 0)
-    end
-end
-
-local function DisableNativeMouse(frame)
-    if not frame then
-        return
-    end
-
-    if frame.EnableMouse then
-        frame:EnableMouse(false)
-    end
-
-    if frame.EnableMouseWheel then
-        frame:EnableMouseWheel(false)
-    end
-
-    if frame.GetChildren then
-        for _, child in ipairs({ frame:GetChildren() }) do
-            DisableNativeMouse(child)
-        end
-    end
-end
-
 function Module:SuppressNativeFrame()
     local frame = _G.ProfessionsFrame
 
@@ -2783,21 +2741,20 @@ function Module:SuppressNativeFrame()
         return
     end
 
-    DetachNativePanelLayout(frame)
-    frame:SetAlpha(0)
-    DisableNativeMouse(frame)
+    UI:DetachUIPanel(frame)
+    UI:SuppressFrame(frame, {
+        children = true,
+    })
 
     if not frame.KamiProfessionSuppressed then
         frame.KamiProfessionSuppressed = true
 
         frame:HookScript("OnShow", function(self)
-            DetachNativePanelLayout(self)
-            self:SetAlpha(0)
-            DisableNativeMouse(self)
-
-            C_Timer.After(0, function()
-                Module:ShowFrame()
-            end)
+            UI:DetachUIPanel(self)
+            UI:SuppressFrame(self, {
+                children = true,
+            })
+            Module:ShowFrame()
         end)
 
         frame:HookScript("OnHide", function()
@@ -2822,12 +2779,6 @@ function Module:InitializeFrame()
     UI:RegisterEvent("ADDON_LOADED", function(_, addonName)
         if addonName == "Blizzard_Professions" then
             Module:SuppressNativeFrame()
-
-            if not _G.ProfessionsFrame then
-                C_Timer.After(0, function()
-                    Module:SuppressNativeFrame()
-                end)
-            end
         end
     end)
 
@@ -2836,10 +2787,18 @@ function Module:InitializeFrame()
         Module.cachedProfessionID = nil
         Module.selectedRecipeID = nil
 
+        Module:SuppressNativeFrame()
+        Module:ShowFrame()
+
+        -- Profession data can finish populating after TRADE_SKILL_SHOW.
+        -- Keep that data refresh deferred, but do not defer suppression
+        -- or positioning behind Blizzard's UI lifecycle.
         C_Timer.After(0, function()
             Module:SnapshotCurrentProfession()
-            Module:SuppressNativeFrame()
-            Module:ShowFrame()
+
+            if Module.frame and Module.frame:IsShown() then
+                Module:RefreshFrame()
+            end
         end)
     end)
 

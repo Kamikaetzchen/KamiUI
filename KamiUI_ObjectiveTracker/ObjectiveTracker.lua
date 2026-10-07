@@ -112,20 +112,7 @@ local function ApplySavedPosition(frame)
 end
 
 local function HideBlizzardTracker()
-    local tracker = _G.ObjectiveTrackerFrame
-
-    if not tracker then
-        return
-    end
-
-    tracker:Hide()
-
-    if not tracker.KamiUIHideHooked and tracker.HookScript then
-        tracker.KamiUIHideHooked = true
-        tracker:HookScript("OnShow", function(self)
-            self:Hide()
-        end)
-    end
+    UI:KeepFrameHidden(_G.ObjectiveTrackerFrame)
 end
 
 local function OpenQuest(questID)

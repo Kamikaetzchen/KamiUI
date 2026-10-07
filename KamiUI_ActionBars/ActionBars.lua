@@ -784,7 +784,7 @@ local function HideBlizzardFrame(frame, clearEvents)
         frame:Hide()
     end
 
-    frame:SetParent(Module.blizzardHider)
+    UI:KeepFrameHidden(frame)
     Module.blizzardHiddenFrames[frame] = true
 end
 
@@ -792,11 +792,6 @@ local function HideBlizzardBars()
     if InCombatLockdown and InCombatLockdown() then
         Module.layoutPending = true
         return
-    end
-
-    if not Module.blizzardHider then
-        Module.blizzardHider = CreateFrame("Frame", "KamiUIActionBarHider")
-        Module.blizzardHider:Hide()
     end
 
     HideBlizzardFrame(MainActionBar, false)

@@ -17,12 +17,8 @@ local defaults = {
 
 local bankOpen = false
 local bankInitialized = true
-local bankBootstrapPending = false
 local pendingRefresh = false
 local sortingBank = false
-
-local hiddenBankParent = CreateFrame("Frame")
-hiddenBankParent:Hide()
 
 local function HasInitializedBank()
     if not C_Bank
@@ -36,36 +32,6 @@ local function HasInitializedBank()
     return C_Bank.FetchNumPurchasedBankTabs(
         Enum.BankType.Character
     ) > 0
-end
-
-local function FinishBankBootstrap()
-    if bankInitialized then
-        return false
-    end
-
-    if not HasInitializedBank() then
-        return false
-    end
-
-    bankInitialized = true
-    bankBootstrapPending = true
-
-    C_Timer.After(0, function()
-        if BankFrame and BankFrame:IsShown() then
-            BankFrame:Hide()
-        elseif bankOpen
-            and C_Bank
-            and C_Bank.CloseBankFrame
-        then
-            C_Bank.CloseBankFrame()
-        end
-
-        UI:Print(
-            "Bank initialized. Please open the bank again."
-        )
-    end)
-
-    return true
 end
 
 local BANK_DATABASE_DEFAULTS = {
@@ -1150,6 +1116,23 @@ UI:RegisterCommand(
     "Reset bank position"
 )
 
+local function ShowOpenBank()
+    Module:Show()
+
+    local bagsModule = UI.GetModule and UI:GetModule("Bags")
+
+    if bagsModule
+        and bagsModule.frame
+        and not bagsModule.frame:IsShown()
+    then
+        bagsModule:Show()
+    elseif _G.KamiUIBagFrame and not _G.KamiUIBagFrame:IsShown() then
+        if OpenAllBags then
+            OpenAllBags()
+        end
+    end
+end
+
 local eventFrame = CreateFrame("Frame")
 eventFrame:RegisterEvent("PLAYER_LOGIN")
 eventFrame:RegisterEvent("BANKFRAME_OPENED")
@@ -1169,39 +1152,21 @@ eventFrame:SetScript("OnEvent", function(_, event, ...)
     if event == "BANKFRAME_OPENED" then
         bankOpen = true
 
-        if not bankInitialized or bankBootstrapPending then
+        if not bankInitialized then
             -- Forever grants CharacterBankTab_1 from Blizzard's normal
-            -- BankFrame:SetTab() -> PurchaseFirstSlot() path. Leave the
-            -- Blizzard frame alone for this one bootstrap visit.
-            bankBootstrapPending = true
+            -- BankFrame:SetTab() -> PurchaseFirstSlot() path. Keep that
+            -- lifecycle alive, but make the native window invisible.
+            UI:SuppressFrame(BankFrame)
             return
         end
 
-        if BankFrame then
-            BankFrame:SetParent(hiddenBankParent)
-        end
-
-        Module:Show()
-
-        local bagsModule = UI.GetModule and UI:GetModule("Bags")
-
-        if bagsModule
-            and bagsModule.frame
-            and not bagsModule.frame:IsShown()
-        then
-            bagsModule:Show()
-        elseif _G.KamiUIBagFrame and not _G.KamiUIBagFrame:IsShown() then
-            if OpenAllBags then
-                OpenAllBags()
-            end
-        end
-
+        UI:KeepFrameHidden(BankFrame)
+        ShowOpenBank()
         return
     end
 
     if event == "BANKFRAME_CLOSED" then
         bankOpen = false
-        bankBootstrapPending = false
         Module.viewCharacterKey = nil
 
         if Module.frame then
@@ -1215,8 +1180,18 @@ eventFrame:SetScript("OnEvent", function(_, event, ...)
         local bankType = ...
 
         if bankType == Enum.BankType.Character
-            and FinishBankBootstrap()
+            and HasInitializedBank()
         then
+            bankInitialized = true
+
+            -- BANK_TABS_CHANGED is synchronous with PurchaseFirstSlot().
+            -- Do not reparent BankFrame while Blizzard's protected call
+            -- stack is still unwinding. Keep it suppressed for this first
+            -- visit; the next bank open can safely move it to the sink.
+            if bankOpen then
+                ShowOpenBank()
+            end
+
             return
         end
     end
