@@ -1,0 +1,9 @@
+## Interface: 16001
+## Title: KamiUI - Loot
+## Notes: Loot window module for KamiUI
+## Author: Kami Katze
+## Version: 0.1.0
+## IconTexture: Interface\Icons\INV_Misc_Coin_01
+## RequiredDeps: KamiUI
+
+LootFrame.lua
