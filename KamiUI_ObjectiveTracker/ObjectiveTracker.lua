@@ -17,7 +17,7 @@ local HEADER_INDENT = 2
 local SECTION_INDENT = 4
 local QUEST_INDENT = 2
 local QUEST_SELECT_SIZE = 10
-local QUEST_SELECT_GAP = 3
+local QUEST_SELECT_GAP = 1
 local QUEST_LEVEL_WIDTH = 34
 local QUEST_TITLE_GAP = 5
 local QUEST_ITEM_SIZE = 18
@@ -452,7 +452,7 @@ local function UpdateQuestRow(row, item, y)
             row,
             "TOPLEFT",
             OBJECTIVE_INDENT,
-            -(titleHeight + OBJECTIVE_SPACING)
+            -titleHeight
         )
 
         if index > 1 then
@@ -486,7 +486,9 @@ local function UpdateQuestRow(row, item, y)
             objectiveHeight = 10
         end
 
-        height = height + OBJECTIVE_SPACING + objectiveHeight
+        height = height
+            + (index == 1 and 0 or OBJECTIVE_SPACING)
+            + objectiveHeight
     end
 
     for index = #(item.objectives or {}) + 1, #row.objectives do
