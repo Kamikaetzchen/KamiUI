@@ -119,7 +119,7 @@ local function CreateLootRow(parent)
             return
         end
 
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetOwner(self, "ANCHOR_CURSOR_RIGHT")
 
         if GameTooltip.SetLootItem then
             GameTooltip:SetLootItem(self.lootSlot)
