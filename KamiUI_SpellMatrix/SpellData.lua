@@ -584,7 +584,9 @@ local function GetFallbackCastTime(spellID)
 end
 
 local function GetInstantExecutionTime(resourceType)
-    if resourceType == "Energy" then
+    if resourceType == "Energy"
+        or resourceType == "Rage"
+    then
         return 1.0
     end
 
