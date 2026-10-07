@@ -2323,7 +2323,7 @@ function Module:RefreshRecipeDetails()
     )
     frame.craftButton:SetPoint(
         "RIGHT",
-        frame.craftingPage,
+        frame.detailPanel,
         "RIGHT",
         0,
         0
@@ -2693,14 +2693,14 @@ function Module:RefreshRecipeDetails()
         frame.craftButton:ClearAllPoints()
         frame.craftButton:SetPoint(
             "BOTTOMLEFT",
-            frame.craftingPage,
+            frame.detailPanel,
             "BOTTOMLEFT",
             0,
             0
         )
         frame.craftButton:SetPoint(
             "BOTTOMRIGHT",
-            frame.craftingPage,
+            frame.detailPanel,
             "BOTTOMRIGHT",
             0,
             0
