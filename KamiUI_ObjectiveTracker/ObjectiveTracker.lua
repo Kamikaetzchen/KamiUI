@@ -24,7 +24,7 @@ local QUEST_ITEM_SIZE = 18
 local QUEST_ITEM_GAP = 4
 local OBJECTIVE_INDENT =
     52 + QUEST_SELECT_SIZE + QUEST_SELECT_GAP
-local QUEST_SPACING = 4
+local QUEST_SPACING = 5
 local OBJECTIVE_SPACING = 1
 
 local OBJECTIVE_DATABASE_DEFAULTS = {
@@ -440,7 +440,7 @@ local function UpdateQuestRow(row, item, y)
 
     row.title:SetWidth(titleWidth)
 
-    local titleHeight = math.max(16, math.ceil(row.title:GetStringHeight() or 16))
+    local titleHeight = math.max(14, math.ceil(row.title:GetStringHeight() or 14))
     local height = titleHeight
 
     for index, objective in ipairs(item.objectives or {}) do
