@@ -1353,11 +1353,11 @@ local function CreateCraftingPage(frame)
             width = 116,
             height = 14,
             label = PROFESSIONS_TRACK_RECIPE or "Track Recipe",
-            labelSide = "LEFT",
+            labelSide = "RIGHT",
             labelGap = 5,
         }
     )
-    trackRecipe:SetPoint("TOPRIGHT", right, "TOPRIGHT", -2, -1)
+    trackRecipe:SetPoint("BOTTOMLEFT", right, "BOTTOMLEFT", 0, 30)
     trackRecipe:RegisterForClicks("LeftButtonUp")
 
     trackRecipe:SetScript("OnClick", function(self)
