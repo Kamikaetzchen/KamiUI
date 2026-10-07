@@ -556,6 +556,20 @@ function Components:CreateContainerItemButton(parent, options)
         button:HookScript("OnDragStart", options.onDragStart)
     end
 
+    button:HookScript("OnEnter", function(self)
+        if not GameTooltip
+            or not GameTooltip.GetOwner
+            or GameTooltip:GetOwner() ~= self
+        then
+            return
+        end
+
+        GameTooltip:SetOwner(
+            self,
+            options.tooltipAnchor or "ANCHOR_CURSOR_RIGHT"
+        )
+    end)
+
     self:StyleItemSlot(button, options)
 
     return button
