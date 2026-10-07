@@ -176,6 +176,43 @@ function Components:StyleScrollBar(scrollbar, options)
     return scrollbar, thumb
 end
 
+local function CreatePixelCircle(parent, size, layer, color, alpha)
+    local circle = CreateFrame("Frame", nil, parent)
+    circle:SetSize(size, size)
+    circle:EnableMouse(false)
+
+    local edge = math.max(1, math.floor(size * 0.14))
+    local shoulder = math.max(1, math.floor(size * 0.14))
+    local topWidth = math.max(2, size - edge * 4)
+    local shoulderWidth = math.max(2, size - edge * 2)
+    local centerHeight = math.max(
+        1,
+        size - (edge + shoulder) * 2
+    )
+
+    local function AddBand(width, height, point, x, y)
+        local texture = circle:CreateTexture(nil, layer)
+        texture:SetSize(width, height)
+        texture:SetPoint(point, circle, point, x or 0, y or 0)
+        Styles:SetColor(texture, color, alpha)
+        return texture
+    end
+
+    AddBand(topWidth, edge, "TOP", 0, 0)
+    AddBand(shoulderWidth, shoulder, "TOP", 0, -edge)
+    AddBand(size, centerHeight, "CENTER", 0, 0)
+    AddBand(
+        shoulderWidth,
+        shoulder,
+        "BOTTOM",
+        0,
+        edge
+    )
+    AddBand(topWidth, edge, "BOTTOM", 0, 0)
+
+    return circle
+end
+
 local function CreateToggleControl(parent, kind, options)
     options = options or {}
 
@@ -208,56 +245,82 @@ local function CreateToggleControl(parent, kind, options)
     button.KamiToggleArt = art
 
     local checked
+    local highlight
 
     if kind == "radio" then
-        local normal = art:CreateTexture(nil, "BACKGROUND")
-        normal:SetAllPoints()
-        normal:SetTexture("Interface\\Buttons\\UI-RadioButton")
-        normal:SetTexCoord(0, 0.25, 0, 1)
+        local border = CreatePixelCircle(
+            art,
+            size,
+            "BACKGROUND",
+            options.borderColor
+                or { 0.22, 0.22, 0.24, 1 }
+        )
+        border:SetPoint("CENTER")
 
-        checked = art:CreateTexture(nil, "ARTWORK")
-        checked:SetAllPoints()
-        checked:SetTexture("Interface\\Buttons\\UI-RadioButton")
-        checked:SetTexCoord(0.25, 0.5, 0, 1)
+        local innerSize = math.max(4, size - 4)
+        local background = CreatePixelCircle(
+            art,
+            innerSize,
+            "BORDER",
+            options.backgroundColor
+                or { 0, 0, 0, 0.55 }
+        )
+        background:SetPoint("CENTER")
 
-        local highlight = button:CreateTexture(nil, "HIGHLIGHT")
-        highlight:SetAllPoints(art)
-        highlight:SetTexture("Interface\\Buttons\\UI-RadioButton")
-        highlight:SetTexCoord(0.5, 0.75, 0, 1)
-        highlight:SetBlendMode("ADD")
+        local checkedSize = math.max(4, size - 8)
+        checked = CreatePixelCircle(
+            art,
+            checkedSize,
+            "ARTWORK",
+            options.checkedColor or Palette.highlight
+        )
+        checked:SetPoint("CENTER")
+
+        highlight = CreatePixelCircle(
+            art,
+            size,
+            "HIGHLIGHT",
+            Palette.white,
+            options.hoverAlpha or 0.08
+        )
+        highlight:SetPoint("CENTER")
     else
         local background = art:CreateTexture(nil, "BACKGROUND")
         background:SetAllPoints()
-        Styles:SetColor(
-            background,
-            options.backgroundColor or Palette.panelStrong
-        )
+        background:SetColorTexture(0, 0, 0, 0.55)
 
         Styles:CreateBorder(art, {
             key = "KamiToggleBorder",
-            color = options.borderColor or Palette.border,
+            color = options.borderColor
+                or { 0.22, 0.22, 0.24, 1 },
         })
 
         checked = art:CreateTexture(nil, "ARTWORK")
-        checked:SetPoint("TOPLEFT", art, "TOPLEFT", 1, -1)
-        checked:SetPoint("BOTTOMRIGHT", art, "BOTTOMRIGHT", -1, 1)
-        checked:SetTexture("Interface\\Buttons\\UI-CheckBox-Check")
+        checked:SetPoint("TOPLEFT", art, "TOPLEFT", 3, -3)
+        checked:SetPoint(
+            "BOTTOMRIGHT",
+            art,
+            "BOTTOMRIGHT",
+            -3,
+            3
+        )
         Styles:SetColor(
             checked,
             options.checkedColor or Palette.highlight
         )
 
-        local highlight = button:CreateTexture(nil, "HIGHLIGHT")
+        highlight = button:CreateTexture(nil, "HIGHLIGHT")
         highlight:SetAllPoints(art)
         Styles:SetColor(
             highlight,
             Palette.white,
-            options.hoverAlpha or Styles.State.hoverAlpha
+            options.hoverAlpha or 0.08
         )
     end
 
     checked:Hide()
     button.KamiToggleChecked = checked
+    button.KamiToggleHighlight = highlight
 
     if options.label then
         local label = button:CreateFontString(
