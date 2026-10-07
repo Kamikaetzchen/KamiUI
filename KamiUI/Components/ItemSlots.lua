@@ -578,7 +578,7 @@ function Components:CreateItemDisplayButton(parent, options)
 
         GameTooltip:SetOwner(
             self,
-            options.tooltipAnchor or "ANCHOR_RIGHT"
+            options.tooltipAnchor or "ANCHOR_CURSOR_RIGHT"
         )
 
         local handled = false
