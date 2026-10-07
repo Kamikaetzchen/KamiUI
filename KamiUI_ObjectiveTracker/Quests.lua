@@ -69,6 +69,28 @@ local function GetQuestData(questID)
         and C_QuestLog.IsComplete
         and C_QuestLog.IsComplete(questID)
 
+    local questItem
+
+    if logIndex
+        and GetQuestLogSpecialItemInfo
+    then
+        local itemLink, itemTexture, charges, showWhenComplete =
+            GetQuestLogSpecialItemInfo(logIndex)
+
+        if itemLink
+            and (
+                not complete
+                or showWhenComplete
+            )
+        then
+            questItem = {
+                link = itemLink,
+                texture = itemTexture,
+                charges = charges,
+            }
+        end
+    end
+
     if complete and #objectives == 0 then
         objectives[#objectives + 1] = {
             text = "Ready for turn-in",
@@ -81,6 +103,7 @@ local function GetQuestData(questID)
         title = title or ("Quest " .. tostring(questID)),
         level = level,
         objectives = objectives,
+        questItem = questItem,
     }
 end
 
