@@ -177,34 +177,14 @@ local function CreateQuestRow(parent)
     row:SetHeight(18)
     row:RegisterForClicks("LeftButtonUp")
 
-    local selectButton = CreateFrame("Button", nil, row)
-    selectButton:SetSize(QUEST_SELECT_SIZE, QUEST_SELECT_SIZE)
+    local selectButton = Components:CreateRadioButton(
+        row,
+        {
+            size = QUEST_SELECT_SIZE,
+        }
+    )
     selectButton:SetPoint("TOPLEFT", row, "TOPLEFT", 0, -3)
     selectButton:RegisterForClicks("LeftButtonUp")
-
-    local selectBackground =
-        selectButton:CreateTexture(nil, "BACKGROUND")
-    selectBackground:SetAllPoints()
-    selectBackground:SetColorTexture(0, 0, 0, 0.55)
-
-    local selectBorder =
-        selectButton:CreateTexture(nil, "BORDER")
-    selectBorder:SetPoint("TOPLEFT", -1, 1)
-    selectBorder:SetPoint("BOTTOMRIGHT", 1, -1)
-    selectBorder:SetColorTexture(0.22, 0.22, 0.24, 1)
-
-    local selectMark =
-        selectButton:CreateTexture(nil, "ARTWORK")
-    selectMark:SetPoint("TOPLEFT", 2, -2)
-    selectMark:SetPoint("BOTTOMRIGHT", -2, 2)
-    Styles:SetColor(selectMark, Palette.highlight)
-    selectMark:Hide()
-    selectButton.mark = selectMark
-
-    local selectHighlight =
-        selectButton:CreateTexture(nil, "HIGHLIGHT")
-    selectHighlight:SetAllPoints()
-    selectHighlight:SetColorTexture(1, 1, 1, 0.08)
 
     selectButton:SetScript("OnClick", function()
         ToggleSuperTrackedQuest(row.questID)
@@ -454,8 +434,10 @@ local function UpdateQuestRow(row, item, y)
                 or "[?]"
         )
         Styles:SetTextColor(row.level, difficultyColor)
-        row.selectButton.mark:SetShown(
-            item.questID == GetSuperTrackedQuestID()
+        Components:SetToggleState(
+            row.selectButton,
+            item.questID == GetSuperTrackedQuestID(),
+            true
         )
 
         row.title:SetPoint(
@@ -477,9 +459,13 @@ local function UpdateQuestRow(row, item, y)
                 - CONTENT_PADDING
                 - 4
     else
+        Components:SetToggleState(
+            row.selectButton,
+            false,
+            true
+        )
         row.selectButton:Hide()
         row.level:Hide()
-        row.selectButton.mark:Hide()
 
         row.title:SetPoint(
             "TOPLEFT",
