@@ -3334,7 +3334,7 @@ local function CreateSidebar(frame)
     frame.sidebar = sidebar
 
     local divider = sidebar:CreateTexture(nil, "OVERLAY")
-    divider:SetPoint("TOPLEFT", sidebar, "TOPLEFT", 0, 0)
+    divider:SetPoint("TOPLEFT", sidebar, "TOPLEFT", 0, -25)
     divider:SetPoint("BOTTOMLEFT", sidebar, "BOTTOMLEFT", 0, 0)
     divider:SetWidth(1)
     divider:SetColorTexture(unpack(Palette.border))
