@@ -254,7 +254,7 @@ local function LayoutBars(frame, hasReputation)
 end
 
 local function ShowTooltip(frame)
-    GameTooltip:SetOwner(frame, "ANCHOR_TOP")
+    GameTooltip:SetOwner(frame, "ANCHOR_CURSOR_RIGHT")
     GameTooltip:ClearLines()
 
     if frame.reputationData then
