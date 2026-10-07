@@ -194,7 +194,7 @@ local function PositionAtCursor(frame)
     local frameHeight = frame:GetHeight()
 
     local x = cursorX + CURSOR_OFFSET_X
-    local y = cursorY - CURSOR_OFFSET_Y
+    local y = cursorY + CURSOR_OFFSET_Y - frameHeight
 
     x = math.max(
         SCREEN_PADDING,
