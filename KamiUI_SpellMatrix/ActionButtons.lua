@@ -1,5 +1,4 @@
 local UI = KamiUI
-local Palette = UI.Palette
 local Module = UI:GetModule("SpellMatrix")
 
 local refreshPending = false
@@ -38,9 +37,9 @@ local function EnsureMetricOverlay(button)
     overlay:EnableMouse(false)
 
     local text = overlay:CreateFontString(nil, "OVERLAY")
-    text:SetPoint("TOPLEFT", overlay, "TOPLEFT", 2, -2)
+    text:SetPoint("LEFT", overlay, "LEFT", 2, 0)
     text:SetJustifyH("LEFT")
-    text:SetJustifyV("TOP")
+    text:SetJustifyV("MIDDLE")
     text:SetShadowColor(0, 0, 0, 1)
     text:SetShadowOffset(1, -1)
 
@@ -51,21 +50,9 @@ local function EnsureMetricOverlay(button)
     text:SetFont(
         fontPath,
         size,
-        fontFlags or "OUTLINE"
+        "OUTLINE"
     )
-
-    local color = Palette.gold
-
-    if color then
-        text:SetTextColor(
-            color.r or color[1] or 1,
-            color.g or color[2] or 0.82,
-            color.b or color[3] or 0,
-            1
-        )
-    else
-        text:SetTextColor(1, 0.82, 0, 1)
-    end
+    text:SetTextColor(1, 1, 1, 1)
 
     button.KamiSpellMatrixOverlay = overlay
     button.KamiSpellMatrixText = text
@@ -102,14 +89,25 @@ local function RefreshButton(button)
     end
 
     local analysis = Module:GetSpellAnalysis(spellID)
-    local value = Module:GetButtonMetric(analysis)
+    local full = analysis
+        and analysis.metrics
+        and analysis.metrics.full
+    local execution = full and full.execution
 
-    if not value then
+    if not execution then
         text:SetText("")
         return
     end
 
-    text:SetText(Module:FormatMetric(value))
+    local value = Module:FormatMetric(execution)
+
+    if full.efficiency then
+        value = value
+            .. "\n"
+            .. Module:FormatMetric(full.efficiency)
+    end
+
+    text:SetText(value)
 end
 
 function Module:RefreshActionButtons(invalidate)
