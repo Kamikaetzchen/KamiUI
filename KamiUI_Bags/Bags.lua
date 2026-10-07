@@ -814,6 +814,7 @@ local function BuildBagContextMenu(menu, bagID)
     local options = menu.KamiPopupOptions or {}
 
     for index, entry in ipairs(entries) do
+        local rowEntry = entry
         local row = AcquireBagContextRow(menu, index)
         local check = row.KamiBagContextCheck
 
@@ -822,15 +823,15 @@ local function BuildBagContextMenu(menu, bagID)
             "LEFT",
             row,
             "LEFT",
-            entry.kind == "check" and 16 or 3,
+            rowEntry.kind == "check" and 16 or 3,
             0
         )
         row.text:SetPoint("RIGHT", row, "RIGHT", -3, 0)
-        row.text:SetText(entry.text or "")
+        row.text:SetText(rowEntry.text or "")
 
         row:SetScript("OnClick", nil)
 
-        if entry.kind == "title" then
+        if rowEntry.kind == "title" then
             check:Hide()
             row:SetEnabled(false)
             row:SetAlpha(1)
@@ -838,14 +839,16 @@ local function BuildBagContextMenu(menu, bagID)
         else
             check:Show()
             check.fill:SetShown(
-                entry.checked and entry.checked() or false
+                rowEntry.checked
+                    and rowEntry.checked()
+                    or false
             )
             row:SetEnabled(true)
             row:SetAlpha(1)
             Styles:SetTextColor(row.text, Palette.text)
             row:SetScript("OnClick", function()
-                if entry.onClick then
-                    entry.onClick()
+                if rowEntry.onClick then
+                    rowEntry.onClick()
                 end
 
                 menu:Hide()
