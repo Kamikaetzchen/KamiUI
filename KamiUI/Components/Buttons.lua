@@ -264,7 +264,7 @@ function Components:StyleCloseButton(button, options)
     end
 
     crossFrame:ClearAllPoints()
-    crossFrame:SetPoint("CENTER")
+    crossFrame:SetPoint("CENTER", art, "CENTER", 1, 0)
     crossFrame:SetSize(crossSize, crossSize)
 
     if not crossA then
