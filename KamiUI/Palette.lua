@@ -101,6 +101,27 @@ function Palette:GetPowerColor(powerToken)
         or self.powerFallback.MANA
 end
 
+function Palette:GetReadablePowerColor(powerToken, multiplier)
+    local color = self:GetPowerColor(powerToken)
+    local r = color.r or color[1] or 1
+    local g = color.g or color[2] or 1
+    local b = color.b or color[3] or 1
+
+    if powerToken == "MANA" then
+        local whiteMix = 0.30
+
+        r = r * (1 - whiteMix) + whiteMix
+        g = g * (1 - whiteMix) + whiteMix
+        b = b * (1 - whiteMix) + whiteMix
+    end
+
+    multiplier = multiplier or 1
+
+    return r * multiplier,
+        g * multiplier,
+        b * multiplier
+end
+
 function Palette:GetDifficultyColor(role)
     return self.difficulty[role] or self.difficulty.normal
 end
