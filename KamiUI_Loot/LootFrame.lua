@@ -420,7 +420,14 @@ function Module:Initialize()
     self:CreateFrame()
     SuppressNativeLootFrame()
 
-    UI:RegisterEvent("LOOT_OPENED", function()
+    UI:RegisterEvent("LOOT_OPENED", function(_, autoLoot)
+        if Module.ShouldAutoLoot
+            and Module:ShouldAutoLoot(autoLoot)
+        then
+            Module:Hide()
+            return
+        end
+
         Module:Show()
     end)
 
