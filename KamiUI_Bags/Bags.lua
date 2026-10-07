@@ -521,38 +521,14 @@ end
 
 local bagContextMenu
 
-local function IsMouseFocusInside(frame)
-    if not frame then
+local function IsCursorInside(frame)
+    if not frame or not frame:IsShown() then
         return false
     end
 
-    local foci = {}
+    local cursorX, cursorY = GetCursorPosition()
 
-    if GetMouseFoci then
-        foci = { GetMouseFoci() }
-    elseif GetMouseFocus then
-        local focus = GetMouseFocus()
-
-        if focus then
-            foci[1] = focus
-        end
-    end
-
-    for _, focus in ipairs(foci) do
-        local current = focus
-
-        while current do
-            if current == frame then
-                return true
-            end
-
-            current = current.GetParent
-                and current:GetParent()
-                or nil
-        end
-    end
-
-    return false
+    return IsPointInsideFrame(frame, cursorX, cursorY)
 end
 
 local function HideBagContextMenu()
@@ -616,7 +592,19 @@ local function SetBagSlotFlag(bagID, flag, value)
         return
     end
 
-    C_Container.SetBagSlotFlag(bagID, flag, value == true)
+    value = value == true
+
+    C_Container.SetBagSlotFlag(bagID, flag, value)
+
+    if ContainerFrameSettingsManager
+        and ContainerFrameSettingsManager.SetFilterFlag
+    then
+        ContainerFrameSettingsManager:SetFilterFlag(
+            bagID,
+            flag,
+            value
+        )
+    end
 end
 
 local function GetCleanupIgnored(bagID)
@@ -888,8 +876,8 @@ local function EnsureBagContextMenu(parent)
             return
         end
 
-        if IsMouseFocusInside(self)
-            or IsMouseFocusInside(self.anchor)
+        if IsCursorInside(self)
+            or IsCursorInside(self.anchor)
         then
             return
         end
