@@ -7,7 +7,7 @@ local Module = UI:NewModule(
 
 Module.defaults = {
     refreshDelay = 0.08,
-    buttonFontSize = 10,
+    buttonFontSize = 11,
     buttonFontSizeSmall = 8,
 }
 
