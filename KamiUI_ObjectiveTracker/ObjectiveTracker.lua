@@ -184,16 +184,15 @@ local function CreateQuestRow(parent)
     itemButton:SetAttribute("type", "item")
     itemButton:Hide()
 
+    local itemBorder = itemButton:CreateTexture(nil, "BACKGROUND")
+    itemBorder:SetAllPoints()
+    itemBorder:SetColorTexture(0, 0, 0, 0.85)
+
     local itemIcon = itemButton:CreateTexture(nil, "ARTWORK")
-    itemIcon:SetAllPoints()
+    itemIcon:SetPoint("TOPLEFT", itemButton, "TOPLEFT", 1, -1)
+    itemIcon:SetPoint("BOTTOMRIGHT", itemButton, "BOTTOMRIGHT", -1, 1)
     itemIcon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
     itemButton.icon = itemIcon
-
-    local itemBorder = itemButton:CreateTexture(nil, "OVERLAY")
-    itemBorder:SetPoint("TOPLEFT", -1, 1)
-    itemBorder:SetPoint("BOTTOMRIGHT", 1, -1)
-    itemBorder:SetColorTexture(0, 0, 0, 0.85)
-    itemBorder:SetDrawLayer("OVERLAY", -1)
 
     local itemCount = itemButton:CreateFontString(nil, "OVERLAY")
     itemCount:SetPoint("BOTTOMRIGHT", itemButton, "BOTTOMRIGHT", -1, 1)
