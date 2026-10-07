@@ -949,11 +949,20 @@ local function CreateFrameUI()
     frame.toggle = toggle
 
     local heightModeButton = CreateFrame("Button", nil, header)
-    heightModeButton:SetSize(34, 18)
+    heightModeButton:SetSize(30, 16)
     heightModeButton:SetPoint("RIGHT", header, "RIGHT", -2, 0)
     heightModeButton:SetNormalFontObject("GameFontNormalSmall")
-    heightModeButton:SetHighlightFontObject("GameFontHighlightSmall")
     Components:StyleButton(heightModeButton)
+
+    local heightModeText = heightModeButton:GetFontString()
+
+    if heightModeText then
+        heightModeText:SetFont(
+            "Fonts\\FRIZQT__.TTF",
+            8,
+            "OUTLINE"
+        )
+    end
     heightModeButton:SetScript("OnClick", function()
         Module:ToggleHeightLimited()
     end)
