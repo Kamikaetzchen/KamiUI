@@ -252,29 +252,54 @@ function Components:StyleCloseButton(button, options)
     })
 
     local crossSize = options.crossSize or 8
-    local crossThickness = options.crossThickness or 1
+    local crossThickness = options.crossThickness or 1.5
+    local crossInset = math.max(0, (artSize - crossSize) / 2)
     local crossA = button.KamiCloseButtonCrossA
     local crossB = button.KamiCloseButtonCrossB
 
     if not crossA then
-        crossA = art:CreateTexture(nil, "ARTWORK")
-        crossA:SetPoint("CENTER")
+        crossA = art:CreateLine(nil, "ARTWORK")
         button.KamiCloseButtonCrossA = crossA
     end
 
     if not crossB then
-        crossB = art:CreateTexture(nil, "ARTWORK")
-        crossB:SetPoint("CENTER")
+        crossB = art:CreateLine(nil, "ARTWORK")
         button.KamiCloseButtonCrossB = crossB
     end
 
-    crossA:SetSize(crossSize, crossThickness)
-    crossA:SetColorTexture(1, 1, 1, 1)
-    crossA:SetRotation(math.rad(45))
+    crossA:ClearAllPoints()
+    crossA:SetStartPoint(
+        "TOPLEFT",
+        art,
+        "TOPLEFT",
+        crossInset,
+        -crossInset
+    )
+    crossA:SetEndPoint(
+        "BOTTOMRIGHT",
+        art,
+        "BOTTOMRIGHT",
+        -crossInset,
+        crossInset
+    )
+    crossA:SetThickness(crossThickness)
 
-    crossB:SetSize(crossSize, crossThickness)
-    crossB:SetColorTexture(1, 1, 1, 1)
-    crossB:SetRotation(math.rad(-45))
+    crossB:ClearAllPoints()
+    crossB:SetStartPoint(
+        "TOPRIGHT",
+        art,
+        "TOPRIGHT",
+        -crossInset,
+        -crossInset
+    )
+    crossB:SetEndPoint(
+        "BOTTOMLEFT",
+        art,
+        "BOTTOMLEFT",
+        crossInset,
+        crossInset
+    )
+    crossB:SetThickness(crossThickness)
 
     local highlight = button.KamiCloseButtonHighlight
 
@@ -296,8 +321,14 @@ function Components:StyleCloseButton(button, options)
         local config = self.KamiCloseButtonOptions or {}
         local enabled = not self.IsEnabled or self:IsEnabled()
         local color = enabled
-            and (config.crossColor or Palette.text)
-            or (config.disabledCrossColor or Palette.muted)
+            and (
+                config.crossColor
+                or Palette.difficulty.veryHard
+            )
+            or (
+                config.disabledCrossColor
+                or Palette.difficulty.veryHard
+            )
 
         Styles:SetColor(self.KamiCloseButtonCrossA, color)
         Styles:SetColor(self.KamiCloseButtonCrossB, color)
