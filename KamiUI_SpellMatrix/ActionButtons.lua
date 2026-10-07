@@ -127,7 +127,7 @@ local function RefreshButton(button)
 
     local outputColor = analysis.outputType == "healing"
         and Palette.success
-        or Palette:GetPowerColor("RAGE")
+        or Palette.damage
 
     local value = ColorizeMetric(
         Module:FormatMetric(execution),
