@@ -1160,7 +1160,11 @@ eventFrame:SetScript("OnEvent", function(_, event, ...)
             return
         end
 
-        UI:KeepFrameHidden(BankFrame)
+        -- Keep Blizzard's bank lifecycle fully intact even after the
+        -- initial free tab has been granted. Reparenting BankFrame to a
+        -- hidden parent can change effective visibility and trigger its
+        -- OnHide path, so the bank always stays visually suppressed only.
+        UI:SuppressFrame(BankFrame)
         ShowOpenBank()
         return
     end
@@ -1185,9 +1189,9 @@ eventFrame:SetScript("OnEvent", function(_, event, ...)
             bankInitialized = true
 
             -- BANK_TABS_CHANGED is synchronous with PurchaseFirstSlot().
-            -- Do not reparent BankFrame while Blizzard's protected call
-            -- stack is still unwinding. Keep it suppressed for this first
-            -- visit; the next bank open can safely move it to the sink.
+            -- Leave BankFrame visually suppressed; never reparent it away
+            -- from UIParent because Blizzard's bank lifecycle depends on
+            -- its effective visibility.
             if bankOpen then
                 ShowOpenBank()
             end
