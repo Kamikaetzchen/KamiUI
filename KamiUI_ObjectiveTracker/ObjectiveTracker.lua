@@ -318,7 +318,11 @@ local function CreateQuestRow(parent)
     row.objectives = {}
 
     row:SetScript("OnClick", function(self)
-        OpenQuest(self.questID)
+        if self.onClick then
+            self.onClick(self)
+        elseif self.questID then
+            OpenQuest(self.questID)
+        end
     end)
 
     return row
@@ -409,32 +413,71 @@ local function UpdateQuestRow(row, item, y)
             - 2
     )
     row.questID = item.questID
+    row.onClick = item.onClick
 
-    local level = tonumber(item.level) or 0
-    local difficultyColor = Palette:GetLevelDifficultyColor(level)
+    local showQuestControls = item.showQuestControls ~= false
+    local titleWidth
 
-    row.level:SetText(level > 0 and string.format("[%d]", level) or "[?]")
-    Styles:SetTextColor(row.level, difficultyColor)
-    row.title:SetText(item.title or "Unknown Quest")
+    row.title:ClearAllPoints()
 
-    if row.selectButton and row.selectButton.mark then
+    if showQuestControls then
+        local level = tonumber(item.level) or 0
+        local difficultyColor =
+            Palette:GetLevelDifficultyColor(level)
+
+        row.selectButton:Show()
+        row.level:Show()
+        row.level:SetText(
+            level > 0
+                and string.format("[%d]", level)
+                or "[?]"
+        )
+        Styles:SetTextColor(row.level, difficultyColor)
         row.selectButton.mark:SetShown(
             item.questID == GetSuperTrackedQuestID()
         )
+
+        row.title:SetPoint(
+            "TOPLEFT",
+            row.level,
+            "TOPRIGHT",
+            QUEST_TITLE_GAP,
+            0
+        )
+
+        titleWidth =
+            PANEL_WIDTH
+                - SECTION_INDENT
+                - QUEST_INDENT
+                - QUEST_SELECT_SIZE
+                - QUEST_SELECT_GAP
+                - QUEST_LEVEL_WIDTH
+                - QUEST_TITLE_GAP
+                - CONTENT_PADDING
+                - 4
+    else
+        row.selectButton:Hide()
+        row.level:Hide()
+        row.selectButton.mark:Hide()
+
+        row.title:SetPoint(
+            "TOPLEFT",
+            row,
+            "TOPLEFT",
+            4,
+            0
+        )
+
+        titleWidth =
+            PANEL_WIDTH
+                - SECTION_INDENT
+                - QUEST_INDENT
+                - CONTENT_PADDING
+                - 10
     end
 
+    row.title:SetText(item.title or "Unknown")
     UpdateQuestItemButton(row, item.questItem)
-
-    local titleWidth =
-        PANEL_WIDTH
-            - SECTION_INDENT
-            - QUEST_INDENT
-            - QUEST_SELECT_SIZE
-            - QUEST_SELECT_GAP
-            - QUEST_LEVEL_WIDTH
-            - QUEST_TITLE_GAP
-            - CONTENT_PADDING
-            - 4
 
     if item.questItem then
         titleWidth = titleWidth
@@ -447,15 +490,27 @@ local function UpdateQuestRow(row, item, y)
     local titleHeight = math.max(14, math.ceil(row.title:GetStringHeight() or 14))
     local height = titleHeight
 
+    local objectiveIndent = showQuestControls
+        and OBJECTIVE_INDENT
+        or (item.objectiveIndent or 14)
+
     for index, objective in ipairs(item.objectives or {}) do
         local text = GetObjectiveFont(row, index)
 
+        text:SetWidth(
+            PANEL_WIDTH
+                - SECTION_INDENT
+                - QUEST_INDENT
+                - objectiveIndent
+                - CONTENT_PADDING
+                - 4
+        )
         text:ClearAllPoints()
         text:SetPoint(
             "TOPLEFT",
             row,
             "TOPLEFT",
-            OBJECTIVE_INDENT,
+            objectiveIndent,
             -titleHeight
         )
 
