@@ -1346,6 +1346,110 @@ local function CreateCraftingPage(frame)
     Styles:ApplyText(recipeSubTitle, 9, Palette.muted)
     frame.recipeSubTitle = recipeSubTitle
 
+    local trackRecipe = CreateFrame("CheckButton", nil, right)
+    trackRecipe:SetSize(14, 14)
+    trackRecipe:SetPoint("TOPRIGHT", right, "TOPRIGHT", -2, -1)
+    trackRecipe:RegisterForClicks("LeftButtonUp")
+
+    local trackBackground =
+        trackRecipe:CreateTexture(nil, "BACKGROUND")
+    trackBackground:SetAllPoints()
+    Styles:SetColor(trackBackground, Palette.panelStrong)
+
+    local trackBorder =
+        trackRecipe:CreateTexture(nil, "BORDER")
+    trackBorder:SetPoint("TOPLEFT", -1, 1)
+    trackBorder:SetPoint("BOTTOMRIGHT", 1, -1)
+    Styles:SetColor(trackBorder, Palette.border)
+
+    local trackMark =
+        trackRecipe:CreateTexture(nil, "ARTWORK")
+    trackMark:SetPoint("TOPLEFT", 3, -3)
+    trackMark:SetPoint("BOTTOMRIGHT", -3, 3)
+    Styles:SetColor(trackMark, Palette.highlight)
+    trackMark:Hide()
+    trackRecipe.mark = trackMark
+
+    local trackHighlight =
+        trackRecipe:CreateTexture(nil, "HIGHLIGHT")
+    trackHighlight:SetAllPoints()
+    Styles:SetColor(trackHighlight, Palette.white, 0.08)
+
+    local trackLabel = right:CreateFontString(
+        nil,
+        "OVERLAY",
+        "GameFontNormalSmall"
+    )
+    trackLabel:SetPoint(
+        "RIGHT",
+        trackRecipe,
+        "LEFT",
+        -5,
+        0
+    )
+    trackLabel:SetJustifyH("RIGHT")
+    Styles:ApplyText(trackLabel, 9, Palette.muted)
+    trackLabel:SetText(PROFESSIONS_TRACK_RECIPE or "Track Recipe")
+    trackLabel:Hide()
+    trackRecipe.label = trackLabel
+
+    trackRecipe:SetScript("OnClick", function(self)
+        local recipeID = Module.selectedRecipeID
+
+        if not recipeID
+            or not C_TradeSkillUI
+            or not C_TradeSkillUI.IsRecipeTracked
+            or not C_TradeSkillUI.SetRecipeTracked
+        then
+            return
+        end
+
+        local isRecraft = false
+        local tracked = UI:SafeCall(
+            C_TradeSkillUI.IsRecipeTracked,
+            recipeID,
+            isRecraft
+        ) == true
+
+        C_TradeSkillUI.SetRecipeTracked(
+            recipeID,
+            not tracked,
+            isRecraft
+        )
+
+        if SOUNDKIT
+            and SOUNDKIT.UI_PROFESSION_TRACK_RECIPE_CHECKBOX
+            and PlaySound
+        then
+            PlaySound(
+                SOUNDKIT.UI_PROFESSION_TRACK_RECIPE_CHECKBOX
+            )
+        end
+
+        Module:RefreshRecipeDetails()
+    end)
+
+    trackRecipe:SetScript("OnEnter", function(self)
+        if not self:IsShown() then
+            return
+        end
+
+        GameTooltip:SetOwner(self, "ANCHOR_CURSOR_RIGHT")
+        GameTooltip:SetText(
+            self:GetChecked()
+                and (PROFESSIONS_UNTRACK_RECIPE or "Untrack Recipe")
+                or (PROFESSIONS_TRACK_RECIPE or "Track Recipe")
+        )
+        GameTooltip:Show()
+    end)
+
+    trackRecipe:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
+
+    trackRecipe:Hide()
+    frame.trackRecipe = trackRecipe
+
     local detailScroll = CreateFrame("ScrollFrame", nil, right)
     detailScroll:SetPoint(
         "TOPLEFT",
@@ -2227,6 +2331,14 @@ function Module:RefreshRecipeDetails()
     frame.requirementsText:SetText("")
     frame.reagentsTitle:Hide()
     frame.recipeSubTitle:SetText("")
+
+    if frame.trackRecipe then
+        frame.trackRecipe:SetChecked(false)
+        frame.trackRecipe.mark:Hide()
+        frame.trackRecipe:Hide()
+        frame.trackRecipe.label:Hide()
+    end
+
     frame.quantityMinus:Disable()
     frame.quantityPlus:Disable()
     frame.quantity:Disable()
@@ -2282,6 +2394,23 @@ function Module:RefreshRecipeDetails()
     end
 
     frame.recipeTitle:SetText(info.name or "Recipe")
+
+    if frame.trackRecipe
+        and C_TradeSkillUI.IsRecipeTracked
+        and C_TradeSkillUI.SetRecipeTracked
+    then
+        local isRecraft = false
+        local tracked = UI:SafeCall(
+            C_TradeSkillUI.IsRecipeTracked,
+            recipeID,
+            isRecraft
+        ) == true
+
+        frame.trackRecipe:SetChecked(tracked)
+        frame.trackRecipe.mark:SetShown(tracked)
+        frame.trackRecipe:Show()
+        frame.trackRecipe.label:Show()
+    end
 
     local craftable = C_TradeSkillUI.GetCraftableCount
         and UI:SafeCall(
@@ -2801,6 +2930,7 @@ function Module:InitializeFrame()
         "BAG_UPDATE_DELAYED",
         "CURRENCY_DISPLAY_UPDATE",
         "GET_ITEM_INFO_RECEIVED",
+        "TRACKED_RECIPE_UPDATE",
     }) do
         UI:RegisterEvent(event, function()
             if Module.frame and Module.frame:IsShown() then
