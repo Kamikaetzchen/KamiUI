@@ -1,4 +1,5 @@
 local UI = KamiUI
+local Styles = UI.Styles
 
 local Module = UI:NewModule("Minimap", "KamiUI_Minimap")
 
@@ -38,10 +39,11 @@ local function HideObject(object)
         return
     end
 
-    object:Hide()
-
-    if object.SetAlpha then
-        object:SetAlpha(0)
+    if object:IsObjectType("Frame") then
+        UI:KeepFrameHidden(object)
+    else
+        Styles:HideRegion(object)
+        object:Hide()
     end
 end
 
@@ -79,13 +81,8 @@ local function HideBlizzardChrome()
         HideObject(MinimapCluster.ZoneTextButton)
     end
 
-    if MinimapZoomIn then
-        MinimapZoomIn:Hide()
-    end
-
-    if MinimapZoomOut then
-        MinimapZoomOut:Hide()
-    end
+    HideObject(MinimapZoomIn)
+    HideObject(MinimapZoomOut)
 end
 
 local function PositionHeaderIndicators()
@@ -172,10 +169,8 @@ function Module:Initialize()
         if addonName == "Blizzard_Minimap"
             or addonName == "Blizzard_TimeManager"
         then
-            C_Timer.After(0, function()
-                HideBlizzardChrome()
-                PositionHeaderIndicators()
-            end)
+            HideBlizzardChrome()
+            PositionHeaderIndicators()
         end
     end)
 end
