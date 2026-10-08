@@ -1,6 +1,7 @@
 local UI = KamiUI
 
 local hiddenFrameSink
+local persistentSuppression = setmetatable({}, { __mode = "k" })
 
 local function DisableInput(frame, recursive, keyboard)
     if not frame then
@@ -61,6 +62,23 @@ function UI:SuppressFrame(frame, options)
             options.children == true,
             options.keyboard == true
         )
+    end
+
+    if options.persistent and frame.HookScript then
+        local savedOptions = persistentSuppression[frame]
+
+        if not savedOptions then
+            savedOptions = {}
+            persistentSuppression[frame] = savedOptions
+
+            frame:HookScript("OnShow", function(self)
+                UI:SuppressFrame(self, persistentSuppression[self])
+            end)
+        end
+
+        savedOptions.disableInput = options.disableInput
+        savedOptions.children = options.children
+        savedOptions.keyboard = options.keyboard
     end
 
     return frame

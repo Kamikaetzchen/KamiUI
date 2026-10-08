@@ -56,3 +56,6 @@ end)
 UI:RegisterEvent("PLAYER_MAX_LEVEL_UPDATE", function()
     C_Timer.After(0, NotifyBottomInsetChanged)
 end)
+
+-- Watching/unwatching a faction changes the reserved bar height at max level.
+UI:RegisterEvent("UPDATE_FACTION", NotifyBottomInsetChanged)

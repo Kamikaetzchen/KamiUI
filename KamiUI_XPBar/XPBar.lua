@@ -14,23 +14,6 @@ local defaults = {
     dividerColor = { 0, 0, 0, 0.9 },
 }
 
-local function SuppressNativeTrackingFrame(frame)
-    if not frame then
-        return
-    end
-
-    UI:SuppressFrame(frame)
-
-    if frame.KamiUITrackingSuppressed or not frame.HookScript then
-        return
-    end
-
-    frame.KamiUITrackingSuppressed = true
-    frame:HookScript("OnShow", function(self)
-        UI:SuppressFrame(self)
-    end)
-end
-
 local function SuppressNativeTrackingBars()
     local manager = _G.StatusTrackingBarManager
 
@@ -38,49 +21,15 @@ local function SuppressNativeTrackingBars()
         return
     end
 
-    SuppressNativeTrackingFrame(manager)
+    -- Preserve Blizzard's tracking backend; only suppress its visuals/input.
+    -- OnShow re-suppression and recursive mouse suppression are handled in Core.
+    local options = { persistent = true, children = true }
+    UI:SuppressFrame(manager, options)
 
+    -- Containers may be re-created or shown independently of the manager.
     for _, container in ipairs(manager.barContainers or {}) do
-        SuppressNativeTrackingFrame(container)
-
-        for _, bar in pairs(container.bars or {}) do
-            SuppressNativeTrackingFrame(bar)
-        end
+        UI:SuppressFrame(container, options)
     end
-end
-
-local function GetWatchedFactionData()
-    if C_Reputation and C_Reputation.GetWatchedFactionData then
-        local data = UI:SafeCall(
-            C_Reputation.GetWatchedFactionData
-        )
-
-        if type(data) == "table" and data.name then
-            return data
-        end
-    end
-
-    if GetWatchedFactionInfo then
-        local name,
-            reaction,
-            lower,
-            upper,
-            standing,
-            factionID = GetWatchedFactionInfo()
-
-        if name then
-            return {
-                name = name,
-                reaction = reaction,
-                currentReactionThreshold = lower,
-                nextReactionThreshold = upper,
-                currentStanding = standing,
-                factionID = factionID,
-            }
-        end
-    end
-
-    return nil
 end
 
 local function GetReputationProgress(data)
@@ -138,7 +87,7 @@ local function UpdateDividers(frame)
 
     local innerWidth = width - 2
     local segmentWidth = innerWidth / defaults.segments
-    local topInset = frame.hasReputation and 4 or 1
+    local topInset = frame.hasReputation and frame.hasExperience and 4 or 1
 
     for index = 1, defaults.segments - 1 do
         local divider = frame.dividers[index]
@@ -162,92 +111,50 @@ local function UpdateDividers(frame)
     end
 end
 
-local function LayoutBars(frame, hasReputation)
+local function LayoutBars(frame, hasExperience, hasReputation)
+    frame.hasExperience = hasExperience == true
     frame.hasReputation = hasReputation == true
 
     frame.restedBar:ClearAllPoints()
     frame.xpBar:ClearAllPoints()
     frame.reputationBar:ClearAllPoints()
 
+    frame.restedBar:SetShown(frame.hasExperience)
+    frame.xpBar:SetShown(frame.hasExperience)
+    frame.reputationBar:SetShown(frame.hasReputation)
+    frame.reputationDivider:SetShown(
+        frame.hasExperience and frame.hasReputation
+    )
+
     if frame.hasReputation then
         frame.reputationBar:SetPoint(
-            "TOPLEFT",
-            frame,
-            "TOPLEFT",
-            1,
-            -1
+            "TOPLEFT", frame, "TOPLEFT", 1, -1
         )
         frame.reputationBar:SetPoint(
-            "TOPRIGHT",
-            frame,
-            "TOPRIGHT",
-            -1,
-            -1
+            "TOPRIGHT", frame, "TOPRIGHT", -1, -1
         )
-        frame.reputationBar:SetHeight(2)
-        frame.reputationBar:Show()
-        frame.reputationDivider:Show()
 
-        frame.restedBar:SetPoint(
-            "TOPLEFT",
-            frame,
-            "TOPLEFT",
-            1,
-            -4
-        )
-        frame.restedBar:SetPoint(
-            "BOTTOMRIGHT",
-            frame,
-            "BOTTOMRIGHT",
-            -1,
-            1
-        )
-        frame.xpBar:SetPoint(
-            "TOPLEFT",
-            frame,
-            "TOPLEFT",
-            1,
-            -4
-        )
-        frame.xpBar:SetPoint(
-            "BOTTOMRIGHT",
-            frame,
-            "BOTTOMRIGHT",
-            -1,
-            1
-        )
-    else
-        frame.reputationBar:Hide()
-        frame.reputationDivider:Hide()
+        if frame.hasExperience then
+            frame.reputationBar:SetHeight(2)
+        else
+            -- At max level the watched reputation occupies all 10 px.
+            frame.reputationBar:SetPoint(
+                "BOTTOMRIGHT", frame, "BOTTOMRIGHT", -1, 1
+            )
+        end
+    end
 
-        frame.restedBar:SetPoint(
-            "TOPLEFT",
-            frame,
-            "TOPLEFT",
-            1,
-            -1
-        )
-        frame.restedBar:SetPoint(
-            "BOTTOMRIGHT",
-            frame,
-            "BOTTOMRIGHT",
-            -1,
-            1
-        )
-        frame.xpBar:SetPoint(
-            "TOPLEFT",
-            frame,
-            "TOPLEFT",
-            1,
-            -1
-        )
-        frame.xpBar:SetPoint(
-            "BOTTOMRIGHT",
-            frame,
-            "BOTTOMRIGHT",
-            -1,
-            1
-        )
+    if frame.hasExperience then
+        local topInset = frame.hasReputation and 4 or 1
+
+        for _, bar in ipairs({ frame.restedBar, frame.xpBar }) do
+            bar:SetPoint(
+                "TOPLEFT", frame, "TOPLEFT", 1, -topInset
+            )
+            bar:SetPoint(
+                "BOTTOMRIGHT", frame, "BOTTOMRIGHT", -1, 1
+            )
+        end
     end
 
     UpdateDividers(frame)
@@ -261,48 +168,47 @@ local function ShowTooltip(frame)
         local data = frame.reputationData
         local r, g, b = GetReputationColor(data)
 
-        GameTooltip:AddLine(
-            data.name or "Reputation",
-            r,
-            g,
-            b
-        )
+        GameTooltip:AddLine(data.name or "Reputation", r, g, b)
         GameTooltip:AddLine(
             string.format(
                 "%s/%s",
                 UI:FormatNumber(frame.reputationCurrent or 0),
                 UI:FormatNumber(frame.reputationMaximum or 0)
             ),
-            1,
-            1,
-            1
+            1, 1, 1
         )
-        GameTooltip:AddLine(" ")
+
+        if frame.hasExperience then
+            GameTooltip:AddLine(" ")
+        end
     end
 
-    local currentXP = UnitXP("player") or 0
-    local maxXP = UnitXPMax("player") or 0
-    local restedXP = GetXPExhaustion and GetXPExhaustion() or 0
-    restedXP = restedXP or 0
+    if frame.hasExperience then
+        local currentXP = UnitXP("player") or 0
+        local maxXP = UnitXPMax("player") or 0
+        local restedXP = GetXPExhaustion and GetXPExhaustion() or 0
+        restedXP = restedXP or 0
 
-    GameTooltip:AddLine("Experience", 1, 0.82, 0)
+        GameTooltip:AddLine("Experience", 1, 0.82, 0)
 
-    local text = string.format(
-        "%s/%s",
-        UI:FormatNumber(currentXP),
-        UI:FormatNumber(maxXP)
-    )
-
-    if maxXP > 0 and restedXP > 0 then
-        local restedPercent = restedXP / maxXP * 100
-        text = string.format(
-            "%s (+%.1f%% rested)",
-            text,
-            restedPercent
+        local text = string.format(
+            "%s/%s",
+            UI:FormatNumber(currentXP),
+            UI:FormatNumber(maxXP)
         )
+
+        if maxXP > 0 and restedXP > 0 then
+            local restedPercent = restedXP / maxXP * 100
+            text = string.format(
+                "%s (+%.1f%% rested)",
+                text,
+                restedPercent
+            )
+        end
+
+        GameTooltip:AddLine(text, 1, 1, 1)
     end
 
-    GameTooltip:AddLine(text, 1, 1, 1)
     GameTooltip:Show()
 end
 
@@ -400,31 +306,9 @@ function Module:Refresh()
     CreateBar()
     SuppressNativeTrackingBars()
 
-    if UI:GetBottomInset() <= 0 then
-        self.frame:Hide()
-        return
-    end
-
-    local currentXP = UnitXP("player") or 0
     local maxXP = UnitXPMax("player") or 0
-
-    if maxXP <= 0 then
-        self.frame:Hide()
-        return
-    end
-
-    local restedXP = GetXPExhaustion and GetXPExhaustion() or 0
-    restedXP = restedXP or 0
-
-    self.frame.restedBar:SetMinMaxValues(0, maxXP)
-    self.frame.restedBar:SetValue(
-        math.min(currentXP + restedXP, maxXP)
-    )
-
-    self.frame.xpBar:SetMinMaxValues(0, maxXP)
-    self.frame.xpBar:SetValue(currentXP)
-
-    local reputationData = GetWatchedFactionData()
+    local hasExperience = not UI:IsPlayerAtMaxLevel() and maxXP > 0
+    local reputationData = UI:GetWatchedReputationData()
     local reputationCurrent
     local reputationMaximum
 
@@ -433,33 +317,46 @@ function Module:Refresh()
             GetReputationProgress(reputationData)
     end
 
-    local hasReputation =
-        reputationData ~= nil
+    local hasReputation = reputationData ~= nil
         and reputationCurrent ~= nil
         and reputationMaximum ~= nil
 
-    self.frame.reputationData = hasReputation
-        and reputationData
-        or nil
+    if not hasExperience and not hasReputation then
+        self.frame:Hide()
+        return
+    end
+
+    self.frame.reputationData = hasReputation and reputationData or nil
     self.frame.reputationCurrent = hasReputation
-        and reputationCurrent
-        or nil
+        and reputationCurrent or nil
     self.frame.reputationMaximum = hasReputation
-        and reputationMaximum
-        or nil
+        and reputationMaximum or nil
+
+    if hasExperience then
+        local currentXP = UnitXP("player") or 0
+        local restedXP = GetXPExhaustion and GetXPExhaustion() or 0
+        restedXP = restedXP or 0
+
+        self.frame.restedBar:SetMinMaxValues(0, maxXP)
+        self.frame.restedBar:SetValue(
+            math.min(currentXP + restedXP, maxXP)
+        )
+
+        self.frame.xpBar:SetMinMaxValues(0, maxXP)
+        self.frame.xpBar:SetValue(currentXP)
+    end
 
     if hasReputation then
         local r, g, b = GetReputationColor(reputationData)
 
         self.frame.reputationBar:SetMinMaxValues(
-            0,
-            reputationMaximum
+            0, reputationMaximum
         )
         self.frame.reputationBar:SetValue(reputationCurrent)
         self.frame.reputationBar:SetStatusBarColor(r, g, b, 1)
     end
 
-    LayoutBars(self.frame, hasReputation)
+    LayoutBars(self.frame, hasExperience, hasReputation)
     self.frame:Show()
 end
 
