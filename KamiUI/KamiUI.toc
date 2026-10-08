@@ -18,7 +18,6 @@ Components\ItemSlots.lua
 Components\Popups.lua
 Components\Sections.lua
 Components\Windows.lua
-Config.lua
 Events.lua
 Modules.lua
 Commands.lua

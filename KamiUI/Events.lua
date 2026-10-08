@@ -17,16 +17,14 @@ function UI:RegisterBottomInsetCallback(callback)
     table.insert(self.bottomInsetCallbacks, callback)
 end
 
-local function NotifyBottomInsetChanged()
-    local inset = UI:GetBottomInset()
-
-    if UI.currentBottomInset == inset then
+function UI:SetBottomInset(inset)
+    if self.currentBottomInset == inset then
         return
     end
 
-    UI.currentBottomInset = inset
+    self.currentBottomInset = inset
 
-    for _, callback in ipairs(UI.bottomInsetCallbacks) do
+    for _, callback in ipairs(self.bottomInsetCallbacks) do
         callback(inset)
     end
 end
@@ -42,20 +40,3 @@ UI.eventFrame:SetScript("OnEvent", function(_, event, ...)
         callback(event, ...)
     end
 end)
-
-UI:RegisterEvent("PLAYER_ENTERING_WORLD", function()
-    C_Timer.After(0, NotifyBottomInsetChanged)
-end)
-
-UI:RegisterEvent("UNIT_LEVEL", function(_, unit)
-    if unit == "player" then
-        C_Timer.After(0, NotifyBottomInsetChanged)
-    end
-end)
-
-UI:RegisterEvent("PLAYER_MAX_LEVEL_UPDATE", function()
-    C_Timer.After(0, NotifyBottomInsetChanged)
-end)
-
--- Watching/unwatching a faction changes the reserved bar height at max level.
-UI:RegisterEvent("UPDATE_FACTION", NotifyBottomInsetChanged)

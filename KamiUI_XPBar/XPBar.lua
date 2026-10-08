@@ -4,8 +4,9 @@ local Styles = UI.Styles
 local Module = UI:NewModule("XPBar", "KamiUI_XPBar")
 
 
+local BAR_HEIGHT = 10
+
 local defaults = {
-    height = UI.defaults.layout.xpBarHeight,
     segments = 20,
     background = { 0.10, 0.10, 0.12, 0.50 },
     restedColor = { 0.08, 0.32, 0.72, 0.50 },
@@ -13,6 +14,56 @@ local defaults = {
     borderColor = { 0, 0, 0, 1 },
     dividerColor = { 0, 0, 0, 0.9 },
 }
+
+local function GetEffectiveMaxLevel()
+    if GameRulesUtil and GameRulesUtil.GetEffectiveMaxLevelForPlayer then
+        return GameRulesUtil.GetEffectiveMaxLevelForPlayer()
+    end
+
+    if GetMaxPlayerLevel then
+        return GetMaxPlayerLevel()
+    end
+end
+
+local function IsPlayerAtMaxLevel()
+    local level = UnitLevel("player")
+    local maxLevel = GetEffectiveMaxLevel()
+
+    return level and level > 0 and maxLevel and level >= maxLevel
+end
+
+-- Watched reputation also determines whether the XPBar stays visible at max level.
+local function GetWatchedReputationData()
+    if C_Reputation and C_Reputation.GetWatchedFactionData then
+        local data = UI:SafeCall(C_Reputation.GetWatchedFactionData)
+
+        if type(data) == "table" and data.name then
+            return data
+        end
+    end
+
+    if GetWatchedFactionInfo then
+        local name,
+            reaction,
+            lower,
+            upper,
+            standing,
+            factionID = UI:SafeCall(GetWatchedFactionInfo)
+
+        if name then
+            return {
+                name = name,
+                reaction = reaction,
+                currentReactionThreshold = lower,
+                nextReactionThreshold = upper,
+                currentStanding = standing,
+                factionID = factionID,
+            }
+        end
+    end
+
+    return nil
+end
 
 local function SuppressNativeTrackingBars()
     local manager = _G.StatusTrackingBarManager
@@ -220,7 +271,7 @@ local function CreateBar()
     local frame = CreateFrame("Frame", "KamiUIXPBar", UIParent)
     frame:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", 0, 0)
     frame:SetPoint("BOTTOMRIGHT", UIParent, "BOTTOMRIGHT", 0, 0)
-    frame:SetHeight(defaults.height)
+    frame:SetHeight(BAR_HEIGHT)
     frame:SetFrameStrata("HIGH")
 
     local background = frame:CreateTexture(nil, "BACKGROUND")
@@ -307,8 +358,8 @@ function Module:Refresh()
     SuppressNativeTrackingBars()
 
     local maxXP = UnitXPMax("player") or 0
-    local hasExperience = not UI:IsPlayerAtMaxLevel() and maxXP > 0
-    local reputationData = UI:GetWatchedReputationData()
+    local hasExperience = not IsPlayerAtMaxLevel() and maxXP > 0
+    local reputationData = GetWatchedReputationData()
     local reputationCurrent
     local reputationMaximum
 
@@ -323,6 +374,7 @@ function Module:Refresh()
 
     if not hasExperience and not hasReputation then
         self.frame:Hide()
+        UI:SetBottomInset(0)
         return
     end
 
@@ -358,14 +410,11 @@ function Module:Refresh()
 
     LayoutBars(self.frame, hasExperience, hasReputation)
     self.frame:Show()
+    UI:SetBottomInset(BAR_HEIGHT)
 end
 
 function Module:Initialize()
     self:Refresh()
-
-    UI:RegisterBottomInsetCallback(function()
-        Module:Refresh()
-    end)
 
     UI:RegisterEvent("PLAYER_ENTERING_WORLD", function()
         Module:Refresh()
