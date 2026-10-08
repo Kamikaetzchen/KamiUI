@@ -67,16 +67,28 @@ local function GetBottom()
     return defaults.y + UI:GetBottomInset()
 end
 
-local function HideObject(object)
+local function HideRegion(region)
+    if region then
+        Styles:HideRegion(region)
+        region:Hide()
+    end
+end
+
+local function HideFrame(frame)
+    if frame then
+        UI:KeepFrameHidden(frame)
+    end
+end
+
+local function HideChromeObject(object)
     if not object then
         return
     end
 
-    object:SetAlpha(0)
-    object:Hide()
-
-    if object.EnableMouse then
-        object:EnableMouse(false)
+    if object:IsObjectType("Frame") then
+        HideFrame(object)
+    else
+        HideRegion(object)
     end
 end
 
@@ -132,14 +144,6 @@ local function EnsurePanels()
         Module.inputPanel:Hide()
     end
 
-    if not Module.chromeSink then
-        Module.chromeSink = CreateFrame(
-            "Frame",
-            "KamiUIChatChromeSink",
-            UIParent
-        )
-        Module.chromeSink:Hide()
-    end
 end
 
 local function PositionPanels()
@@ -378,15 +382,15 @@ local function HideEditBoxDecorations(editBox)
             "Prompt",
             "Language",
         }) do
-            HideObject(_G[name .. suffix])
+            HideChromeObject(_G[name .. suffix])
         end
     end
 
-    HideObject(editBox.header)
-    HideObject(editBox.headerSuffix)
-    HideObject(editBox.languageHeader)
-    HideObject(editBox.NewcomerHint)
-    HideObject(editBox.prompt)
+    HideChromeObject(editBox.header)
+    HideChromeObject(editBox.headerSuffix)
+    HideChromeObject(editBox.languageHeader)
+    HideChromeObject(editBox.NewcomerHint)
+    HideChromeObject(editBox.prompt)
 end
 
 local function ApplyEditBoxInsets(editBox)
@@ -465,32 +469,25 @@ local function HideFrameChrome(frame)
         return
     end
 
-    local function StashObject(object)
-        if not object then
-            return
-        end
+    HideChromeObject(frame.Background)
+    HideChromeObject(frame.clickAnywhereButton)
 
-        if object.SetParent and Module.chromeSink then
-            object:SetParent(Module.chromeSink)
-        end
-
-        HideObject(object)
-    end
-
-    HideObject(frame.Background)
-    HideObject(frame.clickAnywhereButton)
-    StashObject(frame.ScrollBar)
-    StashObject(frame.ScrollToBottomButton)
-    StashObject(frame.ResizeButton)
+    -- Blizzard's scroll handling uses this scrollbar; keep its parent intact.
+    UI:SuppressFrame(frame.ScrollBar, {
+        persistent = true,
+        children = true,
+    })
+    HideFrame(frame.ScrollToBottomButton)
+    HideFrame(frame.ResizeButton)
 
     local name = frame:GetName()
 
     if name then
-        StashObject(_G[name .. "ButtonFrame"])
-        StashObject(_G[name .. "Tab"])
+        HideChromeObject(_G[name .. "ButtonFrame"])
+        HideChromeObject(_G[name .. "Tab"])
 
         for _, suffix in ipairs(CHAT_FRAME_TEXTURES or {}) do
-            HideObject(_G[name .. suffix])
+            HideChromeObject(_G[name .. suffix])
         end
     end
 end
@@ -525,8 +522,23 @@ local function StyleNativeChatFrame(frame, parent, topInset)
 
     frame:SetAlpha(1)
     frame:SetFading(false)
-    frame:SetMaxLines(500)
+    if not frame.KamiUIMaxLinesSet then
+        -- Calling SetMaxLines again can discard existing chat history.
+        frame:SetMaxLines(500)
+        frame.KamiUIMaxLinesSet = true
+    end
     frame:SetScrollAllowed(true)
+
+    if not frame.KamiUIWheelHooked then
+        frame.KamiUIWheelHooked = true
+        frame:SetScript("OnMouseWheel", function(self, delta)
+            if delta > 0 then
+                self:ScrollUp()
+            else
+                self:ScrollDown()
+            end
+        end)
+    end
     frame:SetJustifyH("LEFT")
     frame:SetIndentedWordWrap(false)
     frame:SetHyperlinksEnabled(true)
@@ -550,15 +562,12 @@ local function HideStockFrame(frame)
         return
     end
 
-    frame:SetAlpha(0)
-    frame:EnableMouse(false)
-
+    UI:SuppressFrame(frame, {
+        persistent = true,
+        children = true,
+    })
     if frame.SetHyperlinksEnabled then
         frame:SetHyperlinksEnabled(false)
-    end
-
-    if frame.EnableMouseWheel then
-        frame:EnableMouseWheel(false)
     end
 
     HideFrameChrome(frame)
@@ -646,11 +655,12 @@ local function PositionManagedChatFrames()
 end
 
 local function HideStockChatUI()
-    HideObject(GeneralDockManager)
-    HideObject(ChatFrameMenuButton)
-    HideObject(ChatFrameChannelButton)
-    HideObject(TextToSpeechButton)
-    HideObject(QuickJoinToastButton)
+    -- Preserve dock manager behavior while hiding its own UI.
+    UI:SuppressFrame(GeneralDockManager, { persistent = true })
+    HideChromeObject(ChatFrameMenuButton)
+    HideChromeObject(ChatFrameChannelButton)
+    HideChromeObject(TextToSpeechButton)
+    HideChromeObject(QuickJoinToastButton)
 
     local managed = {}
 
@@ -758,7 +768,7 @@ UI:RegisterCommand(
 )
 
 local function StartChatUI()
-    if Module.starting then
+    if Module.starting or Module.started then
         return
     end
 
@@ -823,7 +833,11 @@ function Module:Initialize()
     end
 
     UI:RegisterEvent("PLAYER_ENTERING_WORLD", function()
-        C_Timer.After(0, StartChatUI)
+        if Module.started then
+            Module:ApplyLayout()
+        else
+            StartChatUI()
+        end
     end)
 
     UI:RegisterBottomInsetCallback(function()
@@ -832,47 +846,41 @@ function Module:Initialize()
         end
     end)
 
-    UI:RegisterEvent("UPDATE_CHAT_WINDOWS", function()
+    local refreshQueued = false
+
+    local function RefreshChatWindows()
         if Module.starting then
             HideStockChatUI()
             return
         end
 
-        if Module.started then
-            C_Timer.After(0, function()
-                HideStockChatUI()
-                PositionManagedChatFrames()
-                PositionCombatBar()
-                Module:SelectTab(Module.selectedTab or "general")
-            end)
+        if not Module.started or refreshQueued then
+            return
         end
-    end)
 
-    UI:RegisterEvent("UPDATE_FLOATING_CHAT_WINDOWS", function()
-        if Module.started and not Module.starting then
-            C_Timer.After(0, function()
-                HideStockChatUI()
-                PositionManagedChatFrames()
-                PositionCombatBar()
-                Module:SelectTab(Module.selectedTab or "general")
-            end)
-        end
-    end)
+        refreshQueued = true
+        C_Timer.After(0, function()
+            refreshQueued = false
+            HideStockChatUI()
+            PositionManagedChatFrames()
+            PositionCombatBar()
+            Module:SelectTab(Module.selectedTab or "general")
+        end)
+    end
+
+    UI:RegisterEvent("UPDATE_CHAT_WINDOWS", RefreshChatWindows)
+    UI:RegisterEvent("UPDATE_FLOATING_CHAT_WINDOWS", RefreshChatWindows)
 
     UI:RegisterEvent("ADDON_LOADED", function(_, addonName)
         if addonName == "Blizzard_CombatLog" and Module.started then
-            C_Timer.After(0, function()
-                HideStockChatUI()
-                PositionCombatBar()
-            end)
+            HideStockChatUI()
+            PositionCombatBar()
         end
     end)
 
     UI:RegisterEvent("UI_SCALE_CHANGED", function()
         if Module.started then
-            C_Timer.After(0, function()
-                Module:ApplyLayout()
-            end)
+            Module:ApplyLayout()
         end
     end)
 end
