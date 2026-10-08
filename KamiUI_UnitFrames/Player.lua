@@ -1,7 +1,7 @@
 local UI = KamiUI
 local UF = UI:GetModule("UnitFrames")
 
-local FRAME_Y = -250
+local Layout = UI.Layout.UnitFrames.Player
 
 local frame = UF:CreatePrimaryFrame({
     name = "KamiUIPlayerFrame",
@@ -31,7 +31,7 @@ local function PositionFrame()
         UIParent,
         "CENTER",
         -1,
-        FRAME_Y + UI:GetBottomInset()
+        Layout.FRAME_Y + UI:GetBottomInset()
     )
 end
 

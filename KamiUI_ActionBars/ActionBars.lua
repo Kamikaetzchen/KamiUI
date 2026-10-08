@@ -4,15 +4,7 @@ local LAB = LibStub("LibActionButton-1.0")
 
 local Module = UI:NewModule("ActionBars", "KamiUI_ActionBars")
 
-local defaults = {
-    buttonSize = 40,
-    secondaryButtonSize = 30,
-    buttonSpacing = 0,
-    iconZoom = 0.08,
-    alpha = 1,
-    offsetX = -400,
-    offsetY = 0,
-}
+local Layout = UI.Layout.ActionBars
 
 Module.bottomInset = UI:GetBottomInset()
 Module.bars = {}
@@ -24,12 +16,12 @@ local cooldownFont = CreateFont("KamiUIActionBarCooldownFont")
 local cooldownFontSmall = CreateFont("KamiUIActionBarCooldownFontSmall")
 local cooldownFontPath, _, cooldownFontFlags = GameFontNormalLarge:GetFont()
 
-cooldownFont:SetFont(cooldownFontPath, 17, "THICKOUTLINE")
+cooldownFont:SetFont(cooldownFontPath, Styles.FontSize.ActionBars.cooldown, "THICKOUTLINE")
 cooldownFont:SetTextColor(1.00, 0.12, 0.12, 1)
 cooldownFont:SetShadowColor(1, 1, 1, 0.85)
 cooldownFont:SetShadowOffset(1, -1)
 
-cooldownFontSmall:SetFont(cooldownFontPath, 13, "THICKOUTLINE")
+cooldownFontSmall:SetFont(cooldownFontPath, Styles.FontSize.ActionBars.cooldownSmall, "THICKOUTLINE")
 cooldownFontSmall:SetTextColor(1.00, 0.12, 0.12, 1)
 cooldownFontSmall:SetShadowColor(1, 1, 1, 0.85)
 cooldownFontSmall:SetShadowOffset(1, -1)
@@ -127,10 +119,10 @@ local function StyleIcon(button)
     icon:ClearAllPoints()
     icon:SetAllPoints(button)
     icon:SetTexCoord(
-        defaults.iconZoom,
-        1 - defaults.iconZoom,
-        defaults.iconZoom,
-        1 - defaults.iconZoom
+        Layout.ICON_ZOOM,
+        1 - Layout.ICON_ZOOM,
+        Layout.ICON_ZOOM,
+        1 - Layout.ICON_ZOOM
     )
 end
 
@@ -145,7 +137,7 @@ local function StyleCooldown(cooldown, button)
 
     if cooldown.SetCountdownFont then
         cooldown:SetCountdownFont(
-            button:GetWidth() <= defaults.secondaryButtonSize
+            button:GetWidth() <= Layout.SECONDARY_BUTTON_SIZE
                 and "KamiUIActionBarCooldownFontSmall"
                 or "KamiUIActionBarCooldownFont"
         )
@@ -315,8 +307,8 @@ local function CreateActionBar(def)
         StyleButton(
             button,
             def.layout == "primary"
-                and defaults.buttonSize
-                or defaults.secondaryButtonSize
+                and Layout.BUTTON_SIZE
+                or Layout.SECONDARY_BUTTON_SIZE
         )
 
         -- StyleButton must not force empty LAB buttons visible.
@@ -335,9 +327,9 @@ end
 
 local function LayoutPrimaryBar(bar)
     local nextButton
-    local y = defaults.offsetY
+    local y = Layout.OFFSET_Y
         + Module.bottomInset
-        + ((bar.def.row - 1) * defaults.buttonSize)
+        + ((bar.def.row - 1) * Layout.BUTTON_SIZE)
 
     for index = #bar.buttons, 1, -1 do
         local button = bar.buttons[index]
@@ -348,7 +340,7 @@ local function LayoutPrimaryBar(bar)
                 "RIGHT",
                 nextButton,
                 "LEFT",
-                -defaults.buttonSpacing,
+                -Layout.BUTTON_SPACING,
                 0
             )
         else
@@ -356,7 +348,7 @@ local function LayoutPrimaryBar(bar)
                 "BOTTOMRIGHT",
                 UIParent,
                 "BOTTOMRIGHT",
-                defaults.offsetX,
+                Layout.OFFSET_X,
                 y
             )
         end
@@ -445,7 +437,7 @@ local function CreatePetBar()
         UIParent,
         "SecureHandlerStateTemplate"
     )
-    frame:SetSize(defaults.secondaryButtonSize * 10, defaults.secondaryButtonSize)
+    frame:SetSize(Layout.SECONDARY_BUTTON_SIZE * 10, Layout.SECONDARY_BUTTON_SIZE)
 
     local buttons = {}
 
@@ -458,7 +450,7 @@ local function CreatePetBar()
         )
         button:SetID(index)
         button.index = index
-        button:SetSize(defaults.secondaryButtonSize, defaults.secondaryButtonSize)
+        button:SetSize(Layout.SECONDARY_BUTTON_SIZE, Layout.SECONDARY_BUTTON_SIZE)
 
         button:SetScript("OnDragStart", function(self)
             if InCombatLockdown and InCombatLockdown() then
@@ -535,7 +527,7 @@ local function CreatePetBar()
             autoCast:Hide()
         end
 
-        StyleButton(button, defaults.secondaryButtonSize)
+        StyleButton(button, Layout.SECONDARY_BUTTON_SIZE)
 
         local checked = button.CheckedTexture or button:GetCheckedTexture()
         if checked then
@@ -633,7 +625,7 @@ local function CreateStanceBar()
     end
 
     local frame = CreateFrame("Frame", "KamiUIStanceBar", UIParent)
-    frame:SetSize(defaults.secondaryButtonSize * 10, defaults.secondaryButtonSize)
+    frame:SetSize(Layout.SECONDARY_BUTTON_SIZE * 10, Layout.SECONDARY_BUTTON_SIZE)
     frame.buttons = {}
 
     for index = 1, 10 do
@@ -645,11 +637,11 @@ local function CreateStanceBar()
         )
         button:SetID(index)
         button.index = index
-        button:SetSize(defaults.secondaryButtonSize, defaults.secondaryButtonSize)
+        button:SetSize(Layout.SECONDARY_BUTTON_SIZE, Layout.SECONDARY_BUTTON_SIZE)
 
         -- Keep Blizzard's inherited StanceButtonTemplate click handler.
         -- Replacing it with addon Lua taints CastShapeshiftForm.
-        StyleButton(button, defaults.secondaryButtonSize)
+        StyleButton(button, Layout.SECONDARY_BUTTON_SIZE)
 
         frame.buttons[index] = button
     end

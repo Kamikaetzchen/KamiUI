@@ -1,22 +1,10 @@
 local UI = KamiUI
+local Palette = UI.Palette
 local Styles = UI.Styles
 
 local Module = UI:NewModule("Auras", "KamiUI_Auras")
 
-local defaults = {
-    width = 300,
-    height = 25,
-    iconSize = 25,
-    groupGap = 4,
-    x = 0,
-    y = 300,
-    fontSize = 11,
-    barAlpha = 0.40,
-    backgroundAlpha = 0.60,
-    helpfulColor = { 0.20, 0.55, 0.90 },
-    harmfulColor = { 0.80, 0.20, 0.20 },
-    backgroundColor = { 0.03, 0.03, 0.03 },
-}
+local Layout = UI.Layout.Auras
 
 local container
 
@@ -26,11 +14,11 @@ local function HideBlizzardAuras()
 end
 
 local function InitializeAuraButton(button, color, useDispelColor)
-    button:SetSize(defaults.width, defaults.height)
+    button:SetSize(Layout.WIDTH, Layout.HEIGHT)
     button:EnableMouse(true)
 
     local icon = button:CreateTexture(nil, "ARTWORK")
-    icon:SetSize(defaults.iconSize, defaults.iconSize)
+    icon:SetSize(Layout.ICON_SIZE, Layout.ICON_SIZE)
     icon:SetPoint("LEFT")
     icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
 
@@ -39,9 +27,9 @@ local function InitializeAuraButton(button, color, useDispelColor)
     -- including an opaque alpha value, so applying alpha directly to the
     -- texture is not stable. Parent alpha survives those secure color updates.
     local barContainer = CreateFrame("Frame", nil, button)
-    barContainer:SetSize(defaults.width - defaults.iconSize, defaults.height)
+    barContainer:SetSize(Layout.WIDTH - Layout.ICON_SIZE, Layout.HEIGHT)
     barContainer:SetPoint("LEFT", icon, "RIGHT", 0, 0)
-    barContainer:SetAlpha(defaults.barAlpha)
+    barContainer:SetAlpha(Styles.State.aurasBarAlpha)
 
     local bar = CreateFrame("StatusBar", nil, barContainer)
     bar:SetAllPoints()
@@ -56,10 +44,10 @@ local function InitializeAuraButton(button, color, useDispelColor)
     background:SetPoint("TOPLEFT", barContainer, "TOPLEFT")
     background:SetPoint("BOTTOMRIGHT", barContainer, "BOTTOMRIGHT")
     background:SetColorTexture(
-        defaults.backgroundColor[1],
-        defaults.backgroundColor[2],
-        defaults.backgroundColor[3],
-        defaults.backgroundAlpha
+        Palette.auras.background[1],
+        Palette.auras.background[2],
+        Palette.auras.background[3],
+        Styles.State.aurasBackgroundAlpha
     )
 
     -- Keep text regions outside the duration StatusBar. Once a region is
@@ -94,9 +82,9 @@ local function InitializeAuraButton(button, color, useDispelColor)
     stackText:SetShadowOffset(1, -1)
 
     local fontPath, _, fontFlags = GameFontNormalSmall:GetFont()
-    nameText:SetFont(fontPath, defaults.fontSize, fontFlags)
-    timeText:SetFont(fontPath, defaults.fontSize, fontFlags)
-    stackText:SetFont(fontPath, defaults.fontSize, "OUTLINE")
+    nameText:SetFont(fontPath, Styles.FontSize.Auras, fontFlags)
+    timeText:SetFont(fontPath, Styles.FontSize.Auras, fontFlags)
+    stackText:SetFont(fontPath, Styles.FontSize.Auras, "OUTLINE")
 
     -- Shared 1 px separator between stacked rows.
     Styles:CreateBorder(overlay, {
@@ -142,8 +130,8 @@ local function CreateAuraContainer()
         "BOTTOMRIGHT",
         UIParent,
         "BOTTOMRIGHT",
-        defaults.x,
-        defaults.y + UI:GetBottomInset()
+        Layout.X,
+        Layout.Y + UI:GetBottomInset()
     )
 
     auraContainer:SetFlowLayoutAxis(AnchorUtil.FlowLayoutAxis.Vertical)
@@ -165,11 +153,11 @@ local function CreateAuraContainer()
         sortMethod = AuraContainerSortMethod.ExpirationOnly,
         sortDirection = AuraContainerSortDirection.Reverse,
         initializeFrame = function(button)
-            InitializeAuraButton(button, defaults.helpfulColor, false)
+            InitializeAuraButton(button, Palette.auras.helpful, false)
         end,
         layout = {
-            elementWidth = defaults.width,
-            elementHeight = defaults.height,
+            elementWidth = Layout.WIDTH,
+            elementHeight = Layout.HEIGHT,
             layoutIndex = 1,
         },
     })
@@ -179,12 +167,12 @@ local function CreateAuraContainer()
         sortMethod = AuraContainerSortMethod.Expiration,
         sortDirection = AuraContainerSortDirection.Reverse,
         initializeFrame = function(button)
-            InitializeAuraButton(button, defaults.harmfulColor, true)
+            InitializeAuraButton(button, Palette.auras.harmful, true)
         end,
         layout = {
-            elementWidth = defaults.width,
-            elementHeight = defaults.height,
-            groupSpacing = defaults.groupGap,
+            elementWidth = Layout.WIDTH,
+            elementHeight = Layout.HEIGHT,
+            groupSpacing = Layout.GROUP_GAP,
             layoutIndex = 2,
         },
     })
@@ -208,8 +196,8 @@ local function UpdatePosition()
         "BOTTOMRIGHT",
         UIParent,
         "BOTTOMRIGHT",
-        defaults.x,
-        defaults.y + UI:GetBottomInset()
+        Layout.X,
+        Layout.Y + UI:GetBottomInset()
     )
 end
 

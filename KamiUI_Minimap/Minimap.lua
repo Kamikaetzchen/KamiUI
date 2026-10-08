@@ -1,19 +1,11 @@
 local UI = KamiUI
+local Palette = UI.Palette
 local Styles = UI.Styles
 
 local Module = UI:NewModule("Minimap", "KamiUI_Minimap")
 
 
-local defaults = {
-    size = 220,
-    position = {
-        point = "BOTTOM",
-        relativePoint = "BOTTOM",
-        x = 0,
-        y = 0,
-    },
-    border = { 0.2, 0.2, 0.2, 1 },
-}
+local Layout = UI.Layout.Minimap
 
 local function CreateBorder()
     if Minimap.KamiBorder then
@@ -27,7 +19,7 @@ local function CreateBorder()
         edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
         edgeSize = 1,
     })
-    border:SetBackdropBorderColor(unpack(defaults.border))
+    border:SetBackdropBorderColor(unpack(Palette.minimapBorder))
 
     Minimap.KamiBorder = border
 
@@ -121,15 +113,15 @@ local function HideRoundBlobRings()
 end
 
 local function StyleMinimap()
-    Minimap:SetSize(defaults.size, defaults.size)
+    Minimap:SetSize(Layout.SIZE, Layout.SIZE)
 
     Minimap:ClearAllPoints()
     Minimap:SetPoint(
-        defaults.position.point,
+        Layout.POINT,
         UIParent,
-        defaults.position.relativePoint,
-        defaults.position.x,
-        defaults.position.y + UI:GetBottomInset()
+        Layout.RELATIVE_POINT,
+        Layout.X,
+        Layout.Y + UI:GetBottomInset()
     )
 
     -- Keep the map square. The Blizzard ring/chrome is hidden separately.

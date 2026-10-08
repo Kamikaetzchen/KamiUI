@@ -12,7 +12,6 @@ local INSPECT_TIMEOUT_SECONDS = 5
 local INSPECT_READY_RETRY_SECONDS = 0.05
 local INSPECT_READY_RETRY_COUNT = 20
 
-local GUILD_COLOR = { 0.50, 1.00, 0.50, 1.00 }
 local GUILD_RANK_COLOR = Palette.gold
 
 local SPEC_LABELS = {
@@ -1044,7 +1043,7 @@ local function BuildGuildText(guildName, guildRankName)
 
     local text = Colorize(
         "<" .. guildName .. ">",
-        GUILD_COLOR
+        Palette.guild
     )
 
     if guildRankName
@@ -1485,7 +1484,7 @@ local function PositionWorldCursorTooltip(tooltip)
     end
 
     tooltip:SetAnchorType(
-        "ANCHOR_CURSOR_RIGHT",
+        Styles.Tooltip.anchor,
         14,
         12
     )

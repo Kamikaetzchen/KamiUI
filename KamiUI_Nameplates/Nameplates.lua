@@ -5,14 +5,7 @@ local Styles = UI.Styles
 local Module = UI:NewModule("Nameplates", "KamiUI_Nameplates")
 
 
-local PLATE_WIDTH = 200
-local HEALTH_HEIGHT = 12
-local CAST_HEIGHT = 10
-local BORDER_SIZE = Styles.Metrics.borderSize
-
-local AURA_SIZE = 20
-local AURA_SPACING = 2
-local MAX_AURAS = 5
+local Layout = UI.Layout.Nameplates
 
 local flatTexture = "Interface\\Buttons\\WHITE8X8"
 local fontPath, _, fontFlags = GameFontNormalSmall:GetFont()
@@ -160,7 +153,7 @@ local function HideNativeVisuals(unitFrame)
 end
 
 local function InitializeAuraButton(button)
-    button:SetSize(AURA_SIZE, AURA_SIZE)
+    button:SetSize(Layout.AURA_SIZE, Layout.AURA_SIZE)
     button:EnableMouse(false)
 
     local background = button:CreateTexture(nil, "BACKGROUND")
@@ -179,12 +172,12 @@ local function InitializeAuraButton(button)
 
     local duration = overlay:CreateFontString(nil, "OVERLAY")
     duration:SetPoint("BOTTOM", 0, 1)
-    duration:SetFont(fontPath, 7, "OUTLINE")
+    duration:SetFont(fontPath, Styles.FontSize.Nameplates.duration, "OUTLINE")
     duration:SetTextColor(1, 1, 1)
 
     local count = overlay:CreateFontString(nil, "OVERLAY")
     count:SetPoint("TOPRIGHT", -1, -1)
-    count:SetFont(fontPath, 8, "OUTLINE")
+    count:SetFont(fontPath, Styles.FontSize.Nameplates.count, "OUTLINE")
     count:SetTextColor(1, 1, 1)
 
     Styles:CreateBorder(button, Palette.black)
@@ -196,8 +189,8 @@ local function InitializeAuraButton(button)
 end
 
 local function CreateAuraContainer(data)
-    local width = MAX_AURAS * AURA_SIZE
-        + (MAX_AURAS - 1) * AURA_SPACING
+    local width = Layout.MAX_AURAS * Layout.AURA_SIZE
+        + (Layout.MAX_AURAS - 1) * Layout.AURA_SPACING
 
     local container = CreateFrame(
         "AuraContainer",
@@ -206,7 +199,7 @@ local function CreateAuraContainer(data)
         "CustomAuraContainerTemplate, DisableUntrustedLayoutScriptsTemplate"
     )
 
-    container:SetSize(width, AURA_SIZE)
+    container:SetSize(width, Layout.AURA_SIZE)
     container:SetFlowLayoutAxis(AnchorUtil.FlowLayoutAxis.Horizontal)
     container:SetFlowLayoutAnchorPoint("LEFT")
     container:SetFlowLayoutGrowthDirection(
@@ -217,17 +210,17 @@ local function CreateAuraContainer(data)
 
     local function AddGroup(key, filter, layoutIndex)
         container:AddAuraGroup(key, filter, {
-            maxFrameCount = MAX_AURAS,
+            maxFrameCount = Layout.MAX_AURAS,
             sortMethod = AuraContainerSortMethod.Expiration,
             sortDirection = AuraContainerSortDirection.Reverse,
             initializeFrame = InitializeAuraButton,
             layout = {
-                elementWidth = AURA_SIZE,
-                elementHeight = AURA_SIZE,
-                elementSpacing = AURA_SPACING,
-                lineSpacing = AURA_SPACING,
-                groupSpacing = AURA_SPACING,
-                groupLineSpacing = AURA_SPACING,
+                elementWidth = Layout.AURA_SIZE,
+                elementHeight = Layout.AURA_SIZE,
+                elementSpacing = Layout.AURA_SPACING,
+                lineSpacing = Layout.AURA_SPACING,
+                groupSpacing = Layout.AURA_SPACING,
+                groupLineSpacing = Layout.AURA_SPACING,
                 forceNewLine = false,
                 layoutIndex = layoutIndex,
             },
@@ -264,13 +257,13 @@ local function CreateCustomPlate(namePlate)
     end
 
     local root = CreateFrame("Frame", nil, namePlate)
-    root:SetSize(PLATE_WIDTH, HEALTH_HEIGHT + CAST_HEIGHT + 24)
+    root:SetSize(Layout.PLATE_WIDTH, Layout.HEALTH_HEIGHT + Layout.CAST_HEIGHT + 24)
     root:SetPoint("CENTER", namePlate, "CENTER", 0, 0)
     root:SetFrameLevel((unitFrame:GetFrameLevel() or 0) + 50)
     root:EnableMouse(false)
 
     local health = CreateFrame("StatusBar", nil, root)
-    health:SetSize(PLATE_WIDTH, HEALTH_HEIGHT)
+    health:SetSize(Layout.PLATE_WIDTH, Layout.HEALTH_HEIGHT)
     health:SetPoint("CENTER", root, "CENTER", 0, 0)
     health:SetStatusBarTexture(flatTexture)
 
@@ -289,7 +282,7 @@ local function CreateCustomPlate(namePlate)
     local level = health:CreateFontString(nil, "OVERLAY")
     level:SetPoint("LEFT", health, "LEFT", 3, 0)
     level:SetJustifyH("LEFT")
-    level:SetFont(fontPath, 10, "OUTLINE")
+    level:SetFont(fontPath, Styles.FontSize.Nameplates.level, "OUTLINE")
     level:SetShadowColor(0, 0, 0, 1)
     level:SetShadowOffset(1, -1)
     ConfigureSingleLine(level)
@@ -303,7 +296,7 @@ local function CreateCustomPlate(namePlate)
         name:SetFontObject(GameTooltipText)
         name:SetTextHeight(9)
     else
-        name:SetFont(fontPath, 9, fontFlags)
+        name:SetFont(fontPath, Styles.FontSize.Nameplates.name, fontFlags)
     end
 
     name:SetTextColor(1, 1, 1)
@@ -314,13 +307,13 @@ local function CreateCustomPlate(namePlate)
     local percent = health:CreateFontString(nil, "OVERLAY")
     percent:SetPoint("RIGHT", health, "RIGHT", -3, 0)
     percent:SetJustifyH("RIGHT")
-    percent:SetFont(fontPath, 9, fontFlags)
+    percent:SetFont(fontPath, Styles.FontSize.Nameplates.percent, fontFlags)
     percent:SetTextColor(1, 1, 1)
     percent:SetShadowColor(0, 0, 0, 1)
     percent:SetShadowOffset(1, -1)
 
     local cast = CreateFrame("StatusBar", nil, root)
-    cast:SetSize(PLATE_WIDTH, CAST_HEIGHT)
+    cast:SetSize(Layout.PLATE_WIDTH, Layout.CAST_HEIGHT)
     cast:SetPoint("TOP", health, "BOTTOM", 0, -1)
     cast:SetStatusBarTexture(flatTexture)
     cast:SetStatusBarColor(0.55, 0.35, 0.08)
@@ -336,7 +329,7 @@ local function CreateCustomPlate(namePlate)
     castName:SetPoint("LEFT", cast, "LEFT", 2, 0)
     castName:SetPoint("RIGHT", cast, "RIGHT", -42, 0)
     castName:SetJustifyH("LEFT")
-    castName:SetFont(fontPath, 8, fontFlags)
+    castName:SetFont(fontPath, Styles.FontSize.Nameplates.castName, fontFlags)
     castName:SetTextColor(1, 1, 1)
     castName:SetShadowColor(0, 0, 0, 1)
     castName:SetShadowOffset(1, -1)
@@ -345,7 +338,7 @@ local function CreateCustomPlate(namePlate)
     local castTime = cast:CreateFontString(nil, "OVERLAY")
     castTime:SetPoint("RIGHT", cast, "RIGHT", -2, 0)
     castTime:SetJustifyH("RIGHT")
-    castTime:SetFont(fontPath, 8, fontFlags)
+    castTime:SetFont(fontPath, Styles.FontSize.Nameplates.castTime, fontFlags)
     castTime:SetTextColor(1, 1, 1)
     castTime:SetShadowColor(0, 0, 0, 1)
     castTime:SetShadowOffset(1, -1)

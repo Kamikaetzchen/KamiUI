@@ -8,17 +8,7 @@ local Module = UI:NewModule("Chat", "KamiUI_Chat")
 
 local SETUP_VERSION = 4
 
-local defaults = {
-    leftWidth = 500,
-    combatWidth = 450,
-    height = 220,
-    tabHeight = 22,
-    inputHeight = 24,
-    fontSize = 14,
-    padding = 4,
-    x = 0,
-    y = 0,
-}
+local Layout = UI.Layout.Chat
 
 local leftTabs = {
     { key = "general", label = "General" },
@@ -64,7 +54,7 @@ local managedWindows = {
 }
 
 local function GetBottom()
-    return defaults.y + UI:GetBottomInset()
+    return Layout.Y + UI:GetBottomInset()
 end
 
 local function HideRegion(region)
@@ -110,16 +100,16 @@ local function EnsurePanels()
     if not Module.leftPanel then
         Module.leftPanel = CreatePanel(
             "KamiUIChatPanel",
-            defaults.leftWidth,
-            defaults.height
+            Layout.LEFT_WIDTH,
+            Layout.HEIGHT
         )
     end
 
     if not Module.combatPanel then
         Module.combatPanel = CreatePanel(
             "KamiUICombatLogPanel",
-            defaults.combatWidth,
-            defaults.height
+            Layout.COMBAT_WIDTH,
+            Layout.HEIGHT
         )
     end
 
@@ -129,7 +119,7 @@ local function EnsurePanels()
             "KamiUIChatTabPanel",
             UIParent
         )
-        Module.tabPanel:SetSize(defaults.leftWidth, defaults.tabHeight)
+        Module.tabPanel:SetSize(Layout.LEFT_WIDTH, Layout.TAB_HEIGHT)
         Module.tabPanel:SetFrameStrata("DIALOG")
         Module.tabPanel:SetFrameLevel(100)
     end
@@ -137,8 +127,8 @@ local function EnsurePanels()
     if not Module.inputPanel then
         Module.inputPanel = CreatePanel(
             "KamiUIChatInputPanel",
-            defaults.leftWidth,
-            defaults.inputHeight
+            Layout.LEFT_WIDTH,
+            Layout.INPUT_HEIGHT
         )
         Module.inputPanel:SetFrameStrata("DIALOG")
         Module.inputPanel:Hide()
@@ -154,7 +144,7 @@ local function PositionPanels()
         "BOTTOMLEFT",
         UIParent,
         "BOTTOMLEFT",
-        defaults.x,
+        Layout.X,
         bottom
     )
 
@@ -182,7 +172,7 @@ local function PositionPanels()
         Module.leftPanel,
         "TOPLEFT",
         0,
-        defaults.tabHeight
+        Layout.TAB_HEIGHT
     )
 end
 
@@ -195,7 +185,7 @@ local function CreateTab(index, config)
 
     button:SetFrameStrata("DIALOG")
     button:SetFrameLevel(Module.tabPanel:GetFrameLevel() + 1)
-    button:SetSize(defaults.leftWidth / #leftTabs, defaults.tabHeight)
+    button:SetSize(Layout.LEFT_WIDTH / #leftTabs, Layout.TAB_HEIGHT)
     button:SetNormalFontObject("GameFontNormalSmall")
     button:SetHighlightFontObject("GameFontHighlightSmall")
     button:SetText(config.label)
@@ -396,8 +386,8 @@ end
 local function ApplyEditBoxInsets(editBox)
     if editBox and editBox.SetTextInsets then
         editBox:SetTextInsets(
-            defaults.padding,
-            defaults.padding,
+            Layout.PADDING,
+            Layout.PADDING,
             0,
             0
         )
@@ -460,7 +450,7 @@ local function StyleInputEditBox()
     local font, _, flags = editBox:GetFont()
 
     if font then
-        editBox:SetFont(font, defaults.fontSize, flags)
+        editBox:SetFont(font, Styles.FontSize.Chat, flags)
     end
 end
 
@@ -509,15 +499,15 @@ local function StyleNativeChatFrame(frame, parent, topInset)
         "TOPLEFT",
         parent,
         "TOPLEFT",
-        defaults.padding,
-        -(topInset or defaults.padding)
+        Layout.PADDING,
+        -(topInset or Layout.PADDING)
     )
     frame:SetPoint(
         "BOTTOMRIGHT",
         parent,
         "BOTTOMRIGHT",
-        -defaults.padding,
-        defaults.padding
+        -Layout.PADDING,
+        Layout.PADDING
     )
 
     frame:SetAlpha(1)
@@ -547,7 +537,7 @@ local function StyleNativeChatFrame(frame, parent, topInset)
 
     local font, _, flags = frame:GetFont()
     if font then
-        frame:SetFont(font, defaults.fontSize, flags)
+        frame:SetFont(font, Styles.FontSize.Chat, flags)
     end
 
     frame:Show()
@@ -605,7 +595,7 @@ local function PositionCombatBar()
     StyleNativeChatFrame(
         frame,
         Module.combatPanel,
-        bar:GetHeight() + defaults.padding,
+        bar:GetHeight() + Layout.PADDING,
         false
     )
 
@@ -648,7 +638,7 @@ local function PositionManagedChatFrames()
             StyleNativeChatFrame(
                 frame,
                 Module.leftPanel,
-                defaults.padding
+                Layout.PADDING
             )
         end
     end

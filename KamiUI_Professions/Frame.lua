@@ -8,13 +8,7 @@ if not Module then
     return
 end
 
-local FRAME_WIDTH = 640
-local FRAME_HEIGHT = 520
-local HEADER_HEIGHT = 40
-local RECIPE_PANEL_WIDTH = 300
-local CONTENT_PADDING = 8
-local ROW_HEIGHT = 22
-local REAGENT_ROW_HEIGHT = 42
+local Layout = UI.Layout.Professions
 
 local function GetDatabase()
     return Module:GetDatabase()
@@ -507,7 +501,7 @@ local function AcquireRecipeRow(frame, index)
     end
 
     row = CreateFrame("Button", nil, frame.recipeContent)
-    row:SetHeight(ROW_HEIGHT)
+    row:SetHeight(Layout.ROW_HEIGHT)
 
     local background = row:CreateTexture(nil, "BACKGROUND")
     background:SetAllPoints()
@@ -1009,7 +1003,7 @@ local function AcquireReagentRow(frame, index)
     end
 
     row = CreateFrame("Frame", nil, frame.detailContent)
-    row:SetHeight(REAGENT_ROW_HEIGHT)
+    row:SetHeight(Layout.REAGENT_ROW_HEIGHT)
 
     local slot = Components:CreateItemDisplayButton(row, {
         size = 34,
@@ -1117,15 +1111,15 @@ local function CreateOverviewPage(frame)
         "TOPLEFT",
         frame,
         "TOPLEFT",
-        CONTENT_PADDING,
-        -HEADER_HEIGHT - CONTENT_PADDING
+        Layout.CONTENT_PADDING,
+        -Layout.HEADER_HEIGHT - Layout.CONTENT_PADDING
     )
     page:SetPoint(
         "BOTTOMRIGHT",
         frame,
         "BOTTOMRIGHT",
-        -CONTENT_PADDING,
-        CONTENT_PADDING
+        -Layout.CONTENT_PADDING,
+        Layout.CONTENT_PADDING
     )
     page:Hide()
     frame.overviewPage = page
@@ -1176,15 +1170,15 @@ local function CreateCraftingPage(frame)
         "TOPLEFT",
         frame,
         "TOPLEFT",
-        CONTENT_PADDING,
-        -HEADER_HEIGHT - CONTENT_PADDING
+        Layout.CONTENT_PADDING,
+        -Layout.HEADER_HEIGHT - Layout.CONTENT_PADDING
     )
     page:SetPoint(
         "BOTTOMRIGHT",
         frame,
         "BOTTOMRIGHT",
-        -CONTENT_PADDING,
-        CONTENT_PADDING
+        -Layout.CONTENT_PADDING,
+        Layout.CONTENT_PADDING
     )
     page:Hide()
     frame.craftingPage = page
@@ -1192,7 +1186,7 @@ local function CreateCraftingPage(frame)
     local left = CreateFrame("Frame", nil, page)
     left:SetPoint("TOPLEFT")
     left:SetPoint("BOTTOMLEFT")
-    left:SetWidth(RECIPE_PANEL_WIDTH)
+    left:SetWidth(Layout.RECIPE_PANEL_WIDTH)
     Styles:EnsureBackground(
         left,
         "KamiBackground",
@@ -1295,7 +1289,7 @@ local function CreateCraftingPage(frame)
     frame.recipeScrollBar = recipeScrollBar
 
     local recipeContent = CreateFrame("Frame", nil, recipeScroll)
-    recipeContent:SetSize(RECIPE_PANEL_WIDTH - 12, 1)
+    recipeContent:SetSize(Layout.RECIPE_PANEL_WIDTH - 12, 1)
     recipeScroll:SetScrollChild(recipeContent)
     frame.recipeContent = recipeContent
     frame.recipeRows = {}
@@ -1304,7 +1298,7 @@ local function CreateCraftingPage(frame)
     ConfigureMouseWheelScroll(
         recipeScroll,
         recipeContent,
-        ROW_HEIGHT * 2
+        Layout.ROW_HEIGHT * 2
     )
 
     local divider = page:CreateTexture(nil, "OVERLAY")
@@ -1450,7 +1444,7 @@ local function CreateCraftingPage(frame)
     ConfigureMouseWheelScroll(
         detailScroll,
         detailContent,
-        REAGENT_ROW_HEIGHT
+        Layout.REAGENT_ROW_HEIGHT
     )
 
     local outputSlot = Components:CreateItemDisplayButton(
@@ -1606,8 +1600,8 @@ function Module:CreateFrame()
     end
 
     local frame, header = Components:CreateWindow("KamiUIProfessionFrame", {
-        width = FRAME_WIDTH,
-        height = FRAME_HEIGHT,
+        width = Layout.FRAME_WIDTH,
+        height = Layout.FRAME_HEIGHT,
         toplevel = true,
         backgroundColor = Palette.window.neutral,
         borderColor = Palette.border,
@@ -1615,7 +1609,7 @@ function Module:CreateFrame()
             UI:SaveFramePosition(target, GetDatabase())
         end,
         header = {
-            height = HEADER_HEIGHT - 1,
+            height = Layout.HEADER_HEIGHT - 1,
             hasSubtitle = true,
         },
     })
@@ -2241,7 +2235,7 @@ function Module:RefreshRecipeList()
         end
 
         row:Show()
-        y = y + ROW_HEIGHT
+        y = y + Layout.ROW_HEIGHT
     end
 
     for index = rowIndex + 1, #frame.recipeRows do
@@ -2661,7 +2655,7 @@ function Module:RefreshRecipeDetails()
             end
 
             row:Show()
-            y = y + REAGENT_ROW_HEIGHT
+            y = y + Layout.REAGENT_ROW_HEIGHT
         end
     end
 

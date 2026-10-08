@@ -1,18 +1,11 @@
 local UI = KamiUI
+local Styles = UI.Styles
 local Palette = UI.Palette
 
 local Module = UI:NewModule("InfoPanel", "KamiUI_InfoPanel")
 
 
-local defaults = {
-    height = 20,
-    padding = 6,
-    spacing = 8,
-    fontSize = 11,
-    background = { 0.005, 0.008, 0.015, 0.80 },
-    bottomBorder = { 0.55, 0.42, 0.16, 1 },
-    text = { 0.82, 0.82, 0.82, 1 },
-}
+local Layout = UI.Layout.InfoPanel
 
 local slotOrder = {
     "location",
@@ -26,17 +19,6 @@ local slotOrder = {
     "clock",
 }
 
-local slotWidths = {
-    location = 210,
-    speed = 52,
-    xp = 78,
-    levelup = 72,
-    bags = 52,
-    durability = 52,
-    gold = 112,
-    latency = 58,
-    clock = 58,
-}
 
 local function FormatXPPerHour(value)
     value = math.max(0, value or 0)
@@ -412,12 +394,12 @@ local function CreateText(parent, width)
     local font, _, flags = GameFontNormal:GetFont()
 
     if font then
-        text:SetFont(font, defaults.fontSize, flags)
+        text:SetFont(font, Styles.FontSize.InfoPanel, flags)
     end
 
     text:SetWidth(width)
     text:SetJustifyH("LEFT")
-    text:SetTextColor(unpack(defaults.text))
+    text:SetTextColor(unpack(Palette.infoPanel.text))
 
     if text.SetWordWrap then
         text:SetWordWrap(false)
@@ -431,22 +413,22 @@ local function CreatePanel()
         return
     end
 
-    local totalWidth = defaults.spacing * (#slotOrder - 1)
+    local totalWidth = Layout.SPACING * (#slotOrder - 1)
 
     for _, key in ipairs(slotOrder) do
-        totalWidth = totalWidth + slotWidths[key]
+        totalWidth = totalWidth + Layout.SLOT_WIDTHS[key]
     end
 
     local edgePadding = 12
     local sideAngle = 60
     local sideRun = math.floor(
-        defaults.height / math.tan(math.rad(sideAngle)) + 0.5
+        Layout.HEIGHT / math.tan(math.rad(sideAngle)) + 0.5
     )
     local bodyWidth = totalWidth + (edgePadding * 2)
     local frameWidth = bodyWidth + (sideRun * 2)
 
     local frame = CreateFrame("Frame", "KamiUIInfoPanel", UIParent)
-    frame:SetSize(frameWidth, defaults.height)
+    frame:SetSize(frameWidth, Layout.HEIGHT)
     frame:SetPoint("TOP", UIParent, "TOP", 0, 0)
     frame:SetFrameStrata("HIGH")
     frame:EnableMouse(false)
@@ -454,11 +436,11 @@ local function CreatePanel()
     local background = frame:CreateTexture(nil, "BACKGROUND")
     background:SetPoint("TOPLEFT", frame, "TOPLEFT", sideRun, 0)
     background:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -sideRun, 0)
-    background:SetColorTexture(unpack(defaults.background))
+    background:SetColorTexture(unpack(Palette.infoPanel.background))
 
     for index = 1, sideRun do
         local stripHeight = math.ceil(
-            defaults.height * index / sideRun
+            Layout.HEIGHT * index / sideRun
         )
 
         local leftStrip = frame:CreateTexture(nil, "BACKGROUND")
@@ -470,7 +452,7 @@ local function CreatePanel()
             index - 1,
             0
         )
-        leftStrip:SetColorTexture(unpack(defaults.background))
+        leftStrip:SetColorTexture(unpack(Palette.infoPanel.background))
 
         local rightStrip = frame:CreateTexture(nil, "BACKGROUND")
         rightStrip:SetSize(1, stripHeight)
@@ -481,7 +463,7 @@ local function CreatePanel()
             -(index - 1),
             0
         )
-        rightStrip:SetColorTexture(unpack(defaults.background))
+        rightStrip:SetColorTexture(unpack(Palette.infoPanel.background))
     end
 
     local bottomBorder = frame:CreateTexture(nil, "ARTWORK")
@@ -500,32 +482,32 @@ local function CreatePanel()
         0
     )
     bottomBorder:SetHeight(3)
-    bottomBorder:SetColorTexture(unpack(defaults.bottomBorder))
+    bottomBorder:SetColorTexture(unpack(Palette.infoPanel.bottomBorder))
 
     local leftBorder = frame:CreateLine(nil, "ARTWORK")
     leftBorder:SetThickness(3)
-    leftBorder:SetColorTexture(unpack(defaults.bottomBorder))
+    leftBorder:SetColorTexture(unpack(Palette.infoPanel.bottomBorder))
     leftBorder:SetStartPoint("TOPLEFT", frame, 0, 0)
     leftBorder:SetEndPoint("BOTTOMLEFT", frame, sideRun, 0)
 
     local rightBorder = frame:CreateLine(nil, "ARTWORK")
     rightBorder:SetThickness(3)
-    rightBorder:SetColorTexture(unpack(defaults.bottomBorder))
+    rightBorder:SetColorTexture(unpack(Palette.infoPanel.bottomBorder))
     rightBorder:SetStartPoint("TOPRIGHT", frame, 0, 0)
     rightBorder:SetEndPoint("BOTTOMRIGHT", frame, -sideRun, 0)
 
     local content = CreateFrame("Frame", nil, frame)
-    content:SetSize(totalWidth, defaults.height)
+    content:SetSize(totalWidth, Layout.HEIGHT)
     content:SetPoint("CENTER", frame, "CENTER", 0, 0)
 
     local texts = {}
     local previous
 
     for _, key in ipairs(slotOrder) do
-        local text = CreateText(content, slotWidths[key])
+        local text = CreateText(content, Layout.SLOT_WIDTHS[key])
 
         if previous then
-            text:SetPoint("LEFT", previous, "RIGHT", defaults.spacing, 0)
+            text:SetPoint("LEFT", previous, "RIGHT", Layout.SPACING, 0)
         else
             text:SetPoint("LEFT", content, "LEFT", 0, 0)
         end
@@ -576,14 +558,14 @@ local function CreatePanel()
             (index - 1) * 4,
             0
         )
-        bar:SetColorTexture(unpack(defaults.text))
+        bar:SetColorTexture(unpack(Palette.infoPanel.text))
     end
 
     local hoverFrames = {}
 
     for key, showTooltip in pairs(tooltipHandlers) do
         local hover = CreateFrame("Frame", nil, content)
-        hover:SetSize(slotWidths[key], defaults.height)
+        hover:SetSize(Layout.SLOT_WIDTHS[key], Layout.HEIGHT)
         hover:SetPoint("CENTER", texts[key], "CENTER", 0, 0)
         hover:SetFrameLevel(content:GetFrameLevel() + 10)
         hover:EnableMouse(true)

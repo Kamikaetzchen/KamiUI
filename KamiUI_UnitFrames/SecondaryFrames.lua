@@ -1,17 +1,18 @@
 local UI = KamiUI
 local UF = UI:GetModule("UnitFrames")
+local Layout = UI.Layout.UnitFrames.Secondary
 
 local function CreateUnitFrame(name, unit)
     return UF:CreateCompactFrame({
         name = name,
         unit = unit,
-        width = 150,
-        height = 25,
-        healthHeight = 13,
-        powerHeight = 9,
-        nameWidth = 105,
-        nameFontOffset = -1,
-        healthFontOffset = -1,
+        width = Layout.WIDTH,
+        height = Layout.HEIGHT,
+        healthHeight = Layout.HEALTH_HEIGHT,
+        powerHeight = Layout.POWER_HEIGHT,
+        nameWidth = Layout.NAME_WIDTH,
+        nameFontOffset = Layout.FONT_OFFSET,
+        healthFontOffset = Layout.FONT_OFFSET,
         features = {
             indicators = true,
             healPrediction = unit == "focus",

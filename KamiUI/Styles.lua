@@ -9,6 +9,7 @@ Styles.Metrics = {
     chamfer = 4,
     sectionHeight = 17,
     tabHeight = 22,
+    itemSlotSize = 36,
     sectionInset = 6,
 }
 
@@ -19,6 +20,39 @@ Styles.State = {
     selectedAlpha = 0.10,
     disabledAlpha = 0.45,
     sectionAlpha = 0.055,
+    aurasBarAlpha = 0.40,
+    aurasBackgroundAlpha = 0.60,
+    damageMeterBackgroundAlpha = 0.82,
+    damageMeterRowAlpha = 0.32,
+    damageMeterBarAlpha = 0.55,
+    threatMeterBarAlpha = 0.45,
+    threatMeterBackgroundAlpha = 0.70,
+    indicatorAlpha = 0.75,
+    outOfRangeAlpha = 0.45,
+}
+
+-- Module-specific font sizes; shared text roles remain in Styles.Text.
+Styles.FontSize = {
+    ActionBars = { cooldown = 17, cooldownSmall = 13 },
+    Auras = 11,
+    Chat = 14,
+    DamageMeter = 10,
+    InfoPanel = 11,
+    ThreatMeter = 11,
+    SpellMatrix = { button = 11, buttonSmall = 8 },
+    Nameplates = {
+        duration = 7,
+        count = 8,
+        level = 10,
+        name = 9,
+        percent = 9,
+        castName = 8,
+        castTime = 8,
+    },
+}
+
+Styles.Tooltip = {
+    anchor = "ANCHOR_CURSOR_RIGHT",
 }
 
 Styles.Text = {

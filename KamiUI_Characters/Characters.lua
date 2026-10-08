@@ -6,18 +6,7 @@ local Components = UI.Components
 local Module = UI:NewModule("Characters", "KamiUI_Characters")
 
 
-local LEFT_PANE_WIDTH = 323
-local RIGHT_PANE_WIDTH = 210
-local FRAME_WIDTH = LEFT_PANE_WIDTH + RIGHT_PANE_WIDTH
-
-local CHARACTER_WIDTH = LEFT_PANE_WIDTH
-local SIDEBAR_WIDTH = RIGHT_PANE_WIDTH
-local SPLIT_WIDTH = LEFT_PANE_WIDTH - 2
-local LIST_CONTENT_WIDTH = SPLIT_WIDTH - 14
-local FRAME_HEIGHT = 420
-local HEADER_HEIGHT = 40
-local SLOT_SIZE = 36
-local SLOT_GAP = 3
+local Layout = UI.Layout.Characters
 
 local CHARACTER_DATABASE_DEFAULTS = {
     data = {},
@@ -304,7 +293,7 @@ local LoadEquipmentIgnoreState
 local ApplyEquipmentIgnoreState
 
 local function CreateEquipmentSlot(parent, definition)
-    local slotSize = definition.size or SLOT_SIZE
+    local slotSize = definition.size or Layout.SLOT_SIZE
     local button = Components:CreateItemSlot(parent, {
         size = slotSize,
         borderColor = Palette.emptyBorder,
@@ -553,7 +542,7 @@ local function LayoutEquipmentSlot(button, definition, frame)
             pane,
             "TOPLEFT",
             6,
-            top - (definition.row - 1) * (SLOT_SIZE + SLOT_GAP)
+            top - (definition.row - 1) * (Layout.SLOT_SIZE + Layout.SLOT_GAP)
         )
     elseif definition.side == "RIGHT" then
         button:SetPoint(
@@ -561,7 +550,7 @@ local function LayoutEquipmentSlot(button, definition, frame)
             pane,
             "TOPRIGHT",
             -6,
-            top - (definition.row - 1) * (SLOT_SIZE + SLOT_GAP)
+            top - (definition.row - 1) * (Layout.SLOT_SIZE + Layout.SLOT_GAP)
         )
     else
         button:SetPoint(
@@ -1863,7 +1852,7 @@ end
 
 local function CreateReputationPane(frame)
     local pane = CreateFrame("Frame", nil, frame)
-    pane:SetPoint("TOPLEFT", frame, "TOPLEFT", 1, -HEADER_HEIGHT)
+    pane:SetPoint("TOPLEFT", frame, "TOPLEFT", 1, -Layout.HEADER_HEIGHT)
     pane:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -1, 1)
     pane:Hide()
     pane.rows = {}
@@ -1872,7 +1861,7 @@ local function CreateReputationPane(frame)
     local listPanel = CreateFrame("Frame", nil, pane)
     listPanel:SetPoint("TOPLEFT", 0, 0)
     listPanel:SetPoint("BOTTOMLEFT", 0, 0)
-    listPanel:SetWidth(SPLIT_WIDTH)
+    listPanel:SetWidth((Layout.LEFT_PANE_WIDTH - 2 * Layout.BORDER_INSET))
 
     local list = CreateFrame("ScrollFrame", nil, listPanel)
     list:SetPoint("TOPLEFT", 1, -1)
@@ -1881,7 +1870,7 @@ local function CreateReputationPane(frame)
     pane.list = list
 
     local content = CreateFrame("Frame", nil, list)
-    content:SetWidth(LIST_CONTENT_WIDTH)
+    content:SetWidth((Layout.LEFT_PANE_WIDTH - 2 * Layout.BORDER_INSET - Layout.LIST_CONTENT_INSET))
     content:SetHeight(1)
     list:SetScrollChild(content)
     pane.listContent = content
@@ -1972,14 +1961,14 @@ local function CreateReputationPane(frame)
         "TOPLEFT",
         pane,
         "TOPLEFT",
-        SPLIT_WIDTH,
+        (Layout.LEFT_PANE_WIDTH - 2 * Layout.BORDER_INSET),
         0
     )
     splitDivider:SetPoint(
         "BOTTOMLEFT",
         pane,
         "BOTTOMLEFT",
-        SPLIT_WIDTH,
+        (Layout.LEFT_PANE_WIDTH - 2 * Layout.BORDER_INSET),
         0
     )
     splitDivider:SetWidth(1)
@@ -2525,7 +2514,7 @@ end
 
 local function CreateSkillsPane(frame)
     local pane = CreateFrame("Frame", nil, frame)
-    pane:SetPoint("TOPLEFT", frame, "TOPLEFT", 1, -HEADER_HEIGHT)
+    pane:SetPoint("TOPLEFT", frame, "TOPLEFT", 1, -Layout.HEADER_HEIGHT)
     pane:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -1, 1)
     pane:Hide()
     pane.rows = {}
@@ -2535,7 +2524,7 @@ local function CreateSkillsPane(frame)
     local listPanel = CreateFrame("Frame", nil, pane)
     listPanel:SetPoint("TOPLEFT", 0, 0)
     listPanel:SetPoint("BOTTOMLEFT", 0, 0)
-    listPanel:SetWidth(SPLIT_WIDTH)
+    listPanel:SetWidth((Layout.LEFT_PANE_WIDTH - 2 * Layout.BORDER_INSET))
 
     local list = CreateFrame("ScrollFrame", nil, listPanel)
     list:SetPoint("TOPLEFT", 1, -1)
@@ -2544,7 +2533,7 @@ local function CreateSkillsPane(frame)
     pane.list = list
 
     local content = CreateFrame("Frame", nil, list)
-    content:SetWidth(LIST_CONTENT_WIDTH)
+    content:SetWidth((Layout.LEFT_PANE_WIDTH - 2 * Layout.BORDER_INSET - Layout.LIST_CONTENT_INSET))
     content:SetHeight(1)
     list:SetScrollChild(content)
     pane.listContent = content
@@ -2638,14 +2627,14 @@ local function CreateSkillsPane(frame)
         "TOPLEFT",
         pane,
         "TOPLEFT",
-        SPLIT_WIDTH,
+        (Layout.LEFT_PANE_WIDTH - 2 * Layout.BORDER_INSET),
         0
     )
     splitDivider:SetPoint(
         "BOTTOMLEFT",
         pane,
         "BOTTOMLEFT",
-        SPLIT_WIDTH,
+        (Layout.LEFT_PANE_WIDTH - 2 * Layout.BORDER_INSET),
         0
     )
     splitDivider:SetWidth(1)
@@ -3296,10 +3285,10 @@ local function CreateSidebar(frame)
         frame,
         "TOPRIGHT",
         -1,
-        -HEADER_HEIGHT
+        -Layout.HEADER_HEIGHT
     )
     sidebar:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -1, 1)
-    sidebar:SetWidth(SIDEBAR_WIDTH)
+    sidebar:SetWidth(Layout.RIGHT_PANE_WIDTH)
     frame.sidebar = sidebar
 
     local divider = sidebar:CreateTexture(nil, "OVERLAY")
@@ -3347,7 +3336,7 @@ local function CreateSidebar(frame)
     sidebar.statsPane = statsPane
 
     local statsContent = CreateFrame("Frame", nil, statsPane)
-    statsContent:SetWidth(SIDEBAR_WIDTH - 12)
+    statsContent:SetWidth(Layout.RIGHT_PANE_WIDTH - 12)
     statsContent:SetHeight(1)
     statsPane:SetScrollChild(statsContent)
     statsPane.content = statsContent
@@ -3719,15 +3708,15 @@ end
 
 local function CreateFrameUI()
     local frame, header = Components:CreateWindow("KamiUICharacterFrame", {
-        width = FRAME_WIDTH,
-        height = FRAME_HEIGHT,
+        width = (Layout.LEFT_PANE_WIDTH + Layout.RIGHT_PANE_WIDTH),
+        height = Layout.FRAME_HEIGHT,
         backgroundColor = Palette.window.neutral,
         borderColor = Palette.border,
         onDragStop = function(target)
             UI:SaveFramePosition(target, GetDatabase())
         end,
         header = {
-            height = HEADER_HEIGHT - 1,
+            height = Layout.HEADER_HEIGHT - 1,
             hasSubtitle = true,
         },
     })
@@ -3735,7 +3724,7 @@ local function CreateFrameUI()
     local characterPane = CreateFrame("Frame", nil, frame)
     characterPane:SetPoint("TOPLEFT", frame, "TOPLEFT", 1, -1)
     characterPane:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 1, 1)
-    characterPane:SetWidth(CHARACTER_WIDTH - 1)
+    characterPane:SetWidth(Layout.LEFT_PANE_WIDTH - Layout.BORDER_INSET)
     frame.characterPane = characterPane
 
     local nativePane = CreateFrame("Frame", nil, frame)
@@ -3744,7 +3733,7 @@ local function CreateFrameUI()
         frame,
         "TOPLEFT",
         1,
-        -HEADER_HEIGHT
+        -Layout.HEADER_HEIGHT
     )
     nativePane:SetPoint(
         "BOTTOMRIGHT",
@@ -3761,7 +3750,7 @@ local function CreateFrameUI()
     local nativeLeftPane = CreateFrame("Frame", nil, nativePane)
     nativeLeftPane:SetPoint("TOPLEFT")
     nativeLeftPane:SetPoint("BOTTOMLEFT")
-    nativeLeftPane:SetWidth(LEFT_PANE_WIDTH - 2)
+    nativeLeftPane:SetWidth(Layout.LEFT_PANE_WIDTH - 2 * Layout.BORDER_INSET)
     frame.nativeLeftPane = nativeLeftPane
 
     local nativeRightPane = CreateFrame("Frame", nil, nativePane)

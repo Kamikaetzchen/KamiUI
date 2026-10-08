@@ -6,20 +6,7 @@ local Components = UI.Components
 local Module = UI:NewModule("DamageMeter", "KamiUI_DamageMeter")
 
 
-local defaults = {
-    width = 400,
-    height = 240,
-    headerHeight = 20,
-    columnHeaderHeight = 17,
-    rowHeight = 18,
-    maxRows = 11,
-    fontSize = 10,
-    backgroundAlpha = 0.82,
-    rowAlpha = 0.32,
-    barAlpha = 0.55,
-    popupWidth = 150,
-    popupRowHeight = 20,
-}
+local Layout = UI.Layout.DamageMeter
 
 local DamageMeterType = Enum.DamageMeterType
 local DamageMeterSessionType = Enum.DamageMeterSessionType
@@ -195,7 +182,7 @@ local function ApplyMeterText(fontString, size, color)
 
     fontString:SetFont(
         meterFontPath,
-        size or defaults.fontSize,
+        size or Styles.FontSize.DamageMeter,
         meterFontFlags
     )
     Styles:SetTextColor(fontString, color or Palette.text)
@@ -219,7 +206,7 @@ end
 
 local function CreateFlatButton(parent, text, width, options)
     local button = CreateFrame("Button", nil, parent)
-    button:SetSize(width, defaults.headerHeight - 2)
+    button:SetSize(width, Layout.HEADER_HEIGHT - 2)
 
     options = options or {}
 
@@ -235,7 +222,7 @@ local function CreateFlatButton(parent, text, width, options)
 
     ApplyMeterText(
         button:GetFontString() or button.KamiButtonText,
-        defaults.fontSize,
+        Styles.FontSize.DamageMeter,
         options.textColor or Palette.text
     )
 
@@ -313,13 +300,13 @@ local function CreateColumnText(parent)
     )
     text:SetJustifyH("RIGHT")
     text:SetWordWrap(false)
-    ApplyMeterText(text, defaults.fontSize, Palette.text)
+    ApplyMeterText(text, Styles.FontSize.DamageMeter, Palette.text)
     return text
 end
 
 local function CreateRow(index)
     local row = CreateFrame("Frame", nil, frame.body)
-    row:SetHeight(defaults.rowHeight)
+    row:SetHeight(Layout.ROW_HEIGHT)
     row:SetPoint("LEFT", frame.body, "LEFT", 1, 0)
     row:SetPoint("RIGHT", frame.body, "RIGHT", -1, 0)
 
@@ -335,7 +322,7 @@ local function CreateRow(index)
         row:SetPoint("TOP", rows[index - 1], "BOTTOM", 0, 0)
     end
 
-    local background = CreateBackground(row, defaults.rowAlpha)
+    local background = CreateBackground(row, Styles.State.damageMeterRowAlpha)
 
     local bar = CreateFrame("StatusBar", nil, row)
     bar:SetPoint("TOPLEFT", row, "TOPLEFT", 1, -1)
@@ -344,7 +331,7 @@ local function CreateRow(index)
 
     local barTexture = bar:GetStatusBarTexture()
     if barTexture then
-        barTexture:SetAlpha(defaults.barAlpha)
+        barTexture:SetAlpha(Styles.State.damageMeterBarAlpha)
     end
 
     local overlay = CreateFrame("Frame", nil, row)
@@ -360,7 +347,7 @@ local function CreateRow(index)
     indexText:SetWidth(17)
     indexText:SetJustifyH("RIGHT")
     indexText:SetText(index .. ".")
-    ApplyMeterText(indexText, defaults.fontSize, Palette.muted)
+    ApplyMeterText(indexText, Styles.FontSize.DamageMeter, Palette.muted)
 
     local icon = overlay:CreateTexture(nil, "ARTWORK")
     icon:SetSize(14, 14)
@@ -375,7 +362,7 @@ local function CreateRow(index)
     name:SetPoint("LEFT", icon, "RIGHT", 4, 0)
     name:SetJustifyH("LEFT")
     name:SetWordWrap(false)
-    ApplyMeterText(name, defaults.fontSize, Palette.text)
+    ApplyMeterText(name, Styles.FontSize.DamageMeter, Palette.text)
 
     row.background = background
     row.bar = bar
@@ -569,7 +556,7 @@ local function UpdateRows()
     local session = GetCombatSession(view.primaryType)
     local sources = session.combatSources
 
-    for index = 1, defaults.maxRows do
+    for index = 1, Layout.MAX_ROWS do
         local row = rows[index]
         local source = sources[index]
 
@@ -711,12 +698,12 @@ local function ToggleMinimized()
     if state.minimized then
         frame.body:Hide()
         frame.columnHeader:Hide()
-        frame:SetHeight(defaults.headerHeight)
+        frame:SetHeight(Layout.HEADER_HEIGHT)
         Components:SetButtonText(frame.minimizeButton, "+")
     else
         frame.columnHeader:Show()
         frame.body:Show()
-        frame:SetHeight(defaults.height)
+        frame:SetHeight(Layout.HEIGHT)
         Components:SetButtonText(frame.minimizeButton, "-")
         QueueUpdate()
     end
@@ -757,7 +744,7 @@ local function CreateColumnHeader()
         0,
         0
     )
-    header:SetHeight(defaults.columnHeaderHeight)
+    header:SetHeight(Layout.COLUMN_HEADER_HEIGHT)
 
     local background = CreateBackground(header, 0.72)
     Styles:SetColor(background, Palette.panelStrong, 0.72)
@@ -768,7 +755,7 @@ local function CreateColumnHeader()
         "GameFontNormalSmall"
     )
     name:SetText("Name")
-    ApplyMeterText(name, defaults.fontSize, Palette.muted)
+    ApplyMeterText(name, Styles.FontSize.DamageMeter, Palette.muted)
 
     header.name = name
     header.values = {}
@@ -782,7 +769,7 @@ local function CreateColumnHeader()
             "GameFontNormalSmall"
         )
         text:SetJustifyH("RIGHT")
-        ApplyMeterText(text, defaults.fontSize, Palette.gold)
+        ApplyMeterText(text, Styles.FontSize.DamageMeter, Palette.gold)
 
         local hitbox = CreateFrame("Button", nil, header)
         hitbox:SetFrameLevel(header:GetFrameLevel() + 5)
@@ -820,18 +807,18 @@ local function CreateFrameUI()
     end
 
     frame = CreateFrame("Frame", "KamiUIDamageMeter", UIParent)
-    frame:SetSize(defaults.width, defaults.height)
+    frame:SetSize(Layout.WIDTH, Layout.HEIGHT)
     frame:SetFrameStrata("HIGH")
     frame:SetFrameLevel(50)
     frame:EnableMouse(true)
 
-    CreateBackground(frame, defaults.backgroundAlpha)
+    CreateBackground(frame, Styles.State.damageMeterBackgroundAlpha)
     Styles:CreateBorder(frame, Palette.border)
 
     local header = CreateFrame("Frame", nil, frame)
     header:SetPoint("TOPLEFT", frame, "TOPLEFT", 1, -1)
     header:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -1, -1)
-    header:SetHeight(defaults.headerHeight - 1)
+    header:SetHeight(Layout.HEADER_HEIGHT - 1)
 
     local headerBackground = CreateBackground(header, 0.92)
     Styles:SetColor(headerBackground, Palette.header, 0.92)
@@ -878,7 +865,7 @@ local function CreateFrameUI()
         menuWidth = 230,
         menuFrameStrata = "DIALOG",
         menuFrameLevel = frame:GetFrameLevel() + 100,
-        rowHeight = defaults.popupRowHeight,
+        rowHeight = Layout.POPUP_ROW_HEIGHT,
         inset = 4,
         textInset = 7,
         backgroundColor = { 0.02, 0.02, 0.025, 0.96 },
@@ -889,14 +876,14 @@ local function CreateFrameUI()
         selectedBackgroundAlpha = 0.85,
         rowBorder = true,
         rowBorderColor = Palette.border,
-        fontSize = defaults.fontSize,
+        fontSize = Styles.FontSize.DamageMeter,
         textColor = Palette.text,
         arrowText = "  v",
         closeWith = frame,
         styleRow = function(button)
             ApplyMeterText(
                 button.text,
-                defaults.fontSize,
+                Styles.FontSize.DamageMeter,
                 Palette.text
             )
         end,
@@ -960,7 +947,7 @@ local function CreateFrameUI()
     body:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -1, 1)
     frame.body = body
 
-    for index = 1, defaults.maxRows do
+    for index = 1, Layout.MAX_ROWS do
         CreateRow(index)
     end
 

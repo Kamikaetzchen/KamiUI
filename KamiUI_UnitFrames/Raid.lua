@@ -1,32 +1,18 @@
 local UI = KamiUI
 local UF = UI:GetModule("UnitFrames")
 
-local FRAME_WIDTH = 75
-local FRAME_HEIGHT = 25
-local HEALTH_HEIGHT = 13
-local POWER_HEIGHT = 9
-
-local GROUP_COUNT = 8
-local GROUP_SIZE = 5
-local GROUP_SPACING = 2
-local MEMBER_SPACING = 1
-local PARTY_GAP = 2
-local LEFT_OFFSET = 100
-
-local AURA_SIZE = 6
-local MAX_BUFFS = 3
-local MAX_DEBUFFS = 3
+local Layout = UI.Layout.UnitFrames.Raid
 
 local frames = {}
 local framesByUnit = {}
 local layoutPending = false
 
 local blockWidth =
-    GROUP_COUNT * FRAME_WIDTH
-    + (GROUP_COUNT - 1) * GROUP_SPACING
+    Layout.GROUP_COUNT * Layout.FRAME_WIDTH
+    + (Layout.GROUP_COUNT - 1) * Layout.GROUP_SPACING
 local blockHeight =
-    GROUP_SIZE * FRAME_HEIGHT
-    + (GROUP_SIZE - 1) * MEMBER_SPACING
+    Layout.GROUP_SIZE * Layout.FRAME_HEIGHT
+    + (Layout.GROUP_SIZE - 1) * Layout.MEMBER_SPACING
 
 local anchor = CreateFrame("Frame", "KamiUIRaidFrameAnchor", UIParent)
 anchor:SetSize(blockWidth, blockHeight)
@@ -40,16 +26,16 @@ if partyAnchor then
         "BOTTOMLEFT",
         partyAnchor,
         "TOPLEFT",
-        LEFT_OFFSET,
-        PARTY_GAP
+        Layout.LEFT_OFFSET,
+        Layout.PARTY_GAP
     )
 else
-    anchor:SetPoint("BOTTOMLEFT", UIParent, "LEFT", LEFT_OFFSET, 190)
+    anchor:SetPoint("BOTTOMLEFT", UIParent, "LEFT", Layout.LEFT_OFFSET, 190)
 end
 
 local function CreateAuraSlot(parent)
     local slot = CreateFrame("Frame", nil, parent)
-    slot:SetSize(AURA_SIZE, AURA_SIZE)
+    slot:SetSize(Layout.AURA_SIZE, Layout.AURA_SIZE)
     slot:SetFrameLevel(parent:GetFrameLevel() + 10)
     slot:EnableMouse(false)
 
@@ -72,25 +58,25 @@ local function CreateAuraSlots(frame)
     frame.raidBuffs = {}
     frame.raidDebuffs = {}
 
-    for index = 1, MAX_BUFFS do
+    for index = 1, Layout.MAX_BUFFS do
         local slot = CreateAuraSlot(frame.health)
         slot:SetPoint(
             "TOPLEFT",
             frame.health,
             "TOPLEFT",
-            (index - 1) * AURA_SIZE,
+            (index - 1) * Layout.AURA_SIZE,
             0
         )
         frame.raidBuffs[index] = slot
     end
 
-    for index = 1, MAX_DEBUFFS do
+    for index = 1, Layout.MAX_DEBUFFS do
         local slot = CreateAuraSlot(frame.health)
         slot:SetPoint(
             "TOPRIGHT",
             frame.health,
             "TOPRIGHT",
-            -(index - 1) * AURA_SIZE,
+            -(index - 1) * Layout.AURA_SIZE,
             0
         )
         frame.raidDebuffs[index] = slot
@@ -186,10 +172,10 @@ local function CreateRaidMember(index)
     local frame = UF:CreateRaidFrame({
         name = "KamiUIRaid" .. index .. "Frame",
         unit = unit,
-        width = FRAME_WIDTH,
-        height = FRAME_HEIGHT,
-        healthHeight = HEALTH_HEIGHT,
-        powerHeight = POWER_HEIGHT,
+        width = Layout.FRAME_WIDTH,
+        height = Layout.FRAME_HEIGHT,
+        healthHeight = Layout.HEALTH_HEIGHT,
+        powerHeight = Layout.POWER_HEIGHT,
         features = {
             indicators = true,
             healPrediction = true,
@@ -205,7 +191,7 @@ local function CreateRaidMember(index)
     return frame
 end
 
-for index = 1, GROUP_COUNT * GROUP_SIZE do
+for index = 1, Layout.GROUP_COUNT * Layout.GROUP_SIZE do
     CreateRaidMember(index)
 end
 
@@ -219,15 +205,15 @@ local function GetLayoutPosition(index, groupCounts)
     if subgroup
         and UI:CanAccessValue(subgroup)
         and subgroup >= 1
-        and subgroup <= GROUP_COUNT
+        and subgroup <= Layout.GROUP_COUNT
     then
         groupCounts[subgroup] = (groupCounts[subgroup] or 0) + 1
 
         return subgroup, groupCounts[subgroup]
     end
 
-    return math.floor((index - 1) / GROUP_SIZE) + 1,
-        ((index - 1) % GROUP_SIZE) + 1
+    return math.floor((index - 1) / Layout.GROUP_SIZE) + 1,
+        ((index - 1) % Layout.GROUP_SIZE) + 1
 end
 
 local function LayoutFrames()
@@ -242,8 +228,8 @@ local function LayoutFrames()
 
     for index, frame in ipairs(frames) do
         local group, slot = GetLayoutPosition(index, groupCounts)
-        local x = (group - 1) * (FRAME_WIDTH + GROUP_SPACING)
-        local y = -(slot - 1) * (FRAME_HEIGHT + MEMBER_SPACING)
+        local x = (group - 1) * (Layout.FRAME_WIDTH + Layout.GROUP_SPACING)
+        local y = -(slot - 1) * (Layout.FRAME_HEIGHT + Layout.MEMBER_SPACING)
 
         frame:ClearAllPoints()
         frame:SetPoint("TOPLEFT", anchor, "TOPLEFT", x, y)

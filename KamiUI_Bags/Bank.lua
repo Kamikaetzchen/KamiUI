@@ -4,13 +4,7 @@ local Components = UI.Components
 
 local Module = UI:NewModule("Bank", "KamiUI_Bags")
 
-local SLOT_SIZE = 36
-local SLOT_SPACING = 3
-local COLUMNS = 10
-local FRAME_PADDING = 10
-local HEADER_HEIGHT = 28
-local FOOTER_HEIGHT = 24
-local BAG_BAR_HEIGHT = 42
+local Layout = UI.Layout.Bank
 
 local bankOpen = false
 local bankInitialized = true
@@ -657,16 +651,16 @@ function Module:Layout()
 
     local buttons = frame.activeButtons or {}
     local bagBarOffset = GetDatabase().bankBagBarExpanded
-        and BAG_BAR_HEIGHT
+        and Layout.BAG_BAR_HEIGHT
         or 0
-    local contentTop = HEADER_HEIGHT + FRAME_PADDING + bagBarOffset
+    local contentTop = Layout.HEADER_HEIGHT + Layout.FRAME_PADDING + bagBarOffset
 
     frame.content:ClearAllPoints()
     frame.content:SetPoint(
         "TOPLEFT",
         frame,
         "TOPLEFT",
-        FRAME_PADDING,
+        Layout.FRAME_PADDING,
         -contentTop
     )
 
@@ -674,15 +668,15 @@ function Module:Layout()
         buttons,
         frame.content,
         {
-            columns = COLUMNS,
-            slotSize = SLOT_SIZE,
-            spacing = SLOT_SPACING,
+            columns = Layout.COLUMNS,
+            slotSize = Layout.SLOT_SIZE,
+            spacing = Layout.SLOT_SPACING,
         }
     )
 
     frame:SetSize(
-        gridWidth + FRAME_PADDING * 2,
-        contentTop + gridHeight + FOOTER_HEIGHT + FRAME_PADDING
+        gridWidth + Layout.FRAME_PADDING * 2,
+        contentTop + gridHeight + Layout.FOOTER_HEIGHT + Layout.FRAME_PADDING
     )
     frame.content:SetSize(gridWidth, gridHeight)
 end
@@ -749,7 +743,7 @@ function Module:Rebuild()
 
                     if not button then
                         button = Components:CreateItemDisplayButton(frame.content, {
-                size = SLOT_SIZE,
+                size = Layout.SLOT_SIZE,
                 corners = true,
             })
                         frame.cachedButtons[index] = button
@@ -802,7 +796,7 @@ function Module:Rebuild()
                     button = Components:CreateContainerItemButton(
                         carrier,
                         {
-                            size = SLOT_SIZE,
+                            size = Layout.SLOT_SIZE,
                             corners = true,
                             onDragStart = function()
                                 itemDragFrame:Show()
@@ -863,7 +857,7 @@ local function CreateFrameUI()
             UI:SaveFramePosition(target, GetDatabase(), "bankPosition")
         end,
         header = {
-            height = HEADER_HEIGHT,
+            height = Layout.HEADER_HEIGHT,
             title = UI:GetCurrentCharacterName() .. "'s Bank",
         },
     })
@@ -958,15 +952,15 @@ local function CreateFrameUI()
         "TOPLEFT",
         frame,
         "TOPLEFT",
-        FRAME_PADDING,
-        -HEADER_HEIGHT - 4
+        Layout.FRAME_PADDING,
+        -Layout.HEADER_HEIGHT - 4
     )
     bagBar:SetPoint(
         "TOPRIGHT",
         frame,
         "TOPRIGHT",
-        -FRAME_PADDING,
-        -HEADER_HEIGHT - 4
+        -Layout.FRAME_PADDING,
+        -Layout.HEADER_HEIGHT - 4
     )
     frame.bagBar = bagBar
     frame.bagBarButtons = {}
@@ -980,7 +974,7 @@ local function CreateFrameUI()
 
     local sort = CreateFrame("Button", nil, frame)
     sort:SetSize(34, 18)
-    sort:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", FRAME_PADDING, 4)
+    sort:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", Layout.FRAME_PADDING, 4)
     sort:SetNormalFontObject("GameFontNormalSmall")
     sort:SetHighlightFontObject("GameFontHighlightSmall")
     sort:SetText("Sort")

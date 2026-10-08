@@ -1,5 +1,7 @@
 local UI = KamiUI
 local Palette = UI.Palette
+local Styles = UI.Styles
+local Layout = UI.Layout.UnitFrames.Base
 
 local UF = UI:NewModule("UnitFrames", "KamiUI_UnitFrames")
 
@@ -418,19 +420,19 @@ end
 function UF:CreatePrimaryFrame(options)
     options = options or {}
 
-    local width = options.width or 200
-    local height = options.height or 40
-    local borderSize = options.borderSize or 1
-    local separatorSize = options.separatorSize or 1
+    local width = Layout.PRIMARY_WIDTH
+    local height = Layout.PRIMARY_HEIGHT
+    local borderSize = Styles.Metrics.borderSize
+    local separatorSize = Styles.Metrics.borderSize
     local contentWidth = width - borderSize * 2
     local contentHeight = height - borderSize * 2
     local portraitSize = options.portraitSize or contentHeight
     local barWidth = contentWidth - portraitSize
-    local healthHeight = options.healthHeight or 22
-    local powerHeight = options.powerHeight or 15
-    local healthCastHeight = options.healthCastHeight or 17
-    local powerCastHeight = options.powerCastHeight or 11
-    local castHeight = options.castHeight or 8
+    local healthHeight = Layout.PRIMARY_HEALTH_HEIGHT
+    local powerHeight = Layout.PRIMARY_POWER_HEIGHT
+    local healthCastHeight = Layout.PRIMARY_HEALTH_CAST_HEIGHT
+    local powerCastHeight = Layout.PRIMARY_POWER_CAST_HEIGHT
+    local castHeight = Layout.PRIMARY_CAST_HEIGHT
     local portraitSide = options.portraitSide == "RIGHT" and "RIGHT" or "LEFT"
 
     local frame = self:CreateUnitFrameBase({
@@ -475,15 +477,15 @@ function UF:CreatePrimaryFrame(options)
     cast:Hide()
 
     local nameText = self:CreateText(health, healthHeight, "LEFT")
-    nameText:SetPoint("LEFT", options.textInset or 3, 0)
-    nameText:SetWidth(options.nameWidth or 110)
+    nameText:SetPoint("LEFT", Layout.PRIMARY_TEXT_INSET, 0)
+    nameText:SetWidth(Layout.PRIMARY_NAME_WIDTH)
     self:ConfigureNameText(nameText)
 
     local healthText = self:CreateText(health, healthHeight, "RIGHT")
-    healthText:SetPoint("RIGHT", -(options.textInset or 3), 0)
+    healthText:SetPoint("RIGHT", -(Layout.PRIMARY_TEXT_INSET), 0)
 
     local powerText = self:CreateText(power, powerHeight, "RIGHT")
-    powerText:SetPoint("RIGHT", -(options.textInset or 3), 0)
+    powerText:SetPoint("RIGHT", -(Layout.PRIMARY_TEXT_INSET), 0)
 
     local fontPath, _, fontFlags = GameFontNormalSmall:GetFont()
 
@@ -536,12 +538,12 @@ end
 function UF:CreateCompactFrame(options)
     options = options or {}
 
-    local width = options.width or 150
-    local height = options.height or 25
-    local borderSize = options.borderSize or 1
-    local separatorSize = options.separatorSize or 1
-    local healthHeight = options.healthHeight or 13
-    local powerHeight = options.powerHeight or 9
+    local width = Layout.COMPACT_WIDTH
+    local height = Layout.COMPACT_HEIGHT
+    local borderSize = Styles.Metrics.borderSize
+    local separatorSize = Styles.Metrics.borderSize
+    local healthHeight = Layout.COMPACT_HEALTH_HEIGHT
+    local powerHeight = Layout.COMPACT_POWER_HEIGHT
     local contentWidth = width - borderSize * 2
 
     local frame = self:CreateUnitFrameBase({
@@ -571,7 +573,7 @@ function UF:CreateCompactFrame(options)
         "LEFT",
         options.nameFontOffset or 0
     )
-    nameText:SetPoint("LEFT", options.textInset or 2, 0)
+    nameText:SetPoint("LEFT", Layout.COMPACT_TEXT_INSET, 0)
     nameText:SetWidth(options.nameWidth or (contentWidth - 42))
     self:ConfigureNameText(nameText)
 
@@ -581,7 +583,7 @@ function UF:CreateCompactFrame(options)
         "RIGHT",
         options.healthFontOffset or 0
     )
-    healthText:SetPoint("RIGHT", -(options.textInset or 2), 0)
+    healthText:SetPoint("RIGHT", -(Layout.COMPACT_TEXT_INSET), 0)
 
     local powerText = self:CreateText(
         power,
@@ -589,7 +591,7 @@ function UF:CreateCompactFrame(options)
         "RIGHT",
         options.powerFontOffset or 0
     )
-    powerText:SetPoint("RIGHT", -(options.textInset or 2), 0)
+    powerText:SetPoint("RIGHT", -(Layout.COMPACT_TEXT_INSET), 0)
 
     frame.content = content
     frame.health = health
@@ -604,9 +606,9 @@ end
 function UF:CreateHealthFrame(options)
     options = options or {}
 
-    local width = options.width or 100
-    local height = options.height or 13
-    local borderSize = options.borderSize or 1
+    local width = Layout.HEALTH_WIDTH
+    local height = Layout.HEALTH_HEIGHT
+    local borderSize = Styles.Metrics.borderSize
     local healthHeight = options.healthHeight or (height - borderSize * 2)
 
     local frame = self:CreateUnitFrameBase({
@@ -633,8 +635,8 @@ function UF:CreateHealthFrame(options)
         "LEFT",
         options.nameFontOffset or 0
     )
-    nameText:SetPoint("LEFT", options.textInset or 2, 0)
-    nameText:SetPoint("RIGHT", -(options.textInset or 2), 0)
+    nameText:SetPoint("LEFT", Layout.COMPACT_TEXT_INSET, 0)
+    nameText:SetPoint("RIGHT", -(Layout.COMPACT_TEXT_INSET), 0)
     self:ConfigureNameText(nameText)
 
     frame.health = health
@@ -646,12 +648,12 @@ end
 function UF:CreateRaidFrame(options)
     options = options or {}
 
-    local width = options.width or 75
-    local height = options.height or 25
-    local borderSize = options.borderSize or 1
-    local separatorSize = options.separatorSize or 1
-    local healthHeight = options.healthHeight or 13
-    local powerHeight = options.powerHeight or 9
+    local width = UI.Layout.UnitFrames.Raid.FRAME_WIDTH
+    local height = UI.Layout.UnitFrames.Raid.FRAME_HEIGHT
+    local borderSize = Styles.Metrics.borderSize
+    local separatorSize = Styles.Metrics.borderSize
+    local healthHeight = UI.Layout.UnitFrames.Raid.HEALTH_HEIGHT
+    local powerHeight = UI.Layout.UnitFrames.Raid.POWER_HEIGHT
     local contentWidth = width - borderSize * 2
 
     local frame = self:CreateUnitFrameBase({

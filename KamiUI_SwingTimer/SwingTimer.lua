@@ -3,12 +3,7 @@ local UI = KamiUI
 local Module = UI:NewModule("SwingTimer", "KamiUI_SwingTimer")
 
 
-local defaults = {
-    width = 200,
-    height = 15,
-    offsetY = 4,
-    spacing = 0,
-}
+local Layout = UI.Layout.SwingTimer
 
 local layoutQueued = false
 local styledFrames = setmetatable({}, { __mode = "k" })
@@ -86,7 +81,7 @@ local function ConfigureFrame(frame)
 
     UI:DetachManagedFrame(frame)
     frame:SetScale(1)
-    frame:SetSize(defaults.width, defaults.height)
+    frame:SetSize(Layout.WIDTH, Layout.HEIGHT)
     StyleFrame(frame)
 end
 
@@ -142,7 +137,7 @@ function Module:Apply()
                     previous,
                     "TOPLEFT",
                     0,
-                    defaults.spacing
+                    Layout.SPACING
                 )
             else
                 SetPoint(
@@ -151,7 +146,7 @@ function Module:Apply()
                     KamiUIPlayerFrame,
                     "TOPLEFT",
                     0,
-                    defaults.offsetY
+                    Layout.OFFSET_Y
                 )
             end
 

@@ -1,5 +1,6 @@
 local UI = KamiUI
 local Palette = UI.Palette
+local Styles = UI.Styles
 local Module = UI:GetModule("SpellMatrix")
 
 local refreshPending = false
@@ -70,8 +71,8 @@ local function EnsureMetricOverlay(button)
     text:SetShadowOffset(1, -1)
 
     local size = button:GetWidth() <= 30
-        and Module.defaults.buttonFontSizeSmall
-        or Module.defaults.buttonFontSize
+        and Styles.FontSize.SpellMatrix.buttonSmall
+        or Styles.FontSize.SpellMatrix.button
 
     text:SetFont(
         fontPath,

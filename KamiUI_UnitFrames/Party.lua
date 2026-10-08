@@ -1,10 +1,7 @@
 local UI = KamiUI
 local UF = UI:GetModule("UnitFrames")
 
-local PARTY_WIDTH = 200
-local PARTY_HEIGHT = 40
-local PARTY_SPACING = 41
-local PARTY_TOP_OFFSET = 145
+local Layout = UI.Layout.UnitFrames.Party
 
 local frames = {}
 
@@ -14,10 +11,10 @@ local function CreatePartyMember(index)
     local frame = UF:CreatePrimaryFrame({
         name = "KamiUIParty" .. index .. "Frame",
         unit = unit,
-        width = PARTY_WIDTH,
-        height = PARTY_HEIGHT,
+        width = Layout.PARTY_WIDTH,
+        height = Layout.PARTY_HEIGHT,
         portraitSide = "LEFT",
-        nameWidth = 112,
+        nameWidth = Layout.NAME_WIDTH,
         features = {
             indicators = true,
             healPrediction = true,
@@ -30,7 +27,7 @@ local function CreatePartyMember(index)
         UIParent,
         "LEFT",
         0,
-        PARTY_TOP_OFFSET - (index - 1) * (PARTY_HEIGHT + PARTY_SPACING)
+        Layout.PARTY_TOP_OFFSET - (index - 1) * (Layout.PARTY_HEIGHT + Layout.PARTY_SPACING)
     )
 
     return frame
@@ -40,11 +37,11 @@ local function CreatePartyPet(index, ownerFrame)
     local frame = UF:CreateCompactFrame({
         name = "KamiUIParty" .. index .. "PetFrame",
         unit = "partypet" .. index,
-        width = 100,
-        height = 25,
-        healthHeight = 13,
-        powerHeight = 9,
-        nameWidth = 64,
+        width = Layout.PET_WIDTH,
+        height = Layout.PET_HEIGHT,
+        healthHeight = Layout.PET_HEALTH_HEIGHT,
+        powerHeight = Layout.PET_POWER_HEIGHT,
+        nameWidth = Layout.PET_NAME_WIDTH,
     })
 
     frame:SetPoint("BOTTOMLEFT", ownerFrame, "BOTTOMRIGHT", 2, 0)
@@ -56,9 +53,9 @@ local function CreatePartyTarget(index, petFrame, ownerFrame)
     local frame = UF:CreateHealthFrame({
         name = "KamiUIParty" .. index .. "TargetFrame",
         unit = "party" .. index .. "target",
-        width = 100,
-        height = 13,
-        healthHeight = 11,
+        width = Layout.TARGET_WIDTH,
+        height = Layout.TARGET_HEIGHT,
+        healthHeight = Layout.TARGET_HEALTH_HEIGHT,
     })
 
     frame:SetPoint("BOTTOMLEFT", petFrame, "TOPLEFT", 0, 2)

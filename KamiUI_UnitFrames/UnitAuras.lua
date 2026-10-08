@@ -2,9 +2,7 @@ local UI = KamiUI
 local Styles = UI.Styles
 local UF = UI:GetModule("UnitFrames")
 
-local DEFAULT_AURAS_PER_ROW = 8
-local TARGET_AURAS_PER_ROW = 10
-local AURA_SPACING = 1
+local Layout = UI.Layout.UnitFrames.Auras
 local containers = {}
 local pendingBounce = {}
 
@@ -130,10 +128,10 @@ local function AddAuraGroup(
         layout = {
             elementWidth = size,
             elementHeight = size,
-            elementSpacing = AURA_SPACING,
-            lineSpacing = AURA_SPACING,
-            groupSpacing = AURA_SPACING,
-            groupLineSpacing = AURA_SPACING,
+            elementSpacing = Layout.AURA_SPACING,
+            lineSpacing = Layout.AURA_SPACING,
+            groupSpacing = Layout.AURA_SPACING,
+            groupLineSpacing = Layout.AURA_SPACING,
             forceNewLine = forceNewLine,
             layoutIndex = index,
         },
@@ -150,11 +148,11 @@ local function CreateAuraContainer(
     aurasPerRow
 )
     local width = parent:GetWidth()
-    aurasPerRow = aurasPerRow or DEFAULT_AURAS_PER_ROW
+    aurasPerRow = aurasPerRow or Layout.DEFAULT_AURAS_PER_ROW
 
-    local size = (width - (aurasPerRow - 1) * AURA_SPACING)
+    local size = (width - (aurasPerRow - 1) * Layout.AURA_SPACING)
         / aurasPerRow
-    local height = size * rows + (rows - 1) * AURA_SPACING
+    local height = size * rows + (rows - 1) * Layout.AURA_SPACING
 
     local container = CreateFrame(
         "AuraContainer",
@@ -244,7 +242,7 @@ local function RefreshAuras(unit)
 end
 
 local function CreatePartyBuffContainer(parent, unit)
-    local size = (parent:GetWidth() - 9 * AURA_SPACING) / 10
+    local size = (parent:GetWidth() - 9 * Layout.AURA_SPACING) / 10
 
     local container = CreateFrame(
         "AuraContainer",
@@ -286,7 +284,7 @@ end
 
 local function CreatePartyDebuffContainer(parent, unit)
     local size = 25
-    local width = size * 5 + AURA_SPACING * 4
+    local width = size * 5 + Layout.AURA_SPACING * 4
 
     local container = CreateFrame(
         "AuraContainer",
@@ -335,7 +333,7 @@ local function AttachAuras()
             8,
             3,
             true,
-            TARGET_AURAS_PER_ROW
+            Layout.TARGET_AURAS_PER_ROW
         )
     end
 
@@ -358,7 +356,7 @@ local function AttachAuras()
                 8,
                 2,
                 false,
-                DEFAULT_AURAS_PER_ROW
+                Layout.DEFAULT_AURAS_PER_ROW
             )
         end
     end

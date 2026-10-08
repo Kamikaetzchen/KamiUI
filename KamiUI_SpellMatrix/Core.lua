@@ -7,8 +7,6 @@ local Module = UI:NewModule(
 
 Module.defaults = {
     refreshDelay = 0.08,
-    buttonFontSize = 11,
-    buttonFontSizeSmall = 8,
 }
 
 Module.analysisCache = {}

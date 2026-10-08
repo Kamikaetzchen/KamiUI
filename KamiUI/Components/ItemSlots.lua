@@ -354,7 +354,7 @@ function Components:StyleItemSlot(button, options)
 
     button.KamiItemSlotStyled = true
 
-    local size = options.size or 36
+    local size = options.size or Styles.Metrics.itemSlotSize
     local iconInset = options.iconInset or 1
 
     button:SetSize(size, size)
@@ -844,7 +844,7 @@ function Components:LayoutItemGrid(buttons, parent, options)
     buttons = buttons or {}
 
     local columns = options.columns or 1
-    local slotSize = options.slotSize or 36
+    local slotSize = options.slotSize or Styles.Metrics.itemSlotSize
     local spacing = options.spacing or 0
     local rows = math.max(1, math.ceil(#buttons / columns))
 

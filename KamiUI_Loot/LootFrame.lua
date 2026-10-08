@@ -5,15 +5,7 @@ local Components = UI.Components
 
 local Module = UI:NewModule("Loot", "KamiUI_Loot")
 
-local FRAME_WIDTH = 280
-local HEADER_HEIGHT = 28
-local FRAME_PADDING = 7
-local ROW_HEIGHT = 36
-local ROW_SPACING = 3
-local ICON_SIZE = 32
-local CURSOR_OFFSET_X = 12
-local CURSOR_OFFSET_Y = -12
-local SCREEN_PADDING = 8
+local Layout = UI.Layout.Loot
 
 local function CloseLootWindow()
     if CloseLoot then
@@ -56,7 +48,7 @@ end
 
 local function CreateLootRow(parent)
     local row = CreateFrame("Button", nil, parent)
-    row:SetHeight(ROW_HEIGHT)
+    row:SetHeight(Layout.ROW_HEIGHT)
     row:RegisterForClicks(
         "LeftButtonUp",
         "RightButtonUp"
@@ -82,7 +74,7 @@ local function CreateLootRow(parent)
 
     local icon = Components:CreateItemSlot(row, {
         frameType = "Frame",
-        size = ICON_SIZE,
+        size = Layout.ICON_SIZE,
         count = true,
         highlight = false,
         corners = true,
@@ -193,21 +185,21 @@ local function PositionAtCursor(frame)
     local frameWidth = frame:GetWidth()
     local frameHeight = frame:GetHeight()
 
-    local x = cursorX + CURSOR_OFFSET_X
-    local y = cursorY + CURSOR_OFFSET_Y - frameHeight
+    local x = cursorX + Layout.CURSOR_OFFSET_X
+    local y = cursorY + Layout.CURSOR_OFFSET_Y - frameHeight
 
     x = math.max(
-        SCREEN_PADDING,
+        Layout.SCREEN_PADDING,
         math.min(
             x,
-            screenWidth - frameWidth - SCREEN_PADDING
+            screenWidth - frameWidth - Layout.SCREEN_PADDING
         )
     )
     y = math.max(
-        SCREEN_PADDING,
+        Layout.SCREEN_PADDING,
         math.min(
             y,
-            screenHeight - frameHeight - SCREEN_PADDING
+            screenHeight - frameHeight - Layout.SCREEN_PADDING
         )
     )
 
@@ -252,14 +244,14 @@ function Module:Refresh()
             frame.content,
             "TOPLEFT",
             0,
-            -(index - 1) * (ROW_HEIGHT + ROW_SPACING)
+            -(index - 1) * (Layout.ROW_HEIGHT + Layout.ROW_SPACING)
         )
         row:SetPoint(
             "TOPRIGHT",
             frame.content,
             "TOPRIGHT",
             0,
-            -(index - 1) * (ROW_HEIGHT + ROW_SPACING)
+            -(index - 1) * (Layout.ROW_HEIGHT + Layout.ROW_SPACING)
         )
 
         row.lootSlot = data.slot
@@ -295,17 +287,17 @@ function Module:Refresh()
     local rowCount = #entries
     local contentHeight = rowCount > 0
         and (
-            rowCount * ROW_HEIGHT
-            + (rowCount - 1) * ROW_SPACING
+            rowCount * Layout.ROW_HEIGHT
+            + (rowCount - 1) * Layout.ROW_SPACING
         )
         or 0
 
     frame.content:SetHeight(contentHeight)
     frame:SetHeight(
-        HEADER_HEIGHT
-        + FRAME_PADDING
+        Layout.HEADER_HEIGHT
+        + Layout.FRAME_PADDING
         + contentHeight
-        + FRAME_PADDING
+        + Layout.FRAME_PADDING
     )
 
     if rowCount == 0 then
@@ -356,12 +348,12 @@ function Module:CreateFrame()
     local frame, header = Components:CreateWindow(
         "KamiUILootFrame",
         {
-            width = FRAME_WIDTH,
-            height = HEADER_HEIGHT + FRAME_PADDING * 2,
+            width = Layout.FRAME_WIDTH,
+            height = Layout.HEADER_HEIGHT + Layout.FRAME_PADDING * 2,
             backgroundColor = Palette.window.neutral,
             borderColor = Palette.windowBorder.neutral,
             header = {
-                height = HEADER_HEIGHT,
+                height = Layout.HEADER_HEIGHT,
                 title = LOOT or "Loot",
             },
         }
@@ -380,15 +372,15 @@ function Module:CreateFrame()
         "TOPLEFT",
         frame,
         "TOPLEFT",
-        FRAME_PADDING,
-        -HEADER_HEIGHT - FRAME_PADDING
+        Layout.FRAME_PADDING,
+        -Layout.HEADER_HEIGHT - Layout.FRAME_PADDING
     )
     content:SetPoint(
         "TOPRIGHT",
         frame,
         "TOPRIGHT",
-        -FRAME_PADDING,
-        -HEADER_HEIGHT - FRAME_PADDING
+        -Layout.FRAME_PADDING,
+        -Layout.HEADER_HEIGHT - Layout.FRAME_PADDING
     )
     content:SetHeight(1)
 

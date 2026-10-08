@@ -1,15 +1,16 @@
 local UI = KamiUI
 local UF = UI:GetModule("UnitFrames")
+local Layout = UI.Layout.UnitFrames.Pet
 
 local petFrame = UF:CreateCompactFrame({
     name = "KamiUIPetFrame",
     unit = "pet",
-    width = 100,
-    height = 25,
-    healthHeight = 13,
-    powerHeight = 9,
-    nameWidth = 64,
-    nameFontOffset = -1,
+    width = Layout.WIDTH,
+    height = Layout.HEIGHT,
+    healthHeight = Layout.HEALTH_HEIGHT,
+    powerHeight = Layout.POWER_HEIGHT,
+    nameWidth = Layout.NAME_WIDTH,
+    nameFontOffset = Layout.NAME_FONT_OFFSET,
     features = {
         indicators = true,
         healPrediction = true,
@@ -22,9 +23,9 @@ petFrame:SetPoint("BOTTOMRIGHT", UF.playerFrame, "BOTTOMLEFT", -2, 0)
 local petTargetFrame = UF:CreateHealthFrame({
     name = "KamiUIPetTargetFrame",
     unit = "pettarget",
-    width = 100,
-    height = 13,
-    healthHeight = 11,
+    width = Layout.WIDTH,
+    height = Layout.TARGET_HEIGHT,
+    healthHeight = Layout.TARGET_HEALTH_HEIGHT,
     features = {
         indicators = true,
         range = true,

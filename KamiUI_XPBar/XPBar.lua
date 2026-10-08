@@ -1,19 +1,11 @@
 local UI = KamiUI
+local Palette = UI.Palette
 local Styles = UI.Styles
 
 local Module = UI:NewModule("XPBar", "KamiUI_XPBar")
 
 
-local BAR_HEIGHT = 10
-
-local defaults = {
-    segments = 20,
-    background = { 0.10, 0.10, 0.12, 0.50 },
-    restedColor = { 0.08, 0.32, 0.72, 0.50 },
-    xpColor = { 0.45, 0.16, 0.62, 1 },
-    borderColor = { 0, 0, 0, 1 },
-    dividerColor = { 0, 0, 0, 0.9 },
-}
+local Layout = UI.Layout.XPBar
 
 local function GetEffectiveMaxLevel()
     if GameRulesUtil and GameRulesUtil.GetEffectiveMaxLevelForPlayer then
@@ -122,9 +114,9 @@ local function UpdateDividers(frame)
     if not frame.dividers then
         frame.dividers = {}
 
-        for index = 1, defaults.segments - 1 do
+        for index = 1, Layout.SEGMENTS - 1 do
             local divider = frame:CreateTexture(nil, "OVERLAY")
-            divider:SetColorTexture(unpack(defaults.dividerColor))
+            divider:SetColorTexture(unpack(Palette.xpBar.divider))
             divider:SetWidth(1)
             frame.dividers[index] = divider
         end
@@ -137,10 +129,10 @@ local function UpdateDividers(frame)
     end
 
     local innerWidth = width - 2
-    local segmentWidth = innerWidth / defaults.segments
+    local segmentWidth = innerWidth / Layout.SEGMENTS
     local topInset = frame.hasReputation and frame.hasExperience and 4 or 1
 
-    for index = 1, defaults.segments - 1 do
+    for index = 1, Layout.SEGMENTS - 1 do
         local divider = frame.dividers[index]
         local x = 1 + math.floor(index * segmentWidth + 0.5)
 
@@ -212,7 +204,7 @@ local function LayoutBars(frame, hasExperience, hasReputation)
 end
 
 local function ShowTooltip(frame)
-    GameTooltip:SetOwner(frame, "ANCHOR_CURSOR_RIGHT")
+    GameTooltip:SetOwner(frame, Styles.Tooltip.anchor)
     GameTooltip:ClearLines()
 
     if frame.reputationData then
@@ -271,11 +263,11 @@ local function CreateBar()
     local frame = CreateFrame("Frame", "KamiUIXPBar", UIParent)
     frame:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", 0, 0)
     frame:SetPoint("BOTTOMRIGHT", UIParent, "BOTTOMRIGHT", 0, 0)
-    frame:SetHeight(BAR_HEIGHT)
+    frame:SetHeight(Layout.HEIGHT)
     frame:SetFrameStrata("HIGH")
 
     local background = frame:CreateTexture(nil, "BACKGROUND")
-    background:SetColorTexture(unpack(defaults.background))
+    background:SetColorTexture(unpack(Palette.xpBar.background))
     background:SetPoint("TOPLEFT", frame, "TOPLEFT", 1, -1)
     background:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -1, 1)
     frame.background = background
@@ -287,12 +279,12 @@ local function CreateBar()
 
     local restedBar = CreateFrame("StatusBar", nil, frame)
     restedBar:SetStatusBarTexture("Interface\\Buttons\\WHITE8X8")
-    restedBar:SetStatusBarColor(unpack(defaults.restedColor))
+    restedBar:SetStatusBarColor(unpack(Palette.xpBar.rested))
     restedBar:EnableMouse(false)
 
     local xpBar = CreateFrame("StatusBar", nil, frame)
     xpBar:SetStatusBarTexture("Interface\\Buttons\\WHITE8X8")
-    xpBar:SetStatusBarColor(unpack(defaults.xpColor))
+    xpBar:SetStatusBarColor(unpack(Palette.xpBar.experience))
     xpBar:SetFrameLevel(restedBar:GetFrameLevel() + 1)
     xpBar:EnableMouse(false)
 
@@ -322,7 +314,7 @@ local function CreateBar()
         -3
     )
     reputationDivider:SetHeight(1)
-    reputationDivider:SetColorTexture(unpack(defaults.borderColor))
+    reputationDivider:SetColorTexture(unpack(Palette.xpBar.border))
     reputationDivider:Hide()
 
     frame.reputationBar = reputationBar
@@ -333,7 +325,7 @@ local function CreateBar()
 
     Styles:CreateBorder(overlay, {
         key = "KamiBorder",
-        color = defaults.borderColor,
+        color = Palette.xpBar.border,
     })
 
     LayoutBars(frame, false)
@@ -410,7 +402,7 @@ function Module:Refresh()
 
     LayoutBars(self.frame, hasExperience, hasReputation)
     self.frame:Show()
-    UI:SetBottomInset(BAR_HEIGHT)
+    UI:SetBottomInset(Layout.HEIGHT)
 end
 
 function Module:Initialize()

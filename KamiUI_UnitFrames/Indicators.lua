@@ -1,9 +1,8 @@
 local UI = KamiUI
+local Styles = UI.Styles
 local UF = UI:GetModule("UnitFrames")
 
-local STATUS_ICON_SIZE = 12
-local STATUS_ALPHA = 0.75
-local OUT_OF_RANGE_ALPHA = 0.45
+local Layout = UI.Layout.UnitFrames.Indicators
 
 local READY_CHECK_STAY_TIME = DEFAULT_READY_CHECK_STAY_TIME or 5
 local readyCheckGeneration = 0
@@ -39,8 +38,8 @@ end
 
 local function CreateIcon(parent)
     local icon = parent:CreateTexture(nil, "OVERLAY")
-    icon:SetSize(STATUS_ICON_SIZE, STATUS_ICON_SIZE)
-    icon:SetAlpha(STATUS_ALPHA)
+    icon:SetSize(Layout.STATUS_ICON_SIZE, Layout.STATUS_ICON_SIZE)
+    icon:SetAlpha(Styles.State.indicatorAlpha)
     icon:Hide()
     return icon
 end
@@ -764,7 +763,7 @@ rangeUpdater:SetScript("OnUpdate", function(_, elapsed)
         if UI:CanAccessValue(checkedRange) and checkedRange
             and UI:CanAccessValue(inRange)
         then
-            frame:SetAlpha(inRange and 1 or OUT_OF_RANGE_ALPHA)
+            frame:SetAlpha(inRange and 1 or Styles.State.outOfRangeAlpha)
         else
             frame:SetAlpha(1)
         end

@@ -10,6 +10,7 @@ Core.lua
 BlizzardFrames.lua
 Palette.lua
 Styles.lua
+Layout.lua
 Components\Core.lua
 Components\Tabs.lua
 Components\Buttons.lua

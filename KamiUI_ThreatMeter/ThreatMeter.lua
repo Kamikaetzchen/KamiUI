@@ -4,15 +4,7 @@ local Styles = UI.Styles
 local Module = UI:NewModule("ThreatMeter", "KamiUI_ThreatMeter")
 
 
-local defaults = {
-    width = 260,
-    titleHeight = 20,
-    rowHeight = 20,
-    maxRows = 10,
-    fontSize = 11,
-    barAlpha = 0.45,
-    backgroundAlpha = 0.70,
-}
+local Layout = UI.Layout.ThreatMeter
 
 local frame
 local rows = {}
@@ -20,7 +12,7 @@ local updateQueued = false
 
 local function CreateRow(index)
     local row = CreateFrame("Frame", nil, frame)
-    row:SetSize(defaults.width, defaults.rowHeight)
+    row:SetSize(Layout.WIDTH, Layout.ROW_HEIGHT)
 
     if index == 1 then
         row:SetPoint("TOPRIGHT", frame.titleBar, "BOTTOMRIGHT")
@@ -30,7 +22,7 @@ local function CreateRow(index)
 
     local background = row:CreateTexture(nil, "BACKGROUND")
     background:SetAllPoints()
-    background:SetColorTexture(0.03, 0.03, 0.03, defaults.backgroundAlpha)
+    background:SetColorTexture(0.03, 0.03, 0.03, Styles.State.threatMeterBackgroundAlpha)
 
     local bar = CreateFrame("StatusBar", nil, row)
     bar:SetPoint("TOPLEFT", row, "TOPLEFT", 1, -1)
@@ -39,7 +31,7 @@ local function CreateRow(index)
     bar:SetMinMaxValues(0, 100)
 
     local texture = bar:GetStatusBarTexture()
-    texture:SetAlpha(defaults.barAlpha)
+    texture:SetAlpha(Styles.State.threatMeterBarAlpha)
 
     local overlay = CreateFrame("Frame", nil, row)
     overlay:SetAllPoints()
@@ -58,8 +50,8 @@ local function CreateRow(index)
     local fontPath, _, fontFlags = GameFontNormal:GetFont()
 
     if fontPath then
-        name:SetFont(fontPath, defaults.fontSize, fontFlags)
-        percent:SetFont(fontPath, defaults.fontSize, fontFlags)
+        name:SetFont(fontPath, Styles.FontSize.ThreatMeter, fontFlags)
+        percent:SetFont(fontPath, Styles.FontSize.ThreatMeter, fontFlags)
     end
 
     name:SetTextColor(1, 1, 1)
@@ -82,15 +74,15 @@ local function EnsureFrame()
 
     frame = CreateFrame("Frame", "KamiUIThreatMeter", UIParent)
     frame:SetSize(
-        defaults.width,
-        defaults.titleHeight + defaults.rowHeight * defaults.maxRows
+        Layout.WIDTH,
+        Layout.TITLE_HEIGHT + Layout.ROW_HEIGHT * Layout.MAX_ROWS
     )
     frame:SetPoint("TOPRIGHT", UIParent, "TOPRIGHT", 0, 0)
     frame:SetFrameStrata("LOW")
     frame:Hide()
 
     local titleBar = CreateFrame("Frame", nil, frame)
-    titleBar:SetSize(defaults.width, defaults.titleHeight)
+    titleBar:SetSize(Layout.WIDTH, Layout.TITLE_HEIGHT)
     titleBar:SetPoint("TOPRIGHT", frame, "TOPRIGHT")
 
     local titleBackground = titleBar:CreateTexture(nil, "BACKGROUND")
@@ -99,7 +91,7 @@ local function EnsureFrame()
         0.03,
         0.03,
         0.03,
-        defaults.backgroundAlpha
+        Styles.State.threatMeterBackgroundAlpha
     )
 
     local title = titleBar:CreateFontString(nil, "OVERLAY", "GameFontNormal")
@@ -111,7 +103,7 @@ local function EnsureFrame()
 
     local fontPath, _, fontFlags = GameFontNormal:GetFont()
     if fontPath then
-        title:SetFont(fontPath, defaults.fontSize, fontFlags)
+        title:SetFont(fontPath, Styles.FontSize.ThreatMeter, fontFlags)
     end
 
     title:SetTextColor(1, 1, 1)
@@ -120,7 +112,7 @@ local function EnsureFrame()
     frame.titleBar = titleBar
     frame.title = title
 
-    for index = 1, defaults.maxRows do
+    for index = 1, Layout.MAX_ROWS do
         CreateRow(index)
     end
 end
@@ -282,7 +274,7 @@ local function Update()
         or not UnitCanAttack("player", "target")
     then
         HideRows()
-        frame:SetHeight(defaults.titleHeight)
+        frame:SetHeight(Layout.TITLE_HEIGHT)
         frame:SetShown(inCombat)
         return
     end
@@ -291,7 +283,7 @@ local function Update()
 
     if #entries == 0 then
         HideRows()
-        frame:SetHeight(defaults.titleHeight)
+        frame:SetHeight(Layout.TITLE_HEIGHT)
         frame:SetShown(inCombat)
         return
     end
@@ -309,9 +301,9 @@ local function Update()
         end
     end
 
-    local shown = math.min(#entries, defaults.maxRows)
+    local shown = math.min(#entries, Layout.MAX_ROWS)
 
-    for index = 1, defaults.maxRows do
+    for index = 1, Layout.MAX_ROWS do
         local row = rows[index]
         local entry = entries[index]
 
@@ -330,7 +322,7 @@ local function Update()
     end
 
     frame:SetHeight(
-        defaults.titleHeight + math.max(shown, 1) * defaults.rowHeight
+        Layout.TITLE_HEIGHT + math.max(shown, 1) * Layout.ROW_HEIGHT
     )
     frame:Show()
 end

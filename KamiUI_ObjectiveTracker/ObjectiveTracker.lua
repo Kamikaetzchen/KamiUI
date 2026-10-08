@@ -8,30 +8,7 @@ local Module = UI:NewModule("ObjectiveTracker", "KamiUI_ObjectiveTracker")
 Module.providers = {}
 Module.providerOrder = {}
 
-local PANEL_WIDTH = 300
-local COLLAPSED_WIDTH = 120
-local HEADER_HEIGHT = 24
-local MAX_HEIGHT_RATIO = 0.35
-local CONTENT_PADDING = 6
-local SECTION_HEADER_HEIGHT = 20
-local HEADER_INDENT = 2
-local SECTION_INDENT = 4
-local QUEST_INDENT = 2
-local QUEST_SELECT_SIZE = 14
-local QUEST_SELECT_GAP = 1
-local QUEST_LEVEL_WIDTH = 28
-local QUEST_TITLE_GAP = 5
-local QUEST_ITEM_SIZE = 18
-local QUEST_ITEM_GAP = 4
-local OBJECTIVE_INDENT =
-    QUEST_SELECT_SIZE
-        + QUEST_SELECT_GAP
-        + QUEST_LEVEL_WIDTH
-        + QUEST_TITLE_GAP
-local QUEST_SPACING = 5
-local OBJECTIVE_SPACING = 1
-local OBJECTIVE_COUNT_WIDTH = 34
-local OBJECTIVE_COUNT_GAP = 5
+local Layout = UI.Layout.ObjectiveTracker
 
 local OBJECTIVE_DATABASE_DEFAULTS = {
     minimized = false,
@@ -181,7 +158,7 @@ local function CreateQuestRow(parent)
     local selectButton = Components:CreateRadioButton(
         row,
         {
-            size = QUEST_SELECT_SIZE,
+            size = Layout.QUEST_SELECT_SIZE,
         }
     )
     selectButton:SetPoint("TOPLEFT", row, "TOPLEFT", 0, -3)
@@ -215,10 +192,10 @@ local function CreateQuestRow(parent)
         "TOPLEFT",
         selectButton,
         "TOPRIGHT",
-        QUEST_SELECT_GAP,
+        Layout.QUEST_SELECT_GAP,
         2
     )
-    level:SetWidth(QUEST_LEVEL_WIDTH)
+    level:SetWidth(Layout.QUEST_LEVEL_WIDTH)
     level:SetJustifyH("RIGHT")
     level:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
     row.level = level
@@ -228,18 +205,18 @@ local function CreateQuestRow(parent)
         "TOPLEFT",
         level,
         "TOPRIGHT",
-        QUEST_TITLE_GAP,
+        Layout.QUEST_TITLE_GAP,
         0
     )
     title:SetWidth(
-        PANEL_WIDTH
-            - SECTION_INDENT
-            - QUEST_INDENT
-            - QUEST_SELECT_SIZE
-            - QUEST_SELECT_GAP
-            - QUEST_LEVEL_WIDTH
-            - QUEST_TITLE_GAP
-            - CONTENT_PADDING
+        Layout.PANEL_WIDTH
+            - Layout.SECTION_INDENT
+            - Layout.QUEST_INDENT
+            - Layout.QUEST_SELECT_SIZE
+            - Layout.QUEST_SELECT_GAP
+            - Layout.QUEST_LEVEL_WIDTH
+            - Layout.QUEST_TITLE_GAP
+            - Layout.CONTENT_PADDING
             - 4
     )
     title:SetJustifyH("LEFT")
@@ -255,7 +232,7 @@ local function CreateQuestRow(parent)
         row,
         "SecureActionButtonTemplate"
     )
-    itemButton:SetSize(QUEST_ITEM_SIZE, QUEST_ITEM_SIZE)
+    itemButton:SetSize(Layout.QUEST_ITEM_SIZE, Layout.QUEST_ITEM_SIZE)
     itemButton:SetPoint("TOPRIGHT", row, "TOPRIGHT", -1, -1)
     itemButton:RegisterForClicks("LeftButtonUp")
     itemButton:SetAttribute("type", "item")
@@ -320,13 +297,13 @@ local function GetObjectiveFont(row, index)
     end
 
     text = row:CreateFontString(nil, "OVERLAY")
-    text:SetPoint("LEFT", row, "LEFT", OBJECTIVE_INDENT, 0)
+    text:SetPoint("LEFT", row, "LEFT", (Layout.QUEST_SELECT_SIZE + Layout.QUEST_SELECT_GAP + Layout.QUEST_LEVEL_WIDTH + Layout.QUEST_TITLE_GAP), 0)
     text:SetWidth(
-        PANEL_WIDTH
-            - SECTION_INDENT
-            - QUEST_INDENT
-            - OBJECTIVE_INDENT
-            - CONTENT_PADDING
+        Layout.PANEL_WIDTH
+            - Layout.SECTION_INDENT
+            - Layout.QUEST_INDENT
+            - (Layout.QUEST_SELECT_SIZE + Layout.QUEST_SELECT_GAP + Layout.QUEST_LEVEL_WIDTH + Layout.QUEST_TITLE_GAP)
+            - Layout.CONTENT_PADDING
             - 4
     )
     text:SetJustifyH("LEFT")
@@ -346,7 +323,7 @@ local function GetObjectiveCountFont(row, index)
     end
 
     count = row:CreateFontString(nil, "OVERLAY")
-    count:SetWidth(OBJECTIVE_COUNT_WIDTH)
+    count:SetWidth(Layout.OBJECTIVE_COUNT_WIDTH)
     count:SetJustifyH("RIGHT")
     count:SetJustifyV("TOP")
     count:SetWordWrap(false)
@@ -404,14 +381,14 @@ local function UpdateQuestRow(row, item, y)
         "TOPLEFT",
         row:GetParent(),
         "TOPLEFT",
-        QUEST_INDENT,
+        Layout.QUEST_INDENT,
         -y
     )
     row:SetWidth(
-        PANEL_WIDTH
-            - SECTION_INDENT
-            - QUEST_INDENT
-            - CONTENT_PADDING
+        Layout.PANEL_WIDTH
+            - Layout.SECTION_INDENT
+            - Layout.QUEST_INDENT
+            - Layout.CONTENT_PADDING
             - 2
     )
     row.questID = item.questID
@@ -445,19 +422,19 @@ local function UpdateQuestRow(row, item, y)
             "TOPLEFT",
             row.level,
             "TOPRIGHT",
-            QUEST_TITLE_GAP,
+            Layout.QUEST_TITLE_GAP,
             0
         )
 
         titleWidth =
-            PANEL_WIDTH
-                - SECTION_INDENT
-                - QUEST_INDENT
-                - QUEST_SELECT_SIZE
-                - QUEST_SELECT_GAP
-                - QUEST_LEVEL_WIDTH
-                - QUEST_TITLE_GAP
-                - CONTENT_PADDING
+            Layout.PANEL_WIDTH
+                - Layout.SECTION_INDENT
+                - Layout.QUEST_INDENT
+                - Layout.QUEST_SELECT_SIZE
+                - Layout.QUEST_SELECT_GAP
+                - Layout.QUEST_LEVEL_WIDTH
+                - Layout.QUEST_TITLE_GAP
+                - Layout.CONTENT_PADDING
                 - 4
     else
         Components:SetToggleState(
@@ -477,10 +454,10 @@ local function UpdateQuestRow(row, item, y)
         )
 
         titleWidth =
-            PANEL_WIDTH
-                - SECTION_INDENT
-                - QUEST_INDENT
-                - CONTENT_PADDING
+            Layout.PANEL_WIDTH
+                - Layout.SECTION_INDENT
+                - Layout.QUEST_INDENT
+                - Layout.CONTENT_PADDING
                 - 10
     end
 
@@ -489,8 +466,8 @@ local function UpdateQuestRow(row, item, y)
 
     if item.questItem then
         titleWidth = titleWidth
-            - QUEST_ITEM_SIZE
-            - QUEST_ITEM_GAP
+            - Layout.QUEST_ITEM_SIZE
+            - Layout.QUEST_ITEM_GAP
     end
 
     row.title:SetWidth(titleWidth)
@@ -499,7 +476,7 @@ local function UpdateQuestRow(row, item, y)
     local height = titleHeight
 
     local objectiveIndent = showQuestControls
-        and OBJECTIVE_INDENT
+        and (Layout.QUEST_SELECT_SIZE + Layout.QUEST_SELECT_GAP + Layout.QUEST_LEVEL_WIDTH + Layout.QUEST_TITLE_GAP)
         or (item.objectiveIndent or 14)
 
     for index, objective in ipairs(item.objectives or {}) do
@@ -509,17 +486,17 @@ local function UpdateQuestRow(row, item, y)
             objective.countText ~= nil
             and objective.countText ~= ""
         local textWidth =
-            PANEL_WIDTH
-                - SECTION_INDENT
-                - QUEST_INDENT
+            Layout.PANEL_WIDTH
+                - Layout.SECTION_INDENT
+                - Layout.QUEST_INDENT
                 - objectiveIndent
-                - CONTENT_PADDING
+                - Layout.CONTENT_PADDING
                 - 4
 
         if hasCount then
             textWidth = textWidth
-                - OBJECTIVE_COUNT_WIDTH
-                - OBJECTIVE_COUNT_GAP
+                - Layout.OBJECTIVE_COUNT_WIDTH
+                - Layout.OBJECTIVE_COUNT_GAP
         end
 
         text:SetWidth(textWidth)
@@ -533,12 +510,12 @@ local function UpdateQuestRow(row, item, y)
                 previousObjective.countText ~= nil
                 and previousObjective.countText ~= ""
             local currentOffset = hasCount
-                and OBJECTIVE_COUNT_WIDTH
-                    + OBJECTIVE_COUNT_GAP
+                and Layout.OBJECTIVE_COUNT_WIDTH
+                    + Layout.OBJECTIVE_COUNT_GAP
                 or 0
             local previousOffset = previousHasCount
-                and OBJECTIVE_COUNT_WIDTH
-                    + OBJECTIVE_COUNT_GAP
+                and Layout.OBJECTIVE_COUNT_WIDTH
+                    + Layout.OBJECTIVE_COUNT_GAP
                 or 0
 
             text:SetPoint(
@@ -546,7 +523,7 @@ local function UpdateQuestRow(row, item, y)
                 previousText,
                 "BOTTOMLEFT",
                 currentOffset - previousOffset,
-                -OBJECTIVE_SPACING
+                -Layout.OBJECTIVE_SPACING
             )
         else
             text:SetPoint(
@@ -555,8 +532,8 @@ local function UpdateQuestRow(row, item, y)
                 "TOPLEFT",
                 objectiveIndent
                     + (hasCount
-                        and OBJECTIVE_COUNT_WIDTH
-                            + OBJECTIVE_COUNT_GAP
+                        and Layout.OBJECTIVE_COUNT_WIDTH
+                            + Layout.OBJECTIVE_COUNT_GAP
                         or 0),
                 -titleHeight
             )
@@ -568,7 +545,7 @@ local function UpdateQuestRow(row, item, y)
                 "TOPRIGHT",
                 text,
                 "TOPLEFT",
-                -OBJECTIVE_COUNT_GAP,
+                -Layout.OBJECTIVE_COUNT_GAP,
                 0
             )
             count:SetText(objective.countText)
@@ -597,7 +574,7 @@ local function UpdateQuestRow(row, item, y)
         end
 
         height = height
-            + (index == 1 and 0 or OBJECTIVE_SPACING)
+            + (index == 1 and 0 or Layout.OBJECTIVE_SPACING)
             + objectiveHeight
     end
 
@@ -622,7 +599,7 @@ local function CreateSection(parent, id)
         text = id,
         collapsible = true,
         expanded = true,
-        height = SECTION_HEADER_HEIGHT,
+        height = Layout.SECTION_HEADER_HEIGHT,
         inset = 0,
     })
     header:SetPoint("TOPLEFT")
@@ -704,10 +681,10 @@ function Module:SetMinimized(minimized)
     self.frame.content:SetShown(not db.minimized)
     self.frame.toggle:SetText(db.minimized and "+" or "-")
     self.frame.heightModeButton:SetShown(not db.minimized)
-    self.frame:SetWidth(db.minimized and COLLAPSED_WIDTH or PANEL_WIDTH)
+    self.frame:SetWidth(db.minimized and Layout.COLLAPSED_WIDTH or Layout.PANEL_WIDTH)
 
     if db.minimized then
-        self.frame:SetHeight(HEADER_HEIGHT)
+        self.frame:SetHeight(Layout.HEADER_HEIGHT)
 
         if self.frame.scrollFrame then
             self.frame.scrollFrame:SetVerticalScroll(0)
@@ -734,13 +711,13 @@ function Module:Refresh()
     end
 
     if GetDatabase().minimized then
-        frame:SetWidth(COLLAPSED_WIDTH)
-        frame:SetHeight(HEADER_HEIGHT)
+        frame:SetWidth(Layout.COLLAPSED_WIDTH)
+        frame:SetHeight(Layout.HEADER_HEIGHT)
         frame.content:Hide()
         return
     end
 
-    frame:SetWidth(PANEL_WIDTH)
+    frame:SetWidth(Layout.PANEL_WIDTH)
     frame.content:Show()
 
     local y = 0
@@ -764,18 +741,18 @@ function Module:Refresh()
                 "TOPLEFT",
                 frame.content,
                 "TOPLEFT",
-                SECTION_INDENT,
+                Layout.SECTION_INDENT,
                 -y
             )
-            section:SetWidth(PANEL_WIDTH - SECTION_INDENT - 2)
+            section:SetWidth(Layout.PANEL_WIDTH - Layout.SECTION_INDENT - 2)
             section.header:SetSectionText(data.title or id)
             section:Show()
 
             local collapsed = GetDatabase().collapsedSections[id] == true
             section.header:SetExpanded(not collapsed)
 
-            local sectionHeight = SECTION_HEADER_HEIGHT
-            local rowY = SECTION_HEADER_HEIGHT + 3
+            local sectionHeight = Layout.SECTION_HEADER_HEIGHT
+            local rowY = Layout.SECTION_HEADER_HEIGHT + 3
 
             if collapsed then
                 for _, row in ipairs(section.rows) do
@@ -792,7 +769,7 @@ function Module:Refresh()
 
                     row:Show()
                     local rowHeight = UpdateQuestRow(row, item, rowY)
-                    rowY = rowY + rowHeight + QUEST_SPACING
+                    rowY = rowY + rowHeight + Layout.QUEST_SPACING
                     sectionHeight = rowY
                 end
 
@@ -815,19 +792,19 @@ function Module:Refresh()
         y = 24
     end
 
-    local contentHeight = y + CONTENT_PADDING
+    local contentHeight = y + Layout.CONTENT_PADDING
     local viewportHeight = contentHeight
 
     if GetDatabase().heightLimited ~= false then
         local parentHeight = UIParent:GetHeight() or 0
         local maxFrameHeight = math.max(
-            HEADER_HEIGHT + 40,
-            math.floor(parentHeight * MAX_HEIGHT_RATIO)
+            Layout.HEADER_HEIGHT + 40,
+            math.floor(parentHeight * Layout.MAX_HEIGHT_RATIO)
         )
 
         viewportHeight = math.min(
             contentHeight,
-            maxFrameHeight - HEADER_HEIGHT
+            maxFrameHeight - Layout.HEADER_HEIGHT
         )
     end
 
@@ -837,7 +814,7 @@ function Module:Refresh()
     )
 
     frame.content:SetHeight(contentHeight)
-    frame:SetHeight(HEADER_HEIGHT + viewportHeight)
+    frame:SetHeight(Layout.HEADER_HEIGHT + viewportHeight)
 
     if frame.scrollbar then
         frame.scrollbar:SetMinMaxValues(0, maxScroll)
@@ -896,8 +873,8 @@ local function CreateFrameUI()
         "BackdropTemplate"
     )
 
-    frame:SetWidth(PANEL_WIDTH)
-    frame:SetHeight(HEADER_HEIGHT)
+    frame:SetWidth(Layout.PANEL_WIDTH)
+    frame:SetHeight(Layout.HEADER_HEIGHT)
     frame:SetFrameStrata("MEDIUM")
     frame:SetClampedToScreen(true)
     frame:SetMovable(true)
@@ -911,7 +888,7 @@ local function CreateFrameUI()
     local header = CreateFrame("Button", nil, frame)
     header:SetPoint("TOPLEFT", frame, "TOPLEFT", 1, -1)
     header:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -1, -1)
-    header:SetHeight(HEADER_HEIGHT - 2)
+    header:SetHeight(Layout.HEADER_HEIGHT - 2)
     header:RegisterForClicks("LeftButtonUp")
     header:RegisterForDrag("LeftButton")
     header:SetScript("OnDragStart", function(self)
@@ -941,7 +918,7 @@ local function CreateFrameUI()
 
     local toggle = CreateFrame("Button", nil, header)
     toggle:SetSize(18, 18)
-    toggle:SetPoint("LEFT", header, "LEFT", HEADER_INDENT, 0)
+    toggle:SetPoint("LEFT", header, "LEFT", Layout.HEADER_INDENT, 0)
     toggle:SetNormalFontObject("GameFontNormal")
     toggle:SetHighlightFontObject("GameFontHighlight")
     toggle:SetText("-")
@@ -1012,7 +989,7 @@ local function CreateFrameUI()
         frame,
         "TOPLEFT",
         1,
-        -HEADER_HEIGHT
+        -Layout.HEADER_HEIGHT
     )
     scrollFrame:SetPoint(
         "BOTTOMRIGHT",
@@ -1025,7 +1002,7 @@ local function CreateFrameUI()
     frame.scrollFrame = scrollFrame
 
     local content = CreateFrame("Frame", nil, scrollFrame)
-    content:SetWidth(PANEL_WIDTH - 2)
+    content:SetWidth(Layout.PANEL_WIDTH - 2)
     content:SetHeight(1)
     scrollFrame:SetScrollChild(content)
     frame.content = content
@@ -1079,8 +1056,8 @@ local function CreateFrameUI()
     end)
 
     local empty = content:CreateFontString(nil, "OVERLAY")
-    empty:SetPoint("TOPLEFT", content, "TOPLEFT", CONTENT_PADDING, -5)
-    empty:SetPoint("RIGHT", content, "RIGHT", -CONTENT_PADDING, 0)
+    empty:SetPoint("TOPLEFT", content, "TOPLEFT", Layout.CONTENT_PADDING, -5)
+    empty:SetPoint("RIGHT", content, "RIGHT", -Layout.CONTENT_PADDING, 0)
     empty:SetJustifyH("LEFT")
     Styles:ApplyText(empty, 9, Palette.muted)
     empty:SetText("No tracked objectives")
