@@ -12,9 +12,6 @@ local HEADER_HEIGHT = 28
 local FOOTER_HEIGHT = 24
 local BAG_BAR_HEIGHT = 42
 
-local defaults = {
-}
-
 local bankOpen = false
 local bankInitialized = true
 local pendingRefresh = false

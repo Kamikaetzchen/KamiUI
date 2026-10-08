@@ -13,9 +13,6 @@ local HEADER_HEIGHT = 28
 local FOOTER_HEIGHT = 24
 local BAG_BAR_HEIGHT = 42
 
-local defaults = {
-}
-
 local pendingRebuild = false
 local sortingBags = false
 local pendingSortRefresh = false
