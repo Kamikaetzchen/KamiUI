@@ -527,6 +527,43 @@ local function RefreshUnit(unit)
     UpdatePlate(data)
 end
 
+-- Reuse the same nameplate enumeration for event refreshes and startup.
+local function RefreshExistingNameplates(refreshPlate)
+    if not C_NamePlate or not C_NamePlate.GetNamePlates then
+        return
+    end
+
+    for _, plate in ipairs(C_NamePlate.GetNamePlates() or {}) do
+        refreshPlate(plate)
+    end
+end
+
+local function RefreshExistingIdentity(plate)
+    local data = styled[plate]
+
+    if data and data.unit then
+        UpdateIdentity(data)
+    end
+
+    return data
+end
+
+local function RefreshExistingTarget(plate)
+    local data = RefreshExistingIdentity(plate)
+
+    if data and data.unit then
+        UpdateHealth(data)
+    end
+end
+
+local function InitializeExistingPlate(plate)
+    local unit = plate.namePlateUnitToken
+
+    if unit then
+        RefreshUnit(unit)
+    end
+end
+
 function Module:Initialize()
     if SetCVar then
         SetCVar("nameplateShowEnemies", 1)
@@ -641,46 +678,16 @@ function Module:Initialize()
     end
 
     UI:RegisterEvent("RAID_TARGET_UPDATE", function()
-        if not C_NamePlate or not C_NamePlate.GetNamePlates then
-            return
-        end
-
-        for _, plate in ipairs(C_NamePlate.GetNamePlates() or {}) do
-            local data = styled[plate]
-
-            if data and data.unit then
-                UpdateIdentity(data)
-            end
-        end
+        RefreshExistingNameplates(RefreshExistingIdentity)
     end)
 
     UI:RegisterEvent("PLAYER_TARGET_CHANGED", function()
-        if not C_NamePlate or not C_NamePlate.GetNamePlates then
-            return
-        end
-
-        for _, plate in ipairs(C_NamePlate.GetNamePlates() or {}) do
-            local data = styled[plate]
-
-            if data and data.unit then
-                UpdateIdentity(data)
-                UpdateHealth(data)
-            end
-        end
+        RefreshExistingNameplates(RefreshExistingTarget)
     end)
 
+    -- Keep the next-tick scan in case Blizzard populates nameplates late.
     C_Timer.After(0, function()
-        if not C_NamePlate or not C_NamePlate.GetNamePlates then
-            return
-        end
-
-        for _, plate in ipairs(C_NamePlate.GetNamePlates() or {}) do
-            local unit = plate.namePlateUnitToken
-
-            if unit then
-                RefreshUnit(unit)
-            end
-        end
+        RefreshExistingNameplates(InitializeExistingPlate)
     end)
 end
 
