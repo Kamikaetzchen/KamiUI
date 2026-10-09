@@ -24,7 +24,17 @@ end
 local function HideBlizzardChrome()
     HideObject(MinimapBorder)
     HideObject(MinimapBorderTop)
-    HideObject(MinimapBackdrop)
+
+    -- MinimapBackdrop may be part of Blizzard's minimap hierarchy.
+    -- Moving the entire frame into our hidden sink can also make the
+    -- map disappear. Only hide its chrome; keep the frame alive.
+    if MinimapBackdrop then
+        MinimapBackdrop:SetAlpha(0)
+        if MinimapBackdrop.EnableMouse then
+            MinimapBackdrop:EnableMouse(false)
+        end
+    end
+
     HideObject(MinimapNorthTag)
     HideObject(MinimapCompassTexture)
 
@@ -94,21 +104,27 @@ local function HideRoundBlobRings()
     end
 end
 
-local function StyleMinimap()
-    -- The map used to inherit Blizzard's hidden/chrome cluster. Detach the
-    -- actual map before hiding the chrome so the circular map remains visible.
-    if Minimap:GetParent() ~= UIParent then
-        Minimap:SetParent(UIParent)
+local function CreateMinimapAnchor()
+    if Module.anchor then
+        return Module.anchor
     end
 
-    Minimap:SetFrameStrata("LOW")
-    Minimap:SetFrameLevel(10)
-    Minimap:SetAlpha(1)
-    Minimap:Show()
-    Minimap:SetSize(Layout.SIZE, Layout.SIZE)
+    local anchor = CreateFrame("Frame", "KamiUIMinimapAnchor", UIParent)
+    anchor:SetFrameStrata("LOW")
+    anchor:SetFrameLevel(9)
+    anchor:EnableMouse(false)
 
-    Minimap:ClearAllPoints()
-    Minimap:SetPoint(
+    Module.anchor = anchor
+    return anchor
+end
+
+local function StyleMinimap()
+    -- Give the real map an independent, visible parent. The Blizzard
+    -- cluster/backdrop may be hidden without affecting map rendering.
+    local anchor = CreateMinimapAnchor()
+    anchor:SetSize(Layout.SIZE, Layout.SIZE)
+    anchor:ClearAllPoints()
+    anchor:SetPoint(
         Layout.POINT,
         UIParent,
         Layout.RELATIVE_POINT,
@@ -116,7 +132,20 @@ local function StyleMinimap()
         Layout.Y + UI:GetBottomInset()
     )
 
-    -- Circular map; the matching artwork rim can be added separately.
+    if Minimap:GetParent() ~= anchor then
+        Minimap:SetParent(anchor)
+    end
+
+    Minimap:ClearAllPoints()
+    Minimap:SetAllPoints(anchor)
+    Minimap:SetFrameStrata("LOW")
+    Minimap:SetFrameLevel(anchor:GetFrameLevel() + 1)
+    Minimap:SetScale(1)
+    Minimap:SetAlpha(1)
+    Minimap:Show()
+    Minimap:EnableMouse(true)
+
+    -- Keep the native circular mask and all map interactions intact.
     Minimap:SetMaskTexture("Textures\\MinimapMask")
 
     HideRoundBlobRings()
