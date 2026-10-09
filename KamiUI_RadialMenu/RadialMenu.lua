@@ -2,9 +2,6 @@ local UI = KamiUI
 local Module = UI:NewModule("RadialMenu", "KamiUI_RadialMenu")
 local L = UI.Layout.RadialMenu
 
-BINDING_HEADER_KAMIUI_RADIAL = "KamiUI - Radial Menu"
-_G["BINDING_NAME_CLICK KamiUIRadialToggleQ:LeftButton"] = "Travel & Buff Consumables (Q)"
-_G["BINDING_NAME_CLICK KamiUIRadialToggleE:LeftButton"] = "Combat Consumables (E)"
 local VARIANTS = 12
 
 local CONFIG = {
@@ -439,27 +436,21 @@ function Module:Refresh()
     end
 end
 
+-- Q and E are deliberately overridden without adding separate entries to
+-- WoW's Key Bindings menu.
 local function BindKeys()
-    if Locked() then Module.bindingsPending = true return end
+    if Locked() then
+        Module.bindingsPending = true
+        return
+    end
     Module.bindingsPending = false
     if not ClearOverrideBindings or not SetOverrideBindingClick then
         return
     end
     ClearOverrideBindings(Module.bindingOwner)
     for key in pairs(CONFIG) do
-        local action = "CLICK KamiUIRadialToggle" .. key .. ":LeftButton"
-        local first, second = GetBindingKey and GetBindingKey(action)
-        -- The built-in defaults are Q/E, but a user-assigned key takes
-        -- precedence once it is set in the WoW bindings menu.
-        if first or second then
-            for _, assigned in ipairs({first, second}) do
-                SetOverrideBindingClick(Module.bindingOwner, true,
-                    assigned, "KamiUIRadialToggle" .. key, "LeftButton")
-            end
-        else
-            SetOverrideBindingClick(Module.bindingOwner, true, key,
-                "KamiUIRadialToggle" .. key, "LeftButton")
-        end
+        SetOverrideBindingClick(Module.bindingOwner, true, key,
+            "KamiUIRadialToggle" .. key, "LeftButton")
     end
 end
 

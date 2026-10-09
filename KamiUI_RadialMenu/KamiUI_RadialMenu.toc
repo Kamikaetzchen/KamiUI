@@ -7,4 +7,3 @@
 ## RequiredDeps: KamiUI
 
 RadialMenu.lua
-Bindings.xml
