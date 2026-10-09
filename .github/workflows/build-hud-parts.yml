@@ -1,4 +1,4 @@
-name: Build HUD sprites
+name: Build bottom HUD textures
 
 on:
   push:
@@ -20,9 +20,9 @@ jobs:
           python-version: '3.12'
       - run: python -m pip install pillow numpy
       - run: python scripts/prepare_hud_parts.py
-      - name: Commit generated sprites
+      - name: Commit bottom HUD textures
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add KamiUI/textures/*_base.tga KamiUI/textures/*_accent.tga
-          git diff --cached --quiet || (git commit -m "Build power-of-two HUD sprites" && git push)
+          git add KamiUI/textures/artwork_HUD_bottom_left_base.tga KamiUI/textures/artwork_HUD_bottom_left_accent.tga
+          git diff --cached --quiet || (git commit -m "Build bottom HUD base and accent textures" && git push)

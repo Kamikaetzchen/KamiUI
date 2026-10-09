@@ -124,9 +124,10 @@ UI.Layout = {
             ACCENT_TEXTURE = "Interface\\AddOns\\KamiUI\\textures\\artwork_HUD_top_left_accent.tga",
         },
         BOTTOM = {
-            WIDTH = 444,
-            HEIGHT = 111,
-            X = 166,
+            -- 856x196 crop at 222/512 UI px per source pixel; no stretch.
+            WIDTH = 371,
+            HEIGHT = 85,
+            X = 174,
             Y = -29,
             BASE_TEXTURE = "Interface\\AddOns\\KamiUI\\textures\\artwork_HUD_bottom_left_base.tga",
             ACCENT_TEXTURE = "Interface\\AddOns\\KamiUI\\textures\\artwork_HUD_bottom_left_accent.tga",

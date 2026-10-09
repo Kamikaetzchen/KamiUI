@@ -176,10 +176,13 @@ local function CreateHUD()
     hud.parts = {}
 
     for _, part in ipairs(PARTS) do
+        -- Draw the center ring over the wing connectors so that
+        -- their small overlap stays invisible in-game.
+        local layer = part.section == "CENTER" and 2 or 0
         local base = hud:CreateTexture(nil, "ARTWORK")
-        base:SetDrawLayer("ARTWORK", 0)
+        base:SetDrawLayer("ARTWORK", layer)
         local accent = hud:CreateTexture(nil, "ARTWORK")
-        accent:SetDrawLayer("ARTWORK", 1)
+        accent:SetDrawLayer("ARTWORK", layer + 1)
 
         if part.mirror then
             base:SetTexCoord(1, 0, 0, 1)

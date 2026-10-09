@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Generate mirrored power-of-two HUD textures from the original artwork.
+"""Regenerate only the left lower HUD arm from the original artwork.
 
-The center holds ONLY the ring; the top arms belong to the unit frames.
-Panel interiors have 0 alpha. The source PNGs are intentionally preserved.
+The manually edited center and upper unit-frame textures are intentionally
+untouched. WoW Forever accepts non-power-of-two 32-bit TGA textures, so keep
+the natural crop and the exact source-to-screen aspect ratio.
 """
 
 from pathlib import Path
@@ -17,13 +18,11 @@ CENTER_X, CENTER_Y = 958, 446
 RADIUS = 232
 SPLIT_Y = 384
 
-CROPS = {
-    "center": (702, 190, 1214, 702),       # 512x512
-    # Include the *whole* connector (x=896 previously clipped it).
-    # This source rectangle is resampled to the final 512x256 texture.
-    "top_left": (384, 128, 960, 384),     # 576 -> 512 x 256
-    "bottom_left": (64, 384, 1088, 640),  # 1024x256
-}
+# Tight crop around the bottom-left arm, including a small overlap with the
+# center ring. Use the SAME pixel-to-UI scale as the 512px center asset.
+# This is deliberately not a power-of-two size.
+BOTTOM_CROP = (128, 416, 984, 612)  # 856 x 196
+
 
 
 def interior_masks():
@@ -127,42 +126,28 @@ def accent_pixels(base):
 def main():
     base = base_pixels()
     accent = accent_pixels(base)
+
+    # Let the two pieces overlap the outer 12px of the center ring.
+    # The center layers are drawn above the lower wings in Minimap.lua,
+    # hiding the seam without covering the playable map inside the ring.
     y, x = np.indices((HEIGHT, WIDTH))
-    center = (x - CENTER_X) ** 2 + (y - CENTER_Y) ** 2 <= RADIUS ** 2
-    regions = {
-        "center": center,
-        "top_left": (x < CENTER_X) & ~center & (y < SPLIT_Y),
-        "bottom_left": (x < CENTER_X) & ~center & (y >= SPLIT_Y),
-    }
+    distance_sq = (x - CENTER_X) ** 2 + (y - CENTER_Y) ** 2
+    region = (
+        (x < CENTER_X + 12)
+        & (y >= SPLIT_Y)
+        & (distance_sq >= (RADIUS - 12) ** 2)
+    )
+    x0, y0, x1, y1 = BOTTOM_CROP
 
     for kind, pixels in (("base", base), ("accent", accent)):
-        for section, (x0, y0, x1, y1) in CROPS.items():
-            region = regions[section]
-            if section == "center":
-                mirror_x = np.where(
-                    x < CENTER_X, x, 2 * CENTER_X - 1 - x
-                )
-                full_image = pixels[y, mirror_x]
-            else:
-                full_image = pixels
+        sprite = pixels[y0:y1, x0:x1].copy()
+        sprite[~region[y0:y1, x0:x1]] = 0
 
-            sprite = full_image[y0:y1, x0:x1].copy()
-            sprite[~region[y0:y1, x0:x1]] = 0
-
-            if section == "top_left":
-                sprite = np.array(
-                    Image.fromarray(sprite, "RGBA").resize(
-                        (512, 256), Image.Resampling.LANCZOS
-                    )
-                )
-
-            height, width = sprite.shape[:2]
-            if width & (width - 1) or height & (height - 1):
-                raise ValueError("Texture dimensions must be powers of two")
-
-            output = TEXTURES / f"artwork_HUD_{section}_{kind}.tga"
-            Image.fromarray(sprite, "RGBA").save(output, format="TGA")
-            print(f"{output.relative_to(ROOT)}: {width}x{height}")
+        # Saving directly as RGBA TGA avoids resampling artifacts on the
+        # beveled borders and lets the game scale the texture uniformly.
+        output = TEXTURES / f"artwork_HUD_bottom_left_{kind}.tga"
+        Image.fromarray(sprite, "RGBA").save(output, format="TGA")
+        print(f"{output.relative_to(ROOT)}: {x1 - x0}x{y1 - y0} RGBA")
 
 
 if __name__ == "__main__":
