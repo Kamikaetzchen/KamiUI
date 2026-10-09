@@ -1142,7 +1142,9 @@ function Module:Initialize()
         if Module.combatRefreshPending or Module.questItemRefreshPending then
             Module.combatRefreshPending = nil
             Module.questItemRefreshPending = nil
-            Module:Refresh()
+            -- Also apply deferred collapse/expand state, scroll reset and
+            -- height-mode controls, not just the quest row layout.
+            Module:SetMinimized(GetDatabase().minimized)
         end
     end)
 end
