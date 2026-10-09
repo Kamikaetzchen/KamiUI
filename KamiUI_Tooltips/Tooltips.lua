@@ -1478,58 +1478,23 @@ local function InstallUnitTooltipHook()
     end
 end
 
-local function PositionWorldCursorTooltip(tooltip)
-    if not tooltip or not tooltip.SetAnchorType then
-        return
-    end
-
-    tooltip:SetAnchorType(
-        Styles.Tooltip.anchor,
-        14,
-        12
-    )
-end
-
-local function InstallWorldCursorAnchor()
-    if Module.worldCursorAnchorInstalled
+-- Do not re-enter GameTooltip:SetWorldCursor from a secure post-hook.
+-- On modern Forever clients this can run Blizzard tooltip data processing in
+-- a tainted context while tooltip lines still contain secret values.
+-- Keep only the unrelated inspect cleanup on tooltip hide.
+local function InstallTooltipHideCleanup()
+    if Module.tooltipHideCleanupInstalled
         or not GameTooltip
-        or not GameTooltip.SetWorldCursor
-        or not hooksecurefunc
-        or not Enum
-        or not Enum.WorldCursorAnchorType
+        or not GameTooltip.HookScript
     then
         return
     end
 
-    Module.worldCursorAnchorInstalled = true
-
-    if GameTooltip.HookScript then
-        GameTooltip:HookScript("OnHide", function(self)
-            queuedInspect = nil
-            self.KamiPendingRefreshGuid = nil
-        end)
-    end
-
-    hooksecurefunc(
-        GameTooltip,
-        "SetWorldCursor",
-        function(self, anchorType, parent)
-            if Module.reanchoringWorldCursor
-                or anchorType
-                    ~= Enum.WorldCursorAnchorType.Default
-            then
-                return
-            end
-
-            Module.reanchoringWorldCursor = true
-            self:SetWorldCursor(
-                Enum.WorldCursorAnchorType.Cursor,
-                parent
-            )
-            PositionWorldCursorTooltip(self)
-            Module.reanchoringWorldCursor = false
-        end
-    )
+    Module.tooltipHideCleanupInstalled = true
+    GameTooltip:HookScript("OnHide", function(self)
+        queuedInspect = nil
+        self.KamiPendingRefreshGuid = nil
+    end)
 end
 
 local function InstallInstantUnitTooltipHide()
@@ -1571,7 +1536,7 @@ end
 
 function Module:Initialize()
     StyleKnownTooltips()
-    InstallWorldCursorAnchor()
+    InstallTooltipHideCleanup()
     InstallStatusBarSuppression()
     InstallInstantUnitTooltipHide()
     InstallUnitTooltipHook()
@@ -1582,7 +1547,7 @@ function Module:Initialize()
 
     UI:RegisterEvent("ADDON_LOADED", function()
         StyleKnownTooltips()
-        InstallWorldCursorAnchor()
+        InstallTooltipHideCleanup()
         InstallStatusBarSuppression()
         InstallInstantUnitTooltipHide()
         InstallUnitTooltipHook()
