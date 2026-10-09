@@ -107,6 +107,14 @@ UI.Layout = {
         MAX_AURAS = 5,
     },
 
+    RadialMenu = {
+        RADIUS = 110,
+        ICON_SIZE = 43,
+        SUB_RADIUS = 94,
+        SUB_OFFSET = 210,
+        SUB_ICON_SIZE = 34,
+    },
+
     ActionBars = {
         BUTTON_SIZE = 40,
         SECONDARY_BUTTON_SIZE = 30,

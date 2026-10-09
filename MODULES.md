@@ -5,6 +5,7 @@ KamiUI is split into a small core and independent feature addons.
 | Addon | Scope |
 | --- | --- |
 | KamiUI_UnitFrames | Player, target, pet, focus, secondary, party and raid frames |
+| KamiUI_RadialMenu | Q/E consumable wheels with per-character favorites |
 | KamiUI_ActionBars | Action bars, pet/stance bars, micro menu and bag bar |
 | KamiUI_Minimap | Minimap styling, layout and minimap overlays |
 | KamiUI_WorldMap | World map styling and customization |
