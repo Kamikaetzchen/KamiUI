@@ -236,12 +236,13 @@ local function CreateAuraContainer(data)
     AddGroup("harmful", "HARMFUL|PLAYER", 2)
 
     container:SetEnabled(true)
-    -- Both friendly and enemy auras sit above the text, not on the bar.
+    -- Align the aura strip with the level label's 3px left inset.
+    -- Applies to both friendly and hostile nameplates.
     container:SetPoint(
         "BOTTOMLEFT",
         data.textRow,
         "TOPLEFT",
-        0,
+        3,
         Layout.AURA_GAP
     )
 
