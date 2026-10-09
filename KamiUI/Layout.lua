@@ -108,11 +108,11 @@ UI.Layout = {
     },
 
     RadialMenu = {
-        RADIUS = 110,
-        ICON_SIZE = 43,
-        SUB_RADIUS = 94,
-        SUB_OFFSET = 210,
-        SUB_ICON_SIZE = 34,
+        RADIUS = 123,
+        ICON_SIZE = 58,
+        SUB_RADIUS = 115,
+        SUB_OFFSET = 235,
+        SUB_ICON_SIZE = 48,
     },
 
     ActionBars = {

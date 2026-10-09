@@ -1,6 +1,10 @@
 local UI = KamiUI
 local Module = UI:NewModule("RadialMenu", "KamiUI_RadialMenu")
 local L = UI.Layout.RadialMenu
+
+BINDING_HEADER_KAMIUI_RADIAL = "KamiUI - Radial Menu"
+_G["BINDING_NAME_CLICK KamiUIRadialToggleQ:LeftButton"] = "Travel & Buff Consumables (Q)"
+_G["BINDING_NAME_CLICK KamiUIRadialToggleE:LeftButton"] = "Combat Consumables (E)"
 local VARIANTS = 12
 
 local CONFIG = {
@@ -52,7 +56,9 @@ local function TooltipText(bag, slot)
         scanner:SetOwner(UIParent, "ANCHOR_NONE")
     end
     scanner:ClearLines()
-    scanner:SetBagItem(bag, slot)
+    if not pcall(scanner.SetBagItem, scanner, bag, slot) then
+        return ""
+    end
     local text = {}
     for i = 2, scanner:NumLines() do
         local font = _G["KamiUIRadialScannerTextLeft" .. i]
@@ -80,22 +86,42 @@ local function Add(catalog, category, id, name, icon, score, quantity, kind)
 end
 
 local function ScanItem(catalog, bag, slot, id, count)
+    -- Forever exposes item APIs through C_Item; the legacy globals may be nil.
+    local info = (C_Item and C_Item.GetItemInfo) or GetItemInfo
+    local instant = (C_Item and C_Item.GetItemInfoInstant)
+        or GetItemInfoInstant
     local name, _, _, itemLevel, requiredLevel, _, subtype, _, _, icon,
-        _, classID, subclassID = GetItemInfo(id)
-    if not name then return end
-    -- Some client builds do not expose numeric subclasses via GetItemInfo.
-    if (classID == nil or subclassID == nil) and GetItemInfoInstant then
-        local _, _, _, _, _, instantClass, instantSubclass =
-            GetItemInfoInstant(id)
+        _, classID, subclassID
+    if info then
+        name, _, _, itemLevel, requiredLevel, _, subtype, _, _, icon,
+            _, classID, subclassID = info(id)
+    end
+    if (classID == nil or subclassID == nil or not icon) and instant then
+        local _, _, instantSub, _, instantIcon, instantClass, instantSubclass =
+            instant(id)
         classID = classID or instantClass
         subclassID = subclassID or instantSubclass
+        subtype = subtype or instantSub
+        icon = icon or instantIcon
+    end
+    if not name then
+        -- The Hearthstone is known even when its item cache isn't populated.
+        if id == 6948 then
+            Add(catalog, "hearthstone", id, "Hearthstone",
+                icon or "Interface\\Icons\\INV_Misc_Rune_01", 0, count)
+        elseif C_Item and C_Item.RequestLoadItemDataByID then
+            C_Item.RequestLoadItemDataByID(id)
+        end
+        return
     end
     if requiredLevel and UnitLevel and requiredLevel > UnitLevel("player") then
         return
     end
     local n, sub = string.lower(name), string.lower(subtype or "")
     local score = (requiredLevel or 0) * 1000 + (itemLevel or 0)
-    icon = icon or (GetItemIcon and GetItemIcon(id))
+    icon = icon
+        or (C_Item and C_Item.GetItemIconByID and C_Item.GetItemIconByID(id))
+        or (GetItemIcon and GetItemIcon(id))
 
     if id == 6948 or Has(n, "hearthstone", "ruhestein") then
         Add(catalog, "hearthstone", id, name, icon, score, count)
@@ -105,7 +131,8 @@ local function ScanItem(catalog, bag, slot, id, count)
         or Has(n, "reins of", "zügel", "zuegel", "mechanostrider",
             "riding kodo", "riding ram", "raptor whistle", "horn of the")
     then
-        if GetItemSpell and GetItemSpell(id) then
+        local spell = (C_Item and C_Item.GetItemSpell) or GetItemSpell
+        if spell and spell(id) then
             Add(catalog, "mount", id, name, icon, score, count)
             return
         end
@@ -176,6 +203,8 @@ local function ScanInventory()
         for slot = 1, UI:GetContainerNumSlots(bag) do
             local info = UI:GetContainerItemInfo(bag, slot)
             local id = info and info.itemID
+                or (C_Container and C_Container.GetContainerItemID
+                    and C_Container.GetContainerItemID(bag, slot))
                 or (GetContainerItemID and GetContainerItemID(bag, slot))
             if id then
                 ScanItem(catalog, bag, slot, id, info and info.stackCount or 1)
@@ -226,16 +255,25 @@ end
 local function IconButton(button, size)
     button:SetSize(size, size)
     button:RegisterForClicks("AnyUp")
+    local media = "Interface\\AddOns\\KamiUI_RadialMenu\\Media\\"
     local background = button:CreateTexture(nil, "BACKGROUND")
     background:SetAllPoints()
-    background:SetColorTexture(.035, .04, .05, .94)
+    background:SetTexture(media .. "RadialFrame.tga")
     local image = button:CreateTexture(nil, "ARTWORK")
-    image:SetPoint("TOPLEFT", 3, -3)
-    image:SetPoint("BOTTOMRIGHT", -3, 3)
-    image:SetTexCoord(.08, .92, .08, .92)
+    image:SetPoint("TOPLEFT", 6, -6)
+    image:SetPoint("BOTTOMRIGHT", -6, 6)
+    image:SetTexCoord(.04, .96, .04, .96)
+    -- Round item icons with a real alpha mask, not a square atlas border.
+    if button.CreateMaskTexture and image.AddMaskTexture then
+        local mask = button:CreateMaskTexture()
+        mask:SetAllPoints(image)
+        mask:SetTexture(media .. "RadialMask.tga")
+        image:AddMaskTexture(mask)
+        button.iconMask = mask
+    end
     local border = button:CreateTexture(nil, "OVERLAY")
-    border:SetTexture("Interface\\Buttons\\UI-Quickslot2")
     border:SetAllPoints()
+    border:SetTexture(media .. "RadialOutline.tga")
     local count = button:CreateFontString(nil, "OVERLAY", "NumberFontNormalSmall")
     count:SetPoint("BOTTOMRIGHT", -2, 3)
     local star = button:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
@@ -276,7 +314,10 @@ end
 local function CreateWheel(key, categories)
     local root = CreateFrame("Frame", "KamiUIRadial" .. key, UIParent,
         "SecureHandlerBaseTemplate")
-    root:SetAllPoints(UIParent)
+    -- Keep the secure root small; an independent full-screen click catcher
+    -- provides dismissal. The root can be repositioned before combat.
+    root:SetSize(1, 1)
+    root:SetPoint("CENTER", UIParent, "CENTER")
     root:SetFrameStrata("DIALOG")
     root:Hide()
     root:SetFrameRef("root", root)
@@ -293,7 +334,7 @@ local function CreateWheel(key, categories)
 
     -- Full-screen secure catcher: clicking outside the wheel closes it.
     local catcher = CreateFrame("Button", nil, root, "SecureHandlerClickTemplate")
-    catcher:SetAllPoints(root)
+    catcher:SetAllPoints(UIParent)
     catcher:SetFrameLevel(root:GetFrameLevel() + 1)
     catcher:RegisterForClicks("AnyUp")
     catcher:SetFrameRef("root", root)
@@ -401,10 +442,24 @@ end
 local function BindKeys()
     if Locked() then Module.bindingsPending = true return end
     Module.bindingsPending = false
+    if not ClearOverrideBindings or not SetOverrideBindingClick then
+        return
+    end
     ClearOverrideBindings(Module.bindingOwner)
     for key in pairs(CONFIG) do
-        SetOverrideBindingClick(Module.bindingOwner, true, key,
-            "KamiUIRadialToggle" .. key, "LeftButton")
+        local action = "CLICK KamiUIRadialToggle" .. key .. ":LeftButton"
+        local first, second = GetBindingKey and GetBindingKey(action)
+        -- The built-in defaults are Q/E, but a user-assigned key takes
+        -- precedence once it is set in the WoW bindings menu.
+        if first or second then
+            for _, assigned in ipairs({first, second}) do
+                SetOverrideBindingClick(Module.bindingOwner, true,
+                    assigned, "KamiUIRadialToggle" .. key, "LeftButton")
+            end
+        else
+            SetOverrideBindingClick(Module.bindingOwner, true, key,
+                "KamiUIRadialToggle" .. key, "LeftButton")
+        end
     end
 end
 
@@ -425,6 +480,25 @@ function Module:Initialize()
             self:GetFrameRef("other"):Hide()
             if menu:IsShown() then menu:Hide() else menu:Show() end
         ]])
+        -- Binding clicks also fire PreClick. Protected frames may only be
+        -- moved outside combat, so combat uses their last safe position.
+        button:HookScript("PreClick", function()
+            if Locked() or self.wheels[key]:IsShown()
+                or not GetCursorPosition then
+                return
+            end
+            local scale = UIParent:GetEffectiveScale()
+            if not scale or scale == 0 then return end
+            local x, y = GetCursorPosition()
+            local margin = L.RADIUS + L.ICON_SIZE / 2 + 12
+            x = math.max(margin, math.min(
+                UIParent:GetWidth() - margin, x / scale))
+            y = math.max(margin, math.min(
+                UIParent:GetHeight() - margin, y / scale))
+            local wheel = self.wheels[key]
+            wheel:ClearAllPoints()
+            wheel:SetPoint("CENTER", UIParent, "BOTTOMLEFT", x, y)
+        end)
     end
     self.bindingOwner = CreateFrame("Frame", nil, UIParent)
     BindKeys()

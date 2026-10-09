@@ -8,6 +8,9 @@ Right-click the main icon to open a second radial wheel with variants.
 Left-click a variant to use it; right-click a variant to save as a favorite
 (out of combat only). A missing favorite falls back to automatic choice.
 Click outside the wheel or press its hotkey again to close it.
+The Q/E key defaults can also be customized in WoW's Key Bindings settings.
+The wheel opens at the cursor outside combat; WoW disallows moving protected
+action buttons during combat, so their last safe position is retained.
 
 Menus stay at screen center because protected action buttons cannot be
 repositioned around the cursor in combat. The E wheel opens using a secure
