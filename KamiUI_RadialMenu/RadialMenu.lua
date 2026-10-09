@@ -351,8 +351,8 @@ end
 local function CreateWheel(key, categories)
     local root = CreateFrame("Frame", "KamiUIRadial" .. key, UIParent,
         "SecureHandlerBaseTemplate")
-    -- Keep the secure root small; an independent full-screen click catcher
-    -- provides dismissal. The root can be repositioned before combat.
+    -- Keep the secure root small; a separate full-screen click catcher
+    -- provides dismissal. Both wheels receive a fixed screen position.
     root:SetSize(1, 1)
     root:SetPoint("CENTER", UIParent, "CENTER")
     root:SetFrameStrata("DIALOG")
@@ -496,12 +496,46 @@ local function BindKeys()
     end
 end
 
+-- Use exactly the same position in and out of combat. These coordinates
+-- are relative to UIParent (Q: left quarter, E: right quarter, Y: 58%).
+-- Protected frames are never repositioned by insecure Lua in combat.
+function Module:PositionWheels()
+    if Locked() then
+        self.positionsPending = true
+        return
+    end
+
+    self.positionsPending = nil
+    local width, height = UIParent:GetWidth(), UIParent:GetHeight()
+    if not width or not height or width <= 0 or height <= 0 then
+        return
+    end
+
+    -- Keep the largest potential variant wheel on-screen where possible.
+    local maxHorizontalExtent = L.RADIUS + L.SUB_OFFSET
+        + L.SUB_MAX_RADIUS + L.SUB_ICON_SIZE / 2
+    local minX = math.min(maxHorizontalExtent, width / 2)
+    local maxVerticalExtent = L.RADIUS + L.SUB_MAX_RADIUS
+        + L.SUB_ICON_SIZE / 2
+    local minY = math.min(maxVerticalExtent, height / 2)
+
+    for key, wheel in pairs(self.wheels) do
+        local fractionX = key == "Q" and L.Q_SCREEN_X or L.E_SCREEN_X
+        local x = math.max(minX, math.min(width - minX, width * fractionX))
+        local y = math.max(minY, math.min(height - minY,
+            height * L.SCREEN_Y))
+        wheel:ClearAllPoints()
+        wheel:SetPoint("CENTER", UIParent, "BOTTOMLEFT", x, y)
+    end
+end
+
 function Module:Initialize()
     self.wheels = {}
     GetDB()
     for key, categories in pairs(CONFIG) do
         self.wheels[key] = CreateWheel(key, categories)
     end
+    self:PositionWheels()
     -- Both menus use exactly the same hardware-driven secure toggle,
     -- whether the player is in combat or not. A single key release produces
     -- one click; no keyboard listener, polling or combat-specific modes.
@@ -523,32 +557,6 @@ function Module:Initialize()
             end
         ]])
 
-        -- Move only before combat, while position changes to protected
-        -- action buttons remain legal. During combat the exact same secure
-        -- toggle operates at the menu's most recent safe location.
-        button:HookScript("PreClick", function()
-            if Locked() or self.wheels[key]:IsShown()
-                or not GetCursorPosition then
-                return
-            end
-
-            local x, y = GetCursorPosition()
-            local scale = UIParent:GetEffectiveScale()
-            if not x or not y or not scale or scale <= 0 then
-                return
-            end
-
-            local marginX = L.RADIUS + L.SUB_OFFSET
-                + L.SUB_MAX_RADIUS + L.SUB_ICON_SIZE / 2
-            local marginY = L.RADIUS + L.ICON_SIZE
-            x = math.max(marginX, math.min(
-                UIParent:GetWidth() - marginX, x / scale))
-            y = math.max(marginY, math.min(
-                UIParent:GetHeight() - marginY, y / scale))
-            local wheel = self.wheels[key]
-            wheel:ClearAllPoints()
-            wheel:SetPoint("CENTER", UIParent, "BOTTOMLEFT", x, y)
-        end)
     end
     self.bindingOwner = CreateFrame("Frame", nil, UIParent)
     BindKeys()
@@ -561,7 +569,14 @@ function Module:Initialize()
         if not Locked() then Module:Refresh() end
     end)
     UI:RegisterEvent("UPDATE_BINDINGS", BindKeys)
+    UI:RegisterEvent("DISPLAY_SIZE_CHANGED", function()
+        Module:PositionWheels()
+    end)
+    UI:RegisterEvent("UI_SCALE_CHANGED", function()
+        Module:PositionWheels()
+    end)
     UI:RegisterEvent("PLAYER_REGEN_ENABLED", function()
+        if Module.positionsPending then Module:PositionWheels() end
         if Module.refreshPending then Module:Refresh() end
         if Module.bindingsPending then BindKeys() end
     end)

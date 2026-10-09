@@ -118,6 +118,9 @@ UI.Layout = {
         SUB_GAP = 8,
         SUB_OFFSET = 153,
         SUB_ICON_SIZE = 48,
+        Q_SCREEN_X = 0.25,
+        E_SCREEN_X = 0.75,
+        SCREEN_Y = 0.58,
     },
 
     ActionBars = {

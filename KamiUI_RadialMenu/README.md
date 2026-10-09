@@ -20,9 +20,11 @@ an unprotected Lua keyboard listener. Both Q and E now use the same
 SecureHandlerClickTemplate regardless of combat status. No polling, no
 press-and-hold behavior, and no state driver are used.
 
-The menu opens at the mouse cursor when out of combat. During combat,
-protected frames cannot be moved by ordinary Lua, so the wheel stays at
-its last safe position. Item actions remain secure in both modes.
+Both menus use permanent, screen-relative positions (the same during
+and outside combat): Q at about 25% of the screen width, E at about 75%,
+and both at 58% of the screen height. The layout stays within screen edges
+where space permits. Display/scale changes are repositioned outside combat
+or deferred until combat ends. Item actions remain secure in both modes.
 
 Closing a wheel also hides its variant menus via the root's secure OnHide
 handler. Variants are arranged based on available inventory; up to 16
