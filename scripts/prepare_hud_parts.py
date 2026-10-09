@@ -21,7 +21,11 @@ SPLIT_Y = 384
 # Tight crop around the bottom-left arm, including a small overlap with the
 # center ring. Use the SAME pixel-to-UI scale as the 512px center asset.
 # This is deliberately not a power-of-two size.
-BOTTOM_CROP = (128, 416, 984, 612)  # 856 x 196
+BOTTOM_CROP = (128, 416, 984, 612)  # original 856x196 crop
+# Shorten the long straight middle of the arm, preserving its tapered end
+# and the carefully shaped connector to the center ring.
+TRIM_START_X = 380
+TRIM_END_X = 500       # removes 120px; output is 736x196
 
 
 
@@ -44,9 +48,9 @@ def base_pixels():
     pixels = np.array(source)
     top, bottom = interior_masks()
     pixels[top > 0, 3] = 0
-    pixels[bottom > 0, 3] = np.minimum(
-        pixels[bottom > 0, 3], 51
-    )
+    # Keep the original opaque charcoal fill of the lower panel.
+    # The previous alpha cap (51) produced a rectangular see-through hole
+    # instead of a background behind empty action buttons.
 
     y, x = np.indices((HEIGHT, WIDTH))
     top_cap = ((x - 475) / 53.0) ** 2 + ((y - 204) / 65.0) ** 2 <= 1
@@ -123,32 +127,49 @@ def accent_pixels(base):
     return pixels
 
 
+def shorten_straight_section(sprite):
+    """Remove excess length from the flat section, not the beveled ends."""
+    start = TRIM_START_X - BOTTOM_CROP[0]
+    end = TRIM_END_X - BOTTOM_CROP[0]
+    removed = end - start
+    result = np.concatenate((sprite[:, :start], sprite[:, end:]), axis=1)
+
+    # Feather the seam inside the flat metal panel. Both source regions
+    # have parallel top/bottom edges, so the outer silhouette stays crisp.
+    blend_half_width = 16
+    for x in range(start - blend_half_width, start + blend_half_width):
+        t = (x - start + blend_half_width) / (2 * blend_half_width - 1)
+        a = sprite[:, x].astype(np.float32)
+        b = sprite[:, x + removed].astype(np.float32)
+        result[:, x] = np.clip(a * (1 - t) + b * t, 0, 255).astype(np.uint8)
+
+    return result
+
+
 def main():
     base = base_pixels()
     accent = accent_pixels(base)
 
-    # Let the two pieces overlap the outer 12px of the center ring.
-    # The center layers are drawn above the lower wings in Minimap.lua,
-    # hiding the seam without covering the playable map inside the ring.
+    # Put the lower bar ABOVE the ring and feather its connector into the
+    # existing ring border. Keep the inner map opening unobstructed.
     y, x = np.indices((HEIGHT, WIDTH))
-    distance_sq = (x - CENTER_X) ** 2 + (y - CENTER_Y) ** 2
-    region = (
-        (x < CENTER_X + 12)
-        & (y >= SPLIT_Y)
-        & (distance_sq >= (RADIUS - 12) ** 2)
-    )
+    distance = np.sqrt((x - CENTER_X) ** 2 + (y - CENTER_Y) ** 2)
+    overlap_alpha = np.clip((distance - (RADIUS - 24)) / 20.0, 0, 1)
+    region = (x < CENTER_X + 28) & (y >= SPLIT_Y)
     x0, y0, x1, y1 = BOTTOM_CROP
 
     for kind, pixels in (("base", base), ("accent", accent)):
         sprite = pixels[y0:y1, x0:x1].copy()
         sprite[~region[y0:y1, x0:x1]] = 0
+        sprite[:, :, 3] = (
+            sprite[:, :, 3].astype(np.float32)
+            * overlap_alpha[y0:y1, x0:x1]
+        ).astype(np.uint8)
+        sprite = shorten_straight_section(sprite)
 
-        # Saving directly as RGBA TGA avoids resampling artifacts on the
-        # beveled borders and lets the game scale the texture uniformly.
         output = TEXTURES / f"artwork_HUD_bottom_left_{kind}.tga"
         Image.fromarray(sprite, "RGBA").save(output, format="TGA")
-        print(f"{output.relative_to(ROOT)}: {x1 - x0}x{y1 - y0} RGBA")
-
+        print(f"{output.relative_to(ROOT)}: {sprite.shape[1]}x{sprite.shape[0]} RGBA")
 
 if __name__ == "__main__":
     main()

@@ -176,9 +176,9 @@ local function CreateHUD()
     hud.parts = {}
 
     for _, part in ipairs(PARTS) do
-        -- Draw the center ring over the wing connectors so that
-        -- their small overlap stays invisible in-game.
-        local layer = part.section == "CENTER" and 2 or 0
+        -- Draw bottom wings over the center ring; their softly faded
+        -- connectors hide the join while leaving the map itself untouched.
+        local layer = part.section == "BOTTOM" and 2 or 0
         local base = hud:CreateTexture(nil, "ARTWORK")
         base:SetDrawLayer("ARTWORK", layer)
         local accent = hud:CreateTexture(nil, "ARTWORK")
