@@ -90,7 +90,7 @@ UI.Layout = {
     },
 
     Minimap = {
-        SIZE = 220,
+        SIZE = 180,
         POINT = "BOTTOM",
         RELATIVE_POINT = "BOTTOM",
         X = 0,
@@ -114,8 +114,10 @@ UI.Layout = {
         SECONDARY_BUTTON_SIZE = 30,
         BUTTON_SPACING = 0,
         ICON_ZOOM = 0.08,
-        OFFSET_X = -400,
-        OFFSET_Y = 0,
+        MINIMAP_GAP = 8,
+        SIDE_INSET = 10,
+        BAR5_X = -400,
+        BAR5_Y = 160,
     },
 
     Auras = {

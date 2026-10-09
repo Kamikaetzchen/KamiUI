@@ -1,30 +1,10 @@
 local UI = KamiUI
-local Palette = UI.Palette
 local Styles = UI.Styles
 
 local Module = UI:NewModule("Minimap", "KamiUI_Minimap")
 
 
 local Layout = UI.Layout.Minimap
-
-local function CreateBorder()
-    if Minimap.KamiBorder then
-        return Minimap.KamiBorder
-    end
-
-    local border = CreateFrame("Frame", nil, Minimap, "BackdropTemplate")
-    border:SetFrameLevel(Minimap:GetFrameLevel() + 1)
-    border:SetAllPoints()
-    border:SetBackdrop({
-        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-        edgeSize = 1,
-    })
-    border:SetBackdropBorderColor(unpack(Palette.minimapBorder))
-
-    Minimap.KamiBorder = border
-
-    return border
-end
 
 local function HideObject(object)
     if not object then
@@ -124,13 +104,12 @@ local function StyleMinimap()
         Layout.Y + UI:GetBottomInset()
     )
 
-    -- Keep the map square. The Blizzard ring/chrome is hidden separately.
-    Minimap:SetMaskTexture("Interface\\Buttons\\WHITE8X8")
+    -- Circular map; the matching artwork rim can be added separately.
+    Minimap:SetMaskTexture("Textures\\MinimapMask")
 
     HideRoundBlobRings()
     HideBlizzardChrome()
     PositionHeaderIndicators()
-    CreateBorder()
 end
 
 function Module:Apply()

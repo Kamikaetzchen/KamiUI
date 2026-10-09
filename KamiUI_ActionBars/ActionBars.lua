@@ -32,8 +32,8 @@ local BAR_DEFS = {
         page = 1,
         count = 12,
         binding = "ACTIONBUTTON%d",
-        layout = "primary",
-        row = 1,
+        layout = "minimapGrid",
+        side = "left",
         paged = true,
     },
     {
@@ -41,24 +41,24 @@ local BAR_DEFS = {
         page = 6,
         count = 12,
         binding = "MULTIACTIONBAR1BUTTON%d",
-        layout = "primary",
-        row = 2,
+        layout = "minimapGrid",
+        side = "right",
     },
     {
         id = 3,
         page = 5,
         count = 12,
         binding = "MULTIACTIONBAR2BUTTON%d",
-        layout = "primary",
-        row = 3,
+        layout = "vertical",
+        column = 1,
     },
     {
         id = 4,
         page = 3,
         count = 12,
         binding = "MULTIACTIONBAR3BUTTON%d",
-        layout = "primary",
-        row = 4,
+        layout = "vertical",
+        column = 2,
     },
     {
         id = 5,
@@ -306,7 +306,7 @@ local function CreateActionBar(def)
 
         StyleButton(
             button,
-            def.layout == "primary"
+            def.id <= 4
                 and Layout.BUTTON_SIZE
                 or Layout.SECONDARY_BUTTON_SIZE
         )
@@ -325,46 +325,82 @@ local function CreateActionBar(def)
     return bar
 end
 
-local function LayoutPrimaryBar(bar)
-    local nextButton
-    local y = Layout.OFFSET_Y
-        + Module.bottomInset
-        + ((bar.def.row - 1) * Layout.BUTTON_SIZE)
+local function LayoutMinimapBar(bar)
+    -- Bar 1 left and Bar 2 right, each with two rows of six.
+    -- The top row is aligned with the minimap's vertical midpoint.
+    for row = 1, 2 do
+        local previous
 
-    for index = #bar.buttons, 1, -1 do
-        local button = bar.buttons[index]
+        if bar.def.side == "left" then
+            for index = row * 6, (row - 1) * 6 + 1, -1 do
+                local button = bar.buttons[index]
+                button:ClearAllPoints()
+
+                if previous then
+                    button:SetPoint(
+                        "RIGHT", previous, "LEFT",
+                        -Layout.BUTTON_SPACING, 0
+                    )
+                else
+                    button:SetPoint(
+                        "TOPRIGHT", Minimap, "LEFT",
+                        -Layout.MINIMAP_GAP,
+                        (row - 2) * Layout.BUTTON_SIZE
+                    )
+                end
+
+                previous = button
+            end
+        else
+            for index = (row - 1) * 6 + 1, row * 6 do
+                local button = bar.buttons[index]
+                button:ClearAllPoints()
+
+                if previous then
+                    button:SetPoint(
+                        "LEFT", previous, "RIGHT",
+                        Layout.BUTTON_SPACING, 0
+                    )
+                else
+                    button:SetPoint(
+                        "TOPLEFT", Minimap, "RIGHT",
+                        Layout.MINIMAP_GAP,
+                        (row - 2) * Layout.BUTTON_SIZE
+                    )
+                end
+
+                previous = button
+            end
+        end
+    end
+end
+
+local function LayoutVerticalBar(bar)
+    local previous
+
+    for _, button in ipairs(bar.buttons) do
         button:ClearAllPoints()
 
-        if nextButton then
+        if previous then
             button:SetPoint(
-                "RIGHT",
-                nextButton,
-                "LEFT",
-                -Layout.BUTTON_SPACING,
-                0
+                "TOP", previous, "BOTTOM", 0, -Layout.BUTTON_SPACING
             )
         else
             button:SetPoint(
-                "BOTTOMRIGHT",
-                UIParent,
-                "BOTTOMRIGHT",
-                Layout.OFFSET_X,
-                y
+                "TOPRIGHT", UIParent, "RIGHT",
+                -Layout.SIDE_INSET
+                    - (bar.def.column - 1)
+                        * (Layout.BUTTON_SIZE + Layout.BUTTON_SPACING),
+                #bar.buttons * Layout.BUTTON_SIZE / 2
             )
         end
 
-        nextButton = button
+        previous = button
     end
 end
 
 local function LayoutBar5(bar)
-    local bar4 = Module.bars[4]
-    if not bar4 then
-        return
-    end
-
-    local bar4Right = bar4.buttons[12]
-
+    -- Preserve Bar 5's previous screen position independently of Bar 4.
     for row = 1, 2 do
         local rightIndex = row * 6
         local nextButton
@@ -377,11 +413,9 @@ local function LayoutBar5(bar)
                 button:SetPoint("RIGHT", nextButton, "LEFT", 0, 0)
             elseif row == 1 then
                 button:SetPoint(
-                    "BOTTOMRIGHT",
-                    bar4Right,
-                    "TOPRIGHT",
-                    0,
-                    0
+                    "BOTTOMRIGHT", UIParent, "BOTTOMRIGHT",
+                    Layout.BAR5_X,
+                    Layout.BAR5_Y + Module.bottomInset
                 )
             else
                 button:SetPoint(
@@ -399,30 +433,26 @@ local function LayoutBar5(bar)
 end
 
 local function LayoutBar6(bar)
-    local bar4 = Module.bars[4]
-    if not bar4 then
+    local bar5 = Module.bars[5]
+    if not bar5 then
         return
     end
 
-    local previous
-    local bar4Left = bar4.buttons[1]
+    local nextButton
 
-    for index, button in ipairs(bar.buttons) do
+    for index = #bar.buttons, 1, -1 do
+        local button = bar.buttons[index]
         button:ClearAllPoints()
 
-        if previous then
-            button:SetPoint("LEFT", previous, "RIGHT", 0, 0)
+        if nextButton then
+            button:SetPoint("RIGHT", nextButton, "LEFT", 0, 0)
         else
             button:SetPoint(
-                "BOTTOMLEFT",
-                bar4Left,
-                "TOPLEFT",
-                0,
-                0
+                "BOTTOMRIGHT", bar5.buttons[12], "TOPRIGHT", 0, 0
             )
         end
 
-        previous = button
+        nextButton = button
     end
 end
 
@@ -701,14 +731,11 @@ local function UpdateStanceBar()
             if previous then
                 button:SetPoint("LEFT", previous, "RIGHT", 0, 0)
             else
-                local bar4 = Module.bars[4]
-                if bar4 then
+                local bar5 = Module.bars[5]
+                if bar5 then
                     button:SetPoint(
-                        "BOTTOMLEFT",
-                        bar4.buttons[1],
-                        "TOPLEFT",
-                        0,
-                        0
+                        "BOTTOMLEFT", bar5.buttons[12], "TOPRIGHT",
+                        -count * Layout.SECONDARY_BUTTON_SIZE, 0
                     )
                 end
             end
@@ -730,8 +757,10 @@ end
 
 local function LayoutBars()
     for _, bar in pairs(Module.bars) do
-        if bar.def.layout == "primary" then
-            LayoutPrimaryBar(bar)
+        if bar.def.layout == "minimapGrid" then
+            LayoutMinimapBar(bar)
+        elseif bar.def.layout == "vertical" then
+            LayoutVerticalBar(bar)
         elseif bar.def.layout == "secondaryGrid" then
             LayoutBar5(bar)
         elseif bar.def.layout == "secondaryRow" then
