@@ -124,11 +124,11 @@ UI.Layout = {
             ACCENT_TEXTURE = "Interface\\AddOns\\KamiUI\\textures\\artwork_HUD_top_left_accent.tga",
         },
         BOTTOM = {
-            -- 736x196 at the same scale as the 512px center ring.
-            -- Outer tip extends 20px past a six-button (180px) row.
-            WIDTH = 319,
-            HEIGHT = 85,
-            X = 148,
+            -- Custom 768x208 dark-bronze artwork; sized for 6x2 buttons.
+            -- The wing overlaps the ring without covering its map opening.
+            WIDTH = 268,
+            HEIGHT = 72,
+            X = 186,
             Y = -29,
             BASE_TEXTURE = "Interface\\AddOns\\KamiUI\\textures\\artwork_HUD_bottom_left_base.tga",
             ACCENT_TEXTURE = "Interface\\AddOns\\KamiUI\\textures\\artwork_HUD_bottom_left_accent.tga",

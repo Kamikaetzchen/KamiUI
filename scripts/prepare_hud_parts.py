@@ -1,175 +1,124 @@
 #!/usr/bin/env python3
-"""Regenerate only the left lower HUD arm from the original artwork.
+"""Generate KamiUI bottom HUD arms in the center ring's understated metal style.
 
-The manually edited center and upper unit-frame textures are intentionally
-untouched. WoW Forever accepts non-power-of-two 32-bit TGA textures, so keep
-the natural crop and the exact source-to-screen aspect ratio.
+Only the two bottom-left TGA files are produced. The right arm is mirrored by
+Minimap.lua, and the manually designed center-ring textures remain untouched.
 """
 
 from pathlib import Path
+import math
 
 import numpy as np
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFilter
 
 ROOT = Path(__file__).resolve().parent.parent
 TEXTURES = ROOT / "KamiUI" / "textures"
-WIDTH, HEIGHT = 1916, 821
-CENTER_X, CENTER_Y = 958, 446
-RADIUS = 232
-SPLIT_Y = 384
-
-# Tight crop around the bottom-left arm, including a small overlap with the
-# center ring. Use the SAME pixel-to-UI scale as the 512px center asset.
-# This is deliberately not a power-of-two size.
-BOTTOM_CROP = (128, 416, 984, 612)  # original 856x196 crop
-# Shorten the long straight middle of the arm, preserving its tapered end
-# and the carefully shaped connector to the center ring.
-TRIM_START_X = 380
-TRIM_END_X = 500       # removes 120px; output is 736x196
+WIDTH, HEIGHT = 768, 208
+SCALE = 3  # Supersample curved bevels and round the outer cap.
 
 
-
-def interior_masks():
-    # Straight, transparent interior for unitframes. The beveled outline
-    # remains in the original source; no artificial pill-shaped cutouts.
-    top = Image.new("L", (WIDTH, HEIGHT), 0)
-    ImageDraw.Draw(top).rectangle((446, 172, 811, 249), fill=255)
-
-    # Actionbars are below the art and need a quiet fill for empty slots.
-    bottom = Image.new("L", (WIDTH, HEIGHT), 0)
-    ImageDraw.Draw(bottom).rectangle((177, 462, 705, 551), fill=255)
-    return np.array(top, dtype=np.uint8), np.array(bottom, dtype=np.uint8)
-
-
-def base_pixels():
-    source = Image.open(TEXTURES / "artwork_HUD_thin.png").convert("RGBA")
-    if source.size != (WIDTH, HEIGHT):
-        raise ValueError(f"Unexpected base dimensions: {source.size}")
-    pixels = np.array(source)
-    top, bottom = interior_masks()
-    pixels[top > 0, 3] = 0
-    # Keep the original opaque charcoal fill of the lower panel.
-    # The previous alpha cap (51) produced a rectangular see-through hole
-    # instead of a background behind empty action buttons.
-
-    y, x = np.indices((HEIGHT, WIDTH))
-    top_cap = ((x - 475) / 53.0) ** 2 + ((y - 204) / 65.0) ** 2 <= 1
-    bottom_cap = ((x - 208) / 62.0) ** 2 + ((y - 501) / 72.0) ** 2 <= 1
-    pixels[(x < 474) & ~top_cap & (y < 290), 3] = 0
-    pixels[(x < 207) & ~bottom_cap & (y >= SPLIT_Y), 3] = 0
-
-    pixels[pixels[:, :, 3] < 14] = 0
-    pixels[pixels[:, :, 3] == 0, :3] = 0
-    return pixels
+def curve(start, control1, control2, end, steps=24):
+    pts = []
+    for step in range(1, steps + 1):
+        t = step / steps
+        u = 1 - t
+        pts.append((
+            u**3 * start[0] + 3*u*u*t*control1[0] + 3*u*t*t*control2[0] + t**3*end[0],
+            u**3 * start[1] + 3*u*u*t*control1[1] + 3*u*t*t*control2[1] + t**3*end[1],
+        ))
+    return pts
 
 
-def accent_pixels(base):
-    source = Image.open(TEXTURES / "artwork_HUD_thin_accent.png").convert(
-        "RGBA"
-    )
-    if source.size != (WIDTH, HEIGHT):
-        raise ValueError(f"Unexpected accent dimensions: {source.size}")
-
-    pixels = np.array(source)
-    pixels[:, :, 3] = np.clip(
-        pixels[:, :, 3].astype(np.float32) * 1.85, 0, 255
-    ).astype(np.uint8)
-    pixels[:, :, :3] = 255
-
-    detail = Image.new("RGBA", (WIDTH, HEIGHT), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(detail)
-    for x, y in (
-        (484, 155), (778, 158),
-        (202, 448), (665, 448),
-        (738, 267), (684, 553),
-    ):
-        draw.line(
-            ((x - 13, y), (x, y - 5), (x + 13, y),
-             (x, y + 5), (x - 13, y)),
-            fill=(255, 255, 255, 100), width=3, joint="curve"
-        )
-        draw.line(
-            ((x - 5, y), (x + 5, y)),
-            fill=(255, 255, 255, 195), width=3
-        )
-    for points in (
-        [(503, 160), (578, 161), (651, 161), (724, 161)],
-        [(226, 449), (313, 448), (405, 448), (504, 448), (608, 447)],
-        [(473, 248), (544, 251), (645, 250)],
-        [(214, 555), (321, 557), (446, 557), (561, 554)],
-    ):
-        draw.line(points, fill=(255, 255, 255, 100), width=2)
-
-    pixels = np.array(
-        Image.alpha_composite(Image.fromarray(pixels, "RGBA"), detail)
-    )
-    top, bottom = interior_masks()
-    pixels[(top > 0) | (bottom > 0), 3] = 0
-
-    # The accent is confined to the actual outline, not a rectangular
-    # crop boundary. An inset metal-edge highlight continues around the
-    # natural curves without adding a vertical line at the join.
-    metal = Image.fromarray(
-        ((base[:, :, 3] > 125) * 255).astype(np.uint8), "L"
-    )
-    from PIL import ImageFilter
-    eroded = metal.filter(ImageFilter.MinFilter(5))
-    contour = np.maximum(
-        0,
-        np.array(metal, dtype=np.int16)
-        - np.array(eroded, dtype=np.int16)
-    )
-    edge = np.clip(contour * 0.15, 0, 255).astype(np.uint8)
-    pixels[:, :, 3] = np.maximum(pixels[:, :, 3], edge)
-    pixels[(top > 0) | (bottom > 0), 3] = 0
-    pixels[base[:, :, 3] == 0, 3] = 0
-    pixels[pixels[:, :, 3] == 0, :3] = 0
-    return pixels
+def outline():
+    # Rounded outer cap and a soft, curved transition into the minimap rim.
+    points = [(93, 16), (531, 16)]
+    points += curve(points[-1], (581, 16), (589, 47), (617, 62))
+    points += curve(points[-1], (637, 74), (659, 77), (676, 84))
+    points += curve(points[-1], (682, 95), (682, 112), (676, 124))
+    points += curve(points[-1], (655, 130), (633, 136), (617, 149))
+    points += curve(points[-1], (592, 168), (581, 192), (531, 192))
+    points += [(93, 192)]
+    points += curve(points[-1], (51, 192), (19, 160), (19, 104))
+    points += curve(points[-1], (19, 49), (51, 16), (93, 16))
+    return points
 
 
-def shorten_straight_section(sprite):
-    """Remove excess length from the flat section, not the beveled ends."""
-    start = TRIM_START_X - BOTTOM_CROP[0]
-    end = TRIM_END_X - BOTTOM_CROP[0]
-    removed = end - start
-    result = np.concatenate((sprite[:, :start], sprite[:, end:]), axis=1)
+def make_mask():
+    mask = Image.new("L", (WIDTH*SCALE, HEIGHT*SCALE))
+    draw = ImageDraw.Draw(mask)
+    draw.polygon([(round(x*SCALE), round(y*SCALE)) for x, y in outline()], fill=255)
+    return mask.resize((WIDTH, HEIGHT), Image.Resampling.LANCZOS)
 
-    # Feather the seam inside the flat metal panel. Both source regions
-    # have parallel top/bottom edges, so the outer silhouette stays crisp.
-    blend_half_width = 16
-    for x in range(start - blend_half_width, start + blend_half_width):
-        t = (x - start + blend_half_width) / (2 * blend_half_width - 1)
-        a = sprite[:, x].astype(np.float32)
-        b = sprite[:, x + removed].astype(np.float32)
-        result[:, x] = np.clip(a * (1 - t) + b * t, 0, 255).astype(np.uint8)
 
-    return result
+def erode(mask, size):
+    return np.asarray(mask.filter(ImageFilter.MinFilter(size)), dtype=np.int16)
+
+
+def rgba_layer(red, green, blue, alpha):
+    result = np.empty((HEIGHT, WIDTH, 4), dtype=np.uint8)
+    for i, channel in enumerate((red, green, blue)):
+        result[..., i] = np.asarray(channel, dtype=np.uint8)
+    result[..., 3] = np.asarray(alpha, dtype=np.uint8)
+    return Image.fromarray(result, "RGBA")
+
+
+def make_textures():
+    shape = make_mask()
+    outer = np.array(shape, dtype=np.int16)
+    edge4 = erode(shape, 5)
+    edge9 = erode(shape, 11)
+    edge15 = erode(shape, 17)
+    edge24 = erode(shape, 25)
+    rim_outer = np.clip(outer - edge4, 0, 255) / 255
+    rim_bevel = np.clip(edge4 - edge9, 0, 255) / 255
+    rim_bronze = np.clip(edge9 - edge15, 0, 255) / 255
+    rim_inner = np.clip(edge15 - edge24, 0, 255) / 255
+
+    yy, xx = np.indices((HEIGHT, WIDTH), dtype=np.float32)
+    # Must agree with the BOTTOM dimensions/position in Layout.lua:
+    # WIDTH=268, HEIGHT=72, X=-186 (left wing), Y=-29.
+    map_x = -320 + (268 / WIDTH)*xx
+    map_y = -29 + (HEIGHT/2 - yy)*(72 / HEIGHT)
+    radial_distance = np.sqrt(map_x**2 + map_y**2)
+    join_fade = np.clip((radial_distance - 98) / 13, 0, 1)
+    join_fade = join_fade**2 * (3 - 2*join_fade)
+
+    # Matte warm gunmetal, subtle beveled bronze outlines, no silver tips.
+    vertical = (HEIGHT - yy) / HEIGHT
+    soft_lighting = 7*np.cos((yy - 47)/HEIGHT*math.pi)
+    grain = 1.2*np.sin(xx*.075) + .9*np.sin(xx*.19 + yy*.043)
+    shade = soft_lighting + grain + 5*vertical
+    red = 24 + shade + 37*rim_outer + 42*rim_bevel + 66*rim_bronze + 19*rim_inner
+    green = 26 + shade + 29*rim_outer + 31*rim_bevel + 45*rim_bronze + 17*rim_inner
+    blue = 28 + shade + 22*rim_outer + 23*rim_bevel + 29*rim_bronze + 13*rim_inner
+    # Opaque charcoal body prevents holes behind unused action buttons.
+    base_alpha = np.clip(outer * .97 * join_fade, 0, 255)
+    base = rgba_layer(red, green, blue, base_alpha)
+
+    # White alpha-only detailing gets its class tint in Minimap.lua.
+    thin_edge = .57*rim_bronze + .18*rim_outer + .16*rim_inner
+    strokes = Image.new("L", (WIDTH, HEIGHT), 0)
+    d = ImageDraw.Draw(strokes)
+    d.line([(112, 32), (497, 32), (525, 35)], fill=110, width=2)
+    d.line([(112, 176), (497, 176), (525, 173)], fill=85, width=2)
+    d.arc((36, 38, 144, 170), 86, 274, fill=95, width=2)
+    for x in (125, 475):
+        d.line([(x-10, 31), (x, 35), (x+10, 31)], fill=105, width=2)
+    ornament = np.array(strokes, dtype=np.float32) * (edge24 / 255)
+    accent_alpha = np.clip((thin_edge * 130 + ornament)*join_fade, 0, 170)
+    white = np.full((HEIGHT, WIDTH), 255, dtype=np.uint8)
+    accent = rgba_layer(white, white, white, accent_alpha)
+    return base, accent
 
 
 def main():
-    base = base_pixels()
-    accent = accent_pixels(base)
+    TEXTURES.mkdir(parents=True, exist_ok=True)
+    base, accent = make_textures()
+    for name, image in (("base", base), ("accent", accent)):
+        output = TEXTURES / f"artwork_HUD_bottom_left_{name}.tga"
+        image.save(output, format="TGA")
+        print(f"{output.relative_to(ROOT)}: {WIDTH}x{HEIGHT} RGBA")
 
-    # Put the lower bar ABOVE the ring and feather its connector into the
-    # existing ring border. Keep the inner map opening unobstructed.
-    y, x = np.indices((HEIGHT, WIDTH))
-    distance = np.sqrt((x - CENTER_X) ** 2 + (y - CENTER_Y) ** 2)
-    overlap_alpha = np.clip((distance - (RADIUS - 24)) / 20.0, 0, 1)
-    region = (x < CENTER_X + 28) & (y >= SPLIT_Y)
-    x0, y0, x1, y1 = BOTTOM_CROP
-
-    for kind, pixels in (("base", base), ("accent", accent)):
-        sprite = pixels[y0:y1, x0:x1].copy()
-        sprite[~region[y0:y1, x0:x1]] = 0
-        sprite[:, :, 3] = (
-            sprite[:, :, 3].astype(np.float32)
-            * overlap_alpha[y0:y1, x0:x1]
-        ).astype(np.uint8)
-        sprite = shorten_straight_section(sprite)
-
-        output = TEXTURES / f"artwork_HUD_bottom_left_{kind}.tga"
-        Image.fromarray(sprite, "RGBA").save(output, format="TGA")
-        print(f"{output.relative_to(ROOT)}: {sprite.shape[1]}x{sprite.shape[0]} RGBA")
 
 if __name__ == "__main__":
     main()
