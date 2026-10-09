@@ -1,10 +1,12 @@
 local UI = KamiUI
 local Styles = UI.Styles
+local Palette = UI.Palette
 
 local Module = UI:NewModule("Minimap", "KamiUI_Minimap")
 
 
 local Layout = UI.Layout.Minimap
+local HUDLayout = UI.Layout.HUD
 
 local function HideObject(object)
     if not object then
@@ -112,8 +114,75 @@ local function StyleMinimap()
     PositionHeaderIndicators()
 end
 
+local function CreateHUD()
+    if Module.hud then
+        return Module.hud
+    end
+
+    -- Artwork is purely visual; it never blocks minimap or button clicks.
+    local hud = CreateFrame("Frame", "KamiUIHUD", UIParent)
+    hud:SetFrameStrata("BACKGROUND")
+    hud:SetFrameLevel(1)
+    hud:EnableMouse(false)
+
+    local base = hud:CreateTexture(nil, "BACKGROUND")
+    base:SetAllPoints()
+    base:SetTexture(HUDLayout.BASE_TEXTURE)
+
+    local accent = hud:CreateTexture(nil, "ARTWORK")
+    accent:SetAllPoints()
+    accent:SetTexture(HUDLayout.ACCENT_TEXTURE)
+
+    Module.hud = hud
+    Module.hudBase = base
+    Module.hudAccent = accent
+
+    return hud
+end
+
+local function StyleHUD()
+    if not HUDLayout.ENABLED then
+        if Module.hud then
+            Module.hud:Hide()
+        end
+        return
+    end
+
+    local hud = CreateHUD()
+    hud:SetSize(HUDLayout.WIDTH, HUDLayout.HEIGHT)
+    hud:ClearAllPoints()
+    hud:SetPoint("CENTER", Minimap, "CENTER", HUDLayout.X, HUDLayout.Y)
+
+    Module.hudBase:SetTexture(HUDLayout.BASE_TEXTURE)
+    Module.hudBase:SetAlpha(HUDLayout.BASE_ALPHA)
+    Module.hudAccent:SetTexture(HUDLayout.ACCENT_TEXTURE)
+    Module.hudAccent:SetAlpha(HUDLayout.ACCENT_ALPHA)
+
+    local _, class = UnitClass("player")
+    local color = Palette:GetClassColor(class)
+
+    if color then
+        local r = color.r or color[1] or 1
+        local g = color.g or color[2] or 1
+        local b = color.b or color[3] or 1
+        local gray = (r + g + b) / 3
+        local saturation = HUDLayout.CLASS_COLOR_SATURATION
+
+        Module.hudAccent:SetVertexColor(
+            gray + (r - gray) * saturation,
+            gray + (g - gray) * saturation,
+            gray + (b - gray) * saturation
+        )
+    else
+        Module.hudAccent:SetVertexColor(1, 1, 1)
+    end
+
+    hud:Show()
+end
+
 function Module:Apply()
     StyleMinimap()
+    StyleHUD()
 end
 
 function Module:Initialize()

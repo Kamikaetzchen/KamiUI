@@ -306,8 +306,8 @@ local function CreateActionBar(def)
 
         StyleButton(
             button,
-            def.id <= 4
-                and Layout.BUTTON_SIZE
+            def.id <= 2 and Layout.HUD_BUTTON_SIZE
+                or def.id <= 4 and Layout.BUTTON_SIZE
                 or Layout.SECONDARY_BUTTON_SIZE
         )
 
@@ -345,7 +345,8 @@ local function LayoutMinimapBar(bar)
                     button:SetPoint(
                         "TOPRIGHT", Minimap, "LEFT",
                         -Layout.MINIMAP_GAP,
-                        (row - 2) * Layout.BUTTON_SIZE
+                        Layout.MINIMAP_BAR_Y
+                            + (row - 2) * Layout.HUD_BUTTON_SIZE
                     )
                 end
 
@@ -365,7 +366,8 @@ local function LayoutMinimapBar(bar)
                     button:SetPoint(
                         "TOPLEFT", Minimap, "RIGHT",
                         Layout.MINIMAP_GAP,
-                        (row - 2) * Layout.BUTTON_SIZE
+                        Layout.MINIMAP_BAR_Y
+                            + (row - 2) * Layout.HUD_BUTTON_SIZE
                     )
                 end
 

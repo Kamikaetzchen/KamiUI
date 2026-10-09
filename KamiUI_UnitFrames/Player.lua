@@ -28,10 +28,10 @@ local function PositionFrame()
     frame:ClearAllPoints()
     frame:SetPoint(
         "RIGHT",
-        UIParent,
+        Minimap,
         "CENTER",
-        -1,
-        Layout.FRAME_Y + UI:GetBottomInset()
+        Layout.FRAME_X,
+        Layout.FRAME_Y
     )
 end
 

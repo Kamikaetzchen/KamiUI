@@ -97,6 +97,20 @@ UI.Layout = {
         Y = 0,
     },
 
+    -- HUD artwork follows the minimap; all sizes/offsets are UI pixels.
+    HUD = {
+        ENABLED = true,
+        WIDTH = 830,
+        HEIGHT = 356,
+        X = 0,
+        Y = 19,
+        BASE_TEXTURE = "Interface\\AddOns\\KamiUI\\textures\\artwork_HUD_thin",
+        ACCENT_TEXTURE = "Interface\\AddOns\\KamiUI\\textures\\artwork_HUD_thin_accent",
+        BASE_ALPHA = 1.00,
+        ACCENT_ALPHA = 0.65,
+        CLASS_COLOR_SATURATION = 0.65,
+    },
+
     Nameplates = {
         PLATE_WIDTH = 200,
         HEALTH_HEIGHT = 5,
@@ -111,10 +125,12 @@ UI.Layout = {
 
     ActionBars = {
         BUTTON_SIZE = 40,
+        HUD_BUTTON_SIZE = 30,
         SECONDARY_BUTTON_SIZE = 30,
         BUTTON_SPACING = 0,
         ICON_ZOOM = 0.08,
-        MINIMAP_GAP = 8,
+        MINIMAP_GAP = 18,
+        MINIMAP_BAR_Y = 10,
         SIDE_INSET = 10,
         BAR5_X = -400,
         BAR5_Y = 160,
@@ -211,8 +227,10 @@ UI.Layout = {
             NAME_WIDTH = 105,
             FONT_OFFSET = -1,
         },
-        Player = { FRAME_Y = -250 },
-        Target = { FRAME_Y = -250 },
+        -- Primary frames sit in the upper two HUD artwork sections.
+        -- These offsets are relative to the minimap center.
+        Player = { FRAME_X = -55, FRAME_Y = 110 },
+        Target = { FRAME_X = 55, FRAME_Y = 110 },
         Party = {
             PARTY_WIDTH = 200,
             PARTY_HEIGHT = 40,
