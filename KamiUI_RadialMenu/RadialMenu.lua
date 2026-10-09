@@ -345,9 +345,7 @@ local function CreateWheel(key, categories)
         main:SetPoint("CENTER", root, "CENTER", x, y)
         main.categoryName = category[2]
         IconButton(main, L.ICON_SIZE)
-        -- WrapScript runs with 'self' being the clicked button; keep the
-        -- root reference on this button, not only on the wheel.
-        main:SetFrameRef("root", root)
+        -- Wrapped snippets use 'control' for the secure root handler.
 
         local sub = CreateFrame("Frame", nil, root, "SecureHandlerBaseTemplate")
         sub:SetSize(L.SUB_RADIUS * 2 + L.SUB_ICON_SIZE,
@@ -370,12 +368,11 @@ local function CreateWheel(key, categories)
             item.categoryName = category[2]
             item.category = category[1]
             IconButton(item, L.SUB_ICON_SIZE)
-            item:SetFrameRef("root", root)
             item:Hide()
             -- Return a non-nil message so secure postBody runs in combat.
             root:WrapScript(item, "OnClick", [[return nil, "clicked"]], [[
                 if button == "LeftButton" then
-                    self:GetFrameRef("root"):Hide()
+                    control:Hide()
                 end
             ]])
             item:HookScript("PostClick", function(self, button)
@@ -391,29 +388,24 @@ local function CreateWheel(key, categories)
         end
 
         root:SetFrameRef("sub" .. index, sub)
-        main:SetFrameRef("submenu", sub)
-        root:WrapScript(main, "OnClick", [[return nil, "clicked"]], [[
-            local owner = self:GetFrameRef("root")
-            if not owner then return end
-            if button == "RightButton" then
-                local target = self:GetFrameRef("submenu")
-                if not target then return end
-                local i = 1
-                local other = owner:GetFrameRef("sub" .. i)
-                while other do
-                    if other ~= target then other:Hide() end
-                    i = i + 1
-                    other = owner:GetFrameRef("sub" .. i)
-                end
-                if target:IsShown() then
-                    target:Hide()
+        root:WrapScript(main, "OnClick", [[return nil, "clicked"]],
+            string.format([[
+                if button == "RightButton" then
+                    local target = control:GetFrameRef("sub%d")
+                    if not target then return end
+                    for i = 1, %d do
+                        local other = control:GetFrameRef("sub" .. i)
+                        if other and other ~= target then other:Hide() end
+                    end
+                    if target:IsShown() then
+                        target:Hide()
+                    else
+                        target:Show()
+                    end
                 else
-                    target:Show()
+                    control:Hide()
                 end
-            else
-                owner:Hide()
-            end
-        ]])
+            ]], index, #categories))
         root.buttons[index], root.submenus[index] = main, sub
     end
     return root
