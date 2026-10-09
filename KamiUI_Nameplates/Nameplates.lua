@@ -8,6 +8,8 @@ local Module = UI:NewModule("Nameplates", "KamiUI_Nameplates")
 local Layout = UI.Layout.Nameplates
 
 local flatTexture = "Interface\\Buttons\\WHITE8X8"
+local healthFadeTexture =
+    "Interface\\AddOns\\KamiUI_Nameplates\\Textures\\HealthFade"
 local fontPath, _, fontFlags = GameFontNormalSmall:GetFont()
 
 local styled = {}
@@ -231,7 +233,13 @@ local function CreateAuraContainer(data)
     AddGroup("harmful", "HARMFUL|PLAYER", 2)
 
     container:SetEnabled(true)
-    container:SetPoint("BOTTOMLEFT", data.health, "TOPLEFT", 0, 2)
+    container:SetPoint(
+        "BOTTOMLEFT",
+        data.textRow,
+        "TOPLEFT",
+        0,
+        Layout.AURA_GAP
+    )
 
     data.auras = container
 end
@@ -257,7 +265,12 @@ local function CreateCustomPlate(namePlate)
     end
 
     local root = CreateFrame("Frame", nil, namePlate)
-    root:SetSize(Layout.PLATE_WIDTH, Layout.HEALTH_HEIGHT + Layout.CAST_HEIGHT + 24)
+    root:SetSize(
+        Layout.PLATE_WIDTH,
+        Layout.HEALTH_HEIGHT + Layout.CAST_HEIGHT
+            + Layout.TEXT_ROW_HEIGHT + Layout.TEXT_GAP
+            + Layout.AURA_GAP + Layout.AURA_SIZE
+    )
     root:SetPoint("CENTER", namePlate, "CENTER", 0, 0)
     root:SetFrameLevel((unitFrame:GetFrameLevel() or 0) + 50)
     root:EnableMouse(false)
@@ -265,13 +278,26 @@ local function CreateCustomPlate(namePlate)
     local health = CreateFrame("StatusBar", nil, root)
     health:SetSize(Layout.PLATE_WIDTH, Layout.HEALTH_HEIGHT)
     health:SetPoint("CENTER", root, "CENTER", 0, 0)
-    health:SetStatusBarTexture(flatTexture)
+    -- The texture carries both horizontal and vertical alpha fades.
+    -- StatusBar keeps health updates compatible with secret values.
+    health:SetStatusBarTexture(healthFadeTexture)
 
     local healthBackground = health:CreateTexture(nil, "BACKGROUND")
     healthBackground:SetAllPoints()
-    healthBackground:SetColorTexture(0.05, 0.05, 0.05, 0.95)
+    healthBackground:SetTexture(healthFadeTexture)
+    healthBackground:SetVertexColor(
+        Styles:GetColorChannels(Palette.nameplates.missingHealth)
+    )
 
-    local healthBorder = Styles:CreateBorder(health, Palette.black)
+    local textRow = CreateFrame("Frame", nil, root)
+    textRow:SetSize(Layout.PLATE_WIDTH, Layout.TEXT_ROW_HEIGHT)
+    textRow:SetPoint(
+        "BOTTOMLEFT",
+        health,
+        "TOPLEFT",
+        0,
+        Layout.TEXT_GAP
+    )
 
     local raidMarker = root:CreateTexture(nil, "OVERLAY")
     raidMarker:SetSize(14, 14)
@@ -279,17 +305,17 @@ local function CreateCustomPlate(namePlate)
     raidMarker:SetTexture("Interface\\TargetingFrame\\UI-RaidTargetingIcons")
     raidMarker:Hide()
 
-    local level = health:CreateFontString(nil, "OVERLAY")
-    level:SetPoint("LEFT", health, "LEFT", 3, 0)
+    local level = textRow:CreateFontString(nil, "OVERLAY")
+    level:SetPoint("LEFT", textRow, "LEFT", 3, 0)
     level:SetJustifyH("LEFT")
     level:SetFont(fontPath, Styles.FontSize.Nameplates.level, "OUTLINE")
     level:SetShadowColor(0, 0, 0, 1)
     level:SetShadowOffset(1, -1)
     ConfigureSingleLine(level)
 
-    local name = health:CreateFontString(nil, "OVERLAY")
+    local name = textRow:CreateFontString(nil, "OVERLAY")
     name:SetPoint("LEFT", level, "RIGHT", 3, 0)
-    name:SetPoint("RIGHT", health, "RIGHT", -36, 0)
+    name:SetPoint("RIGHT", textRow, "RIGHT", -36, 0)
     name:SetJustifyH("LEFT")
 
     if GameTooltipText and name.SetFontObject then
@@ -304,8 +330,8 @@ local function CreateCustomPlate(namePlate)
     name:SetShadowOffset(1, -1)
     ConfigureSingleLine(name)
 
-    local percent = health:CreateFontString(nil, "OVERLAY")
-    percent:SetPoint("RIGHT", health, "RIGHT", -3, 0)
+    local percent = textRow:CreateFontString(nil, "OVERLAY")
+    percent:SetPoint("RIGHT", textRow, "RIGHT", -3, 0)
     percent:SetJustifyH("RIGHT")
     percent:SetFont(fontPath, Styles.FontSize.Nameplates.percent, fontFlags)
     percent:SetTextColor(1, 1, 1)
@@ -348,7 +374,7 @@ local function CreateCustomPlate(namePlate)
         unitFrame = unitFrame,
         root = root,
         health = health,
-        healthBorder = healthBorder,
+        textRow = textRow,
         raidMarker = raidMarker,
         level = level,
         name = name,
@@ -418,18 +444,19 @@ local function UpdateIdentity(data)
     if levelText ~= "" then
         data.name:SetPoint("LEFT", data.level, "RIGHT", 3, 0)
     else
-        data.name:SetPoint("LEFT", data.health, "LEFT", 3, 0)
+        data.name:SetPoint("LEFT", data.textRow, "LEFT", 3, 0)
     end
 
-    data.name:SetPoint("RIGHT", data.health, "RIGHT", -36, 0)
+    data.name:SetPoint("RIGHT", data.textRow, "RIGHT", -36, 0)
     data.name:SetText(nameText)
 
     local isTarget = UnitIsUnit and UnitIsUnit(data.unit, "target")
 
+    -- Highlight the target's name instead of outlining the thin bar.
     if UI:CanAccessValue(isTarget) and isTarget then
-        Styles:SetBorderColor(data.healthBorder, Palette.highlight)
+        Styles:SetTextColor(data.name, Palette.highlight)
     else
-        Styles:SetBorderColor(data.healthBorder, Palette.black)
+        Styles:SetTextColor(data.name, Palette.white)
     end
 
     local index = GetRaidTargetIndex and GetRaidTargetIndex(data.unit)

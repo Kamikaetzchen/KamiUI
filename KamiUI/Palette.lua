@@ -23,6 +23,10 @@ Palette.window = {
 -- Module-specific colors are kept here alongside the shared palette.
 Palette.minimapBorder = HexColor(0x333333)
 
+Palette.nameplates = {
+    missingHealth = HexColor(0x202126, 0.90),
+}
+
 Palette.auras = {
     helpful = HexColor(0x338CE6),
     harmful = HexColor(0xCC3333),
