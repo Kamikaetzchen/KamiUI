@@ -265,19 +265,6 @@ end
 
 local function Update()
     EnsureFrame()
-
-    if not IsInGroup() and not IsInRaid() then
-        local _, class = UnitClass("player")
-        local hasSoloPet = (class == "HUNTER" or class == "WARLOCK")
-            and UnitExists("pet")
-
-        if not hasSoloPet then
-            HideRows()
-            frame:Hide()
-            return
-        end
-    end
-
     UpdateTitle()
 
     local inCombat = UnitAffectingCombat("player")

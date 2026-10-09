@@ -81,6 +81,7 @@ UI.Layout = {
 
     Chat = {
         LEFT_WIDTH = 500,
+        COMBAT_WIDTH = 450,
         HEIGHT = 220,
         TAB_HEIGHT = 22,
         INPUT_HEIGHT = 24,
@@ -90,58 +91,17 @@ UI.Layout = {
     },
 
     Minimap = {
-        SIZE = 180,
+        SIZE = 220,
         POINT = "BOTTOM",
         RELATIVE_POINT = "BOTTOM",
         X = 0,
-        Y = 20,
-    },
-
-    -- All offsets are relative to the minimap center; X mirrors each wing.
-    HUD = {
-        ENABLED = true,
-        X = 0,
         Y = 0,
-        BASE_ALPHA = 1.00,
-        ACCENT_ALPHA = 0.90,
-        CLASS_COLOR_SATURATION = 0.75,
-        CENTER = {
-            WIDTH = 222,
-            HEIGHT = 222,
-            X = 0,
-            Y = 0,
-            BASE_TEXTURE = "Interface\\AddOns\\KamiUI\\textures\\artwork_HUD_center_base.tga",
-            ACCENT_TEXTURE = "Interface\\AddOns\\KamiUI\\textures\\artwork_HUD_center_accent.tga",
-        },
-        -- Child of Player/Target, but anchored at minimap-relative position.
-        -- The arm is part of this piece, so it hides with the unit.
-        TOP = {
-            WIDTH = 250,
-            HEIGHT = 111,
-            X = 124,
-            Y = 82,
-            BASE_TEXTURE = "Interface\\AddOns\\KamiUI\\textures\\artwork_HUD_top_left_base.tga",
-            ACCENT_TEXTURE = "Interface\\AddOns\\KamiUI\\textures\\artwork_HUD_top_left_accent.tga",
-        },
-        BOTTOM = {
-            -- Custom 768x208 dark-bronze artwork; sized for 6x2 buttons.
-            -- The wing overlaps the ring without covering its map opening.
-            WIDTH = 268,
-            HEIGHT = 72,
-            X = 186,
-            Y = -29,
-            BASE_TEXTURE = "Interface\\AddOns\\KamiUI\\textures\\artwork_HUD_bottom_left_base.tga",
-            ACCENT_TEXTURE = "Interface\\AddOns\\KamiUI\\textures\\artwork_HUD_bottom_left_accent.tga",
-        },
     },
 
     Nameplates = {
         PLATE_WIDTH = 200,
-        HEALTH_HEIGHT = 5,
+        HEALTH_HEIGHT = 12,
         CAST_HEIGHT = 10,
-        TEXT_ROW_HEIGHT = 12,
-        TEXT_GAP = 3,
-        AURA_GAP = 4,
         AURA_SIZE = 20,
         AURA_SPACING = 2,
         MAX_AURAS = 5,
@@ -149,15 +109,11 @@ UI.Layout = {
 
     ActionBars = {
         BUTTON_SIZE = 40,
-        HUD_BUTTON_SIZE = 30,
         SECONDARY_BUTTON_SIZE = 30,
         BUTTON_SPACING = 0,
         ICON_ZOOM = 0.08,
-        MINIMAP_GAP = 18,
-        MINIMAP_BAR_Y = 10,
-        SIDE_INSET = 10,
-        BAR5_X = -400,
-        BAR5_Y = 160,
+        OFFSET_X = -400,
+        OFFSET_Y = 0,
     },
 
     Auras = {
@@ -251,20 +207,8 @@ UI.Layout = {
             NAME_WIDTH = 105,
             FONT_OFFSET = -1,
         },
-        -- Only player and target use the slimmer primary HUD dimensions.
-        HUD = {
-            WIDTH = 174,
-            HEIGHT = 36,
-            HEALTH_HEIGHT = 19,
-            POWER_HEIGHT = 14,
-            HEALTH_CAST_HEIGHT = 15,
-            POWER_CAST_HEIGHT = 10,
-            CAST_HEIGHT = 7,
-            NAME_WIDTH = 83,
-        },
-        -- UnitFrame positions relative to the minimap center.
-        Player = { FRAME_X = -55, FRAME_Y = 110 },
-        Target = { FRAME_X = 55, FRAME_Y = 110 },
+        Player = { FRAME_Y = -250 },
+        Target = { FRAME_Y = -250 },
         Party = {
             PARTY_WIDTH = 200,
             PARTY_HEIGHT = 40,

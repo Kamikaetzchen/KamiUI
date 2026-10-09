@@ -601,7 +601,6 @@ local function CreateSection(parent, id)
         expanded = true,
         height = Layout.SECTION_HEADER_HEIGHT,
         inset = 0,
-        backgroundAlpha = 0,
     })
     header:SetPoint("TOPLEFT")
     header:SetPoint("TOPRIGHT")
@@ -870,7 +869,8 @@ local function CreateFrameUI()
     local frame = CreateFrame(
         "Frame",
         "KamiUIObjectiveTrackerFrame",
-        UIParent
+        UIParent,
+        "BackdropTemplate"
     )
 
     frame:SetWidth(Layout.PANEL_WIDTH)
@@ -879,6 +879,12 @@ local function CreateFrameUI()
     frame:SetClampedToScreen(true)
     frame:SetMovable(true)
     frame:EnableMouse(true)
+    Styles:ApplyBackdrop(
+        frame,
+        Palette.window.neutral,
+        Palette.border
+    )
+
     local header = CreateFrame("Button", nil, frame)
     header:SetPoint("TOPLEFT", frame, "TOPLEFT", 1, -1)
     header:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -1, -1)
@@ -905,6 +911,10 @@ local function CreateFrameUI()
         Module:ToggleMinimized()
     end)
     frame.header = header
+
+    local headerBackground = header:CreateTexture(nil, "BACKGROUND")
+    headerBackground:SetAllPoints()
+    Styles:SetColor(headerBackground, Palette.white, 0.04)
 
     local toggle = CreateFrame("Button", nil, header)
     toggle:SetSize(18, 18)

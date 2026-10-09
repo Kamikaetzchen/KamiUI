@@ -6,7 +6,7 @@ local Components = UI.Components
 local Module = UI:NewModule("Chat", "KamiUI_Chat")
 
 
-local SETUP_VERSION = 5
+local SETUP_VERSION = 4
 
 local Layout = UI.Layout.Chat
 
@@ -15,7 +15,6 @@ local leftTabs = {
     { key = "party", label = "Party" },
     { key = "guild", label = "Guild" },
     { key = "whisper", label = "Whisper" },
-    { key = "combat", label = "Combat" },
 }
 
 local managedWindows = {
@@ -83,17 +82,15 @@ local function HideChromeObject(object)
     end
 end
 
-local function CreatePanel(name, width, height, transparent)
+local function CreatePanel(name, width, height)
     local panel = CreateFrame("Frame", name, UIParent, "BackdropTemplate")
     panel:SetFrameStrata("LOW")
     panel:SetSize(width, height)
-    if not transparent then
-        Styles:ApplyBackdrop(
-            panel,
-            Palette.window.chat,
-            Palette.windowBorder.chat
-        )
-    end
+    Styles:ApplyBackdrop(
+        panel,
+        Palette.window.chat,
+        Palette.windowBorder.chat
+    )
     panel:EnableMouse(false)
 
     return panel
@@ -104,8 +101,15 @@ local function EnsurePanels()
         Module.leftPanel = CreatePanel(
             "KamiUIChatPanel",
             Layout.LEFT_WIDTH,
-            Layout.HEIGHT,
-            true
+            Layout.HEIGHT
+        )
+    end
+
+    if not Module.combatPanel then
+        Module.combatPanel = CreatePanel(
+            "KamiUICombatLogPanel",
+            Layout.COMBAT_WIDTH,
+            Layout.HEIGHT
         )
     end
 
@@ -142,6 +146,15 @@ local function PositionPanels()
         "BOTTOMLEFT",
         Layout.X,
         bottom
+    )
+
+    Module.combatPanel:ClearAllPoints()
+    Module.combatPanel:SetPoint(
+        "BOTTOMLEFT",
+        Module.leftPanel,
+        "BOTTOMRIGHT",
+        0,
+        0
     )
 
     Module.tabPanel:ClearAllPoints()
@@ -263,12 +276,6 @@ local function AddMessageGroup(frame, group)
         return
     end
 
-    for _, existing in ipairs(frame.messageTypeList or {}) do
-        if existing == group then
-            return
-        end
-    end
-
     if frame.AddMessageGroup then
         frame:AddMessageGroup(group)
     else
@@ -300,8 +307,6 @@ local function ConfigureWindow(frame, config)
         for _, channel in pairs(ChatFrame1.channelList or {}) do
             AddChannel(frame, channel)
         end
-
-        AddMessageGroup(frame, "COMBAT_XP_GAIN")
     else
         for _, group in ipairs(config.groups or {}) do
             AddMessageGroup(frame, group)
@@ -564,34 +569,35 @@ local function PositionCombatBar()
     local bar = _G.CombatLogQuickButtonFrame_Custom
     local frame = Module.backends.combat
 
-    if not frame or not Module.leftPanel or positioningCombatBar then
+    if not bar
+        or not frame
+        or not Module.combatPanel
+        or positioningCombatBar
+    then
         return
     end
 
     positioningCombatBar = true
 
-    local topInset = Layout.PADDING
+    bar:SetParent(Module.combatPanel)
+    bar:SetAlpha(1)
+    bar:EnableMouse(true)
+    bar:ClearAllPoints()
+    bar:SetPoint("TOPLEFT", Module.combatPanel, "TOPLEFT", 0, 0)
+    bar:SetPoint("TOPRIGHT", Module.combatPanel, "TOPRIGHT", 0, 0)
+    bar:Show()
 
-    if bar then
-        bar:SetParent(Module.leftPanel)
-        bar:SetAlpha(1)
-        bar:ClearAllPoints()
-        bar:SetPoint("TOPLEFT", Module.leftPanel, "TOPLEFT", 0, 0)
-        bar:SetPoint("TOPRIGHT", Module.leftPanel, "TOPRIGHT", 0, 0)
-
-        local active = Module.selectedTab == "combat"
-        bar:SetShown(active)
-        bar:EnableMouse(active)
-
-        local background = _G.CombatLogQuickButtonFrame_CustomTexture
-        if background then
-            background:SetAlpha(0)
-        end
-
-        topInset = bar:GetHeight() + Layout.PADDING
+    local background = _G.CombatLogQuickButtonFrame_CustomTexture
+    if background then
+        background:SetAlpha(0)
     end
 
-    StyleNativeChatFrame(frame, Module.leftPanel, topInset)
+    StyleNativeChatFrame(
+        frame,
+        Module.combatPanel,
+        bar:GetHeight() + Layout.PADDING,
+        false
+    )
 
     positioningCombatBar = false
 end
@@ -689,13 +695,6 @@ function Module:SelectTab(key)
                 frame:SetHyperlinksEnabled(active)
             end
         end
-    end
-
-    local combatBar = _G.CombatLogQuickButtonFrame_Custom
-    if combatBar then
-        local active = key == "combat"
-        combatBar:SetShown(active)
-        combatBar:EnableMouse(active)
     end
 
     UpdateTabStyles()

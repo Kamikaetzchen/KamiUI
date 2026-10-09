@@ -115,7 +115,7 @@ local function UpdateDividers(frame)
         frame.dividers = {}
 
         for index = 1, Layout.SEGMENTS - 1 do
-            local divider = frame.overlay:CreateTexture(nil, "OVERLAY")
+            local divider = frame:CreateTexture(nil, "OVERLAY")
             divider:SetColorTexture(unpack(Palette.xpBar.divider))
             divider:SetWidth(1)
             frame.dividers[index] = divider

@@ -2,28 +2,18 @@ local UI = KamiUI
 local UF = UI:GetModule("UnitFrames")
 
 local Layout = UI.Layout.UnitFrames.Target
-local HUDFrame = UI.Layout.UnitFrames.HUD
 
 local frame = UF:CreatePrimaryFrame({
     name = "KamiUITargetFrame",
     unit = "target",
     portraitSide = "RIGHT",
-    width = HUDFrame.WIDTH,
-    height = HUDFrame.HEIGHT,
-    healthHeight = HUDFrame.HEALTH_HEIGHT,
-    powerHeight = HUDFrame.POWER_HEIGHT,
-    healthCastHeight = HUDFrame.HEALTH_CAST_HEIGHT,
-    powerCastHeight = HUDFrame.POWER_CAST_HEIGHT,
-    castHeight = HUDFrame.CAST_HEIGHT,
-    nameWidth = HUDFrame.NAME_WIDTH,
+    nameWidth = 110,
     features = {
         indicators = true,
         healPrediction = true,
         range = true,
     },
 })
-
-UF:CreatePrimaryHUDArt(frame, true)
 
 local layoutPending = false
 
@@ -37,10 +27,10 @@ local function PositionFrame()
     frame:ClearAllPoints()
     frame:SetPoint(
         "LEFT",
-        Minimap,
+        UIParent,
         "CENTER",
-        Layout.FRAME_X,
-        Layout.FRAME_Y
+        1,
+        Layout.FRAME_Y + UI:GetBottomInset()
     )
 end
 
