@@ -83,6 +83,16 @@ local function ScanItem(catalog, bag, slot, id, count)
     local name, _, _, itemLevel, requiredLevel, _, subtype, _, _, icon,
         _, classID, subclassID = GetItemInfo(id)
     if not name then return end
+    -- Some client builds do not expose numeric subclasses via GetItemInfo.
+    if (classID == nil or subclassID == nil) and GetItemInfoInstant then
+        local _, _, _, _, _, instantClass, instantSubclass =
+            GetItemInfoInstant(id)
+        classID = classID or instantClass
+        subclassID = subclassID or instantSubclass
+    end
+    if requiredLevel and UnitLevel and requiredLevel > UnitLevel("player") then
+        return
+    end
     local n, sub = string.lower(name), string.lower(subtype or "")
     local score = (requiredLevel or 0) * 1000 + (itemLevel or 0)
     icon = icon or (GetItemIcon and GetItemIcon(id))
@@ -151,7 +161,7 @@ local function ScanMounts(catalog)
             end
         end
     elseif GetNumCompanions and GetCompanionInfo then
-        for i = 1, GetNumCompanions("MOUNT") do
+        for i = 1, (GetNumCompanions("MOUNT") or 0) do
             local _, name, spell, icon = GetCompanionInfo("MOUNT", i)
             if name and spell then
                 Add(catalog, "mount", spell, name, icon, 100000, 1, "spell")
