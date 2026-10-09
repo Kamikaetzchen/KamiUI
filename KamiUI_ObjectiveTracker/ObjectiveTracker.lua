@@ -309,7 +309,8 @@ local function GetObjectiveFont(row, index)
     text:SetJustifyH("LEFT")
     text:SetJustifyV("TOP")
     text:SetWordWrap(true)
-    text:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+    text:SetFont("Fonts\\FRIZQT__.TTF",
+        Styles.FontSize.ObjectiveTracker, "OUTLINE")
     row.objectives[index] = text
 
     return text
@@ -327,7 +328,8 @@ local function GetObjectiveCountFont(row, index)
     count:SetJustifyH("RIGHT")
     count:SetJustifyV("TOP")
     count:SetWordWrap(false)
-    count:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+    count:SetFont("Fonts\\FRIZQT__.TTF",
+        Styles.FontSize.ObjectiveTracker, "OUTLINE")
     row.objectiveCounts[index] = count
 
     return count
@@ -560,8 +562,8 @@ local function UpdateQuestRow(row, item, y)
             text:SetTextColor(unpack(Palette.success))
             count:SetTextColor(unpack(Palette.success))
         else
-            text:SetTextColor(unpack(Palette.muted))
-            count:SetTextColor(unpack(Palette.muted))
+            text:SetTextColor(unpack(Palette.objectiveTracker.text))
+            count:SetTextColor(unpack(Palette.objectiveTracker.text))
         end
 
         text:Show()
@@ -601,7 +603,11 @@ local function CreateSection(parent, id)
         expanded = true,
         height = Layout.SECTION_HEADER_HEIGHT,
         inset = 0,
+        backgroundAlpha = 0,
     })
+    -- Components:CreateSection uses a truthy alpha fallback, so force the
+    -- transparent state on its actual texture (0 would be ignored there).
+    if header.background then header.background:SetAlpha(0) end
     header:SetPoint("TOPLEFT")
     header:SetPoint("TOPRIGHT")
     header:RegisterForClicks("LeftButtonUp")
@@ -896,8 +902,7 @@ local function CreateFrameUI()
     local frame = CreateFrame(
         "Frame",
         "KamiUIObjectiveTrackerFrame",
-        UIParent,
-        "BackdropTemplate"
+        UIParent
     )
 
     frame:SetWidth(Layout.PANEL_WIDTH)
@@ -906,11 +911,6 @@ local function CreateFrameUI()
     frame:SetClampedToScreen(true)
     frame:SetMovable(true)
     frame:EnableMouse(true)
-    Styles:ApplyBackdrop(
-        frame,
-        Palette.window.neutral,
-        Palette.border
-    )
 
     local header = CreateFrame("Button", nil, frame)
     header:SetPoint("TOPLEFT", frame, "TOPLEFT", 1, -1)
@@ -938,10 +938,6 @@ local function CreateFrameUI()
         Module:ToggleMinimized()
     end)
     frame.header = header
-
-    local headerBackground = header:CreateTexture(nil, "BACKGROUND")
-    headerBackground:SetAllPoints()
-    Styles:SetColor(headerBackground, Palette.white, 0.04)
 
     local toggle = CreateFrame("Button", nil, header)
     toggle:SetSize(18, 18)

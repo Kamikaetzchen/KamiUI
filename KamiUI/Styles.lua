@@ -36,6 +36,7 @@ Styles.FontSize = {
     ActionBars = { cooldown = 17, cooldownSmall = 13 },
     Auras = 11,
     Chat = 14,
+    ObjectiveTracker = 10,
     DamageMeter = 10,
     InfoPanel = 11,
     ThreatMeter = 11,

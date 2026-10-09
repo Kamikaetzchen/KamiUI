@@ -23,6 +23,10 @@ Palette.window = {
 -- Module-specific colors are kept here alongside the shared palette.
 Palette.minimapBorder = HexColor(0x333333)
 
+Palette.objectiveTracker = {
+    text = HexColor(0xC8C8D0),
+}
+
 Palette.nameplates = {
     missingHealth = HexColor(0x202126, 0.90),
 }

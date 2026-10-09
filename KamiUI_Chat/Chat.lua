@@ -6,15 +6,16 @@ local Components = UI.Components
 local Module = UI:NewModule("Chat", "KamiUI_Chat")
 
 
-local SETUP_VERSION = 4
+local SETUP_VERSION = 5
 
 local Layout = UI.Layout.Chat
 
 local leftTabs = {
     { key = "general", label = "General" },
+    { key = "combat", label = "Combat Log" },
     { key = "party", label = "Party" },
     { key = "guild", label = "Guild" },
-    { key = "whisper", label = "Whisper" },
+    { key = "whisper", label = "Whispers" },
 }
 
 local managedWindows = {
@@ -82,15 +83,18 @@ local function HideChromeObject(object)
     end
 end
 
-local function CreatePanel(name, width, height)
-    local panel = CreateFrame("Frame", name, UIParent, "BackdropTemplate")
+local function CreatePanel(name, width, height, transparent)
+    local panel = CreateFrame("Frame", name, UIParent,
+        transparent and nil or "BackdropTemplate")
     panel:SetFrameStrata("LOW")
     panel:SetSize(width, height)
-    Styles:ApplyBackdrop(
-        panel,
-        Palette.window.chat,
-        Palette.windowBorder.chat
-    )
+    if not transparent then
+        Styles:ApplyBackdrop(
+            panel,
+            Palette.window.chat,
+            Palette.windowBorder.chat
+        )
+    end
     panel:EnableMouse(false)
 
     return panel
@@ -101,15 +105,8 @@ local function EnsurePanels()
         Module.leftPanel = CreatePanel(
             "KamiUIChatPanel",
             Layout.LEFT_WIDTH,
-            Layout.HEIGHT
-        )
-    end
-
-    if not Module.combatPanel then
-        Module.combatPanel = CreatePanel(
-            "KamiUICombatLogPanel",
-            Layout.COMBAT_WIDTH,
-            Layout.HEIGHT
+            Layout.HEIGHT,
+            true
         )
     end
 
@@ -122,6 +119,25 @@ local function EnsurePanels()
         Module.tabPanel:SetSize(Layout.LEFT_WIDTH, Layout.TAB_HEIGHT)
         Module.tabPanel:SetFrameStrata("DIALOG")
         Module.tabPanel:SetFrameLevel(100)
+        Module.tabPanel:EnableMouse(true)
+        -- Fade tabs until the mouse moves over the chat or tabs.
+        -- Use the parent alpha so refreshing individual tab styling cannot
+        -- accidentally make them permanently visible again.
+        Module.tabPanel:SetAlpha(0.06)
+        Module.tabPanel:SetScript("OnUpdate", function(self, elapsed)
+            local hovered = self:IsMouseOver()
+                or (Module.leftPanel and Module.leftPanel:IsMouseOver())
+                or (Module.inputPanel and Module.inputPanel:IsShown()
+                    and Module.inputPanel:IsMouseOver())
+            local target = hovered and 1 or 0.06
+            local current = self:GetAlpha()
+            if math.abs(target - current) < 0.01 then
+                if current ~= target then self:SetAlpha(target) end
+                return
+            end
+            self:SetAlpha(current +
+                (target - current) * math.min(1, elapsed * 9))
+        end)
     end
 
     if not Module.inputPanel then
@@ -146,15 +162,6 @@ local function PositionPanels()
         "BOTTOMLEFT",
         Layout.X,
         bottom
-    )
-
-    Module.combatPanel:ClearAllPoints()
-    Module.combatPanel:SetPoint(
-        "BOTTOMLEFT",
-        Module.leftPanel,
-        "BOTTOMRIGHT",
-        0,
-        0
     )
 
     Module.tabPanel:ClearAllPoints()
@@ -276,6 +283,11 @@ local function AddMessageGroup(frame, group)
         return
     end
 
+    -- Do not accumulate duplicate groups on chat layout refreshes.
+    for _, existing in ipairs(frame.messageTypeList or {}) do
+        if existing == group then return end
+    end
+
     if frame.AddMessageGroup then
         frame:AddMessageGroup(group)
     else
@@ -307,6 +319,7 @@ local function ConfigureWindow(frame, config)
         for _, channel in pairs(ChatFrame1.channelList or {}) do
             AddChannel(frame, channel)
         end
+        AddMessageGroup(frame, "COMBAT_XP_GAIN")
     else
         for _, group in ipairs(config.groups or {}) do
             AddMessageGroup(frame, group)
@@ -462,11 +475,20 @@ local function HideFrameChrome(frame)
     HideChromeObject(frame.Background)
     HideChromeObject(frame.clickAnywhereButton)
 
-    -- Blizzard's scroll handling uses this scrollbar; keep its parent intact.
-    UI:SuppressFrame(frame.ScrollBar, {
-        persistent = true,
-        children = true,
-    })
+    -- Keep the native scrollbar alive: Blizzard's scrolling-message
+    -- integration uses it for display updates. Suppressing the entire frame
+    -- (and its children) prevented some history scrolls from refreshing.
+    local scrollBar = frame.ScrollBar
+    if scrollBar then
+        scrollBar:SetAlpha(0)
+        if scrollBar.EnableMouse then scrollBar:EnableMouse(false) end
+        if not scrollBar.KamiUIAlphaHooked then
+            scrollBar.KamiUIAlphaHooked = true
+            scrollBar:HookScript("OnShow", function(self)
+                self:SetAlpha(0)
+            end)
+        end
+    end
     HideFrame(frame.ScrollToBottomButton)
     HideFrame(frame.ResizeButton)
 
@@ -522,10 +544,28 @@ local function StyleNativeChatFrame(frame, parent, topInset)
     if not frame.KamiUIWheelHooked then
         frame.KamiUIWheelHooked = true
         frame:SetScript("OnMouseWheel", function(self, delta)
-            if delta > 0 then
+            if delta == 0 then return end
+            if IsShiftKeyDown and IsShiftKeyDown() then
+                if delta > 0 then
+                    self:ScrollToTop()
+                else
+                    self:ScrollToBottom()
+                end
+            elseif self.ScrollByAmount then
+                self:ScrollByAmount(delta * 3)
+            elseif delta > 0 then
                 self:ScrollUp()
             else
                 self:ScrollDown()
+            end
+
+            -- ScrollingMessageFrame can retain stale visible lines in this
+            -- client after scrolling, especially with hidden native chrome.
+            -- Explicitly refresh its display without clearing history.
+            if self.RefreshDisplay then
+                self:RefreshDisplay()
+            elseif self.RefreshIfNecessary then
+                self:RefreshIfNecessary()
             end
         end)
     end
@@ -569,36 +609,30 @@ local function PositionCombatBar()
     local bar = _G.CombatLogQuickButtonFrame_Custom
     local frame = Module.backends.combat
 
-    if not bar
-        or not frame
-        or not Module.combatPanel
-        or positioningCombatBar
-    then
+    if not frame or not Module.leftPanel or positioningCombatBar then
         return
     end
 
     positioningCombatBar = true
+    local topInset = Layout.PADDING
 
-    bar:SetParent(Module.combatPanel)
-    bar:SetAlpha(1)
-    bar:EnableMouse(true)
-    bar:ClearAllPoints()
-    bar:SetPoint("TOPLEFT", Module.combatPanel, "TOPLEFT", 0, 0)
-    bar:SetPoint("TOPRIGHT", Module.combatPanel, "TOPRIGHT", 0, 0)
-    bar:Show()
+    if bar then
+        bar:SetParent(Module.leftPanel)
+        bar:SetAlpha(1)
+        bar:ClearAllPoints()
+        bar:SetPoint("TOPLEFT", Module.leftPanel, "TOPLEFT", 0, 0)
+        bar:SetPoint("TOPRIGHT", Module.leftPanel, "TOPRIGHT", 0, 0)
 
-    local background = _G.CombatLogQuickButtonFrame_CustomTexture
-    if background then
-        background:SetAlpha(0)
+        local active = Module.selectedTab == "combat"
+        bar:SetShown(active)
+        bar:EnableMouse(active)
+
+        local background = _G.CombatLogQuickButtonFrame_CustomTexture
+        if background then background:SetAlpha(0) end
+        topInset = bar:GetHeight() + Layout.PADDING
     end
 
-    StyleNativeChatFrame(
-        frame,
-        Module.combatPanel,
-        bar:GetHeight() + Layout.PADDING,
-        false
-    )
-
+    StyleNativeChatFrame(frame, Module.leftPanel, topInset)
     positioningCombatBar = false
 end
 
@@ -695,6 +729,14 @@ function Module:SelectTab(key)
                 frame:SetHyperlinksEnabled(active)
             end
         end
+    end
+
+    -- The combat filter toolbar belongs only to the Combat Log tab.
+    local combatBar = _G.CombatLogQuickButtonFrame_Custom
+    if combatBar then
+        local active = key == "combat"
+        combatBar:SetShown(active)
+        combatBar:EnableMouse(active)
     end
 
     UpdateTabStyles()
