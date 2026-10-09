@@ -94,7 +94,7 @@ UI.Layout = {
         POINT = "BOTTOM",
         RELATIVE_POINT = "BOTTOM",
         X = 0,
-        Y = 115,
+        Y = 20,
     },
 
     -- All offsets are relative to the minimap center; X mirrors each wing.
@@ -113,21 +113,21 @@ UI.Layout = {
             BASE_TEXTURE = "Interface\\AddOns\\KamiUI\\textures\\artwork_HUD_center_base.tga",
             ACCENT_TEXTURE = "Interface\\AddOns\\KamiUI\\textures\\artwork_HUD_center_accent.tga",
         },
-        -- Child of its Player/Target frame; hides with that unit.
-        -- Offsets are relative to the unit frame center.
+        -- Child of Player/Target, but anchored at minimap-relative position.
+        -- The arm is part of this piece, so it hides with the unit.
         TOP = {
-            WIDTH = 260,
-            HEIGHT = 125,
-            X = 0,
-            Y = -28,
+            WIDTH = 250,
+            HEIGHT = 111,
+            X = 124,
+            Y = 82,
             BASE_TEXTURE = "Interface\\AddOns\\KamiUI\\textures\\artwork_HUD_top_left_base.tga",
             ACCENT_TEXTURE = "Interface\\AddOns\\KamiUI\\textures\\artwork_HUD_top_left_accent.tga",
         },
         BOTTOM = {
-            WIDTH = 380,
-            HEIGHT = 150,
-            X = 165,
-            Y = -17,
+            WIDTH = 444,
+            HEIGHT = 111,
+            X = 166,
+            Y = -29,
             BASE_TEXTURE = "Interface\\AddOns\\KamiUI\\textures\\artwork_HUD_bottom_left_base.tga",
             ACCENT_TEXTURE = "Interface\\AddOns\\KamiUI\\textures\\artwork_HUD_bottom_left_accent.tga",
         },

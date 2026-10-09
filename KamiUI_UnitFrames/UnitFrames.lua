@@ -551,7 +551,12 @@ function UF:CreatePrimaryHUDArt(frame, mirrored)
     overlay:SetFrameStrata(frame:GetFrameStrata())
     overlay:SetFrameLevel(frame:GetFrameLevel() + 12)
     overlay:SetSize(top.WIDTH, top.HEIGHT)
-    overlay:SetPoint("CENTER", frame, "CENTER", top.X, top.Y)
+    -- Keep the same source-image coordinate system as the center ring.
+    -- Parenting to frame still hides the arm when target is absent.
+    overlay:SetPoint(
+        "CENTER", Minimap, "CENTER",
+        mirrored and top.X or -top.X, top.Y
+    )
     overlay:EnableMouse(false)
 
     local base = overlay:CreateTexture(nil, "ARTWORK")

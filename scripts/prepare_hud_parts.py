@@ -19,18 +19,23 @@ SPLIT_Y = 384
 
 CROPS = {
     "center": (702, 190, 1214, 702),       # 512x512
-    "top_left": (384, 128, 896, 384),     # 512x256
+    # Include the *whole* connector (x=896 previously clipped it).
+    # This source rectangle is resampled to the final 512x256 texture.
+    "top_left": (384, 128, 960, 384),     # 576 -> 512 x 256
     "bottom_left": (64, 384, 1088, 640),  # 1024x256
 }
 
 
-def interior_mask():
-    holes = Image.new("L", (WIDTH, HEIGHT), 0)
-    draw = ImageDraw.Draw(holes)
-    # Leave the beveled metallic perimeter, remove the solid inner fill.
-    draw.rounded_rectangle((444, 169, 818, 252), radius=37, fill=255)
-    draw.rounded_rectangle((168, 457, 712, 559), radius=48, fill=255)
-    return np.array(holes, dtype=np.uint8)
+def interior_masks():
+    # Straight, transparent interior for unitframes. The beveled outline
+    # remains in the original source; no artificial pill-shaped cutouts.
+    top = Image.new("L", (WIDTH, HEIGHT), 0)
+    ImageDraw.Draw(top).rectangle((446, 172, 811, 249), fill=255)
+
+    # Actionbars are below the art and need a quiet fill for empty slots.
+    bottom = Image.new("L", (WIDTH, HEIGHT), 0)
+    ImageDraw.Draw(bottom).rectangle((177, 462, 705, 551), fill=255)
+    return np.array(top, dtype=np.uint8), np.array(bottom, dtype=np.uint8)
 
 
 def base_pixels():
@@ -38,8 +43,11 @@ def base_pixels():
     if source.size != (WIDTH, HEIGHT):
         raise ValueError(f"Unexpected base dimensions: {source.size}")
     pixels = np.array(source)
-    holes = interior_mask()
-    pixels[:, :, 3] = np.minimum(pixels[:, :, 3], 255 - holes)
+    top, bottom = interior_masks()
+    pixels[top > 0, 3] = 0
+    pixels[bottom > 0, 3] = np.minimum(
+        pixels[bottom > 0, 3], 51
+    )
 
     y, x = np.indices((HEIGHT, WIDTH))
     top_cap = ((x - 475) / 53.0) ** 2 + ((y - 204) / 65.0) ** 2 <= 1
@@ -92,7 +100,25 @@ def accent_pixels(base):
     pixels = np.array(
         Image.alpha_composite(Image.fromarray(pixels, "RGBA"), detail)
     )
-    pixels[interior_mask() > 0, 3] = 0
+    top, bottom = interior_masks()
+    pixels[(top > 0) | (bottom > 0), 3] = 0
+
+    # The accent is confined to the actual outline, not a rectangular
+    # crop boundary. An inset metal-edge highlight continues around the
+    # natural curves without adding a vertical line at the join.
+    metal = Image.fromarray(
+        ((base[:, :, 3] > 125) * 255).astype(np.uint8), "L"
+    )
+    from PIL import ImageFilter
+    eroded = metal.filter(ImageFilter.MinFilter(5))
+    contour = np.maximum(
+        0,
+        np.array(metal, dtype=np.int16)
+        - np.array(eroded, dtype=np.int16)
+    )
+    edge = np.clip(contour * 0.15, 0, 255).astype(np.uint8)
+    pixels[:, :, 3] = np.maximum(pixels[:, :, 3], edge)
+    pixels[(top > 0) | (bottom > 0), 3] = 0
     pixels[base[:, :, 3] == 0, 3] = 0
     pixels[pixels[:, :, 3] == 0, :3] = 0
     return pixels
@@ -123,7 +149,14 @@ def main():
             sprite = full_image[y0:y1, x0:x1].copy()
             sprite[~region[y0:y1, x0:x1]] = 0
 
-            width, height = x1 - x0, y1 - y0
+            if section == "top_left":
+                sprite = np.array(
+                    Image.fromarray(sprite, "RGBA").resize(
+                        (512, 256), Image.Resampling.LANCZOS
+                    )
+                )
+
+            height, width = sprite.shape[:2]
             if width & (width - 1) or height & (height - 1):
                 raise ValueError("Texture dimensions must be powers of two")
 
