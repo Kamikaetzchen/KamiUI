@@ -166,10 +166,11 @@ local function CreateHUD()
         return Module.hud
     end
 
-    -- Draw above the world, but below interactive action buttons.
+    -- The map must render below the artwork ring. Keep both in LOW,
+    -- leaving action buttons on their higher strata interactive.
     local hud = CreateFrame("Frame", "KamiUIHUD", UIParent)
     hud:SetFrameStrata("LOW")
-    hud:SetFrameLevel(1)
+    hud:SetFrameLevel(Minimap:GetFrameLevel() + 1)
     hud:SetSize(1, 1)
     hud:EnableMouse(false)
     hud.parts = {}
