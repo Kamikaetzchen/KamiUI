@@ -110,8 +110,10 @@ UI.Layout = {
     RadialMenu = {
         RADIUS = 123,
         ICON_SIZE = 58,
-        SUB_RADIUS = 115,
-        SUB_OFFSET = 235,
+        SUB_MIN_RADIUS = 62,
+        SUB_MAX_RADIUS = 145,
+        SUB_GAP = 8,
+        SUB_OFFSET = 153,
         SUB_ICON_SIZE = 48,
     },
 

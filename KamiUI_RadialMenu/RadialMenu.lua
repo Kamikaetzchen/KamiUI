@@ -2,7 +2,9 @@ local UI = KamiUI
 local Module = UI:NewModule("RadialMenu", "KamiUI_RadialMenu")
 local L = UI.Layout.RadialMenu
 
-local VARIANTS = 12
+-- The number of icons is determined by inventory. A ring is limited to
+-- 16 visible items to prevent hundreds of mounts covering the screen.
+local MAX_VISIBLE = 16
 
 local CONFIG = {
     Q = {
@@ -251,7 +253,10 @@ end
 
 local function IconButton(button, size)
     button:SetSize(size, size)
-    button:RegisterForClicks("AnyUp")
+    button:RegisterForClicks("AnyUp", "AnyDown")
+    -- Consumables should fire on mouse release, regardless of global
+    -- ActionButtonUseKeyDown. The secure use action remains hardware-driven.
+    button:SetAttribute("useOnKeyDown", false)
     local media = "Interface\\AddOns\\KamiUI_RadialMenu\\Media\\"
     local background = button:CreateTexture(nil, "BACKGROUND")
     background:SetAllPoints()
@@ -308,6 +313,41 @@ local function Display(button, entry, placeholder, favorite)
     button.entry = entry
 end
 
+local function CreateVariantButton(root, submenu, category)
+    local item = CreateFrame("Button", nil, submenu, "SecureActionButtonTemplate")
+    item:SetFrameLevel(root:GetFrameLevel() + 5)
+    item.categoryName = category[2]
+    item.category = category[1]
+    IconButton(item, L.SUB_ICON_SIZE)
+    item:Hide()
+
+    root:WrapScript(item, "OnClick", [[return nil, "clicked"]], [[
+        if button == "LeftButton" and not down then
+            control:Hide()
+        end
+    ]])
+    item:HookScript("PostClick", function(self, mouseButton, down)
+        if mouseButton ~= "RightButton" or down or not self.entry then
+            return
+        end
+        if Locked() then
+            UI:Print("Favorites can only be changed out of combat.")
+            return
+        end
+        GetDB().favorites[self.category] = self.entry.key
+        Module:Refresh()
+    end)
+    return item
+end
+
+local function VariantRadius(count)
+    if count <= 1 then return 0 end
+    if count == 2 then return L.SUB_ICON_SIZE / 2 + 12 end
+    local minimumSeparation = L.SUB_ICON_SIZE + (L.SUB_GAP or 7)
+    return math.max(L.SUB_MIN_RADIUS,
+        math.ceil(minimumSeparation / (2 * math.sin(math.pi / count))))
+end
+
 local function CreateWheel(key, categories)
     local root = CreateFrame("Frame", "KamiUIRadial" .. key, UIParent,
         "SecureHandlerBaseTemplate")
@@ -319,6 +359,13 @@ local function CreateWheel(key, categories)
     root:Hide()
     root:SetFrameRef("root", root)
     root.buttons, root.submenus = {}, {}
+    -- Protected cleanup works even if the menu is hidden during combat.
+    root:WrapScript(root, "OnHide", string.format([[
+        for i = 1, %d do
+            local submenu = control:GetFrameRef("sub" .. i)
+            if submenu then submenu:Hide() end
+        end
+    ]], #categories))
 
     local bg = root:CreateTexture(nil, "BACKGROUND")
     bg:SetSize(120, 120)
@@ -348,8 +395,7 @@ local function CreateWheel(key, categories)
         -- Wrapped snippets use 'control' for the secure root handler.
 
         local sub = CreateFrame("Frame", nil, root, "SecureHandlerBaseTemplate")
-        sub:SetSize(L.SUB_RADIUS * 2 + L.SUB_ICON_SIZE,
-            L.SUB_RADIUS * 2 + L.SUB_ICON_SIZE)
+        sub:SetSize(L.SUB_ICON_SIZE, L.SUB_ICON_SIZE)
         sub:SetFrameLevel(root:GetFrameLevel() + 4)
         sub:SetPoint("CENTER", main, "CENTER",
             (x >= 0 and 1 or -1) * L.SUB_OFFSET, 0)
@@ -358,41 +404,15 @@ local function CreateWheel(key, categories)
         local label = sub:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
         label:SetPoint("CENTER")
         label:SetText(category[2])
-
-        for variant = 1, VARIANTS do
-            local a = math.rad(90 - (variant - 1) * 360 / VARIANTS)
-            local item = CreateFrame("Button", nil, sub, "SecureActionButtonTemplate")
-            item:SetFrameLevel(root:GetFrameLevel() + 5)
-            item:SetPoint("CENTER", sub, "CENTER",
-                math.cos(a) * L.SUB_RADIUS, math.sin(a) * L.SUB_RADIUS)
-            item.categoryName = category[2]
-            item.category = category[1]
-            IconButton(item, L.SUB_ICON_SIZE)
-            item:Hide()
-            -- Return a non-nil message so secure postBody runs in combat.
-            root:WrapScript(item, "OnClick", [[return nil, "clicked"]], [[
-                if button == "LeftButton" then
-                    control:Hide()
-                end
-            ]])
-            item:HookScript("PostClick", function(self, button)
-                if button ~= "RightButton" or not self.entry then return end
-                if Locked() then
-                    UI:Print("Choose favorites outside combat.")
-                    return
-                end
-                GetDB().favorites[self.category] = self.entry.key
-                Module:Refresh()
-            end)
-            sub.buttons[variant] = item
-        end
-
+        sub.label = label
         root:SetFrameRef("sub" .. index, sub)
         root:WrapScript(main, "OnClick", [[return nil, "clicked"]],
             string.format([[
-                if button == "RightButton" then
+                if button == "RightButton" and not down then
                     local target = control:GetFrameRef("sub%d")
-                    if not target then return end
+                    if not target or not target:GetAttribute("hasVariants") then
+                        return
+                    end
                     for i = 1, %d do
                         local other = control:GetFrameRef("sub" .. i)
                         if other and other ~= target then other:Hide() end
@@ -402,7 +422,7 @@ local function CreateWheel(key, categories)
                     else
                         target:Show()
                     end
-                else
+                elseif button == "LeftButton" and not down then
                     control:Hide()
                 end
             ]], index, #categories))
@@ -424,16 +444,35 @@ function Module:Refresh()
             Action(main, selected)
             Display(main, selected, category[3],
                 selected and GetDB().favorites[category[1]] == selected.key)
-            for slot, button in ipairs(wheel.submenus[index].buttons) do
+            local sub = wheel.submenus[index]
+            local count = math.min(#entries, MAX_VISIBLE)
+            local radius = VariantRadius(count)
+            sub:SetAttribute("hasVariants", count > 0)
+            sub:SetSize(radius * 2 + L.SUB_ICON_SIZE + 12,
+                radius * 2 + L.SUB_ICON_SIZE + 12)
+            sub.label:SetShown(count == 0)
+
+            -- Create protected variants only when required, out of combat.
+            -- The visible buttons are spread evenly over the actual count.
+            for slot = 1, count do
+                if not sub.buttons[slot] then
+                    sub.buttons[slot] = CreateVariantButton(wheel, sub, category)
+                end
+                local button = sub.buttons[slot]
+                local angle = math.rad(90 - (slot - 1) * 360 / count)
+                button:ClearAllPoints()
+                button:SetPoint("CENTER", sub, "CENTER",
+                    math.cos(angle) * radius, math.sin(angle) * radius)
                 local entry = entries[slot]
                 Action(button, entry)
-                if entry then
-                    Display(button, entry, category[3],
-                        GetDB().favorites[category[1]] == entry.key)
-                    button:Show()
-                else
-                    button:Hide()
-                end
+                Display(button, entry, category[3],
+                    GetDB().favorites[category[1]] == entry.key)
+                button:Show()
+            end
+            for slot = count + 1, #sub.buttons do
+                local button = sub.buttons[slot]
+                Action(button, nil)
+                button:Hide()
             end
         end
     end
@@ -457,41 +496,118 @@ local function BindKeys()
     end
 end
 
+function Module:HoldOpen(key)
+    if Locked() or self.suppressedKey == key then return end
+    local root = self.wheels[key]
+    if not root then return end
+    if root:IsShown() then return end
+
+    local other = self.wheels[key == "Q" and "E" or "Q"]
+    if other:IsShown() then other:Hide() end
+
+    if GetCursorPosition then
+        local x, y = GetCursorPosition()
+        local scale = UIParent:GetEffectiveScale()
+        if x and y and scale and scale > 0 then
+            local horizontalMargin = L.RADIUS + L.SUB_OFFSET
+                + L.SUB_MAX_RADIUS + L.SUB_ICON_SIZE / 2
+            local verticalMargin = L.RADIUS + L.ICON_SIZE
+            x = math.max(horizontalMargin, math.min(
+                UIParent:GetWidth() - horizontalMargin, x / scale))
+            y = math.max(verticalMargin, math.min(
+                UIParent:GetHeight() - verticalMargin, y / scale))
+            root:ClearAllPoints()
+            root:SetPoint("CENTER", UIParent, "BOTTOMLEFT", x, y)
+        end
+    end
+    self.heldKey = key
+    root:Show()
+end
+
 function Module:Initialize()
     self.wheels = {}
+    self.heldKey = nil
+    self.suppressedKey = nil
     GetDB()
     for key, categories in pairs(CONFIG) do
         self.wheels[key] = CreateWheel(key, categories)
     end
     for key in pairs(CONFIG) do
         local button = CreateFrame("Button", "KamiUIRadialToggle" .. key,
-            UIParent, "SecureHandlerClickTemplate")
-        button:RegisterForClicks("AnyUp")
+            UIParent, "SecureHandlerClickTemplate,SecureHandlerStateTemplate")
+        button:RegisterForClicks("AnyDown", "AnyUp")
         button:SetFrameRef("menu", self.wheels[key])
         button:SetFrameRef("other", self.wheels[key == "Q" and "E" or "Q"])
+        -- An ordinary key listener handles press-and-hold out of combat.
+        -- In combat, only this protected handler may show/hide the wheels.
         button:SetAttribute("_onclick", [[
-            local menu = self:GetFrameRef("menu")
-            self:GetFrameRef("other"):Hide()
-            if menu:IsShown() then menu:Hide() else menu:Show() end
-        ]])
-        -- Binding clicks also fire PreClick. Protected frames may only be
-        -- moved outside combat, so combat uses their last safe position.
-        button:HookScript("PreClick", function()
-            if Locked() or self.wheels[key]:IsShown()
-                or not GetCursorPosition then
+            if self:GetAttribute("state-radialmode") ~= "combat"
+                and not self:GetAttribute("allowNormalClick") then
                 return
             end
-            local scale = UIParent:GetEffectiveScale()
-            if not scale or scale == 0 then return end
-            local x, y = GetCursorPosition()
-            local margin = L.RADIUS + L.ICON_SIZE / 2 + 12
-            x = math.max(margin, math.min(
-                UIParent:GetWidth() - margin, x / scale))
-            y = math.max(margin, math.min(
-                UIParent:GetHeight() - margin, y / scale))
-            local wheel = self.wheels[key]
-            wheel:ClearAllPoints()
-            wheel:SetPoint("CENTER", UIParent, "BOTTOMLEFT", x, y)
+            local menu = self:GetFrameRef("menu")
+            local other = self:GetFrameRef("other")
+            other:Hide()
+            if menu:IsShown() then menu:Hide() else menu:Show() end
+        ]])
+        RegisterStateDriver(button, "radialmode", "[combat] combat; normal")
+    end
+
+    -- Ordinary keyboard frames can monitor Q/E releases, but their Lua
+    -- handlers cannot securely hide protected frames during combat.
+    -- This listener therefore implements hold-to-show out of combat only.
+    local listener = CreateFrame("Frame", "KamiUIRadialKeyboardListener",
+        UIParent)
+    listener:SetSize(1, 1)
+    listener:SetFrameStrata("FULLSCREEN_DIALOG")
+    self.keyboardListener = listener
+
+    if listener.SetPropagateKeyboardInput and IsKeyDown then
+        listener:SetPropagateKeyboardInput(true)
+        listener:EnableKeyboard(true)
+        listener:SetScript("OnKeyDown", function(_, pressed)
+            if Locked() then return end
+            local key = type(pressed) == "string" and string.upper(pressed)
+            if not CONFIG[key] then return end
+            -- Do not pop the wheel while the player is typing.
+            if (GetCurrentKeyBoardFocus and GetCurrentKeyBoardFocus())
+                or (ChatEdit_GetActiveWindow and ChatEdit_GetActiveWindow())
+            then
+                return
+            end
+            self:HoldOpen(key)
+        end)
+        local elapsedSinceCheck = 0
+        listener:SetScript("OnUpdate", function(_, elapsed)
+            elapsedSinceCheck = elapsedSinceCheck + elapsed
+            if elapsedSinceCheck < 0.025 then return end
+            elapsedSinceCheck = 0
+            if Locked() then return end
+            if self.suppressedKey and not IsKeyDown(self.suppressedKey) then
+                self.suppressedKey = nil
+            end
+            if self.heldKey and not IsKeyDown(self.heldKey) then
+                local key = self.heldKey
+                self.heldKey = nil
+                self.wheels[key]:Hide()
+            end
+        end)
+    else
+        -- Preserve secure click-to-toggle behavior if key-state APIs are
+        -- unavailable on this client. The toggle handles either menu.
+        for key in pairs(CONFIG) do
+            local button = _G["KamiUIRadialToggle" .. key]
+            button:SetAttribute("allowNormalClick", true)
+        end
+        UI:Print("Hold-to-show requires IsKeyDown and keyboard propagation; using secure key toggles.")
+    end
+
+    for key, wheel in pairs(self.wheels) do
+        wheel:HookScript("OnHide", function()
+            if self.heldKey == key then
+                self.suppressedKey = key
+                self.heldKey = nil
+            end
         end)
     end
     self.bindingOwner = CreateFrame("Frame", nil, UIParent)
