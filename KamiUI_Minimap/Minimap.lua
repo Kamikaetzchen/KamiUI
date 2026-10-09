@@ -95,6 +95,16 @@ local function HideRoundBlobRings()
 end
 
 local function StyleMinimap()
+    -- The map used to inherit Blizzard's hidden/chrome cluster. Detach the
+    -- actual map before hiding the chrome so the circular map remains visible.
+    if Minimap:GetParent() ~= UIParent then
+        Minimap:SetParent(UIParent)
+    end
+
+    Minimap:SetFrameStrata("LOW")
+    Minimap:SetFrameLevel(10)
+    Minimap:SetAlpha(1)
+    Minimap:Show()
     Minimap:SetSize(Layout.SIZE, Layout.SIZE)
 
     Minimap:ClearAllPoints()
@@ -115,10 +125,9 @@ local function StyleMinimap()
 end
 
 -- The texture crops include the curved joining arms, avoiding visible seams.
+-- The top parts now belong to their UnitFrames and hide with them.
 local PARTS = {
     { key = "center", section = "CENTER", side = 0 },
-    { key = "topLeft", section = "TOP", side = -1 },
-    { key = "topRight", section = "TOP", side = 1, mirror = true },
     { key = "bottomLeft", section = "BOTTOM", side = -1 },
     { key = "bottomRight", section = "BOTTOM", side = 1, mirror = true },
 }
@@ -166,21 +175,7 @@ local function StyleHUD()
     hud:ClearAllPoints()
     hud:SetPoint("CENTER", Minimap, "CENTER", HUDLayout.X, HUDLayout.Y)
 
-    local _, class = UnitClass("player")
-    local color = Palette:GetClassColor(class)
-    local r, g, b = 1, 1, 1
-
-    if color then
-        r = color.r or color[1] or 1
-        g = color.g or color[2] or 1
-        b = color.b or color[3] or 1
-
-        local gray = (r + g + b) / 3
-        local saturation = HUDLayout.CLASS_COLOR_SATURATION
-        r = gray + (r - gray) * saturation
-        g = gray + (g - gray) * saturation
-        b = gray + (b - gray) * saturation
-    end
+    local r, g, b = Palette:GetHUDAccentColor()
 
     for _, part in ipairs(PARTS) do
         local layout = HUDLayout[part.section]

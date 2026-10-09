@@ -131,6 +131,22 @@ function Palette:GetClassColor(classFile)
     return self.class[classFile] or self.classFallback[classFile]
 end
 
+-- Shared class tint for all HUD pieces, without coloring the metal.
+function Palette:GetHUDAccentColor()
+    local _, class = UnitClass("player")
+    local color = self:GetClassColor(class)
+    local r = color and (color.r or color[1]) or 1
+    local g = color and (color.g or color[2]) or 1
+    local b = color and (color.b or color[3]) or 1
+    local gray = (r + g + b) / 3
+    local saturation = UI.Layout.HUD.CLASS_COLOR_SATURATION
+
+    return
+        gray + (r - gray) * saturation,
+        gray + (g - gray) * saturation,
+        gray + (b - gray) * saturation
+end
+
 function Palette:GetPowerColor(powerToken)
     if not powerToken then
         return self.powerFallback.MANA

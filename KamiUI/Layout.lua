@@ -94,7 +94,7 @@ UI.Layout = {
         POINT = "BOTTOM",
         RELATIVE_POINT = "BOTTOM",
         X = 0,
-        Y = 0,
+        Y = 115,
     },
 
     -- All offsets are relative to the minimap center; X mirrors each wing.
@@ -103,8 +103,8 @@ UI.Layout = {
         X = 0,
         Y = 0,
         BASE_ALPHA = 1.00,
-        ACCENT_ALPHA = 0.65,
-        CLASS_COLOR_SATURATION = 0.65,
+        ACCENT_ALPHA = 0.90,
+        CLASS_COLOR_SATURATION = 0.75,
         CENTER = {
             WIDTH = 222,
             HEIGHT = 222,
@@ -113,19 +113,21 @@ UI.Layout = {
             BASE_TEXTURE = "Interface\\AddOns\\KamiUI\\textures\\artwork_HUD_center_base.tga",
             ACCENT_TEXTURE = "Interface\\AddOns\\KamiUI\\textures\\artwork_HUD_center_accent.tga",
         },
+        -- Child of its Player/Target frame; hides with that unit.
+        -- Offsets are relative to the unit frame center.
         TOP = {
-            WIDTH = 222,
-            HEIGHT = 111,
-            X = 138,
-            Y = 82,
+            WIDTH = 260,
+            HEIGHT = 125,
+            X = 0,
+            Y = -28,
             BASE_TEXTURE = "Interface\\AddOns\\KamiUI\\textures\\artwork_HUD_top_left_base.tga",
             ACCENT_TEXTURE = "Interface\\AddOns\\KamiUI\\textures\\artwork_HUD_top_left_accent.tga",
         },
         BOTTOM = {
-            WIDTH = 444,
-            HEIGHT = 111,
+            WIDTH = 380,
+            HEIGHT = 150,
             X = 165,
-            Y = -29,
+            Y = -17,
             BASE_TEXTURE = "Interface\\AddOns\\KamiUI\\textures\\artwork_HUD_bottom_left_base.tga",
             ACCENT_TEXTURE = "Interface\\AddOns\\KamiUI\\textures\\artwork_HUD_bottom_left_accent.tga",
         },
@@ -247,8 +249,18 @@ UI.Layout = {
             NAME_WIDTH = 105,
             FONT_OFFSET = -1,
         },
-        -- Primary frames sit in the upper two HUD artwork sections.
-        -- These offsets are relative to the minimap center.
+        -- Only player and target use the slimmer primary HUD dimensions.
+        HUD = {
+            WIDTH = 174,
+            HEIGHT = 36,
+            HEALTH_HEIGHT = 19,
+            POWER_HEIGHT = 14,
+            HEALTH_CAST_HEIGHT = 15,
+            POWER_CAST_HEIGHT = 10,
+            CAST_HEIGHT = 7,
+            NAME_WIDTH = 83,
+        },
+        -- UnitFrame positions relative to the minimap center.
         Player = { FRAME_X = -55, FRAME_Y = 110 },
         Target = { FRAME_X = 55, FRAME_Y = 110 },
         Party = {

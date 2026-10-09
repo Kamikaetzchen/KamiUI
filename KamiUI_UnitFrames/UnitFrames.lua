@@ -420,19 +420,21 @@ end
 function UF:CreatePrimaryFrame(options)
     options = options or {}
 
-    local width = Layout.PRIMARY_WIDTH
-    local height = Layout.PRIMARY_HEIGHT
+    local width = options.width or Layout.PRIMARY_WIDTH
+    local height = options.height or Layout.PRIMARY_HEIGHT
     local borderSize = Styles.Metrics.borderSize
     local separatorSize = Styles.Metrics.borderSize
     local contentWidth = width - borderSize * 2
     local contentHeight = height - borderSize * 2
     local portraitSize = options.portraitSize or contentHeight
     local barWidth = contentWidth - portraitSize
-    local healthHeight = Layout.PRIMARY_HEALTH_HEIGHT
-    local powerHeight = Layout.PRIMARY_POWER_HEIGHT
-    local healthCastHeight = Layout.PRIMARY_HEALTH_CAST_HEIGHT
-    local powerCastHeight = Layout.PRIMARY_POWER_CAST_HEIGHT
-    local castHeight = Layout.PRIMARY_CAST_HEIGHT
+    local healthHeight = options.healthHeight or Layout.PRIMARY_HEALTH_HEIGHT
+    local powerHeight = options.powerHeight or Layout.PRIMARY_POWER_HEIGHT
+    local healthCastHeight = options.healthCastHeight
+        or Layout.PRIMARY_HEALTH_CAST_HEIGHT
+    local powerCastHeight = options.powerCastHeight
+        or Layout.PRIMARY_POWER_CAST_HEIGHT
+    local castHeight = options.castHeight or Layout.PRIMARY_CAST_HEIGHT
     local portraitSide = options.portraitSide == "RIGHT" and "RIGHT" or "LEFT"
 
     local frame = self:CreateUnitFrameBase({
@@ -478,7 +480,7 @@ function UF:CreatePrimaryFrame(options)
 
     local nameText = self:CreateText(health, healthHeight, "LEFT")
     nameText:SetPoint("LEFT", Layout.PRIMARY_TEXT_INSET, 0)
-    nameText:SetWidth(Layout.PRIMARY_NAME_WIDTH)
+    nameText:SetWidth(options.nameWidth or Layout.PRIMARY_NAME_WIDTH)
     self:ConfigureNameText(nameText)
 
     local healthText = self:CreateText(health, healthHeight, "RIGHT")
@@ -533,6 +535,42 @@ function UF:CreatePrimaryFrame(options)
     end)
 
     return frame
+end
+
+-- UnitFrame-owned art has its own connection to the central minimap.
+-- Parenting to the secure unit frame means absent targets hide their arms.
+function UF:CreatePrimaryHUDArt(frame, mirrored)
+    local layout = UI.Layout.HUD
+
+    if not layout.ENABLED then
+        return
+    end
+
+    local top = layout.TOP
+    local overlay = CreateFrame("Frame", nil, frame)
+    overlay:SetFrameStrata(frame:GetFrameStrata())
+    overlay:SetFrameLevel(frame:GetFrameLevel() + 12)
+    overlay:SetSize(top.WIDTH, top.HEIGHT)
+    overlay:SetPoint("CENTER", frame, "CENTER", top.X, top.Y)
+    overlay:EnableMouse(false)
+
+    local base = overlay:CreateTexture(nil, "ARTWORK")
+    base:SetAllPoints()
+    base:SetTexture(top.BASE_TEXTURE)
+    base:SetAlpha(layout.BASE_ALPHA)
+
+    local accent = overlay:CreateTexture(nil, "OVERLAY")
+    accent:SetAllPoints()
+    accent:SetTexture(top.ACCENT_TEXTURE)
+    accent:SetAlpha(layout.ACCENT_ALPHA)
+    accent:SetVertexColor(UI.Palette:GetHUDAccentColor())
+
+    if mirrored then
+        base:SetTexCoord(1, 0, 0, 1)
+        accent:SetTexCoord(1, 0, 0, 1)
+    end
+
+    frame.hudArtwork = overlay
 end
 
 function UF:CreateCompactFrame(options)
