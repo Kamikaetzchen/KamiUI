@@ -145,8 +145,8 @@ local function StyleMinimap()
     Minimap:Show()
     Minimap:EnableMouse(true)
 
-    -- Keep the native circular mask and all map interactions intact.
-    Minimap:SetMaskTexture("Textures\\MinimapMask")
+    -- Keep the client's original minimap mask. WoW Forever may use a
+    -- different mask asset; overriding it can hide the map entirely.
 
     HideRoundBlobRings()
     HideBlizzardChrome()
