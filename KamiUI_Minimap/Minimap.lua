@@ -114,29 +114,43 @@ local function StyleMinimap()
     PositionHeaderIndicators()
 end
 
+-- The texture crops include the curved joining arms, avoiding visible seams.
+local PARTS = {
+    { key = "center", section = "CENTER", side = 0 },
+    { key = "topLeft", section = "TOP", side = -1 },
+    { key = "topRight", section = "TOP", side = 1, mirror = true },
+    { key = "bottomLeft", section = "BOTTOM", side = -1 },
+    { key = "bottomRight", section = "BOTTOM", side = 1, mirror = true },
+}
+
 local function CreateHUD()
     if Module.hud then
         return Module.hud
     end
 
-    -- Artwork is purely visual; it never blocks minimap or button clicks.
+    -- Draw above the world, but below interactive action buttons.
     local hud = CreateFrame("Frame", "KamiUIHUD", UIParent)
-    hud:SetFrameStrata("BACKGROUND")
+    hud:SetFrameStrata("LOW")
     hud:SetFrameLevel(1)
+    hud:SetSize(1, 1)
     hud:EnableMouse(false)
+    hud.parts = {}
 
-    local base = hud:CreateTexture(nil, "BACKGROUND")
-    base:SetAllPoints()
-    base:SetTexture(HUDLayout.BASE_TEXTURE)
+    for _, part in ipairs(PARTS) do
+        local base = hud:CreateTexture(nil, "ARTWORK")
+        base:SetDrawLayer("ARTWORK", 0)
+        local accent = hud:CreateTexture(nil, "ARTWORK")
+        accent:SetDrawLayer("ARTWORK", 1)
 
-    local accent = hud:CreateTexture(nil, "ARTWORK")
-    accent:SetAllPoints()
-    accent:SetTexture(HUDLayout.ACCENT_TEXTURE)
+        if part.mirror then
+            base:SetTexCoord(1, 0, 0, 1)
+            accent:SetTexCoord(1, 0, 0, 1)
+        end
+
+        hud.parts[part.key] = { base = base, accent = accent }
+    end
 
     Module.hud = hud
-    Module.hudBase = base
-    Module.hudAccent = accent
-
     return hud
 end
 
@@ -149,32 +163,41 @@ local function StyleHUD()
     end
 
     local hud = CreateHUD()
-    hud:SetSize(HUDLayout.WIDTH, HUDLayout.HEIGHT)
     hud:ClearAllPoints()
     hud:SetPoint("CENTER", Minimap, "CENTER", HUDLayout.X, HUDLayout.Y)
 
-    Module.hudBase:SetTexture(HUDLayout.BASE_TEXTURE)
-    Module.hudBase:SetAlpha(HUDLayout.BASE_ALPHA)
-    Module.hudAccent:SetTexture(HUDLayout.ACCENT_TEXTURE)
-    Module.hudAccent:SetAlpha(HUDLayout.ACCENT_ALPHA)
-
     local _, class = UnitClass("player")
     local color = Palette:GetClassColor(class)
+    local r, g, b = 1, 1, 1
 
     if color then
-        local r = color.r or color[1] or 1
-        local g = color.g or color[2] or 1
-        local b = color.b or color[3] or 1
+        r = color.r or color[1] or 1
+        g = color.g or color[2] or 1
+        b = color.b or color[3] or 1
+
         local gray = (r + g + b) / 3
         local saturation = HUDLayout.CLASS_COLOR_SATURATION
+        r = gray + (r - gray) * saturation
+        g = gray + (g - gray) * saturation
+        b = gray + (b - gray) * saturation
+    end
 
-        Module.hudAccent:SetVertexColor(
-            gray + (r - gray) * saturation,
-            gray + (g - gray) * saturation,
-            gray + (b - gray) * saturation
-        )
-    else
-        Module.hudAccent:SetVertexColor(1, 1, 1)
+    for _, part in ipairs(PARTS) do
+        local layout = HUDLayout[part.section]
+        local textures = hud.parts[part.key]
+        local x = part.side == 0 and layout.X or part.side * layout.X
+
+        for _, texture in ipairs({ textures.base, textures.accent }) do
+            texture:SetSize(layout.WIDTH, layout.HEIGHT)
+            texture:ClearAllPoints()
+            texture:SetPoint("CENTER", hud, "CENTER", x, layout.Y)
+        end
+
+        textures.base:SetTexture(layout.BASE_TEXTURE)
+        textures.base:SetAlpha(HUDLayout.BASE_ALPHA)
+        textures.accent:SetTexture(layout.ACCENT_TEXTURE)
+        textures.accent:SetVertexColor(r, g, b)
+        textures.accent:SetAlpha(HUDLayout.ACCENT_ALPHA)
     end
 
     hud:Show()

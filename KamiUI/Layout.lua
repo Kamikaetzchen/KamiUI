@@ -97,18 +97,38 @@ UI.Layout = {
         Y = 0,
     },
 
-    -- HUD artwork follows the minimap; all sizes/offsets are UI pixels.
+    -- All offsets are relative to the minimap center; X mirrors each wing.
     HUD = {
         ENABLED = true,
-        WIDTH = 830,
-        HEIGHT = 356,
         X = 0,
-        Y = 19,
-        BASE_TEXTURE = "Interface\\AddOns\\KamiUI\\textures\\artwork_HUD_thin",
-        ACCENT_TEXTURE = "Interface\\AddOns\\KamiUI\\textures\\artwork_HUD_thin_accent",
+        Y = 0,
         BASE_ALPHA = 1.00,
         ACCENT_ALPHA = 0.65,
         CLASS_COLOR_SATURATION = 0.65,
+        CENTER = {
+            WIDTH = 222,
+            HEIGHT = 222,
+            X = 0,
+            Y = 0,
+            BASE_TEXTURE = "Interface\\AddOns\\KamiUI\\textures\\artwork_HUD_center_base.tga",
+            ACCENT_TEXTURE = "Interface\\AddOns\\KamiUI\\textures\\artwork_HUD_center_accent.tga",
+        },
+        TOP = {
+            WIDTH = 222,
+            HEIGHT = 111,
+            X = 138,
+            Y = 82,
+            BASE_TEXTURE = "Interface\\AddOns\\KamiUI\\textures\\artwork_HUD_top_left_base.tga",
+            ACCENT_TEXTURE = "Interface\\AddOns\\KamiUI\\textures\\artwork_HUD_top_left_accent.tga",
+        },
+        BOTTOM = {
+            WIDTH = 444,
+            HEIGHT = 111,
+            X = 165,
+            Y = -29,
+            BASE_TEXTURE = "Interface\\AddOns\\KamiUI\\textures\\artwork_HUD_bottom_left_base.tga",
+            ACCENT_TEXTURE = "Interface\\AddOns\\KamiUI\\textures\\artwork_HUD_bottom_left_accent.tga",
+        },
     },
 
     Nameplates = {
