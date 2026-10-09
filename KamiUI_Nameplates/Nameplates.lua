@@ -8,6 +8,11 @@ local Module = UI:NewModule("Nameplates", "KamiUI_Nameplates")
 local Layout = UI.Layout.Nameplates
 
 local flatTexture = "Interface\\Buttons\\WHITE8X8"
+-- Restored from the original 5px nameplate design (256x8 RGBA).
+-- The baked alpha fades vertically from 100% through 60% to 20%,
+-- and horizontally toward fully transparent rounded ends.
+local healthFadeTexture =
+    "Interface\\AddOns\\KamiUI_Nameplates\\Textures\\HealthFade"
 local fontPath, _, fontFlags = GameFontNormalSmall:GetFont()
 
 local styled = {}
@@ -277,11 +282,16 @@ local function CreateCustomPlate(namePlate)
     local health = CreateFrame("StatusBar", nil, root)
     health:SetSize(Layout.PLATE_WIDTH, Layout.HEALTH_HEIGHT)
     health:SetPoint("CENTER", root, "CENTER", 0, 0)
-    health:SetStatusBarTexture(flatTexture)
+    health:SetStatusBarTexture(healthFadeTexture)
 
     local healthBackground = health:CreateTexture(nil, "BACKGROUND")
     healthBackground:SetAllPoints()
-    healthBackground:SetColorTexture(0.05, 0.05, 0.05, 0.95)
+    -- Use exactly the same alpha silhouette for missing health, so the
+    -- healthbar remains softly tapered even when partially depleted.
+    healthBackground:SetTexture(healthFadeTexture)
+    healthBackground:SetVertexColor(
+        Styles:GetColorChannels(Palette.nameplates.missingHealth)
+    )
 
     -- The thin health bar is intentionally borderless. Text is positioned
     -- on its own row above it, for all unit reactions.
