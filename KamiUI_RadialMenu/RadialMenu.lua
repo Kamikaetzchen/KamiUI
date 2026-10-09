@@ -496,118 +496,58 @@ local function BindKeys()
     end
 end
 
-function Module:HoldOpen(key)
-    if Locked() or self.suppressedKey == key then return end
-    local root = self.wheels[key]
-    if not root then return end
-    if root:IsShown() then return end
-
-    local other = self.wheels[key == "Q" and "E" or "Q"]
-    if other:IsShown() then other:Hide() end
-
-    if GetCursorPosition then
-        local x, y = GetCursorPosition()
-        local scale = UIParent:GetEffectiveScale()
-        if x and y and scale and scale > 0 then
-            local horizontalMargin = L.RADIUS + L.SUB_OFFSET
-                + L.SUB_MAX_RADIUS + L.SUB_ICON_SIZE / 2
-            local verticalMargin = L.RADIUS + L.ICON_SIZE
-            x = math.max(horizontalMargin, math.min(
-                UIParent:GetWidth() - horizontalMargin, x / scale))
-            y = math.max(verticalMargin, math.min(
-                UIParent:GetHeight() - verticalMargin, y / scale))
-            root:ClearAllPoints()
-            root:SetPoint("CENTER", UIParent, "BOTTOMLEFT", x, y)
-        end
-    end
-    self.heldKey = key
-    root:Show()
-end
-
 function Module:Initialize()
     self.wheels = {}
-    self.heldKey = nil
-    self.suppressedKey = nil
     GetDB()
     for key, categories in pairs(CONFIG) do
         self.wheels[key] = CreateWheel(key, categories)
     end
+    -- Both menus use exactly the same hardware-driven secure toggle,
+    -- whether the player is in combat or not. A single key release produces
+    -- one click; no keyboard listener, polling or combat-specific modes.
     for key in pairs(CONFIG) do
         local button = CreateFrame("Button", "KamiUIRadialToggle" .. key,
-            UIParent, "SecureHandlerClickTemplate,SecureHandlerStateTemplate")
-        button:RegisterForClicks("AnyDown", "AnyUp")
+            UIParent, "SecureHandlerClickTemplate")
+        button:RegisterForClicks("AnyUp")
         button:SetFrameRef("menu", self.wheels[key])
         button:SetFrameRef("other", self.wheels[key == "Q" and "E" or "Q"])
-        -- An ordinary key listener handles press-and-hold out of combat.
-        -- In combat, only this protected handler may show/hide the wheels.
         button:SetAttribute("_onclick", [[
-            if self:GetAttribute("state-radialmode") ~= "combat"
-                and not self:GetAttribute("allowNormalClick") then
-                return
-            end
             local menu = self:GetFrameRef("menu")
             local other = self:GetFrameRef("other")
+            if not menu or not other then return end
             other:Hide()
-            if menu:IsShown() then menu:Hide() else menu:Show() end
+            if menu:IsShown() then
+                menu:Hide()
+            else
+                menu:Show()
+            end
         ]])
-        RegisterStateDriver(button, "radialmode", "[combat] combat; normal")
-    end
 
-    -- Ordinary keyboard frames can monitor Q/E releases, but their Lua
-    -- handlers cannot securely hide protected frames during combat.
-    -- This listener therefore implements hold-to-show out of combat only.
-    local listener = CreateFrame("Frame", "KamiUIRadialKeyboardListener",
-        UIParent)
-    listener:SetSize(1, 1)
-    listener:SetFrameStrata("FULLSCREEN_DIALOG")
-    self.keyboardListener = listener
-
-    if listener.SetPropagateKeyboardInput and IsKeyDown then
-        listener:SetPropagateKeyboardInput(true)
-        listener:EnableKeyboard(true)
-        listener:SetScript("OnKeyDown", function(_, pressed)
-            if Locked() then return end
-            local key = type(pressed) == "string" and string.upper(pressed)
-            if not CONFIG[key] then return end
-            -- Do not pop the wheel while the player is typing.
-            if (GetCurrentKeyBoardFocus and GetCurrentKeyBoardFocus())
-                or (ChatEdit_GetActiveWindow and ChatEdit_GetActiveWindow())
-            then
+        -- Move only before combat, while position changes to protected
+        -- action buttons remain legal. During combat the exact same secure
+        -- toggle operates at the menu's most recent safe location.
+        button:HookScript("PreClick", function()
+            if Locked() or self.wheels[key]:IsShown()
+                or not GetCursorPosition then
                 return
             end
-            self:HoldOpen(key)
-        end)
-        local elapsedSinceCheck = 0
-        listener:SetScript("OnUpdate", function(_, elapsed)
-            elapsedSinceCheck = elapsedSinceCheck + elapsed
-            if elapsedSinceCheck < 0.025 then return end
-            elapsedSinceCheck = 0
-            if Locked() then return end
-            if self.suppressedKey and not IsKeyDown(self.suppressedKey) then
-                self.suppressedKey = nil
-            end
-            if self.heldKey and not IsKeyDown(self.heldKey) then
-                local key = self.heldKey
-                self.heldKey = nil
-                self.wheels[key]:Hide()
-            end
-        end)
-    else
-        -- Preserve secure click-to-toggle behavior if key-state APIs are
-        -- unavailable on this client. The toggle handles either menu.
-        for key in pairs(CONFIG) do
-            local button = _G["KamiUIRadialToggle" .. key]
-            button:SetAttribute("allowNormalClick", true)
-        end
-        UI:Print("Hold-to-show requires IsKeyDown and keyboard propagation; using secure key toggles.")
-    end
 
-    for key, wheel in pairs(self.wheels) do
-        wheel:HookScript("OnHide", function()
-            if self.heldKey == key then
-                self.suppressedKey = key
-                self.heldKey = nil
+            local x, y = GetCursorPosition()
+            local scale = UIParent:GetEffectiveScale()
+            if not x or not y or not scale or scale <= 0 then
+                return
             end
+
+            local marginX = L.RADIUS + L.SUB_OFFSET
+                + L.SUB_MAX_RADIUS + L.SUB_ICON_SIZE / 2
+            local marginY = L.RADIUS + L.ICON_SIZE
+            x = math.max(marginX, math.min(
+                UIParent:GetWidth() - marginX, x / scale))
+            y = math.max(marginY, math.min(
+                UIParent:GetHeight() - marginY, y / scale))
+            local wheel = self.wheels[key]
+            wheel:ClearAllPoints()
+            wheel:SetPoint("CENTER", UIParent, "BOTTOMLEFT", x, y)
         end)
     end
     self.bindingOwner = CreateFrame("Frame", nil, UIParent)

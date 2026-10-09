@@ -4,34 +4,32 @@
 
 **E:** Healing, mana, rage and utility potions, bandages.
 
-## Controls
+## Controls — identical in and out of combat
 
-- **Outside combat:** Hold Q or E to open the corresponding menu at the
-  cursor; releasing the key closes it immediately without selecting anything.
-  Clicking an item also closes the wheel.
-- **In combat (both Q and E):** The secure binding opens or closes the menu.
-  Because WoW doesn't allow ordinary key-up handlers to hide protected
-  frames in combat, this is a secure click-to-toggle fallback instead of
-  true hold-to-show. The consumable buttons remain protected and usable.
-- **Left click:** Use the default item/spell (closes menu).
-- **Right click a main icon:** Open its variants (no hover or delay).
-- **Left click a variant:** Use it (closes menu).
-- **Right click a variant:** Save per-character favorite; only out of combat.
-- **Click outside:** Close and reset all submenus.
+- **Q or E once:** Open the corresponding radial menu.
+- **Q or E again:** Close that menu.
+- **Switch from Q to E:** The previous wheel closes automatically.
+- **Left-click a main icon:** Use the default item/spell and close.
+- **Right-click a main icon:** Show its variants (no hover or delay).
+- **Left-click a variant:** Use that variant and close.
+- **Right-click a variant:** Set a per-character favorite (out of combat).
+- **Click outside:** Close the menu.
 
-Only available variants are arranged; there are no preallocated empty
-positions. Spacing and ring radius adjust automatically to the number
-of variants (up to 16 visible in this first version; paging for more
-items is not yet implemented).
+WoW's secure override key bindings operate on a hardware key click, not
+an unprotected Lua keyboard listener. Both Q and E now use the same
+SecureHandlerClickTemplate regardless of combat status. No polling, no
+press-and-hold behavior, and no state driver are used.
 
-WoW requires protected action attributes and layout changes to be
-performed out of combat. Inventory changes during combat are applied
-after combat. The last safe menu position is retained during combat.
-The Q/E bindings are overrides and don't appear in the Key Bindings UI.
+The menu opens at the mouse cursor when out of combat. During combat,
+protected frames cannot be moved by ordinary Lua, so the wheel stays at
+its last safe position. Item actions remain secure in both modes.
 
-The click bindings in combat may follow the client's
-ActionButtonUseKeyDown setting. The out-of-combat hold mode uses
-OnKeyDown and IsKeyDown instead, so it does not depend on that setting.
+Closing a wheel also hides its variant menus via the root's secure OnHide
+handler. Variants are arranged based on available inventory; up to 16
+are shown at once (paging is not implemented yet). Updates to secure
+buttons are delayed until after combat.
+
+Q/E are override bindings and do not appear in the Key Bindings UI.
 
 ## Commands
 
