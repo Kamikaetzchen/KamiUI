@@ -658,6 +658,11 @@ end
 function Module:SetHeightLimited(limited)
     GetDatabase().heightLimited = limited ~= false
 
+    if InCombatLockdown and InCombatLockdown() then
+        self.combatRefreshPending = true
+        return
+    end
+
     if self.frame then
         UpdateHeightModeButton(self.frame)
         self:Refresh()
@@ -673,6 +678,13 @@ end
 function Module:SetMinimized(minimized)
     local db = GetDatabase()
     db.minimized = minimized == true
+
+    -- Quest-item buttons are secure children. Resizing or showing their
+    -- containing frames during combat is protected as well.
+    if InCombatLockdown and InCombatLockdown() then
+        self.combatRefreshPending = true
+        return
+    end
 
     if not self.frame then
         return
@@ -709,6 +721,21 @@ function Module:Refresh()
     if not frame then
         return
     end
+
+    -- Layout, row creation and visibility changes may affect protected
+    -- SecureActionButtonTemplate quest-item children. Never perform these
+    -- operations in combat; coalesce them into one post-combat refresh.
+    if InCombatLockdown and InCombatLockdown() then
+        self.combatRefreshPending = true
+        return
+    end
+
+    self.combatRefreshPending = nil
+
+    -- Apply any deferred minimize/height-mode settings before laying out rows.
+    UpdateHeightModeButton(frame)
+    frame.toggle:SetText(GetDatabase().minimized and "+" or "-")
+    frame.heightModeButton:SetShown(not GetDatabase().minimized)
 
     if GetDatabase().minimized then
         frame:SetWidth(Layout.COLLAPSED_WIDTH)
@@ -1112,7 +1139,8 @@ function Module:Initialize()
     end)
 
     UI:RegisterEvent("PLAYER_REGEN_ENABLED", function()
-        if Module.questItemRefreshPending then
+        if Module.combatRefreshPending or Module.questItemRefreshPending then
+            Module.combatRefreshPending = nil
             Module.questItemRefreshPending = nil
             Module:Refresh()
         end
