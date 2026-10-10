@@ -1,6 +1,7 @@
 local UI = KamiUI
 local Palette = UI.Palette
 local Components = UI.Components
+local Styles = UI.Styles
 
 local Module = UI:NewModule("Bank", "KamiUI_Bags")
 
@@ -358,6 +359,182 @@ function Module:SetBagSlotHighlight(bagID, shown)
     end
 end
 
+-- Forever's bank tabs have their own persistent deposit flags. Unlike
+-- inventory bag flags, these are changed via C_Bank.UpdateBankTabSettings.
+-- Only configure live, purchased character-bank tabs; cached tabs are read-only.
+local bankTabContextMenu
+
+local function GetBankTabData(button)
+    if not button or button.isCached or not bankOpen
+        or not button.bagID or not C_Bank
+        or not C_Bank.FetchPurchasedBankTabData
+        or not Enum or not Enum.BankType then
+        return nil
+    end
+
+    local tabs = C_Bank.FetchPurchasedBankTabData(
+        Enum.BankType.Character) or {}
+    for _, data in ipairs(tabs) do
+        if data.ID == button.bagID then
+            return data
+        end
+    end
+    -- Some Forever builds expose the tabs in order but omit the ID field.
+    local data = tabs[button.tabIndex]
+    if data and data.ID == nil then return data end
+    return nil
+end
+
+local function BankTabHasFlag(button, flag)
+    local data = GetBankTabData(button)
+    if not data or not flag then return false end
+    local flags = tonumber(data.depositFlags) or 0
+    return math.floor(flags / flag) % 2 == 1
+end
+
+local function ToggleBankTabFlag(button, flag)
+    if not flag or not C_Bank or not C_Bank.UpdateBankTabSettings
+        or (InCombatLockdown and InCombatLockdown()) then
+        return
+    end
+
+    local data = GetBankTabData(button)
+    if not data then return end
+    local current = tonumber(data.depositFlags) or 0
+    local enabled = math.floor(current / flag) % 2 == 1
+    -- Preserve every other bank-tab flag, including flags not exposed here.
+    local updated = enabled and (current - flag) or (current + flag)
+    local ok = pcall(C_Bank.UpdateBankTabSettings,
+        Enum.BankType.Character, data.ID or button.bagID,
+        data.name or button.tabName or "",
+        data.icon or button.icon:GetTexture() or BANK_TAB_FALLBACK_ICON,
+        updated)
+    if not ok then
+        UI:Print("Could not update bank tab settings.")
+    end
+end
+
+local function ShowBankTabContextMenu(button)
+    if not GetBankTabData(button) or not Enum or not Enum.BagSlotFlags
+        or not C_Bank or not C_Bank.UpdateBankTabSettings then
+        return
+    end
+    if InCombatLockdown and InCombatLockdown() then return end
+
+    if not bankTabContextMenu then
+        local menu = Components:CreatePopupMenu(Module.frame, Module.frame, {
+            width = 164,
+            rowHeight = 18,
+            inset = 4,
+            textInset = 3,
+            fontSize = 9,
+            frameStrata = "DIALOG",
+        })
+        menu:SetScript("OnEvent", function(self, event)
+            if event == "GLOBAL_MOUSE_DOWN"
+                and not self:IsMouseOver()
+                and not (self.anchor and self.anchor:IsMouseOver()) then
+                self:Hide()
+            end
+        end)
+        menu:HookScript("OnShow", function(self)
+            if self.RegisterEvent then
+                pcall(self.RegisterEvent, self, "GLOBAL_MOUSE_DOWN")
+            end
+        end)
+        menu:HookScript("OnHide", function(self)
+            if self.UnregisterEvent then
+                pcall(self.UnregisterEvent, self, "GLOBAL_MOUSE_DOWN")
+            end
+            self.anchor = nil
+        end)
+        bankTabContextMenu = menu
+    end
+
+    local menu = bankTabContextMenu
+    if menu:IsShown() and menu.anchor == button then
+        menu:Hide()
+        return
+    end
+    menu:Hide()
+    menu.anchor = button
+    menu:ClearAllPoints()
+    menu:SetPoint("TOPLEFT", button, "BOTTOMLEFT", 0, -2)
+
+    local flags = Enum.BagSlotFlags
+    local options = {
+        {BAG_FILTER_EQUIPMENT or "Equipment", flags.ClassEquipment},
+        {BAG_FILTER_CONSUMABLES or "Consumables", flags.ClassConsumables},
+        {BAG_FILTER_PROFESSION_GOODS or "Profession Goods",
+            flags.ClassProfessionGoods},
+        {BAG_FILTER_JUNK or "Junk", flags.ClassJunk},
+        {BAG_FILTER_QUEST_ITEMS or "Quest Items", flags.ClassQuestItems},
+        {BAG_FILTER_REAGENTS or "Reagents", flags.ClassReagents},
+    }
+    local entries = {
+        {kind = "title", text = BAG_FILTER_ASSIGN_TO or "Assign to Bank Tab"},
+    }
+    for _, option in ipairs(options) do
+        if option[2] then
+            entries[#entries + 1] = {
+                kind = "check", text = option[1], flag = option[2],
+            }
+        end
+    end
+    if flags.DisableAutoSort then
+        entries[#entries + 1] = {
+            kind = "title", text = BAG_FILTER_IGNORE or "Ignore this tab",
+        }
+        entries[#entries + 1] = {
+            kind = "check", text = BAG_FILTER_CLEANUP or "Cleanup",
+            flag = flags.DisableAutoSort,
+        }
+    end
+
+    for index, entry in ipairs(entries) do
+        local row = Components:AcquirePopupMenuButton(
+            menu, index, menu.KamiPopupOptions)
+        if not row.KamiBankTabCheck then
+            local check = CreateFrame("Frame", nil, row, "BackdropTemplate")
+            check:SetSize(10, 10)
+            check:SetPoint("LEFT", row, "LEFT", 2, 0)
+            Styles:ApplyBackdrop(check,
+                {0, 0, 0, 0.55}, Palette.emptyBorder)
+            local fill = check:CreateTexture(nil, "ARTWORK")
+            fill:SetSize(6, 6)
+            fill:SetPoint("CENTER")
+            Styles:SetColor(fill, Palette.highlight)
+            check.fill = fill
+            row.KamiBankTabCheck = check
+        end
+
+        row.text:ClearAllPoints()
+        row.text:SetPoint("LEFT", row, "LEFT",
+            entry.kind == "check" and 16 or 3, 0)
+        row.text:SetPoint("RIGHT", row, "RIGHT", -3, 0)
+        row.text:SetText(entry.text)
+        row:SetScript("OnClick", nil)
+        if entry.kind == "title" then
+            row.KamiBankTabCheck:Hide()
+            row:SetEnabled(false)
+            Styles:SetTextColor(row.text, Palette.gold)
+        else
+            local flag = entry.flag
+            row.KamiBankTabCheck:Show()
+            row.KamiBankTabCheck.fill:SetShown(BankTabHasFlag(button, flag))
+            row:SetEnabled(true)
+            Styles:SetTextColor(row.text, Palette.text)
+            row:SetScript("OnClick", function()
+                ToggleBankTabFlag(button, flag)
+                menu:Hide()
+            end)
+        end
+        row:Show()
+    end
+    Components:FinishPopupMenu(menu, #entries, menu.KamiPopupOptions)
+    menu:Show()
+end
+
 local function CreateBankBagButton(parent)
     local button = Components:CreateItemSlot(parent, {
         size = 32,
@@ -367,7 +544,7 @@ local function CreateBankBagButton(parent)
         border = false,
     })
 
-    button:RegisterForClicks("LeftButtonUp")
+    button:RegisterForClicks("LeftButtonUp", "RightButtonUp")
     button:RegisterForDrag("LeftButton")
 
     local function PickupBankBag(self)
@@ -384,7 +561,12 @@ local function CreateBankBagButton(parent)
         end
     end
 
-    button:SetScript("OnClick", function(self)
+    button:SetScript("OnClick", function(self, mouseButton)
+        if mouseButton == "RightButton" then
+            ShowBankTabContextMenu(self)
+            return
+        end
+        if bankTabContextMenu then bankTabContextMenu:Hide() end
         if CursorHasItem and CursorHasItem() and not self.isCached then
             PickupBankBag(self)
             return
@@ -412,6 +594,11 @@ local function CreateBankBagButton(parent)
                 0.75,
                 0.75
             )
+            if not self.isCached and C_Bank
+                and C_Bank.UpdateBankTabSettings then
+                GameTooltip:AddLine(
+                    "Right-click: bank tab filters", 0.75, 0.75, 0.75)
+            end
 
             if not self.isCached and self.tabIndex and self.tabIndex > 1 then
                 GameTooltip:AddLine(
@@ -1013,6 +1200,7 @@ local function CreateFrameUI()
 
 
     frame:SetScript("OnHide", function()
+        if bankTabContextMenu then bankTabContextMenu:Hide() end
         if bankOpen then
             SaveCurrentBank()
         end
