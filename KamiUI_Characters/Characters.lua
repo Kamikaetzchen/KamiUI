@@ -862,7 +862,13 @@ local function ReportNativeStatError(key, reason)
     end
 
     reportedStatErrors[key] = true
-    UI:Print("Blizzard stat", tostring(key) .. ":", tostring(reason))
+    -- Raise diagnostics as genuine Lua errors so BugGrabber/BugSack records
+    -- the failure and its stack trace instead of printing a chat-only line.
+    error(
+        "KamiUI_Characters Blizzard stat " .. tostring(key)
+            .. ": " .. tostring(reason),
+        2
+    )
 end
 
 local function GetStatProxy(row)
@@ -878,15 +884,8 @@ local function GetStatProxy(row)
 
     local name = "KamiUICharacterStatProxy"
         .. row.statID:gsub("[^%w]", "")
-    local ok, created = pcall(
-        CreateFrame, "Frame", name, row, "CharacterStatFrameTemplate"
-    )
-
-    if not ok then
-        return nil, created
-    end
-
-    proxy = created
+    -- Do not swallow native template errors: they should reach BugSack.
+    proxy = CreateFrame("Frame", name, row, "CharacterStatFrameTemplate")
     proxy:SetAllPoints(row)
     proxy:EnableMouse(false)
     proxy:SetAlpha(0)
@@ -914,23 +913,17 @@ local function UpdateNativeStat(proxy, data)
             return false, "native resistance functions unavailable"
         end
 
-        local _base, effective = UI:SafeCall(
-            UnitResistance, "player", data.damageClass
-        )
+        local _base, effective = UnitResistance("player", data.damageClass)
         if type(effective) ~= "number"
             or not UI:CanAccessValue(effective)
         then
             return false, "UnitResistance unavailable"
         end
 
-        local ok, err = pcall(
-            PaperDollFrame_SetResistanceTooltips,
+        PaperDollFrame_SetResistanceTooltips(
             proxy, data.resistanceLabel, effective,
             "player", data.damageClass
         )
-        if not ok then
-            return false, err
-        end
 
         proxy.Label:SetText(data.resistanceLabel)
         proxy.Value:SetText(
@@ -949,14 +942,8 @@ local function UpdateNativeStat(proxy, data)
             .. "] unavailable"
     end
 
-    local ok, value = pcall(
-        info.updateFunc, proxy, "player", data.nativeID
-    )
-
-    if not ok then
-        return false, value
-    end
-
+    -- Keep Blizzard's original error and traceback intact.
+    local value = info.updateFunc(proxy, "player", data.nativeID)
     return true, value
 end
 
@@ -1186,13 +1173,8 @@ ShowStatTooltip = function(row)
     end
 
     GameTooltip:Hide()
-    local shown, enterError = pcall(proxy.OnEnter, proxy)
-
-    if not shown then
-        ReportNativeStatError(data.statID, enterError)
-        GameTooltip:Hide()
-        return
-    end
+    -- Native tooltip errors must also propagate to BugGrabber/BugSack.
+    proxy:OnEnter()
 
     if not GameTooltip:IsShown()
         or (GameTooltip.GetOwner and GameTooltip:GetOwner() ~= proxy)
