@@ -312,8 +312,8 @@ local RESTED_COLOR_STOPS = {
 local function GetRestedColor(percent, rank)
     local cap = RestedXP:GetCapPercent(rank)
     -- With an unknown talent rank there is no confirmed maximum, so
-    -- project across the highest expected cap but never claim full red.
-    local scaleCap = cap or 170
+    -- project across the highest possible rank's cap without claiming full red.
+    local scaleCap = cap or RestedXP:GetCapPercent(5)
     local progress = math.max(0, math.min(1, percent / scaleCap))
     if not cap then progress = math.min(progress, 0.999) end
 
