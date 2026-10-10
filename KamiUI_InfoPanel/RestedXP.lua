@@ -337,3 +337,21 @@ UI:RegisterCommand("rested", "rank", function(value)
         UI:Print("Well Rested: automatic talent detection enabled")
     end
 end, "Set this character's Well Rested rank (0-5, auto)")
+
+-- Re-scan when a Legacy allocation changes. This event is present on
+-- current Forever builds; guarded registration tolerates early beta builds.
+for _, event in ipairs({
+    "TRAIT_CONFIG_UPDATED",
+    "TRAIT_NODE_CHANGED",
+}) do
+    pcall(function()
+        UI:RegisterEvent(event, function()
+            RestedXP:InvalidateLegacyRank()
+            if C_Timer and C_Timer.After then
+                C_Timer.After(0, function()
+                    RestedXP:CaptureCurrent()
+                end)
+            end
+        end)
+    end)
+end
