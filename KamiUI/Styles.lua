@@ -40,7 +40,7 @@ Styles.FontSize = {
     DamageMeter = 10,
     InfoPanel = 11,
     ThreatMeter = 11,
-    SpellMatrix = { button = 11, buttonSmall = 8 },
+    SpellMetrics = { button = 11, buttonSmall = 8 },
     Nameplates = {
         duration = 7,
         count = 8,

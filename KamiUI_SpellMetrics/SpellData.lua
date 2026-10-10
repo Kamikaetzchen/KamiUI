@@ -1,5 +1,5 @@
 local UI = KamiUI
-local Module = UI:GetModule("SpellMatrix")
+local Module = UI:GetModule("SpellMetrics")
 
 local NUMBER = "([%d,]+%.?%d*)"
 
@@ -76,11 +76,11 @@ local function GetScanner()
 
     scanner = CreateFrame(
         "GameTooltip",
-        "KamiUISpellMatrixScanner",
+        "KamiUISpellMetricsScanner",
         UIParent,
         "GameTooltipTemplate"
     )
-    scanner.KamiSpellMatrixScanner = true
+    scanner.KamiSpellMetricsScanner = true
     scanner:SetOwner(UIParent, "ANCHOR_NONE")
 
     return scanner
@@ -244,6 +244,83 @@ local function IsNextSwingAbility(lower)
         or lower:find("next weapon attack", 1, true)
         or lower:find("next weapon swing", 1, true)
         or lower:find("on your next attack", 1, true)
+end
+
+-- Read weapon-based spell text without mistaking its flat bonus for the
+-- entire spell. Blizzard already includes attack power and active form
+-- modifiers in UnitDamage("player") for the current main hand.
+--
+-- Example (Claw): "Causes 121% normal damage plus 32"
+-- -> average white hit * 1.21 + 32, before armor/avoidance/crit.
+-- Generic "weapon damage" may use a normalized AP coefficient, so the
+-- latter is intentionally marked as an estimate rather than exact damage.
+local function ParseWeaponFormula(lower)
+    local descriptors = {
+        { pattern = "normal%s+weapon%s+damage", kind = "normal" },
+        { pattern = "normal%s+damage", kind = "normal" },
+        { pattern = "weapon%s+damage", kind = "weapon" },
+    }
+
+    for _, entry in ipairs(descriptors) do
+        for _, prefix in ipairs({ "", "of%s+" }) do
+            local pattern = NUMBER .. "%%%s+"
+                .. prefix .. entry.pattern
+
+            local percent, bonus = lower:match(
+                pattern .. "%s+plus%s+" .. NUMBER
+            )
+
+            if percent then
+                return ParseNumber(percent) / 100,
+                    ParseNumber(bonus), entry.kind
+            end
+
+            percent = lower:match(pattern)
+
+            if percent then
+                return ParseNumber(percent) / 100, 0, entry.kind
+            end
+        end
+
+        local bonus = lower:match(
+            entry.pattern .. "%s+plus%s+" .. NUMBER
+        )
+
+        if bonus then
+            return 1, ParseNumber(bonus), entry.kind
+        end
+    end
+
+    local added = lower:match(
+        NUMBER .. "%s+damage%s+in%s+addition%s+to%s+your%s+"
+            .. "normal%s+weapon%s+damage"
+    )
+
+    if added then
+        return 1, ParseNumber(added), "normal"
+    end
+
+    return nil
+end
+
+local function GetCurrentWeaponDamage()
+    if not UnitDamage then
+        return nil
+    end
+
+    local low, high = UI:SafeCall(UnitDamage, "player")
+
+    if not UI:CanAccessValue(low)
+        or not UI:CanAccessValue(high)
+        or type(low) ~= "number"
+        or type(high) ~= "number"
+        or low <= 0
+        or high < low
+    then
+        return nil
+    end
+
+    return (low + high) / 2
 end
 
 local function IsPartialWeaponDamage(lower)
@@ -608,8 +685,23 @@ function Module:BuildSpellData(spellID)
         return nil, "nextSwing"
     end
 
-    if IsPartialWeaponDamage(lower) then
-        return nil, "partialWeaponDamage"
+    local weaponMultiplier, weaponBonus, weaponKind =
+        ParseWeaponFormula(lower)
+    local weaponBase
+    local weaponDirect
+
+    if weaponMultiplier then
+        weaponBase = GetCurrentWeaponDamage()
+
+        if not weaponBase then
+            return nil, "noWeaponDamage"
+        end
+
+        weaponDirect = weaponBase * weaponMultiplier
+            + (weaponBonus or 0)
+    elseif IsPartialWeaponDamage(lower) then
+        -- Do not fall back to reporting only the "plus X" portion.
+        return nil, "unsupportedWeaponFormula"
     end
 
     local cost, resourceType = ParseResourceCost(texts)
@@ -636,10 +728,12 @@ function Module:BuildSpellData(spellID)
         end
     end
 
-    local directDamage = comboDirectDamage or ParseDirectDamage(
-        lower,
-        periodicDamage ~= nil
-    )
+    local directDamage = weaponDirect
+        or comboDirectDamage
+        or ParseDirectDamage(
+            lower,
+            periodicDamage ~= nil
+        )
     local directHealing = ParseDirectHealing(
         lower,
         periodicHealing ~= nil
@@ -706,6 +800,11 @@ function Module:BuildSpellData(spellID)
         instant = instant,
         channeled = channeled,
         executionTime = executionTime,
+        weaponEstimate = weaponDirect ~= nil,
+        weaponKind = weaponKind,
+        weaponBase = weaponBase,
+        weaponMultiplier = weaponMultiplier,
+        weaponBonus = weaponBonus,
     }
 end
 
@@ -738,14 +837,14 @@ function Module:GetSpellAnalysis(spellID)
 end
 
 UI:RegisterCommand(
-    "spellmatrix",
+    "spellmetrics",
     "debug",
     function(value)
         local spellID = tonumber(value)
 
         if not spellID then
             UI:Print(
-                "Usage: /kami spellmatrix debug <spellID>"
+                "Usage: /kami spellmetrics debug <spellID>"
             )
             return
         end
@@ -754,7 +853,7 @@ UI:RegisterCommand(
 
         local texts = Module:GetSpellTooltipTexts(spellID)
 
-        UI:Print("Spell Matrix tooltip:", spellID)
+        UI:Print("Spell Metrics tooltip:", spellID)
 
         for index, text in ipairs(texts or {}) do
             UI:Print(index .. ":", text)
@@ -787,6 +886,17 @@ UI:RegisterCommand(
                 analysis.comboPoints or 0
             )
         )
+
+        if analysis.weaponEstimate then
+            UI:Print(
+                "Weapon estimate:",
+                "kind=" .. tostring(analysis.weaponKind),
+                "base=" .. tostring(analysis.weaponBase),
+                "multiplier=" .. tostring(analysis.weaponMultiplier),
+                "bonus=" .. tostring(analysis.weaponBonus),
+                "total=" .. tostring(analysis.direct)
+            )
+        end
     end,
     "Dump parsed spell tooltip data"
 )

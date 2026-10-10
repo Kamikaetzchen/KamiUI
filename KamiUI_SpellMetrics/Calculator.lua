@@ -1,5 +1,5 @@
 local UI = KamiUI
-local Module = UI:GetModule("SpellMatrix")
+local Module = UI:GetModule("SpellMetrics")
 
 local function Divide(value, divisor)
     value = tonumber(value)

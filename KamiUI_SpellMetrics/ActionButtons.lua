@@ -1,7 +1,7 @@
 local UI = KamiUI
 local Palette = UI.Palette
 local Styles = UI.Styles
-local Module = UI:GetModule("SpellMatrix")
+local Module = UI:GetModule("SpellMetrics")
 
 local refreshPending = false
 local invalidatePending = false
@@ -54,8 +54,8 @@ local function ForEachActionButton(callback)
 end
 
 local function EnsureMetricOverlay(button)
-    if button.KamiSpellMatrixText then
-        return button.KamiSpellMatrixText
+    if button.KamiSpellMetricsText then
+        return button.KamiSpellMetricsText
     end
 
     local overlay = CreateFrame("Frame", nil, button)
@@ -71,8 +71,8 @@ local function EnsureMetricOverlay(button)
     text:SetShadowOffset(1, -1)
 
     local size = button:GetWidth() <= 30
-        and Styles.FontSize.SpellMatrix.buttonSmall
-        or Styles.FontSize.SpellMatrix.button
+        and Styles.FontSize.SpellMetrics.buttonSmall
+        or Styles.FontSize.SpellMetrics.button
 
     text:SetFont(
         fontPath,
@@ -81,8 +81,8 @@ local function EnsureMetricOverlay(button)
     )
     text:SetTextColor(1, 1, 1, 1)
 
-    button.KamiSpellMatrixOverlay = overlay
-    button.KamiSpellMatrixText = text
+    button.KamiSpellMetricsOverlay = overlay
+    button.KamiSpellMetricsText = text
 
     return text
 end
@@ -131,7 +131,8 @@ local function RefreshButton(button)
         or Palette.damage
 
     local value = ColorizeMetric(
-        Module:FormatMetric(execution),
+        (analysis.weaponEstimate and "~" or "")
+            .. Module:FormatMetric(execution),
         outputColor
     )
 
@@ -146,7 +147,8 @@ local function RefreshButton(button)
         value = value
             .. "\n"
             .. ColorizeMetric(
-                Module:FormatMetric(full.efficiency),
+                (analysis.weaponEstimate and "~" or "")
+                    .. Module:FormatMetric(full.efficiency),
                 resourceColor
             )
     end
@@ -208,6 +210,20 @@ UI:RegisterEvent(
     "PLAYER_EQUIPMENT_CHANGED",
     RefreshWithNewValues
 )
+-- Damage and attack power can change from buffs or temporary modifiers
+-- without an equipment change. Recompute estimates from fresh UnitDamage.
+for _, event in ipairs({
+    "UNIT_DAMAGE",
+    "UNIT_ATTACK_POWER",
+    "UNIT_ATTACK_SPEED",
+    "UNIT_STATS",
+}) do
+    UI:RegisterEvent(event, function(_, unit)
+        if unit == "player" then
+            RefreshWithNewValues()
+        end
+    end)
+end
 UI:RegisterEvent(
     "PLAYER_LEVEL_UP",
     RefreshWithNewValues
@@ -245,10 +261,10 @@ UI:RegisterEvent(
 )
 
 UI:RegisterCommand(
-    "spellmatrix",
+    "spellmetrics",
     "refresh",
     function()
         Module:RefreshActionButtons(true)
     end,
-    "Refresh Spell Matrix action button values"
+    "Refresh Spell Metrics action button values"
 )

@@ -1,5 +1,5 @@
 ## Interface: 16001
-## Title: KamiUI - Spell Matrix
+## Title: KamiUI - Spell Metrics
 ## Notes: Spell throughput and efficiency analysis for KamiUI
 ## Author: Kami Katze
 ## Version: 0.1.0

@@ -1,8 +1,8 @@
 local UI = KamiUI
 
 local Module = UI:NewModule(
-    "SpellMatrix",
-    "KamiUI_SpellMatrix"
+    "SpellMetrics",
+    "KamiUI_SpellMetrics"
 )
 
 Module.defaults = {

@@ -1,5 +1,5 @@
 local UI = KamiUI
-local Module = UI:GetModule("SpellMatrix")
+local Module = UI:GetModule("SpellMetrics")
 
 local HEADING_COLOR = { 0.40, 0.80, 1.00 }
 local LABEL_COLOR = { 0.85, 0.85, 0.85 }
@@ -145,12 +145,12 @@ local function AddMixedMetrics(tooltip, analysis, labels)
 end
 
 local function ResetTooltipMarker(tooltip)
-    tooltip.KamiSpellMatrixSpellID = nil
+    tooltip.KamiSpellMetricsSpellID = nil
 end
 
 local function AddSpellAnalysis(tooltip, data)
     if not tooltip
-        or tooltip.KamiSpellMatrixScanner
+        or tooltip.KamiSpellMetricsScanner
     then
         return
     end
@@ -158,7 +158,7 @@ local function AddSpellAnalysis(tooltip, data)
     local spellID = GetSpellID(tooltip, data)
 
     if not spellID
-        or tooltip.KamiSpellMatrixSpellID == spellID
+        or tooltip.KamiSpellMetricsSpellID == spellID
     then
         return
     end
@@ -169,12 +169,12 @@ local function AddSpellAnalysis(tooltip, data)
         return
     end
 
-    tooltip.KamiSpellMatrixSpellID = spellID
+    tooltip.KamiSpellMetricsSpellID = spellID
 
     if tooltip.HookScript
-        and not tooltip.KamiSpellMatrixResetHook
+        and not tooltip.KamiSpellMetricsResetHook
     then
-        tooltip.KamiSpellMatrixResetHook = true
+        tooltip.KamiSpellMetricsResetHook = true
         tooltip:HookScript(
             "OnHide",
             ResetTooltipMarker
@@ -192,7 +192,7 @@ local function AddSpellAnalysis(tooltip, data)
 
     tooltip:AddLine(" ")
     tooltip:AddLine(
-        "Spell Matrix",
+        "Spell Metrics",
         unpack(HEADING_COLOR)
     )
 
@@ -202,6 +202,22 @@ local function AddSpellAnalysis(tooltip, data)
         AddMixedMetrics(tooltip, analysis, labels)
     else
         AddSingleMetrics(tooltip, analysis, labels)
+    end
+
+    if analysis.weaponEstimate then
+        tooltip:AddLine(
+            "~ Weapon damage estimate (before armor/crit/misses).",
+            0.65, 0.65, 0.68,
+            true
+        )
+
+        if analysis.weaponKind == "weapon" then
+            tooltip:AddLine(
+                "Instant-attack weapon normalization not included.",
+                0.65, 0.65, 0.68,
+                true
+            )
+        end
     end
 end
 
