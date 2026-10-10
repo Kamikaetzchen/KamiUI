@@ -144,10 +144,9 @@ local function StyleCooldown(cooldown, button)
     end
 end
 
--- A separate, visual GCD swipe is kept underneath the real action
--- cooldown. Forever's action-slot cooldown updates may omit the GCD, while
--- spell 61304 always represents the global cooldown in Blizzard's API.
--- DurationObjects can be displayed without inspecting secret time values.
+-- A separate GCD swipe sits ABOVE the normal action cooldown frame.
+-- Forever's action-slot cooldown updates may omit the GCD; spell 61304
+-- is the dedicated global-cooldown spell. Never do math on secret times.
 local GCD_SPELL_ID = 61304
 
 local function SetupGCDSwipe(button)
@@ -155,7 +154,7 @@ local function SetupGCDSwipe(button)
 
     local swipe = CreateFrame("Cooldown", nil, button, "CooldownFrameTemplate")
     swipe:SetAllPoints(button)
-    swipe:SetFrameLevel(button:GetFrameLevel() + 2)
+    swipe:SetFrameLevel(button:GetFrameLevel() + 5)
     swipe:SetDrawSwipe(true)
     swipe:SetDrawEdge(false)
     swipe:SetDrawBling(false)
@@ -165,25 +164,53 @@ local function SetupGCDSwipe(button)
     swipe:Hide()
     button.KamiGCDSwipe = swipe
 
-    -- Real action/ability cooldowns remain on top of the GCD indicator.
+    -- Spell Metrics draws only font strings at +20, so it remains readable.
     if button.cooldown then
         button.cooldown:SetFrameLevel(button:GetFrameLevel() + 3)
     end
 end
 
-local function UpdateGCDSwipes()
-    if not C_Spell or not C_Spell.GetSpellCooldownDuration then
-        return
-    end
+local function GetGCDState()
+    if not C_Spell then return end
 
-    local duration = C_Spell.GetSpellCooldownDuration(GCD_SPELL_ID)
+    local info = C_Spell.GetSpellCooldown
+        and C_Spell.GetSpellCooldown(GCD_SPELL_ID)
+    local durationObject = C_Spell.GetSpellCooldownDuration
+        and C_Spell.GetSpellCooldownDuration(GCD_SPELL_ID)
+
+    -- isActive is a non-secret field on the current cooldown API.
+    local active = info and info.isActive
+    local start, seconds
+    if info and UI:CanAccessValue(info.startTime)
+        and UI:CanAccessValue(info.duration)
+    then
+        start, seconds = info.startTime, info.duration
+        if active == nil then
+            active = type(start) == "number" and start > 0
+                and type(seconds) == "number" and seconds > 0
+        end
+    end
+    return active, durationObject, start, seconds
+end
+
+local function UpdateGCDSwipes()
+    local active, durationObject, start, seconds = GetGCDState()
     for _, bar in pairs(Module.bars) do
         for _, button in ipairs(bar.buttons) do
             local swipe = button.KamiGCDSwipe
-            if swipe then
-                if duration then
+            if swipe and not (
+                button == Module.gcdTestButton
+                and Module.gcdTestEnd and GetTime() < Module.gcdTestEnd
+            ) then
+                if active and durationObject then
+                    swipe:SetCooldownFromDurationObject(durationObject, true)
                     swipe:Show()
-                    swipe:SetCooldownFromDurationObject(duration, true)
+                elseif active and type(start) == "number"
+                    and type(seconds) == "number"
+                then
+                    -- Spell 61304 has non-secret cooldown values in Forever.
+                    swipe:SetCooldown(start, seconds)
+                    swipe:Show()
                 else
                     swipe:Clear()
                     swipe:Hide()
@@ -191,6 +218,63 @@ local function UpdateGCDSwipes()
             end
         end
     end
+end
+
+local function FindVisibleActionButton()
+    for _, bar in pairs(Module.bars) do
+        for _, button in ipairs(bar.buttons) do
+            if button:IsVisible() and button.icon
+                and button.icon:IsShown() then
+                return button
+            end
+        end
+    end
+    return Module.bars[1] and Module.bars[1].buttons[1]
+end
+
+local function PrintGCDStatus()
+    local active, durationObject = GetGCDState()
+    local button = FindVisibleActionButton()
+    local swipe = button and button.KamiGCDSwipe
+    UI:Print(
+        "GCD active:", tostring(active),
+        "duration object:", durationObject and "yes" or "no",
+        "swipe shown:", swipe and tostring(swipe:IsShown()) or "none"
+    )
+    if button and swipe then
+        UI:Print(
+            "GCD frame levels: button", button:GetFrameLevel(),
+            "normal", button.cooldown and button.cooldown:GetFrameLevel() or "-",
+            "GCD", swipe:GetFrameLevel(),
+            "alpha", swipe:GetEffectiveAlpha()
+        )
+    end
+end
+
+local function TestGCDSwipe()
+    if InCombatLockdown and InCombatLockdown() then
+        UI:Print("Test the GCD swipe outside combat.")
+        return
+    end
+
+    local button = FindVisibleActionButton()
+    if not button or not button.KamiGCDSwipe then
+        UI:Print("No visible ActionBar cooldown frame available.")
+        return
+    end
+
+    local swipe = button.KamiGCDSwipe
+    Module.gcdTestButton = button
+    Module.gcdTestEnd = GetTime() + 3
+    swipe:SetCooldown(GetTime(), 3)
+    swipe:Show()
+    UI:Print("Showing a 3-second test GCD on", button:GetName())
+    PrintGCDStatus()
+    C_Timer.After(3, function()
+        Module.gcdTestEnd = nil
+        Module.gcdTestButton = nil
+        UpdateGCDSwipes()
+    end)
 end
 
 local function FitStateTexture(texture, button)
@@ -968,15 +1052,26 @@ function Module:Initialize()
         Module:ReassignBindings()
     end)
 
-    -- Update the actual GCD independently of the action-slot cooldown.
+    -- Refresh from cooldown events and retry just after a cast because the
+    -- GCD information is not necessarily current during the cast event.
     UI:RegisterEvent("SPELL_UPDATE_COOLDOWN", UpdateGCDSwipes)
     UI:RegisterEvent("ACTIONBAR_UPDATE_COOLDOWN", UpdateGCDSwipes)
     UI:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED", function(_, unit)
-        if unit == "player" and C_Timer and C_Timer.After then
-            -- Cooldown data can lag the cast event by one frame.
-            C_Timer.After(0, UpdateGCDSwipes)
+        if unit == "player" then
+            UpdateGCDSwipes()
+            C_Timer.After(0.06, UpdateGCDSwipes)
+            C_Timer.After(0.16, UpdateGCDSwipes)
         end
     end)
+
+    UI:RegisterCommand(
+        "actionbars", "gcd", PrintGCDStatus,
+        "Show GCD source and frame-layer diagnostics"
+    )
+    UI:RegisterCommand(
+        "actionbars", "gcdtest", TestGCDSwipe,
+        "Draw a 3-second test swipe on a visible action button"
+    )
 
     UI:RegisterEvent("UPDATE_SHAPESHIFT_FORMS", function()
         UpdateStanceState()
