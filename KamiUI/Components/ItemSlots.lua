@@ -9,8 +9,9 @@ end
 local RARITY_GLOW_TEXTURE =
     "Interface\\AddOns\\KamiUI\\Media\\ItemRarityGlow_16x16.tga"
 
--- Quest gold: the same warm golden-yellow family as Blizzard's bag quest
--- overlay. Quest highlighting takes precedence over item rarity coloring.
+-- The same sharp-edged 9-slice mask is used for rarity and quest glow.
+-- Keep quest highlighting independent so Blizzard's round quest item
+-- border never covers the custom square glow.
 local QUEST_GLOW_COLOR = { 1.00, 0.80, 0.20 }
 
 local RARITY_GLOW_TEXCOORDS = {
@@ -232,13 +233,8 @@ function Components:SetItemSlotQuality(button, quality)
     end
 
     if button.KamiQuestItem then
-        glow:SetVertexColor(
-            QUEST_GLOW_COLOR[1],
-            QUEST_GLOW_COLOR[2],
-            QUEST_GLOW_COLOR[3],
-            1
-        )
-        glow:Show()
+        -- Quest items have their own gold mask, not the quality glow.
+        glow:Hide()
         return
     end
 
@@ -258,36 +254,74 @@ function Components:SetItemSlotQuality(button, quality)
     end
 end
 
--- These textures belong to Blizzard's ContainerFrameItemButtonTemplate.
--- A quest starter shows the ! overlay; other quest items show the native
--- quest border. Both are independent of the item's quality.
+-- ContainerFrameItemButtonTemplate provides an IconQuestTexture with
+-- a pre-rendered *rounded* gold frame. Disable that texture entirely:
+-- KamiUI uses its own sharp-edged 9-slice quest glow instead.
 local function UpdateQuestItemDecoration(button, data)
     local questID = data.questID
     local isQuestItem = data.isQuestItem == true
         or (questID ~= nil and questID ~= 0)
+    local startsQuest = questID ~= nil
+        and questID ~= 0
+        and not data.questActive
 
     button.KamiQuestItem = isQuestItem
 
-    local marker = button.IconQuestTexture
-
-    if not marker then
-        return
+    if button.IconQuestTexture then
+        button.IconQuestTexture:Hide()
     end
 
-    if not button.KamiQuestMarkerAnchored then
-        button.KamiQuestMarkerAnchored = true
-        marker:ClearAllPoints()
-        marker:SetAllPoints(button)
+    -- Allocate the 8-slice mask only for buttons that actually hold
+    -- quest items, rather than duplicating all textures for every slot.
+    if isQuestItem
+        and not button.KamiQuestGlow
+        and button.KamiRarityGlow
+    then
+        local glow = CreateRarityGlow(
+            button,
+            button.KamiGlowSize or button:GetWidth(),
+            button.KamiGlowIconInset or 1,
+            { rarityAlpha = 1 }
+        )
+        glow:SetVertexColor(
+            QUEST_GLOW_COLOR[1],
+            QUEST_GLOW_COLOR[2],
+            QUEST_GLOW_COLOR[3],
+            1
+        )
+        button.KamiQuestGlow = glow
     end
 
-    if questID and questID ~= 0 and not data.questActive then
-        marker:SetTexture(TEXTURE_ITEM_QUEST_BANG)
-        marker:Show()
-    elseif isQuestItem then
-        marker:SetTexture(TEXTURE_ITEM_QUEST_BORDER)
-        marker:Show()
-    else
-        marker:Hide()
+    if button.KamiQuestGlow then
+        if isQuestItem then
+            button.KamiQuestGlow:Show()
+        else
+            button.KamiQuestGlow:Hide()
+        end
+    end
+
+    -- The native quest bang is baked into the rounded-border image.
+    -- A small standalone ! preserves the quest-start indicator without
+    -- bringing that incompatible border back.
+    if startsQuest and not button.KamiQuestBang then
+        local bang = button:CreateFontString(
+            nil, "OVERLAY", "GameFontNormalLarge"
+        )
+        bang:SetFont(
+            "Fonts\\FRIZQT__.TTF",
+            math.max(15, math.floor(button:GetWidth() * 0.55)),
+            "OUTLINE"
+        )
+        bang:SetPoint("BOTTOMLEFT", button, "BOTTOMLEFT", 3, 3)
+        bang:SetTextColor(1, 0.88, 0.05)
+        bang:SetShadowColor(0, 0, 0, 1)
+        bang:SetShadowOffset(1, -1)
+        bang:SetText("!")
+        button.KamiQuestBang = bang
+    end
+
+    if button.KamiQuestBang then
+        button.KamiQuestBang:SetShown(startsQuest)
     end
 end
 
@@ -472,6 +506,8 @@ function Components:StyleItemSlot(button, options)
     end
 
     if options.rarityGlow ~= false then
+        button.KamiGlowSize = size
+        button.KamiGlowIconInset = iconInset
         button.KamiRarityGlow = CreateRarityGlow(
             button,
             size,
