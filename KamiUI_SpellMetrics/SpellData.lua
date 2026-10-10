@@ -849,18 +849,36 @@ UI:RegisterCommand(
             return
         end
 
+        -- Print before touching Blizzard's tooltip APIs: a failed
+        -- scan used to abort the command without showing any output.
+        UI:Print("Spell Metrics debug:", spellID)
         Module:InvalidateCache()
 
-        local texts = Module:GetSpellTooltipTexts(spellID)
+        local readOK, texts = pcall(
+            Module.GetSpellTooltipTexts, Module, spellID
+        )
 
-        UI:Print("Spell Metrics tooltip:", spellID)
+        if not readOK then
+            UI:Print("Tooltip scan error:", tostring(texts))
+            return
+        end
+
+        if not texts then
+            UI:Print("No spell tooltip data returned.")
+        end
 
         for index, text in ipairs(texts or {}) do
             UI:Print(index .. ":", text)
         end
 
-        local analysis, reason =
-            Module:GetSpellAnalysis(spellID)
+        local analysisOK, analysis, reason = pcall(
+            Module.GetSpellAnalysis, Module, spellID
+        )
+
+        if not analysisOK then
+            UI:Print("Analysis error:", tostring(analysis))
+            return
+        end
 
         if not analysis then
             UI:Print("Unsupported:", reason or "unknown")
