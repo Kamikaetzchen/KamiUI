@@ -1548,6 +1548,15 @@ function OnEvent(frame, event, arg1, ...)
 		end
 	elseif event == "SPELL_UPDATE_COOLDOWN" then
 		local tooltipOwner = GameTooltip_GetOwnerForbidden()
+		-- Forever can send the GCD update as SPELL_UPDATE_COOLDOWN
+		-- without an ACTIONBAR_UPDATE_COOLDOWN notification. Refresh
+		-- action slots here too, not just spell/item-type buttons.
+		for button in next, ActionButtons do
+			UpdateCooldown(button)
+			if tooltipOwner == button then
+				UpdateTooltip(button)
+			end
+		end
 		for button in next, NonActionButtons do
 			UpdateCooldown(button)
 			if tooltipOwner == button then
