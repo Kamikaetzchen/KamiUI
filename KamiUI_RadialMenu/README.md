@@ -23,11 +23,12 @@ SecureHandlerClickTemplate regardless of combat status. No polling, no
 press-and-hold behavior, and no state driver are used.
 
 Both menus use permanent, screen-relative positions (the same during
-and outside combat): Q is 200 screen pixels inward from the left-quarter
-position and E is 200 pixels inward from the right-quarter position.
-Both remain at 58% of the screen height. UI scale is accounted for;
-display/scale changes are repositioned outside combat or deferred until
-combat ends. Item actions remain secure in both modes.
+and outside combat): Q at 35% and E at 65% of the screen width.
+Both remain at 58% of the screen height. Display/scale changes are
+repositioned outside combat or deferred until combat ends. Item actions
+remain secure in both modes. There is no automatic timeout; close the
+menu with Q/E, by selecting an item, or by clicking unused space in
+the main wheel.
 
 The smaller main wheel and central Q/E disc leave more room around the
 menu. Variant wheels extend outward in the exact direction of their parent
