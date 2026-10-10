@@ -190,6 +190,11 @@ local function GetGCDState()
                 and type(seconds) == "number" and seconds > 0
         end
     end
+    -- Older Forever builds may return a duration object without the
+    -- newer isActive flag. Let the cooldown widget handle zero durations.
+    if active == nil then
+        active = durationObject ~= nil
+    end
     return active, durationObject, start, seconds
 end
 
