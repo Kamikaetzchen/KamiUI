@@ -186,6 +186,11 @@ local function StyleButton(button, size)
 
     StyleIcon(button)
     StyleCooldown(button.cooldown, button)
+    -- Preserve the clock-like GCD / spell cooldown animation.
+    if button.cooldown then
+        button.cooldown:SetDrawSwipe(true)
+        button.cooldown:SetSwipeColor(0, 0, 0, 0.65)
+    end
     StyleCooldown(button.lossOfControlCooldown, button)
     StyleCooldown(button.chargeCooldown, button)
 end
@@ -195,7 +200,10 @@ local function NewLABConfig(binding)
         showGrid = false,
         tooltip = "enabled",
         flyoutDirection = "UP",
-        actionButtonUI = false,
+        -- These buttons always represent real action slots, including
+        -- paged druid/rogue/warrior bars. Register them with Blizzard so
+        -- the native cooldown/GCD swipe is driven for every visible action.
+        actionButtonUI = true,
         spellCastVFX = false,
         cooldownCount = true,
         keyBoundTarget = binding,
