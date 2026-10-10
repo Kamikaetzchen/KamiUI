@@ -1994,10 +1994,27 @@ local function GetReagentSearchName(itemID)
     return name
 end
 
+local function SearchNameMatches(name, search)
+    if type(name) ~= "string" then return false end
+
+    local lowerName = string.lower(name)
+    if string.find(lowerName, search, 1, true) then
+        return true
+    end
+
+    -- Also accept searches like "Mage Royal" for "Mageroyal".
+    local compactSearch = string.gsub(search, "%s+", "")
+    return compactSearch ~= "" and compactSearch ~= search
+        and string.find(
+            string.gsub(lowerName, "%s+", ""),
+            compactSearch, 1, true
+        ) ~= nil
+end
+
 local function RecipeMatchesSearch(recipeID, name, reagentIDs, search, live)
     if search == "" then return true end
 
-    if name and string.find(string.lower(name), search, 1, true) then
+    if SearchNameMatches(name, search) then
         return true
     end
 
@@ -2007,9 +2024,7 @@ local function RecipeMatchesSearch(recipeID, name, reagentIDs, search, live)
 
     for _, itemID in ipairs(reagentIDs or {}) do
         local reagentName = GetReagentSearchName(itemID)
-        if reagentName and string.find(
-            string.lower(reagentName), search, 1, true
-        ) then
+        if SearchNameMatches(reagentName, search) then
             return true
         end
     end
