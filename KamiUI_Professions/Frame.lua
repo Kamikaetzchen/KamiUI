@@ -156,6 +156,9 @@ local function GetCachedRecipes(profession)
             icon = type(recipe) == "table"
                 and recipe.icon
                 or nil,
+            reagents = type(recipe) == "table"
+                and recipe.reagents
+                or nil,
         }
     end
 
@@ -1213,7 +1216,7 @@ local function CreateCraftingPage(frame)
         or search:CreateFontString(nil, "OVERLAY")
     Styles:ApplyText(search.Instructions, 9, Palette.muted)
     search.Instructions:SetPoint("LEFT", search, "LEFT", 7, 0)
-    search.Instructions:SetText("Search recipes")
+    search.Instructions:SetText("Search recipes or reagents")
     search:SetScript("OnTextChanged", function(self)
         if self.Instructions then
             self.Instructions:SetShown(self:GetText() == "")
@@ -1966,6 +1969,54 @@ function Module:RefreshOverview()
     end
 end
 
+-- Only recipe ingredient IDs need to be stored. Resolve item names from
+-- the client's item cache so searches work in any client language without
+-- maintaining a separate ingredient database.
+local requestedReagentInfo = {}
+
+local function GetReagentSearchName(itemID)
+    if not itemID then return nil end
+
+    local name
+    if C_Item and C_Item.GetItemNameByID then
+        name = UI:SafeCall(C_Item.GetItemNameByID, itemID)
+    end
+    if not name and GetItemInfo then
+        name = GetItemInfo(itemID)
+    end
+
+    if not name and C_Item and C_Item.RequestLoadItemDataByID
+        and not requestedReagentInfo[itemID] then
+        requestedReagentInfo[itemID] = true
+        UI:SafeCall(C_Item.RequestLoadItemDataByID, itemID)
+    end
+
+    return name
+end
+
+local function RecipeMatchesSearch(recipeID, name, reagentIDs, search, live)
+    if search == "" then return true end
+
+    if name and string.find(string.lower(name), search, 1, true) then
+        return true
+    end
+
+    if not reagentIDs and live and Module.GetRecipeReagentIDs then
+        reagentIDs = Module:GetRecipeReagentIDs(recipeID)
+    end
+
+    for _, itemID in ipairs(reagentIDs or {}) do
+        local reagentName = GetReagentSearchName(itemID)
+        if reagentName and string.find(
+            string.lower(reagentName), search, 1, true
+        ) then
+            return true
+        end
+    end
+
+    return false
+end
+
 local function BuildLiveRecipeEntries(frame)
     local entries = {}
     local search = string.lower(
@@ -1999,13 +2050,9 @@ local function BuildLiveRecipeEntries(frame)
             and not seenRecipes[resolvedID]
         then
             local name = info.name or ("Recipe " .. resolvedID)
-            local matches = search == ""
-                or string.find(
-                    string.lower(name),
-                    search,
-                    1,
-                    true
-                )
+            local matches = RecipeMatchesSearch(
+                resolvedID, name, nil, search, true
+            )
 
             if matches then
                 seenRecipes[resolvedID] = true
@@ -2085,14 +2132,9 @@ local function BuildCachedRecipeEntries(profession, searchText)
     local search = string.lower(searchText or "")
 
     for _, recipe in ipairs(GetCachedRecipes(profession)) do
-        if search == ""
-            or string.find(
-                string.lower(recipe.name or ""),
-                search,
-                1,
-                true
-            )
-        then
+        if RecipeMatchesSearch(
+            recipe.recipeID, recipe.name, recipe.reagents, search, false
+        ) then
             entries[#entries + 1] = {
                 kind = "recipe",
                 recipeID = recipe.recipeID,
@@ -2964,6 +3006,27 @@ function Module:InitializeFrame()
         if Module.frame and Module.frame:IsShown() then
             Module:RefreshFrame()
         end
+    end)
+
+    -- Re-check text search when an uncached reagent name finishes loading.
+    -- Coalesce simultaneous item loads into a single list rebuild.
+    UI:RegisterEvent("GET_ITEM_INFO_RECEIVED", function()
+        local frame = Module.frame
+        if not frame or not frame:IsShown()
+            or not frame.craftingPage:IsShown()
+            or not frame.searchBox
+            or frame.searchBox:GetText() == ""
+            or Module.reagentSearchRefreshPending then
+            return
+        end
+
+        Module.reagentSearchRefreshPending = true
+        C_Timer.After(0, function()
+            Module.reagentSearchRefreshPending = nil
+            if Module.frame and Module.frame:IsShown() then
+                Module:RefreshRecipeList()
+            end
+        end)
     end)
 
     for _, event in ipairs({
