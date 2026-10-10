@@ -549,14 +549,14 @@ local function GetAddonName(index)
     return type(info) == "table" and info.name or info
 end
 
-local function GetKamiUIMemory()
+local function GetKamiUIMemory(alreadyUpdated)
     if not GetAddOnMemoryUsage then
         return nil
     end
 
-    -- Blizzard refreshes this cache when building the native tooltip;
-    -- doing it here also supports clients without that tooltip function.
-    if UpdateAddOnMemoryUsage then
+    -- The native performance tooltip already refreshed the cache. Avoid
+    -- making an additional, potentially expensive full addon memory scan.
+    if not alreadyUpdated and UpdateAddOnMemoryUsage then
         UI:SafeCall(UpdateAddOnMemoryUsage)
     end
 
@@ -604,6 +604,7 @@ local function ShowLatencyTooltip(owner)
         owner.tooltipText = "Performance"
         owner.newbieText = nil
         shown = pcall(MainMenuBarPerformanceBarFrame_OnEnter, owner)
+            and GameTooltip:IsOwned(owner)
     end
 
     if not shown then
@@ -631,7 +632,7 @@ local function ShowLatencyTooltip(owner)
         end
     end
 
-    local total, modules = GetKamiUIMemory()
+    local total, modules = GetKamiUIMemory(shown)
     if total and #modules > 0 then
         GameTooltip:AddLine(" ")
         GameTooltip:AddDoubleLine(
