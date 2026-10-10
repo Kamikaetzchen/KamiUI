@@ -185,6 +185,15 @@ function RestedXP:SetManualLegacyRank(rank)
     self:CaptureCurrent()
 end
 
+-- The Legacy talent extends the normal 150%-of-level-XP cap by four
+-- percentage points per purchased rank (154% at 1/5, 170% at 5/5).
+-- Keep unknown ranks distinct from 0/5: their true cap is not known.
+function RestedXP:GetCapPercent(rank)
+    local validRank = ClampRank(rank)
+    if validRank == nil then return nil end
+    return BASE_CAP_PERCENT + validRank * LEGACY_BONUS_PER_RANK
+end
+
 function RestedXP:GetCurrentPercent()
     local percent, maxLevel = GetCurrentValues()
     return percent, maxLevel
@@ -251,8 +260,7 @@ local function GetEstimatedPercent(snapshot, isCurrent)
     -- The per-rank 4% cap increase is treated as four percentage points,
     -- making a rank-5 character's projection limit 170%. The game's
     -- exact additive-vs-multiplicative cap semantics are unverified.
-    local cap = BASE_CAP_PERCENT
-        + (rank or 0) * LEGACY_BONUS_PER_RANK
+    local cap = RestedXP:GetCapPercent(rank) or BASE_CAP_PERCENT
 
     -- Never suppress an actual observed value above the estimate cap.
     local percent = math.max(0, restedXP / maxXP * 100)

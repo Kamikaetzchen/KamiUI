@@ -298,17 +298,47 @@ local function ShowDurabilityTooltip(owner)
     GameTooltip:Show()
 end
 
-local function GetRestedColor(percent)
-    if percent > 150 then
-        return 1.00, 0.35, 0.35
-    elseif percent >= 100 then
-        return 1.00, 0.85, 0.15
+-- A linear five-stop gradient using the shared WoW difficulty palette:
+-- 0% gray, 25% green, 50% yellow, 75% orange, 100% red.
+-- Scale each stop to the character's Well Rested-adjusted XP cap.
+local RESTED_COLOR_STOPS = {
+    Palette:GetDifficultyColor("trivial"),
+    Palette:GetDifficultyColor("easy"),
+    Palette:GetDifficultyColor("normal"),
+    Palette:GetDifficultyColor("hard"),
+    Palette:GetDifficultyColor("veryHard"),
+}
+
+local function GetRestedColor(percent, rank)
+    local cap = RestedXP:GetCapPercent(rank)
+    -- With an unknown talent rank there is no confirmed maximum, so
+    -- project across the highest expected cap but never claim full red.
+    local scaleCap = cap or 170
+    local progress = math.max(0, math.min(1, percent / scaleCap))
+    if not cap then progress = math.min(progress, 0.999) end
+
+    local pos = progress * (#RESTED_COLOR_STOPS - 1)
+    local index = math.min(#RESTED_COLOR_STOPS - 1,
+        math.floor(pos) + 1)
+    local fraction = pos - (index - 1)
+    local first = RESTED_COLOR_STOPS[index]
+    local second = RESTED_COLOR_STOPS[index + 1]
+
+    local function channel(color, number, field)
+        return color[field] or color[number]
     end
-    return 0.35, 0.95, 0.45
+
+    local function mix(number, field)
+        local a = channel(first, number, field)
+        local b = channel(second, number, field)
+        return a + (b - a) * fraction
+    end
+
+    return mix(1, "r"), mix(2, "g"), mix(3, "b")
 end
 
-local function FormatRestedPercent(percent)
-    local r, g, b = GetRestedColor(percent)
+local function FormatRestedPercent(percent, rank)
+    local r, g, b = GetRestedColor(percent, rank)
     return string.format("|cff%02x%02x%02x%.1f%%|r",
         math.floor(r * 255 + 0.5),
         math.floor(g * 255 + 0.5),
@@ -336,7 +366,7 @@ local function ShowRestedTooltip(owner)
                 and entry.restingOnLogout == false
             value = string.format("%s%.1f%%",
                 outsideRestingArea and "*" or "", entry.percent)
-            vr, vg, vb = GetRestedColor(entry.percent)
+            vr, vg, vb = GetRestedColor(entry.percent, entry.legacyRank)
         else
             value = "N/A"
         end
@@ -746,7 +776,8 @@ function Module:Refresh()
     elseif restedPercent then
         self.texts.rested:SetText(string.format(
             "|TInterface\\Icons\\Spell_Nature_Sleep:13:13:0:2|t %s",
-            FormatRestedPercent(restedPercent)
+            FormatRestedPercent(restedPercent,
+                RestedXP:GetCurrentLegacyRank())
         ))
     else
         self.texts.rested:SetText(
