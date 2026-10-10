@@ -2210,7 +2210,9 @@ if Feat_CooldownDurationObject then
 			cooldown:Clear()
 			return
 		end
-		cooldown:SetCooldownFromDurationObject(durationObject)
+		-- Let the engine handle inactive / zero-length durations, including
+		-- GCD state, without comparing restricted cooldown timestamps.
+		cooldown:SetCooldownFromDurationObject(durationObject, true)
 	end
 
 	function UpdateCooldown(self)
@@ -2221,7 +2223,10 @@ if Feat_CooldownDurationObject then
 		local locShouldReplaceCooldown = locInfo.shouldReplaceNormalCooldown and self.config.lossOfControlCooldown
 		local showLoC = locInfo.isActive and self.config.lossOfControlCooldown
 		local showCharge = not locShouldReplaceCooldown and chargeInfo.isActive
-		local showNormal = not locShouldReplaceCooldown and cooldownInfo.isActive
+		-- GCD duration objects can be active even when the action's
+		-- normal cooldownInfo.isActive is false. The duration object is
+		-- authoritative; otherwise the engine's GCD swipe gets cleared.
+		local showNormal = not locShouldReplaceCooldown
 
 		SetOrClearCooldown(self.cooldown, showNormal, self:GetCooldownDuration())
 		SetOrClearCooldown(self.chargeCooldown, showCharge, self:GetChargeDuration())
