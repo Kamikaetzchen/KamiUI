@@ -856,6 +856,55 @@ local UpdateStatsPane
 local statProxies = {}
 local reportedStatErrors = {}
 
+-- Blizzard's MOVESPEED stat installs MovementSpeed_OnUpdate on its frame.
+-- That handler performs arithmetic on values which become secret in combat,
+-- and cannot run in an addon-created (tainted) stat proxy.
+-- Keep this one row independent from CharacterStatFrameTemplate.
+local function UpdateMovementSpeedRow(row, isCurrent)
+    row.label:SetText(_G.STAT_MOVEMENT_SPEED or "Movement Speed")
+
+    if not isCurrent or not GetUnitSpeed then
+        row.value:SetText("-")
+        return
+    end
+
+    local currentSpeed, runSpeed = GetUnitSpeed("player")
+    local speed
+
+    if UI:CanAccessValue(runSpeed) and type(runSpeed) == "number" then
+        speed = runSpeed
+    elseif UI:CanAccessValue(currentSpeed)
+        and type(currentSpeed) == "number"
+    then
+        speed = currentSpeed
+    end
+
+    local baseSpeed = BASE_MOVEMENT_SPEED or 7
+    if speed and baseSpeed > 0 then
+        row.value:SetText(string.format("%.0f%%", speed / baseSpeed * 100))
+    else
+        -- No arithmetic on combat-secret values.
+        row.value:SetText("-")
+    end
+end
+
+local function RefreshMovementSpeedRow()
+    local pane = Module.frame
+        and Module.frame.sidebar
+        and Module.frame.sidebar.statsPane
+    if not pane or not pane.rowWidgets then
+        return
+    end
+
+    local _, _, isCurrent = Module:GetViewedCharacter()
+    for _, row in pairs(pane.rowWidgets) do
+        if row.statData and row.statData.statKey == "MOVESPEED" then
+            UpdateMovementSpeedRow(row, isCurrent)
+            return
+        end
+    end
+end
+
 local function ReportNativeStatError(key, reason)
     if reportedStatErrors[key] then
         return
@@ -1088,6 +1137,11 @@ UpdateStatsPane = function(frame)
     pane:RenderStatLayout(GetNativeStatLayout(), function(row, data)
         row.statData = data
 
+        if data.statKey == "MOVESPEED" then
+            UpdateMovementSpeedRow(row, isCurrent)
+            return true
+        end
+
         local proxy, reason = GetStatProxy(row)
 
         if not proxy then
@@ -1165,6 +1219,17 @@ ShowStatTooltip = function(row)
     local _, _, isCurrent = Module:GetViewedCharacter()
 
     if not isCurrent then
+        return
+    end
+
+    if data.statKey == "MOVESPEED" then
+        GameTooltip:SetOwner(row, "ANCHOR_CURSOR_RIGHT")
+        GameTooltip:SetText(_G.STAT_MOVEMENT_SPEED or "Movement Speed")
+        GameTooltip:AddLine(
+            "Relative to base running speed (100%).",
+            0.7, 0.7, 0.7, true
+        )
+        GameTooltip:Show()
         return
     end
 
@@ -4157,6 +4222,16 @@ function Module:Initialize()
     UI:RegisterEvent("PLAYER_LEVEL_UP", function()
         Module:Refresh()
     end)
+
+    -- Update only the movement-speed row on speed / combat transitions.
+    -- Do not refresh every native stat when speed changes.
+    UI:RegisterEvent("UNIT_SPEED", function(_, unit)
+        if unit == "player" then
+            RefreshMovementSpeedRow()
+        end
+    end)
+    UI:RegisterEvent("PLAYER_REGEN_DISABLED", RefreshMovementSpeedRow)
+    UI:RegisterEvent("PLAYER_REGEN_ENABLED", RefreshMovementSpeedRow)
 
     UI:RegisterEvent("KNOWN_TITLES_UPDATE", function()
         Module:Refresh()
