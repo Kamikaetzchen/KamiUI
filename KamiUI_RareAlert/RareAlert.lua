@@ -14,14 +14,26 @@ local seenGUIDs = {}
 local queued = {}
 local alertFrame
 
+local function PositionAlert(frame)
+    -- Anchor the top of the banner at 10% of the UI height.
+    -- Recalculate when the UI dimensions or scale change.
+    local height = UIParent:GetHeight() or 0
+    frame:ClearAllPoints()
+    frame:SetPoint("TOP", UIParent, "TOP", 0, -height * 0.10)
+end
+
 local function CreateAlertFrame()
     local frame = CreateFrame("Frame", "KamiUIRareAlertFrame",
         UIParent, "BackdropTemplate")
     frame:SetSize(390, 74)
-    frame:SetPoint("CENTER", UIParent, "CENTER", 0, 150)
+    PositionAlert(frame)
+    UIParent:HookScript("OnSizeChanged", function()
+        PositionAlert(frame)
+    end)
     frame:SetFrameStrata("DIALOG")
     frame:EnableMouse(false)
-    Styles:ApplyBackdrop(frame, {0, 0, 0, 0.88}, Palette.windowBorder.neutral)
+    Styles:ApplyBackdrop(frame, {0, 0, 0, 0.15},
+        {0.18, 0.18, 0.18, 0.20})
 
     local heading = frame:CreateFontString(nil, "OVERLAY")
     heading:SetPoint("TOP", frame, "TOP", 0, -10)
