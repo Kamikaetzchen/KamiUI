@@ -991,6 +991,8 @@ local primaryStatTokens = {
 }
 
 local paperDollStatKeys = {
+    health = { "HEALTH" },
+    power = { "POWER" },
     strength = { "STRENGTH", "BASE_STATS1" },
     agility = { "AGILITY", "BASE_STATS2" },
     stamina = { "STAMINA", "BASE_STATS3" },
