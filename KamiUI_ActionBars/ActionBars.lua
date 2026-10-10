@@ -206,6 +206,7 @@ local function ReadGCDCooldown(info, durationObject)
 end
 
 local lastCastSpellID
+local gcdSlotProbe = {}
 
 local function GetGCDState()
     -- Blizzard's GCD dummy spell 61304 returns nil on this Forever build.
@@ -228,18 +229,38 @@ local function GetGCDState()
     -- A real action's cooldown includes the GCD by default. Prefer the
     -- engine-provided DurationObject, so secret timestamps are never used
     -- for addon-side arithmetic.
+    gcdSlotProbe = {
+        slots = 0,
+        info = 0,
+        active = 0,
+        onGCD = 0,
+        objects = 0,
+    }
     if C_ActionBar and C_ActionBar.GetActionCooldown then
         for _, bar in pairs(Module.bars) do
             for _, button in ipairs(bar.buttons) do
                 local slot = button._state_action
                 if type(slot) == "number" and UI:CanAccessValue(slot)
-                    and slot > 0 and button:HasAction()
+                    and slot > 0
                 then
+                    gcdSlotProbe.slots = gcdSlotProbe.slots + 1
                     local info = C_ActionBar.GetActionCooldown(slot)
                     local durationObject
-                    if info and C_ActionBar.GetActionCooldownDuration then
-                        durationObject =
-                            C_ActionBar.GetActionCooldownDuration(slot)
+                    if info then
+                        gcdSlotProbe.info = gcdSlotProbe.info + 1
+                        if info.isActive == true then
+                            gcdSlotProbe.active = gcdSlotProbe.active + 1
+                        end
+                        if info.isOnGCD == true then
+                            gcdSlotProbe.onGCD = gcdSlotProbe.onGCD + 1
+                        end
+                        if C_ActionBar.GetActionCooldownDuration then
+                            durationObject =
+                                C_ActionBar.GetActionCooldownDuration(slot)
+                            if durationObject then
+                                gcdSlotProbe.objects = gcdSlotProbe.objects + 1
+                            end
+                        end
                     end
                     local active, object, start, seconds =
                         ReadGCDCooldown(info, durationObject)
@@ -280,6 +301,10 @@ local function SampleGCD(source, active, durationObject, start, seconds, hasInfo
         hasInfo = hasInfo,
         hasDuration = durationObject ~= nil,
         provider = provider,
+        slotInfo = gcdSlotProbe.info or 0,
+        slotActive = gcdSlotProbe.active or 0,
+        slotGCD = gcdSlotProbe.onGCD or 0,
+        slotObjects = gcdSlotProbe.objects or 0,
         start = start,
         seconds = seconds,
     }
@@ -359,6 +384,13 @@ local function PrintGCDStatus()
         "action", gcdEventCounts.ACTIONBAR_UPDATE_COOLDOWN or 0,
         "cast", gcdEventCounts.CAST or 0
     )
+    UI:Print(
+        "GCD action probe: slots", gcdSlotProbe.slots or 0,
+        "cooldown info", gcdSlotProbe.info or 0,
+        "active", gcdSlotProbe.active or 0,
+        "on GCD", gcdSlotProbe.onGCD or 0,
+        "objects", gcdSlotProbe.objects or 0
+    )
     if lastActiveGCD then
         UI:Print(
             "Last active GCD", string.format("%.1fs ago", GetTime() - lastActiveGCD.when),
@@ -376,6 +408,7 @@ local function PrintGCDStatus()
             "active", tostring(sample.active),
             "provider", tostring(sample.provider),
             "info", tostring(sample.hasInfo),
+            "slots:", sample.slotInfo, sample.slotGCD, sample.slotObjects,
             "object", sample.hasDuration and "yes" or "no",
             "seconds", sample.seconds and tostring(sample.seconds) or "-"
         )
