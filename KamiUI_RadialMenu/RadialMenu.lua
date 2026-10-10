@@ -8,12 +8,12 @@ local MAX_VISIBLE = 16
 
 local CONFIG = {
     Q = {
-        {"hearthstone", "Hearthstone", "INV_Misc_Rune_01"},
-        {"mount", "Mounts", "Ability_Mount_RidingHorse"},
         {"food", "Food", "INV_Misc_Food_15"},
         {"drink", "Drink", "INV_Drink_07"},
         {"bufffood", "Buff Food", "INV_Misc_Food_64"},
         {"elixir", "Elixirs", "INV_Potion_20"},
+        {"hearthstone", "Hearthstone", "INV_Misc_Rune_01"},
+        {"mount", "Mounts", "Ability_Mount_RidingHorse"},
     },
     E = {
         {"health", "Healing Potions", "INV_Potion_54"},
