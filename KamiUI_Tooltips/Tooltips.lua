@@ -11,6 +11,7 @@ local INSPECT_THROTTLE_SECONDS = 1.5
 local INSPECT_TIMEOUT_SECONDS = 5
 local INSPECT_READY_RETRY_SECONDS = 0.05
 local INSPECT_READY_RETRY_COUNT = 20
+local EXTERNAL_INSPECT_GRACE_SECONDS = 5
 
 local GUILD_RANK_COLOR = Palette.gold
 
@@ -79,6 +80,11 @@ local specCache = {}
 local pendingInspect
 local queuedInspect
 local lastInspectRequest = 0
+local externalInspectUntil = 0
+
+-- Blizzard's View Talents and tooltip specialization inspection share
+-- the same INSPECT_TRAIT_CONFIG_ID. A manual inspect must take priority
+-- over our background tooltip requests.
 
 local function GetClassInfo(unit)
     local className, classFile, classID = UnitClass(unit)
@@ -599,6 +605,25 @@ local function NormalizeSpecText(specText, unit)
         return label .. " " .. className
     end
 
+    if classLabels then
+        -- Our cached shortened labels (e.g. "Ele Shaman") must remain
+        -- valid when NormalizeSpecText is called a second time.
+        for _, abbreviation in pairs(classLabels) do
+            if string.lower(abbreviation) == specName then
+                return abbreviation .. " " .. className
+            end
+        end
+
+        -- A stale shared inspect config can otherwise turn a priest's
+        -- "Discipline" talent data into "Discipline Shaman". Keep
+        -- unfamiliar spec names, but reject known talents of other classes.
+        for otherClass, otherLabels in pairs(SPEC_LABELS) do
+            if otherClass ~= classFile and otherLabels[specName] then
+                return nil
+            end
+        end
+    end
+
     return specText
 end
 
@@ -689,6 +714,7 @@ local function CanRequestInspect(unit)
     if not IsValidPlayerUnit(unit)
         or UnitIsUnit(unit, "player")
         or IsBlizzardInspectActive()
+        or (GetTime and GetTime() or 0) < externalInspectUntil
         or not NotifyInspect
         or not CanInspect
     then
@@ -723,7 +749,11 @@ local function StartSpecInspect(unit, guid)
     pendingInspect = request
     lastInspectRequest = now
 
+    -- Mark our own request so the NotifyInspect observer below does not
+    -- mistake it for the player opening the native Inspect/Talents UI.
+    Module.sendingSpecInspect = true
     NotifyInspect(unit)
+    Module.sendingSpecInspect = nil
 
     if C_Timer and C_Timer.After then
         C_Timer.After(
@@ -743,6 +773,7 @@ local function StartSpecInspect(unit, guid)
 
                 if ClearInspectPlayer
                     and not IsBlizzardInspectActive()
+                    and (GetTime and GetTime() or 0) >= externalInspectUntil
                 then
                     ClearInspectPlayer()
                 end
@@ -1307,14 +1338,17 @@ local function GetMatchingInspectUnit(guid, preferredUnit)
 end
 
 local function FinishInspectRequest(request)
-    if request
-        and pendingInspect == request
-    then
-        pendingInspect = nil
+    -- Never clear Blizzard's inspection when INSPECT_READY belongs to its
+    -- native talents/inspect window or another add-on.
+    if not request or pendingInspect ~= request then
+        return
     end
+
+    pendingInspect = nil
 
     if ClearInspectPlayer
         and not IsBlizzardInspectActive()
+        and (GetTime and GetTime() or 0) >= externalInspectUntil
     then
         ClearInspectPlayer()
     end
@@ -1328,9 +1362,16 @@ local function ResolveInspectReady(
     local attempts = 0
 
     local function TryResolve()
-        if request
-            and pendingInspect ~= request
-        then
+        if request and pendingInspect ~= request then
+            return
+        end
+
+        -- Manual Inspect/View Talents opened while our async inspect was
+        -- pending: abandon our request without touching Blizzard's data.
+        if IsBlizzardInspectActive() then
+            if request and pendingInspect == request then
+                pendingInspect = nil
+            end
             return
         end
 
@@ -1411,35 +1452,44 @@ local function HandleInspectReady(guid)
         return
     end
 
-    local inspectUnit = GetBlizzardInspectUnit()
-    local inspectGuid = inspectUnit
-        and UnitGUID(inspectUnit)
-        or nil
+    -- INSPECT_READY is shared with Blizzard. Never process or clear an
+    -- inspect request that our tooltip code did not actually start.
     local request = pendingInspect
-    local requestMatches = request
-        and request.guid == guid
+    if not request or request.guid ~= guid then
+        return
+    end
 
-    if inspectGuid
-        and UI:CanAccessValue(inspectGuid)
-        and inspectGuid == guid
+    if IsBlizzardInspectActive() then
+        pendingInspect = nil
+        return
+    end
+
+    ResolveInspectReady(guid, request, request.unit)
+end
+
+local function InstallManualInspectPriority()
+    if Module.manualInspectPriorityInstalled
+        or not hooksecurefunc
+        or not NotifyInspect
     then
-        ResolveInspectReady(
-            guid,
-            requestMatches and request or nil,
-            inspectUnit
-        )
         return
     end
 
-    if not requestMatches then
-        return
-    end
+    Module.manualInspectPriorityInstalled = true
 
-    ResolveInspectReady(
-        guid,
-        request,
-        request.unit
-    )
+    -- Observational secure hook only; never call NotifyInspect again or
+    -- rewrite Blizzard's function. External/native requests supersede
+    -- outstanding tooltip probes, preventing stale class talent displays.
+    hooksecurefunc("NotifyInspect", function()
+        if Module.sendingSpecInspect then
+            return
+        end
+
+        queuedInspect = nil
+        pendingInspect = nil
+        externalInspectUntil = (GetTime and GetTime() or 0)
+            + EXTERNAL_INSPECT_GRACE_SECONDS
+    end)
 end
 
 local function InstallUnitTooltipHook()
@@ -1570,6 +1620,7 @@ function Module:Initialize()
     StyleKnownTooltips()
     InstallTooltipHideCleanup()
     InstallWorldCursorAnchor()
+    InstallManualInspectPriority()
     InstallStatusBarSuppression()
     InstallInstantUnitTooltipHide()
     InstallUnitTooltipHook()
@@ -1582,6 +1633,7 @@ function Module:Initialize()
         StyleKnownTooltips()
         InstallTooltipHideCleanup()
         InstallWorldCursorAnchor()
+        InstallManualInspectPriority()
         InstallStatusBarSuppression()
         InstallInstantUnitTooltipHide()
         InstallUnitTooltipHook()
