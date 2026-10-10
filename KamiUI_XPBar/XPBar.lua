@@ -234,6 +234,12 @@ local function ShowTooltip(frame)
         local restedXP = GetXPExhaustion and GetXPExhaustion() or 0
         restedXP = restedXP or 0
 
+        -- Cache the values actually displayed. While hovered, poll them
+        -- briefly because rested XP can tick without a tooltip refresh.
+        frame.tooltipCurrentXP = currentXP
+        frame.tooltipMaxXP = maxXP
+        frame.tooltipRestedXP = restedXP
+
         GameTooltip:AddLine("Experience", 1, 0.82, 0)
 
         local text = string.format(
@@ -337,11 +343,41 @@ local function CreateBar()
         UpdateDividers(self)
     end)
 
-    overlay:SetScript("OnEnter", function()
+    overlay:SetScript("OnEnter", function(self)
+        self.tooltipUpdateElapsed = 0
         ShowTooltip(frame)
+        self:SetScript("OnUpdate", function(hover, elapsed)
+            hover.tooltipUpdateElapsed = hover.tooltipUpdateElapsed + elapsed
+            if hover.tooltipUpdateElapsed < 0.5 then
+                return
+            end
+            hover.tooltipUpdateElapsed = 0
+
+            -- Only update our own visible tooltip, never another addon
+            -- or spell tooltip that might have replaced it.
+            if not GameTooltip:IsShown()
+                or GameTooltip:GetOwner() ~= frame
+                or not frame.hasExperience
+            then
+                return
+            end
+
+            local currentXP = UnitXP("player") or 0
+            local maxXP = UnitXPMax("player") or 0
+            local restedXP = GetXPExhaustion and GetXPExhaustion() or 0
+            restedXP = restedXP or 0
+
+            if currentXP ~= frame.tooltipCurrentXP
+                or maxXP ~= frame.tooltipMaxXP
+                or restedXP ~= frame.tooltipRestedXP
+            then
+                ShowTooltip(frame)
+            end
+        end)
     end)
 
-    overlay:SetScript("OnLeave", function()
+    overlay:SetScript("OnLeave", function(self)
+        self:SetScript("OnUpdate", nil)
         GameTooltip:Hide()
     end)
 
