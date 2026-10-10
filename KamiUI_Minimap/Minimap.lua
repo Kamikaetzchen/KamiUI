@@ -103,12 +103,30 @@ local function PositionHeaderIndicators()
 end
 
 local function HideRoundBlobRings()
+    -- The quest-area highlight is drawn by the minimap renderer, not as a
+    -- separate texture. On a square minimap its default ring is still
+    -- shaped for Blizzard's round mask, causing bright circular wedges.
+    -- Zero the ring width as well as its alpha; alpha alone does not
+    -- reliably suppress the artifact on Forever.
     if Minimap.SetQuestBlobRingAlpha then
         Minimap:SetQuestBlobRingAlpha(0)
+    end
+    if Minimap.SetQuestBlobRingScalar then
+        Minimap:SetQuestBlobRingScalar(0)
     end
 
     if Minimap.SetTaskBlobRingAlpha then
         Minimap:SetTaskBlobRingAlpha(0)
+    end
+    if Minimap.SetTaskBlobRingScalar then
+        Minimap:SetTaskBlobRingScalar(0)
+    end
+
+    if Minimap.SetArchBlobRingAlpha then
+        Minimap:SetArchBlobRingAlpha(0)
+    end
+    if Minimap.SetArchBlobRingScalar then
+        Minimap:SetArchBlobRingScalar(0)
     end
 end
 
@@ -151,17 +169,28 @@ function Module:Initialize()
     UI:RegisterEvent("CVAR_UPDATE", function(_, cvar)
         if cvar == "rotateMinimap" then
             HideBlizzardChrome()
+        elseif cvar == "minimapShowQuestBlobs" then
+            HideRoundBlobRings()
         end
     end)
 
     UI:RegisterEvent("PLAYER_DIFFICULTY_CHANGED", HideBlizzardChrome)
-    UI:RegisterEvent("ZONE_CHANGED_NEW_AREA", HideBlizzardChrome)
+    UI:RegisterEvent("ZONE_CHANGED_NEW_AREA", function()
+        HideBlizzardChrome()
+        HideRoundBlobRings()
+    end)
+
+    -- Quest tracking can rebuild native map blobs after our initial style.
+    -- Reapply only the ring settings so the useful quest-area fill remains.
+    UI:RegisterEvent("QUEST_LOG_UPDATE", HideRoundBlobRings)
+    UI:RegisterEvent("QUEST_WATCH_LIST_CHANGED", HideRoundBlobRings)
 
     UI:RegisterEvent("ADDON_LOADED", function(_, addonName)
         if addonName == "Blizzard_Minimap"
             or addonName == "Blizzard_TimeManager"
         then
             HideBlizzardChrome()
+            HideRoundBlobRings()
             PositionHeaderIndicators()
         end
     end)
