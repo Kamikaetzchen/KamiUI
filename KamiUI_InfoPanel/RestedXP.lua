@@ -316,6 +316,9 @@ function RestedXP:GetCharacterEntries()
             entry.percent, entry.estimated, entry.maxLevel,
                 entry.legacyRank =
                 GetEstimatedPercent(snapshot, entry.isCurrent)
+            -- This is the state captured on logout/last snapshot; do not
+            -- confuse it with whether the viewed character rests now.
+            entry.restingOnLogout = snapshot.resting
         end
     end
 

@@ -324,7 +324,8 @@ local function ShowRestedTooltip(owner)
     GameTooltip:AddLine(" ")
 
     local currentRealm = GetRealmName and GetRealmName() or ""
-    local hasEstimates = false
+    local hasOfflineValues = false
+    local hasOutsideRestingArea = false
 
     for _, entry in ipairs(RestedXP:GetCharacterEntries()) do
         local profile = entry.character or {}
@@ -339,10 +340,14 @@ local function ShowRestedTooltip(owner)
         if entry.maxLevel then
             value = "Max level"
         elseif entry.percent ~= nil then
-            value = string.format("%s%.1f%%",
-                entry.estimated and "~" or "", entry.percent)
+            local outsideRestingArea = not entry.isCurrent
+                and entry.restingOnLogout == false
+            value = string.format("%.1f%%%s",
+                entry.percent, outsideRestingArea and "*" or "")
             vr, vg, vb = GetRestedColor(entry.percent)
-            hasEstimates = hasEstimates or entry.estimated
+            hasOfflineValues = hasOfflineValues or entry.estimated
+            hasOutsideRestingArea =
+                hasOutsideRestingArea or outsideRestingArea
         else
             value = "N/A"
         end
@@ -365,10 +370,16 @@ local function ShowRestedTooltip(owner)
         )
     end
 
-    if hasEstimates then
+    if hasOfflineValues then
         GameTooltip:AddLine(" ")
+        if hasOutsideRestingArea then
+            GameTooltip:AddLine(
+                "* = logged out outside a resting area (slower rested XP gain).",
+                0.67, 0.69, 0.75, true
+            )
+        end
         GameTooltip:AddLine(
-            "~ = estimated offline gain (5% per 8h rested / 32h elsewhere).",
+            "Offline XP is estimated (5% per 8h rested / 32h elsewhere).",
             0.67, 0.69, 0.75, true
         )
         GameTooltip:AddLine(
