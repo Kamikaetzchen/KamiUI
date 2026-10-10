@@ -24,6 +24,15 @@ local CONFIG = {
     },
 }
 
+-- Tint only the circular outlines; icons and their backgrounds stay intact.
+-- Use the same colors for category buttons and their variant submenus.
+local BORDER_COLORS = {
+    health = {1, 0.25, 0.25},
+    food = {1, 0.25, 0.25},
+    mana = {0.25, 0.55, 1},
+    drink = {0.25, 0.55, 1},
+}
+
 local function Locked()
     return InCombatLockdown and InCombatLockdown()
 end
@@ -251,7 +260,7 @@ local function Action(button, entry)
     button.entry = entry
 end
 
-local function IconButton(button, size)
+local function IconButton(button, size, category)
     button:SetSize(size, size)
     button:RegisterForClicks("AnyUp", "AnyDown")
     -- Consumables should fire on mouse release, regardless of global
@@ -276,6 +285,10 @@ local function IconButton(button, size)
     local border = button:CreateTexture(nil, "OVERLAY")
     border:SetAllPoints()
     border:SetTexture(media .. "RadialOutline.tga")
+    local color = BORDER_COLORS[category]
+    if color then
+        border:SetVertexColor(color[1], color[2], color[3])
+    end
     local count = button:CreateFontString(nil, "OVERLAY", "NumberFontNormalSmall")
     count:SetPoint("BOTTOMRIGHT", -2, 3)
     local star = button:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
@@ -318,7 +331,7 @@ local function CreateVariantButton(root, submenu, category)
     item:SetFrameLevel(root:GetFrameLevel() + 5)
     item.categoryName = category[2]
     item.category = category[1]
-    IconButton(item, L.SUB_ICON_SIZE)
+    IconButton(item, L.SUB_ICON_SIZE, category[1])
     item:Hide()
 
     root:WrapScript(item, "OnClick", [[return nil, "clicked"]], [[
@@ -401,7 +414,7 @@ local function CreateWheel(key, categories)
         main:SetFrameLevel(root:GetFrameLevel() + 3)
         main:SetPoint("CENTER", root, "CENTER", x, y)
         main.categoryName = category[2]
-        IconButton(main, L.ICON_SIZE)
+        IconButton(main, L.ICON_SIZE, category[1])
         -- Wrapped snippets use 'control' for the secure root handler.
 
         local sub = CreateFrame("Frame", nil, root, "SecureHandlerBaseTemplate")
