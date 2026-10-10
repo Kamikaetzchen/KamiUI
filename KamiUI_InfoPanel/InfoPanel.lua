@@ -379,7 +379,10 @@ end
 local RESTED_TIME_WIDTH = 95
 local RESTED_PERCENT_WIDTH = 62
 local RESTED_COLUMN_GAP = 12
-local RESTED_COLUMN_SPACER = string.rep("W", 19)
+-- The native right-hand text is only a sizing placeholder. Keeping it
+-- short avoids a large empty gap after the character names; the separately
+-- anchored time and percent labels still retain their fixed alignment.
+local RESTED_COLUMN_SPACER = string.rep("W", 10)
 
 local function AddRestedTooltipRow(index, name, remaining, value,
     nr, ng, nb, vr, vg, vb, header)
