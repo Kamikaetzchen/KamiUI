@@ -997,18 +997,20 @@ local paperDollStatKeys = {
     intellect = { "INTELLECT", "BASE_STATS4" },
     spirit = { "SPIRIT", "BASE_STATS5" },
     moveSpeed = { "MOVESPEED", "MOVEMENT_SPEED" },
-    attackPower = { "MELEE_AP", "MELEE_ATTACK_POWER" },
+    -- Use the native Camelot/Forever stat keys first. The legacy aliases
+    -- remain as fallbacks for clients with an older PAPERDOLL_STATINFO.
+    attackPower = { "ATTACK_AP", "MELEE_AP", "MELEE_ATTACK_POWER" },
     crit = { "CRITCHANCE", "MELEE_CRIT" },
-    hit = { "HITCHANCE", "MELEE_HIT" },
-    armor = { "DEFENSES1", "ARMOR" },
-    dodge = { "DEFENSES3", "DODGE" },
-    parry = { "DEFENSES4", "PARRY" },
-    block = { "DEFENSES5", "BLOCK" },
-    fire = { "FIRE" },
-    nature = { "NATURE" },
-    frost = { "FROST" },
-    shadow = { "SHADOW" },
-    arcane = { "ARCANE" },
+    hit = { "HITCHANCE_MELEE", "HITCHANCE", "MELEE_HIT" },
+    armor = { "ARMOR", "DEFENSES1" },
+    dodge = { "DODGE", "DEFENSES3" },
+    parry = { "PARRY", "DEFENSES4" },
+    block = { "BLOCK", "DEFENSES5" },
+    fire = { "FIRE_RESIST", "FIRE" },
+    nature = { "NATURE_RESIST", "NATURE" },
+    frost = { "FROST_RESIST", "FROST" },
+    shadow = { "SHADOW_RESIST", "SHADOW" },
+    arcane = { "ARCANE_RESIST", "ARCANE" },
 }
 
 local resistanceIndices = {
@@ -1040,6 +1042,13 @@ local function GetStatProxy(key)
     text:SetPoint("LEFT")
     text:Hide()
 
+    -- Blizzard's PaperDollFrame_SetLabelAndText writes to statFrame.Value.
+    -- Without it, the native updater errors before it can format tooltip2;
+    -- the resulting fallback shows raw %.1f / %d placeholders.
+    proxy.Label = label
+    proxy.Value = text
+    proxy:EnableMouse(false)
+
     statProxies[key] = proxy
 
     return proxy
@@ -1053,6 +1062,7 @@ local function ResetStatProxy(proxy)
     proxy.tooltipSubtext = nil
     proxy.onEnterFunc = nil
     proxy.UpdateTooltip = nil
+    proxy.lineWrap = nil
 end
 
 local function TryPaperDollStatInfo(proxy, key)
@@ -1124,13 +1134,81 @@ local function UpdateBlizzardStatProxy(proxy, key)
     return false
 end
 
+local function HasUnresolvedStatFormat(text)
+    -- Do not leak WoW global localization format strings (e.g. %.1f, %d)
+    -- into our tooltip if the native stat updater is unavailable.
+    return type(text) == "string"
+        and text:find("%%[%d%.%$]*[cdeEfgGiouxXs]") ~= nil
+end
+
 local function AddBlizzardTooltipLine(text)
-    if type(text) == "string" and text ~= "" then
+    if type(text) == "string"
+        and text ~= ""
+        and UI:CanAccessValue(text)
+        and not HasUnresolvedStatFormat(text)
+    then
         GameTooltip:AddLine(text, 0.82, 0.82, 0.84, true)
         return true
     end
 
     return false
+end
+
+local function AddAttackPowerDPS()
+    -- UnitDamage includes the currently applied attack-power and damage
+    -- modifiers. This is theoretical auto-attack DPS, before armor,
+    -- avoidance and critical hits; it is not combat-log DPS.
+    if UnitDamage and UnitAttackSpeed then
+        local low, high, offLow, offHigh = UI:SafeCall(
+            UnitDamage, "player"
+        )
+        local mainSpeed, offSpeed = UI:SafeCall(
+            UnitAttackSpeed, "player"
+        )
+
+        if type(low) == "number"
+            and type(high) == "number"
+            and type(mainSpeed) == "number"
+            and mainSpeed > 0
+            and UI:CanAccessValue(low)
+            and UI:CanAccessValue(high)
+            and UI:CanAccessValue(mainSpeed)
+        then
+            local dps = (low + high) / (2 * mainSpeed)
+            GameTooltip:AddDoubleLine(
+                "White-hit DPS (main hand)",
+                string.format("%.1f", dps),
+                0.82, 0.82, 0.84,
+                1, 1, 1
+            )
+
+            if type(offLow) == "number"
+                and type(offHigh) == "number"
+                and type(offSpeed) == "number"
+                and offSpeed > 0
+                and offLow > 0
+                and offHigh > 0
+                and UI:CanAccessValue(offLow)
+                and UI:CanAccessValue(offHigh)
+                and UI:CanAccessValue(offSpeed)
+                and IsDualWielding
+                and UI:SafeCall(IsDualWielding) == true
+            then
+                GameTooltip:AddDoubleLine(
+                    "White-hit DPS (off hand)",
+                    string.format("%.1f", (offLow + offHigh) / (2 * offSpeed)),
+                    0.82, 0.82, 0.84,
+                    1, 1, 1
+                )
+            end
+
+            GameTooltip:AddLine(
+                "Before armor, misses and critical hits.",
+                0.58, 0.58, 0.61,
+                true
+            )
+        end
+    end
 end
 
 local function GetPrimaryStatFallback(key)
@@ -1178,12 +1256,48 @@ ShowStatTooltip = function(row)
     end
 
     local proxy = GetStatProxy(key)
+
+    -- Some native OnEnter handlers use SetOwner(self, "ANCHOR_RIGHT").
+    -- Put the invisible (non-mouse-interactive) proxy on the hovered row
+    -- instead of leaving it at the origin under a hidden parent.
+    proxy:SetParent(row)
+    proxy:ClearAllPoints()
+    proxy:SetAllPoints(row)
+    proxy:Show()
+
     local updated = UpdateBlizzardStatProxy(proxy, key)
     local tooltip = updated and proxy.tooltip
 
+    -- Blizzard calculates crit, hit, movement speed, etc. in their
+    -- onEnterFunc rather than exposing everything in tooltip2/3/4.
+    -- Reuse that implementation so we get the same meaningful figures.
+    if updated and type(proxy.onEnterFunc) == "function" then
+        local ok = pcall(proxy.onEnterFunc, proxy)
+
+        if ok and GameTooltip:IsShown() then
+            -- Native tooltip handlers anchor to the proxy; retain KamiUI's
+            -- cursor positioning without rebuilding their tooltip lines.
+            if GameTooltip.SetAnchorType and Styles.Tooltip then
+                GameTooltip:SetAnchorType(
+                    Styles.Tooltip.anchor, 14, 12
+                )
+            end
+
+            if key == "attackPower" then
+                AddAttackPowerDPS()
+                GameTooltip:Show()
+            end
+            return
+        end
+    end
+
     GameTooltip:SetOwner(row, "ANCHOR_CURSOR_RIGHT")
 
-    if type(tooltip) == "string" and tooltip ~= "" then
+    if type(tooltip) == "string"
+        and tooltip ~= ""
+        and UI:CanAccessValue(tooltip)
+        and not HasUnresolvedStatFormat(tooltip)
+    then
         GameTooltip:SetText(tooltip)
     else
         GameTooltip:SetText(
@@ -1191,12 +1305,6 @@ ShowStatTooltip = function(row)
             1.00,
             0.82,
             0.00
-        )
-        GameTooltip:AddDoubleLine(
-            "Current",
-            row.value:GetText() or "-",
-            0.72, 0.72, 0.75,
-            1.00, 1.00, 1.00
         )
     end
 
@@ -1215,6 +1323,10 @@ ShowStatTooltip = function(row)
 
     if not addedDetail then
         AddBlizzardTooltipLine(GetPrimaryStatFallback(key))
+    end
+
+    if key == "attackPower" then
+        AddAttackPowerDPS()
     end
 
     GameTooltip:Show()
