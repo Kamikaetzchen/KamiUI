@@ -868,6 +868,55 @@ local function StatsLocked()
     return InCombatLockdown and InCombatLockdown()
 end
 
+-- In group instances, UnitStat() can supply secret buff values even when
+-- InCombatLockdown() is false. Blizzard's native PaperDoll functions compare
+-- these values internally, which is forbidden in our addon-owned stat proxies.
+local function NativeStatValuesRestricted()
+    if StatsLocked() then return true end
+    if not UnitStat then return false end
+
+    for index = 1, 4 do
+        local ok, base, effective, positive, negative =
+            pcall(UnitStat, "player", index)
+        if not ok
+            or not UI:CanAccessValue(base)
+            or not UI:CanAccessValue(effective)
+            or not UI:CanAccessValue(positive)
+            or not UI:CanAccessValue(negative)
+        then
+            return true
+        end
+    end
+
+    return false
+end
+
+local function QueueNativeStatRefresh()
+    if Module.nativeStatRefreshScheduled
+        or not C_Timer or not C_Timer.After then
+        return
+    end
+
+    Module.nativeStatRefreshScheduled = true
+    C_Timer.After(1, function()
+        Module.nativeStatRefreshScheduled = false
+        if not Module.refreshPending
+            or not Module.frame or not Module.frame:IsShown() then
+            return
+        end
+        if NativeStatValuesRestricted() then
+            QueueNativeStatRefresh()
+        else
+            Module:Refresh()
+        end
+    end)
+end
+
+local function IsSecretStatError(message)
+    return type(message) == "string"
+        and string.find(string.lower(message), "secret", 1, true) ~= nil
+end
+
 -- Blizzard's MOVESPEED stat installs MovementSpeed_OnUpdate on its frame.
 -- That handler performs arithmetic on values which become secret in combat,
 -- and cannot run in an addon-created (tainted) stat proxy.
@@ -1001,16 +1050,20 @@ local function UpdateNativeStat(proxy, data)
         end
 
         local _base, effective = UnitResistance("player", data.damageClass)
-        if type(effective) ~= "number"
-            or not UI:CanAccessValue(effective)
-        then
+        if not UI:CanAccessValue(effective) then
+            return nil, "secret"
+        end
+        if type(effective) ~= "number" then
             return false, "UnitResistance unavailable"
         end
 
-        PaperDollFrame_SetResistanceTooltips(
+        local ok, err = pcall(PaperDollFrame_SetResistanceTooltips,
             proxy, data.resistanceLabel, effective,
-            "player", data.damageClass
-        )
+            "player", data.damageClass)
+        if not ok then
+            if IsSecretStatError(err) then return nil, "secret" end
+            error(err, 0)
+        end
 
         proxy.Label:SetText(data.resistanceLabel)
         proxy.Value:SetText(
@@ -1029,8 +1082,17 @@ local function UpdateNativeStat(proxy, data)
             .. "] unavailable"
     end
 
-    -- Keep Blizzard's original error and traceback intact.
-    local value = info.updateFunc(proxy, "player", data.nativeID)
+    -- A native provider may encounter a secret stat the preflight could not
+    -- observe (e.g. a combat rating). Defer only those cases; propagate
+    -- unrelated Blizzard errors rather than quietly masking them.
+    local ok, value = pcall(info.updateFunc,
+        proxy, "player", data.nativeID)
+    if not ok then
+        if IsSecretStatError(value) then
+            return nil, "secret"
+        end
+        error(value, 0)
+    end
     return true, value
 end
 
@@ -1170,10 +1232,11 @@ UpdateStatsPane = function(frame)
         return
     end
 
-    -- This path can also run when switching character tabs in combat.
-    -- Never invoke Blizzard's native stat providers during lockdown.
-    if StatsLocked() then
+    -- The native functions are unsafe whenever *their inputs* are secret,
+    -- not only when this character is in combat.
+    if NativeStatValuesRestricted() then
         Module.refreshPending = true
+        QueueNativeStatRefresh()
         return
     end
 
@@ -1217,7 +1280,11 @@ UpdateStatsPane = function(frame)
 
         local ok, value = UpdateNativeStat(proxy, data)
 
-        if not ok then
+        if ok == nil then
+            Module.refreshPending = true
+            QueueNativeStatRefresh()
+            return false
+        elseif not ok then
             ReportNativeStatError(data.statID, value)
             return false
         end
@@ -1282,8 +1349,9 @@ ShowStatTooltip = function(row)
         return
     end
 
-    -- Native OnEnter routines can also compare secret buff values.
-    if StatsLocked() then
+    -- Native OnEnter routines can also compare secret buff values, even
+    -- while outside the local player's combat lockdown.
+    if NativeStatValuesRestricted() then
         GameTooltip:Hide()
         return
     end
@@ -1318,7 +1386,12 @@ ShowStatTooltip = function(row)
 
     local ok, errorMessage = UpdateNativeStat(proxy, data)
 
-    if not ok then
+    if ok == nil then
+        Module.refreshPending = true
+        QueueNativeStatRefresh()
+        GameTooltip:Hide()
+        return
+    elseif not ok then
         ReportNativeStatError(data.statID, errorMessage)
         return
     end
@@ -1331,8 +1404,18 @@ ShowStatTooltip = function(row)
     end
 
     GameTooltip:Hide()
-    -- Native tooltip errors must also propagate to BugGrabber/BugSack.
-    proxy:OnEnter()
+    -- Blizzard's native hover code can itself compare secret values.
+    -- Suppress only secret-value failures, preserving other diagnostics.
+    local success, err = pcall(proxy.OnEnter, proxy)
+    if not success then
+        if IsSecretStatError(err) then
+            Module.refreshPending = true
+            QueueNativeStatRefresh()
+            GameTooltip:Hide()
+            return
+        end
+        error(err, 0)
+    end
 
     if not GameTooltip:IsShown()
         or (GameTooltip.GetOwner and GameTooltip:GetOwner() ~= proxy)
