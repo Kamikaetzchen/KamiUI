@@ -302,16 +302,16 @@ local function UpdateQuestItemDecoration(button, data)
     end
 
     -- The native quest bang is baked into the rounded-border image.
-    -- A small standalone ! preserves the quest-start indicator without
-    -- bringing that incompatible border back.
+    -- Draw a larger, heavier standalone ! so it remains visible on bright
+    -- item art without restoring Blizzard's rounded quest border.
     if startsQuest and not button.KamiQuestBang then
         local bang = button:CreateFontString(
             nil, "OVERLAY", "GameFontNormalLarge"
         )
         bang:SetFont(
             "Fonts\\FRIZQT__.TTF",
-            math.max(15, math.floor(button:GetWidth() * 0.55)),
-            "OUTLINE"
+            math.max(18, math.floor(button:GetWidth() * 0.70 + 0.5)),
+            "THICKOUTLINE"
         )
         bang:SetDrawLayer("OVERLAY", 5)
         bang:SetPoint("BOTTOMLEFT", button, "BOTTOMLEFT", 3, 3)
