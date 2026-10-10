@@ -745,6 +745,14 @@ end
 
 function Module:SetupBackends()
     self.backends.general = EnsureWindow(managedWindows.general)
+
+    -- Blizzard's print() and many add-ons write to DEFAULT_CHAT_FRAME,
+    -- which normally points at ChatFrame1. KamiUI hides ChatFrame1 and
+    -- shows a separate General window, so route debug/system output there.
+    if self.backends.general then
+        DEFAULT_CHAT_FRAME = self.backends.general
+    end
+
     self.backends.party = EnsureWindow(managedWindows.party)
     self.backends.guild = EnsureWindow(managedWindows.guild)
     self.backends.whisper = EnsureWindow(managedWindows.whisper)
