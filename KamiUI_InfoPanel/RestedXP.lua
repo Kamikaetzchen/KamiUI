@@ -201,6 +201,25 @@ function RestedXP:GetCurrentPercent()
     return percent, maxLevel
 end
 
+-- Seconds to the Well Rested-adjusted cap, based on the last known
+-- resting state. The same 5% / 8h (inn) or 32h (world) recovery
+-- rate and rank bonus are used for the offline XP projection.
+function RestedXP:GetTimeToCap(percent, rank, resting)
+    local validRank = ClampRank(rank)
+    if not SafeNumber(percent) or not validRank
+        or (resting ~= true and resting ~= false) then
+        return nil
+    end
+
+    local cap = self:GetCapPercent(validRank)
+    if percent >= cap then return 0 end
+
+    local rateSeconds = resting and INN_RATE_SECONDS or WORLD_RATE_SECONDS
+    local multiplier = 1 + validRank * LEGACY_BONUS_PER_RANK / 100
+    return (cap - math.max(0, percent))
+        / (RESTED_RATE_PERCENT * multiplier) * rateSeconds
+end
+
 function RestedXP:CaptureCurrent()
     local percent, maxLevel, maxXP, restedXP = GetCurrentValues()
     if percent == nil and not maxLevel then
@@ -328,6 +347,10 @@ function RestedXP:GetCharacterEntries()
             -- This is the state captured on logout/last snapshot; do not
             -- confuse it with whether the viewed character rests now.
             entry.restingOnLogout = snapshot.resting
+            if not entry.maxLevel then
+                entry.timeToCap = self:GetTimeToCap(
+                    entry.percent, entry.legacyRank, snapshot.resting)
+            end
         end
     end
 
