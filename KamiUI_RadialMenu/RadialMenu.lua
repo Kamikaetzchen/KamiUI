@@ -512,10 +512,8 @@ local function BindKeys()
     end
 end
 
--- Q/E remain screen-relative, with a fixed inward pixel offset from their
--- former quarter-screen positions. Convert physical pixels to UI coordinates
--- so the movement stays consistent under UI scaling.
--- Protected frames are never repositioned by insecure Lua in combat.
+-- Q/E sit at 35% and 65% of the screen width. Protected frames
+-- are never repositioned by insecure Lua in combat.
 function Module:PositionWheels()
     if Locked() then
         self.positionsPending = true
@@ -534,14 +532,9 @@ function Module:PositionWheels()
         + maxRadius + L.SUB_ICON_SIZE / 2
     local minX = math.min(maxExtent, width / 2)
     local minY = math.min(maxExtent, height / 2)
-    local scale = UIParent:GetEffectiveScale()
-    local inset = (L.SCREEN_INSET_PX or 0) / (scale and scale > 0 and scale or 1)
-
     for key, wheel in pairs(self.wheels) do
         local fractionX = key == "Q" and L.Q_SCREEN_X or L.E_SCREEN_X
-        local direction = key == "Q" and 1 or -1
-        local desiredX = width * fractionX + direction * inset
-        local x = math.max(minX, math.min(width - minX, desiredX))
+        local x = math.max(minX, math.min(width - minX, width * fractionX))
         local y = math.max(minY, math.min(height - minY,
             height * L.SCREEN_Y))
         wheel:ClearAllPoints()
