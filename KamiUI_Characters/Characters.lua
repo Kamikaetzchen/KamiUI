@@ -1102,6 +1102,14 @@ UpdateStatsPane = function(frame)
             return false
         end
 
+        -- Some native stat providers deliberately hide rows that do not
+        -- apply to the player's class or equipment without setting Label.
+        -- Honor Blizzard's visibility decision instead of treating the
+        -- absent label as a Lua error.
+        if not proxy:IsShown() then
+            return false
+        end
+
         local numeric = proxy.numericValue
         if numeric == nil then
             numeric = value
@@ -1117,9 +1125,12 @@ UpdateStatsPane = function(frame)
         local display = proxy.Value and proxy.Value:GetText()
 
         if type(label) ~= "string" or label == "" then
-            -- The Blizzard update function did not provide a label.
+            -- This stat was not hidden by Blizzard but has no label:
+            -- report the native stat key so BugSack can identify it.
             ReportNativeStatError(
-                data.statID, "native stat label unavailable"
+                data.statID,
+                "native stat label unavailable ("
+                    .. tostring(data.statKey) .. ")"
             )
             return false
         end
