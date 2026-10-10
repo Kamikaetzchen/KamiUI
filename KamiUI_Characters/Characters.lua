@@ -1032,7 +1032,14 @@ local function GetNativeStatLayout()
                             .. "_" .. statIndex,
                         statKey = stat.stat,
                         nativeID = stat.id,
-                        hideAt = stat.hideAt,
+                        -- Keep zero-valued stats such as Haste, Expertise,
+                        -- Hit and Parry visible so players can see them.
+                        -- Only hide unused weapon slots: Blizzard returns
+                        -- zero for an unequipped offhand/ranged weapon.
+                        hideAt = (
+                            stat.stat == "OFFHAND_DAMAGE"
+                            or stat.stat == "RANGED_DAMAGE"
+                        ) and stat.hideAt or nil,
                     }
                 end
             end
