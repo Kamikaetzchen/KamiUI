@@ -960,6 +960,27 @@ local function GetStatProxy(row)
     return proxy
 end
 
+-- At login UnitAttackSpeed may still report 0. Blizzard's native
+-- PaperDollFrame_GetDamage divides by weapon speed without guarding zero.
+-- Defer only these rows until actual equipment/attack speed data arrives.
+local function WeaponDamageSpeedReady(data)
+    local key = data.statKey
+    if key == "MAINHAND_DAMAGE" or key == "OFFHAND_DAMAGE" then
+        if not UnitAttackSpeed then return false end
+        local mainHandSpeed, offHandSpeed = UnitAttackSpeed("player")
+        local speed = key == "MAINHAND_DAMAGE"
+            and mainHandSpeed or offHandSpeed
+        return UI:CanAccessValue(speed)
+            and type(speed) == "number" and speed > 0
+    elseif key == "RANGED_DAMAGE" then
+        if not UnitRangedDamage then return false end
+        local speed = UnitRangedDamage("player")
+        return UI:CanAccessValue(speed)
+            and type(speed) == "number" and speed > 0
+    end
+    return true
+end
+
 local function UpdateNativeStat(proxy, data)
     -- All stat text and values come from Blizzard's own update functions.
     proxy.tooltip = nil
@@ -1183,6 +1204,10 @@ UpdateStatsPane = function(frame)
             return true
         end
 
+        if not WeaponDamageSpeedReady(data) then
+            return false
+        end
+
         local proxy, reason = GetStatProxy(row)
 
         if not proxy then
@@ -1277,6 +1302,10 @@ ShowStatTooltip = function(row)
             0.7, 0.7, 0.7, true
         )
         GameTooltip:Show()
+        return
+    end
+
+    if not WeaponDamageSpeedReady(data) then
         return
     end
 
@@ -4319,6 +4348,7 @@ function Module:Initialize()
 
     for _, event in ipairs({
         "UNIT_STATS",
+        "UNIT_ATTACK_SPEED",
         "UNIT_MAXHEALTH",
         "UNIT_POWER_UPDATE",
         "UNIT_RESISTANCES",
