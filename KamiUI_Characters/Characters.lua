@@ -1125,14 +1125,20 @@ UpdateStatsPane = function(frame)
         local display = proxy.Value and proxy.Value:GetText()
 
         if type(label) ~= "string" or label == "" then
-            -- This stat was not hidden by Blizzard but has no label:
-            -- report the native stat key so BugSack can identify it.
-            ReportNativeStatError(
-                data.statID,
-                "native stat label unavailable ("
-                    .. tostring(data.statKey) .. ")"
-            )
-            return false
+            -- A successfully executed Blizzard stat provider may leave
+            -- its label empty (e.g. SPELLPENETRATION). This is not a Lua
+            -- exception. Preserve a real value when a localized fallback
+            -- exists; otherwise omit the incomplete row.
+            if data.statKey == "SPELLPENETRATION"
+                and type(display) == "string"
+                and display ~= ""
+                and type(SPELL_PENETRATION) == "string"
+                and SPELL_PENETRATION ~= ""
+            then
+                label = SPELL_PENETRATION
+            else
+                return false
+            end
         end
 
         row.label:SetText(label:gsub(":%s*$", ""))
