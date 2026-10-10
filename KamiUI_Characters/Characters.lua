@@ -969,94 +969,92 @@ local function UpdateStatsPane(frame)
     end
 end
 
-local statProxyParent = CreateFrame("Frame")
-statProxyParent:Hide()
-
-local statProxies = {}
-
-local primaryStatIndices = {
-    strength = 1,
-    agility = 2,
-    stamina = 3,
-    intellect = 4,
-    spirit = 5,
-}
-
-local primaryStatTokens = {
+-- Use the same CharacterStatFrameTemplate, stat update functions and
+-- OnEnter handler as Blizzard's character screen. The native client owns
+-- all calculations, strings and their formatting; do not reconstruct them.
+local nativeStatKeys = {
+    health = "HEALTH",
+    power = "POWER",
+    moveSpeed = "MOVESPEED",
     strength = "STRENGTH",
     agility = "AGILITY",
     stamina = "STAMINA",
     intellect = "INTELLECT",
     spirit = "SPIRIT",
+    attackPower = "ATTACK_AP",
+    crit = "CRITCHANCE",
+    hit = "HITCHANCE_MELEE",
+    armor = "ARMOR",
+    dodge = "DODGE",
+    parry = "PARRY",
+    block = "BLOCK",
+    fire = "FIRE_RESIST",
+    nature = "NATURE_RESIST",
+    frost = "FROST_RESIST",
+    shadow = "SHADOW_RESIST",
+    arcane = "ARCANE_RESIST",
 }
 
-local paperDollStatKeys = {
-    health = { "HEALTH" },
-    power = { "POWER" },
-    strength = { "STRENGTH", "BASE_STATS1" },
-    agility = { "AGILITY", "BASE_STATS2" },
-    stamina = { "STAMINA", "BASE_STATS3" },
-    intellect = { "INTELLECT", "BASE_STATS4" },
-    spirit = { "SPIRIT", "BASE_STATS5" },
-    moveSpeed = { "MOVESPEED", "MOVEMENT_SPEED" },
-    -- Use the native Camelot/Forever stat keys first. The legacy aliases
-    -- remain as fallbacks for clients with an older PAPERDOLL_STATINFO.
-    attackPower = { "ATTACK_AP", "MELEE_AP", "MELEE_ATTACK_POWER" },
-    crit = { "CRITCHANCE", "MELEE_CRIT" },
-    hit = { "HITCHANCE_MELEE", "HITCHANCE", "MELEE_HIT" },
-    armor = { "ARMOR", "DEFENSES1" },
-    dodge = { "DODGE", "DEFENSES3" },
-    parry = { "PARRY", "DEFENSES4" },
-    block = { "BLOCK", "DEFENSES5" },
-    fire = { "FIRE_RESIST", "FIRE" },
-    nature = { "NATURE_RESIST", "NATURE" },
-    frost = { "FROST_RESIST", "FROST" },
-    shadow = { "SHADOW_RESIST", "SHADOW" },
-    arcane = { "ARCANE_RESIST", "ARCANE" },
-}
+local statProxies = {}
+local reportedStatErrors = {}
 
-local resistanceIndices = {
-    fire = 2,
-    nature = 3,
-    frost = 4,
-    shadow = 5,
-    arcane = 6,
-}
+local function ReportNativeStatError(key, reason)
+    -- A missing native tooltip should be diagnosable rather than silently
+    -- replaced with an outdated manually generated description.
+    if reportedStatErrors[key] then
+        return
+    end
 
-local function GetStatProxy(key)
+    reportedStatErrors[key] = true
+    UI:Print("Blizzard stat tooltip", key .. ":", tostring(reason))
+end
+
+local function GetStatProxy(key, row)
     local proxy = statProxies[key]
 
     if proxy then
         return proxy
     end
 
-    local suffix = key:gsub("[^%w]", "")
-    local name = "KamiUICharacterStatProxy" .. suffix
+    if not CharacterStatFrameMixin then
+        return nil, "CharacterStatFrameTemplate not loaded"
+    end
 
-    proxy = CreateFrame("Frame", name, statProxyParent)
-    proxy:SetSize(1, 1)
+    local name = "KamiUICharacterStatProxy" .. key
+    local ok, created = pcall(
+        CreateFrame,
+        "Frame",
+        name,
+        row,
+        "CharacterStatFrameTemplate"
+    )
 
-    local label = proxy:CreateFontString(name .. "Label", "OVERLAY")
-    label:SetPoint("LEFT")
-    label:Hide()
+    if not ok then
+        return nil, created
+    end
 
-    local text = proxy:CreateFontString(name .. "StatText", "OVERLAY")
-    text:SetPoint("LEFT")
-    text:Hide()
-
-    -- Blizzard's PaperDollFrame_SetLabelAndText writes to statFrame.Value.
-    -- Without it, the native updater errors before it can format tooltip2;
-    -- the resulting fallback shows raw %.1f / %d placeholders.
-    proxy.Label = label
-    proxy.Value = text
+    proxy = created
+    proxy:SetAllPoints(row)
     proxy:EnableMouse(false)
+    -- Blizzard fills Label/Value/Background itself; keep the native frame
+    -- and its visuals invisible, but still allow its methods to execute.
+    proxy:SetAlpha(0)
 
     statProxies[key] = proxy
-
     return proxy
 end
 
-local function ResetStatProxy(proxy)
+local function UpdateNativeStat(proxy, key)
+    local statKey = nativeStatKeys[key]
+    local info = statKey
+        and PAPERDOLL_STATINFO
+        and PAPERDOLL_STATINFO[statKey]
+
+    if not info or type(info.updateFunc) ~= "function" then
+        return false, "PAPERDOLL_STATINFO[" .. tostring(statKey) .. "] unavailable"
+    end
+
+    -- Native stat frames are pooled and reset by Blizzard before updating.
     proxy.tooltip = nil
     proxy.tooltip2 = nil
     proxy.tooltip3 = nil
@@ -1065,183 +1063,14 @@ local function ResetStatProxy(proxy)
     proxy.onEnterFunc = nil
     proxy.UpdateTooltip = nil
     proxy.lineWrap = nil
-end
 
-local function TryPaperDollStatInfo(proxy, key)
-    if type(PAPERDOLL_STATINFO) ~= "table" then
-        return false
+    local ok, errorMessage = pcall(info.updateFunc, proxy, "player")
+
+    if not ok then
+        return false, errorMessage
     end
 
-    for _, statKey in ipairs(paperDollStatKeys[key] or {}) do
-        local info = PAPERDOLL_STATINFO[statKey]
-
-        if info and type(info.updateFunc) == "function" then
-            local ok = pcall(info.updateFunc, proxy, "player")
-
-            if ok then
-                return true
-            end
-        end
-    end
-
-    return false
-end
-
-local function UpdateBlizzardStatProxy(proxy, key)
-    ResetStatProxy(proxy)
-
-    if TryPaperDollStatInfo(proxy, key) then
-        return true
-    end
-
-    local statIndex = primaryStatIndices[key]
-
-    if statIndex and PaperDollFrame_SetStat then
-        return pcall(PaperDollFrame_SetStat, proxy, statIndex)
-    end
-
-    if key == "moveSpeed" and PaperDollFrame_SetMovementSpeed then
-        return pcall(PaperDollFrame_SetMovementSpeed, proxy, "player")
-    elseif key == "attackPower" and PaperDollFrame_SetAttackPower then
-        return pcall(PaperDollFrame_SetAttackPower, proxy, "player")
-    elseif key == "crit" then
-        if PaperDollFrame_SetMeleeCritChance then
-            return pcall(PaperDollFrame_SetMeleeCritChance, proxy)
-        elseif PaperDollFrame_SetCritChance then
-            return pcall(PaperDollFrame_SetCritChance, proxy)
-        end
-    elseif key == "hit" and PaperDollFrame_SetRating and CR_HIT_MELEE then
-        return pcall(PaperDollFrame_SetRating, proxy, CR_HIT_MELEE)
-    elseif key == "armor" and PaperDollFrame_SetArmor then
-        return pcall(PaperDollFrame_SetArmor, proxy, "player")
-    elseif key == "dodge" and PaperDollFrame_SetDodge then
-        return pcall(PaperDollFrame_SetDodge, proxy)
-    elseif key == "parry" and PaperDollFrame_SetParry then
-        return pcall(PaperDollFrame_SetParry, proxy)
-    elseif key == "block" and PaperDollFrame_SetBlock then
-        return pcall(PaperDollFrame_SetBlock, proxy)
-    end
-
-    local resistanceIndex = resistanceIndices[key]
-
-    if resistanceIndex and PaperDollFrame_SetResistance then
-        return pcall(
-            PaperDollFrame_SetResistance,
-            proxy,
-            "player",
-            resistanceIndex
-        )
-    end
-
-    return false
-end
-
-local function HasUnresolvedStatFormat(text)
-    -- Do not leak WoW global localization format strings (e.g. %.1f, %d)
-    -- into our tooltip if the native stat updater is unavailable.
-    return type(text) == "string"
-        and text:find("%%[%d%.%$]*[cdeEfgGiouxXs]") ~= nil
-end
-
-local function AddBlizzardTooltipLine(text)
-    if type(text) == "string"
-        and text ~= ""
-        and UI:CanAccessValue(text)
-        and not HasUnresolvedStatFormat(text)
-    then
-        GameTooltip:AddLine(text, 0.82, 0.82, 0.84, true)
-        return true
-    end
-
-    return false
-end
-
-local function AddAttackPowerDPS()
-    -- UnitDamage includes the currently applied attack-power and damage
-    -- modifiers. This is theoretical auto-attack DPS, before armor,
-    -- avoidance and critical hits; it is not combat-log DPS.
-    if UnitDamage and UnitAttackSpeed then
-        local low, high, offLow, offHigh = UI:SafeCall(
-            UnitDamage, "player"
-        )
-        local mainSpeed, offSpeed = UI:SafeCall(
-            UnitAttackSpeed, "player"
-        )
-
-        if type(low) == "number"
-            and type(high) == "number"
-            and type(mainSpeed) == "number"
-            and mainSpeed > 0
-            and UI:CanAccessValue(low)
-            and UI:CanAccessValue(high)
-            and UI:CanAccessValue(mainSpeed)
-        then
-            local dps = (low + high) / (2 * mainSpeed)
-            GameTooltip:AddDoubleLine(
-                "White-hit DPS (main hand)",
-                string.format("%.1f", dps),
-                0.82, 0.82, 0.84,
-                1, 1, 1
-            )
-
-            if type(offLow) == "number"
-                and type(offHigh) == "number"
-                and type(offSpeed) == "number"
-                and offSpeed > 0
-                and offLow > 0
-                and offHigh > 0
-                and UI:CanAccessValue(offLow)
-                and UI:CanAccessValue(offHigh)
-                and UI:CanAccessValue(offSpeed)
-                and IsDualWielding
-                and UI:SafeCall(IsDualWielding) == true
-            then
-                GameTooltip:AddDoubleLine(
-                    "White-hit DPS (off hand)",
-                    string.format("%.1f", (offLow + offHigh) / (2 * offSpeed)),
-                    0.82, 0.82, 0.84,
-                    1, 1, 1
-                )
-            end
-
-            GameTooltip:AddLine(
-                "Before armor, misses and critical hits.",
-                0.58, 0.58, 0.61,
-                true
-            )
-        end
-    end
-end
-
-local function GetPrimaryStatFallback(key)
-    local statToken = primaryStatTokens[key]
-
-    if not statToken then
-        return nil
-    end
-
-    local _, classFile = UnitClass("player")
-
-    if type(classFile) == "string" then
-        local classText = _G[
-            string.upper(classFile)
-                .. "_"
-                .. statToken
-                .. "_TOOLTIP"
-        ]
-
-        if type(classText) == "string" then
-            return classText
-        end
-    end
-
-    local defaultText = _G["DEFAULT_" .. statToken .. "_TOOLTIP"]
-
-    if type(defaultText) == "string" then
-        return defaultText
-    end
-
-    return nil
+    return true
 end
 
 ShowStatTooltip = function(row)
@@ -1257,81 +1086,49 @@ ShowStatTooltip = function(row)
         return
     end
 
-    local proxy = GetStatProxy(key)
+    local proxy, createError = GetStatProxy(key, row)
 
-    -- Some native OnEnter handlers use SetOwner(self, "ANCHOR_RIGHT").
-    -- Put the invisible (non-mouse-interactive) proxy on the hovered row
-    -- instead of leaving it at the origin under a hidden parent.
-    proxy:SetParent(row)
-    proxy:ClearAllPoints()
-    proxy:SetAllPoints(row)
-    proxy:Show()
-
-    local updated = UpdateBlizzardStatProxy(proxy, key)
-    local tooltip = updated and proxy.tooltip
-
-    -- Blizzard calculates crit, hit, movement speed, etc. in their
-    -- onEnterFunc rather than exposing everything in tooltip2/3/4.
-    -- Reuse that implementation so we get the same meaningful figures.
-    if updated and type(proxy.onEnterFunc) == "function" then
-        local ok = pcall(proxy.onEnterFunc, proxy)
-
-        if ok and GameTooltip:IsShown() then
-            -- Native tooltip handlers anchor to the proxy; retain KamiUI's
-            -- cursor positioning without rebuilding their tooltip lines.
-            if GameTooltip.SetAnchorType and Styles.Tooltip then
-                GameTooltip:SetAnchorType(
-                    Styles.Tooltip.anchor, 14, 12
-                )
-            end
-
-            if key == "attackPower" then
-                AddAttackPowerDPS()
-                GameTooltip:Show()
-            end
-            return
-        end
+    if not proxy then
+        ReportNativeStatError(key, createError)
+        return
     end
 
-    GameTooltip:SetOwner(row, "ANCHOR_CURSOR_RIGHT")
+    local updated, updateError = UpdateNativeStat(proxy, key)
 
-    if type(tooltip) == "string"
-        and tooltip ~= ""
-        and UI:CanAccessValue(tooltip)
-        and not HasUnresolvedStatFormat(tooltip)
+    if not updated then
+        ReportNativeStatError(key, updateError)
+        return
+    end
+
+    if type(proxy.OnEnter) ~= "function" then
+        ReportNativeStatError(key, "native CharacterStatFrameMixin:OnEnter unavailable")
+        return
+    end
+
+    -- The built-in handler generates the tooltip, including class-specific
+    -- primary-stat details, without copying or formatting its text here.
+    GameTooltip:Hide()
+    local ok, enterError = pcall(proxy.OnEnter, proxy)
+
+    if not ok then
+        ReportNativeStatError(key, enterError)
+        GameTooltip:Hide()
+        return
+    end
+
+    if not GameTooltip:IsShown()
+        or (GameTooltip.GetOwner and GameTooltip:GetOwner() ~= proxy)
     then
-        GameTooltip:SetText(tooltip)
-    else
-        GameTooltip:SetText(
-            row.label:GetText() or key,
-            1.00,
-            0.82,
-            0.00
-        )
+        ReportNativeStatError(key, "native OnEnter did not show a tooltip")
+        return
     end
 
-    local addedDetail = false
+    reportedStatErrors[key] = nil
 
-    for _, field in ipairs({
-        "tooltip2",
-        "tooltip3",
-        "tooltip4",
-        "tooltipSubtext",
-    }) do
-        if AddBlizzardTooltipLine(proxy[field]) then
-            addedDetail = true
-        end
+    -- Preserve our cursor anchor without touching Blizzard's tooltip lines.
+    if GameTooltip.SetAnchorType and Styles.Tooltip then
+        GameTooltip:SetAnchorType(Styles.Tooltip.anchor, 14, 12)
     end
-
-    if not addedDetail then
-        AddBlizzardTooltipLine(GetPrimaryStatFallback(key))
-    end
-
-    if key == "attackPower" then
-        AddAttackPowerDPS()
-    end
-
-    GameTooltip:Show()
 end
 
 local function OpenEquipmentSetPopup(frame, setID, setName)
