@@ -131,8 +131,7 @@ local function RefreshButton(button)
         or Palette.damage
 
     local value = ColorizeMetric(
-        (analysis.weaponEstimate and "~" or "")
-            .. Module:FormatMetric(execution),
+        Module:FormatMetric(execution),
         outputColor
     )
 
@@ -147,8 +146,7 @@ local function RefreshButton(button)
         value = value
             .. "\n"
             .. ColorizeMetric(
-                (analysis.weaponEstimate and "~" or "")
-                    .. Module:FormatMetric(full.efficiency),
+                Module:FormatMetric(full.efficiency),
                 resourceColor
             )
     end
