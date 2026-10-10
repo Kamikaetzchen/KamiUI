@@ -1497,6 +1497,38 @@ local function InstallTooltipHideCleanup()
     end)
 end
 
+-- World units and gathering nodes are positioned through SetWorldCursor
+-- rather than GameTooltip_SetDefaultAnchor. Re-anchor them after Blizzard
+-- sets up the tooltip, without re-entering SetWorldCursor: invoking that
+-- method from this hook runs its tooltip-data pipeline a second time in
+-- an addon-tainted context (secret tooltip lines/colors may then error).
+local function InstallWorldCursorAnchor()
+    if Module.worldCursorAnchorInstalled
+        or not GameTooltip
+        or not GameTooltip.SetWorldCursor
+        or not GameTooltip.SetAnchorType
+        or not hooksecurefunc
+        or not Enum
+        or not Enum.WorldCursorAnchorType
+    then
+        return
+    end
+
+    Module.worldCursorAnchorInstalled = true
+
+    hooksecurefunc(GameTooltip, "SetWorldCursor", function(self, anchorType)
+        -- Override only Blizzard's default corner placement for world
+        -- tooltips. Respect explicitly requested cursor/nameplate anchors.
+        if anchorType ~= Enum.WorldCursorAnchorType.Default then
+            return
+        end
+
+        -- Changes only the position; never calls SetWorldCursor, SetOwner,
+        -- SetUnit, Show, or any tooltip data-processing method.
+        self:SetAnchorType(Styles.Tooltip.anchor, 14, 12)
+    end)
+end
+
 local function InstallInstantUnitTooltipHide()
     if Module.instantUnitTooltipHideInstalled
         or not hooksecurefunc
@@ -1537,6 +1569,7 @@ end
 function Module:Initialize()
     StyleKnownTooltips()
     InstallTooltipHideCleanup()
+    InstallWorldCursorAnchor()
     InstallStatusBarSuppression()
     InstallInstantUnitTooltipHide()
     InstallUnitTooltipHook()
@@ -1548,6 +1581,7 @@ function Module:Initialize()
     UI:RegisterEvent("ADDON_LOADED", function()
         StyleKnownTooltips()
         InstallTooltipHideCleanup()
+        InstallWorldCursorAnchor()
         InstallStatusBarSuppression()
         InstallInstantUnitTooltipHide()
         InstallUnitTooltipHook()
