@@ -199,7 +199,22 @@ local function GetMoneyCharacters()
     }
 end
 
+-- Three independent columns for the rested tooltip, kept in sync with
+-- Blizzard's tooltip rows. Hide them when a different tooltip is shown.
+local restedTooltipColumns = {}
+local function HideRestedTooltipColumns()
+    for _, columns in ipairs(restedTooltipColumns) do
+        columns.time:Hide()
+        columns.percent:Hide()
+        if columns.spacer then
+            columns.spacer:SetTextColor(1, 1, 1, 1)
+        end
+    end
+end
+GameTooltip:HookScript("OnHide", HideRestedTooltipColumns)
+
 local function PrepareTooltip(owner, title)
+    HideRestedTooltipColumns()
     GameTooltip:SetOwner(owner, "ANCHOR_CURSOR_RIGHT")
     GameTooltip:ClearLines()
     GameTooltip:AddLine(title, 1, 0.82, 0)
@@ -345,8 +360,78 @@ local function FormatRestedPercent(percent, rank)
         math.floor(b * 255 + 0.5), percent)
 end
 
+local function FormatRestedTime(seconds)
+    if seconds == nil then return "--" end
+
+    -- Round upwards: 0m must mean that the cap is actually reached.
+    local minutes = math.ceil(math.max(0, seconds) / 60)
+    local days = math.floor(minutes / 1440)
+    local hours = math.floor(minutes % 1440 / 60)
+    local remainingMinutes = minutes % 60
+    if days > 0 then
+        return string.format("%dd%02dh%02dm", days, hours, remainingMinutes)
+    elseif hours > 0 then
+        return string.format("%dh%02dm", hours, remainingMinutes)
+    end
+    return string.format("%dm", remainingMinutes)
+end
+
+local RESTED_TIME_WIDTH = 95
+local RESTED_PERCENT_WIDTH = 62
+local RESTED_COLUMN_GAP = 12
+local RESTED_COLUMN_SPACER = string.rep("W", 19)
+
+local function AddRestedTooltipRow(index, name, remaining, value,
+    nr, ng, nb, vr, vg, vb, header)
+    -- Reserve room with the native tooltip layout, but draw two separately
+    -- right-aligned fields rather than padding proportional-font text.
+    GameTooltip:AddDoubleLine(name, RESTED_COLUMN_SPACER,
+        nr, ng, nb, 1, 1, 1)
+    local right = _G["GameTooltipTextRight" .. GameTooltip:NumLines()]
+    if not right then return end
+
+    local columns = restedTooltipColumns[index]
+    if not columns then
+        columns = {
+            time = GameTooltip:CreateFontString(
+                nil, "OVERLAY", "GameFontHighlightSmall"),
+            percent = GameTooltip:CreateFontString(
+                nil, "OVERLAY", "GameFontHighlightSmall"),
+        }
+        restedTooltipColumns[index] = columns
+    end
+
+    columns.spacer = right
+    right:SetTextColor(1, 1, 1, 0)
+    for _, label in ipairs({columns.time, columns.percent}) do
+        label:ClearAllPoints()
+        label:SetJustifyH("RIGHT")
+        if label.SetWordWrap then label:SetWordWrap(false) end
+        if right.GetFontObject and right:GetFontObject() then
+            label:SetFontObject(right:GetFontObject())
+        end
+    end
+
+    columns.time:SetWidth(RESTED_TIME_WIDTH)
+    columns.time:SetPoint("RIGHT", right, "RIGHT",
+        -(RESTED_PERCENT_WIDTH + RESTED_COLUMN_GAP), 0)
+    columns.time:SetText(remaining)
+    local timeColor = header and 0.65 or 0.85
+    columns.time:SetTextColor(timeColor, timeColor, timeColor)
+    columns.time:Show()
+
+    columns.percent:SetWidth(RESTED_PERCENT_WIDTH)
+    columns.percent:SetPoint("RIGHT", right, "RIGHT", 0, 0)
+    columns.percent:SetText(value)
+    columns.percent:SetTextColor(vr, vg, vb)
+    columns.percent:Show()
+end
+
 local function ShowRestedTooltip(owner)
     PrepareTooltip(owner, "Rested XP")
+    local row = 1
+    AddRestedTooltipRow(row, "Character (Legacy)", "To cap", "Rested",
+        0.65, 0.65, 0.65, 0.65, 0.65, 0.65, true)
     local currentRealm = GetRealmName and GetRealmName() or ""
 
     for _, entry in ipairs(RestedXP:GetCharacterEntries()) do
@@ -381,12 +466,10 @@ local function ShowRestedTooltip(owner)
             and "?" or tostring(entry.legacyRank)
         name = string.format("%s (%s/5)", name, rankText)
 
-        GameTooltip:AddDoubleLine(
-            name,
-            value,
-            r, g, b,
-            vr, vg, vb
-        )
+        row = row + 1
+        AddRestedTooltipRow(row, name,
+            entry.maxLevel and "--" or FormatRestedTime(entry.timeToCap),
+            value, r, g, b, vr, vg, vb)
     end
 
     GameTooltip:Show()
@@ -670,6 +753,24 @@ local function CreatePanel()
         hover:SetScript("OnLeave", HideTooltip)
         hoverFrames[key] = hover
     end
+
+    -- Refresh the time estimates every 30 seconds while hovered.
+    local restedHover = hoverFrames.rested
+    restedHover:HookScript("OnEnter", function(self)
+        self.restedTooltipElapsed = 0
+        self:SetScript("OnUpdate", function(frame, elapsed)
+            frame.restedTooltipElapsed = frame.restedTooltipElapsed + elapsed
+            if frame.restedTooltipElapsed >= 30 then
+                frame.restedTooltipElapsed = 0
+                if GameTooltip:IsOwned(frame) then
+                    ShowRestedTooltip(frame)
+                end
+            end
+        end)
+    end)
+    restedHover:HookScript("OnLeave", function(self)
+        self:SetScript("OnUpdate", nil)
+    end)
 
     Module.frame = frame
     Module.content = content
