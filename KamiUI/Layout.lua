@@ -120,7 +120,6 @@ UI.Layout = {
         SUB_ICON_SIZE = 40,
         Q_SCREEN_X = 0.35,
         E_SCREEN_X = 0.65,
-        AUTO_CLOSE_SECONDS = 5,
         SCREEN_Y = 0.58,
     },
 
