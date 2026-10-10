@@ -735,18 +735,6 @@ function Module:Toggle()
     end
 end
 
-local function FormatStatValue(value, suffix)
-    if not UI:CanAccessValue(value) or type(value) ~= "number" then
-        return "-"
-    end
-
-    if suffix then
-        return string.format("%.1f%s", value, suffix)
-    end
-
-    return string.format("%.0f", value)
-end
-
 local function GetFactionData(index)
     if not C_Reputation or not C_Reputation.GetFactionDataByIndex then
         return nil
@@ -917,6 +905,7 @@ local function UpdateNativeStat(proxy, data)
     proxy.onEnterFunc = nil
     proxy.UpdateTooltip = nil
     proxy.lineWrap = nil
+    proxy.numericValue = nil
 
     if data.damageClass then
         -- Blizzard builds its resistance rows separately from
@@ -3326,7 +3315,6 @@ local function CreateSidebar(frame)
     statsPane:SetPoint("TOPLEFT", 1, -25)
     statsPane:SetPoint("BOTTOMRIGHT", -1, 1)
     statsPane:EnableMouseWheel(true)
-    statsPane.rows = {}
     sidebar.statsPane = statsPane
 
     local statsContent = CreateFrame("Frame", nil, statsPane)
