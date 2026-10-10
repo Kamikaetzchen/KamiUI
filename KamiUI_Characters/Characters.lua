@@ -859,158 +859,26 @@ local function CreateSidebarHeader(parent, y, text)
     return header
 end
 
-local function UpdateStatsPane(frame)
-    local pane = frame.sidebar and frame.sidebar.statsPane
-
-    if not pane then
-        return
-    end
-
-    local rows = pane.rows
-    local _, _, isCurrent = Module:GetViewedCharacter()
-
-    if not isCurrent then
-        for _, row in pairs(rows) do
-            if row.value then
-                row.value:SetText("-")
-            end
-        end
-
-        rows.health.label:SetText("Health")
-        rows.power.label:SetText("Power")
-        return
-    end
-    local health = UnitHealthMax and UnitHealthMax("player")
-    local power = UnitPowerMax and UnitPowerMax("player")
-    local powerName = "Power"
-
-    if UnitPowerType then
-        local _, token = UnitPowerType("player")
-
-        if token and UI:CanAccessValue(token) then
-            powerName = token:sub(1, 1) .. token:sub(2):lower()
-        end
-    end
-
-    rows.health.label:SetText("Health")
-    rows.health.value:SetText(FormatStatValue(health))
-    rows.power.label:SetText(powerName)
-    rows.power.value:SetText(FormatStatValue(power))
-
-    local moveSpeed
-    local currentSpeed, runSpeed = GetUnitSpeed
-        and UI:SafeCall(GetUnitSpeed, "player")
-    local speed = runSpeed or currentSpeed
-    local baseSpeed = BASE_MOVEMENT_SPEED or 7
-
-    if UI:CanAccessValue(speed)
-        and type(speed) == "number"
-        and speed >= 0
-        and baseSpeed > 0
-    then
-        moveSpeed = speed / baseSpeed * 100
-    end
-
-    rows.moveSpeed.value:SetText(FormatStatValue(moveSpeed, "%"))
-
-    local attributes = {
-        { "strength", 1 },
-        { "agility", 2 },
-        { "stamina", 3 },
-        { "intellect", 4 },
-        { "spirit", 5 },
-    }
-
-    for _, data in ipairs(attributes) do
-        local effective = select(2, UI:SafeCall(UnitStat, "player", data[2]))
-        rows[data[1]].value:SetText(FormatStatValue(effective))
-    end
-
-    local baseAP, posAP, negAP = UI:SafeCall(UnitAttackPower, "player")
-    local attackPower
-
-    if UI:CanAccessValue(baseAP)
-        and UI:CanAccessValue(posAP)
-        and UI:CanAccessValue(negAP)
-        and type(baseAP) == "number"
-        and type(posAP) == "number"
-        and type(negAP) == "number"
-    then
-        attackPower = baseAP + posAP + negAP
-    end
-
-    rows.attackPower.value:SetText(FormatStatValue(attackPower))
-    rows.crit.value:SetText(FormatStatValue(UI:SafeCall(GetCritChance), "%"))
-    rows.hit.value:SetText(FormatStatValue(UI:SafeCall(GetHitModifier), "%"))
-
-    local _, effectiveArmor = UI:SafeCall(UnitArmor, "player")
-    rows.armor.value:SetText(FormatStatValue(effectiveArmor))
-    rows.dodge.value:SetText(FormatStatValue(UI:SafeCall(GetDodgeChance), "%"))
-    rows.parry.value:SetText(FormatStatValue(UI:SafeCall(GetParryChance), "%"))
-    rows.block.value:SetText(FormatStatValue(UI:SafeCall(GetBlockChance), "%"))
-
-    local resistances = {
-        { "fire", 2 },
-        { "nature", 3 },
-        { "frost", 4 },
-        { "shadow", 5 },
-        { "arcane", 6 },
-    }
-
-    for _, data in ipairs(resistances) do
-        local base, total = UI:SafeCall(UnitResistance, "player", data[2])
-        local value = total
-
-        if not UI:CanAccessValue(value) or type(value) ~= "number" then
-            value = base
-        end
-
-        rows[data[1]].value:SetText(FormatStatValue(value))
-    end
-end
+-- Declared here because sidebar construction follows the native stat logic.
+local UpdateStatsPane
 
 -- Use the same CharacterStatFrameTemplate, stat update functions and
 -- OnEnter handler as Blizzard's character screen. The native client owns
 -- all calculations, strings and their formatting; do not reconstruct them.
-local nativeStatKeys = {
-    health = "HEALTH",
-    power = "POWER",
-    moveSpeed = "MOVESPEED",
-    strength = "STRENGTH",
-    agility = "AGILITY",
-    stamina = "STAMINA",
-    intellect = "INTELLECT",
-    spirit = "SPIRIT",
-    attackPower = "ATTACK_AP",
-    crit = "CRITCHANCE",
-    hit = "HITCHANCE_MELEE",
-    armor = "ARMOR",
-    dodge = "DODGE",
-    parry = "PARRY",
-    block = "BLOCK",
-    fire = "FIRE_RESIST",
-    nature = "NATURE_RESIST",
-    frost = "FROST_RESIST",
-    shadow = "SHADOW_RESIST",
-    arcane = "ARCANE_RESIST",
-}
-
 local statProxies = {}
 local reportedStatErrors = {}
 
 local function ReportNativeStatError(key, reason)
-    -- A missing native tooltip should be diagnosable rather than silently
-    -- replaced with an outdated manually generated description.
     if reportedStatErrors[key] then
         return
     end
 
     reportedStatErrors[key] = true
-    UI:Print("Blizzard stat tooltip", key .. ":", tostring(reason))
+    UI:Print("Blizzard stat", tostring(key) .. ":", tostring(reason))
 end
 
-local function GetStatProxy(key, row)
-    local proxy = statProxies[key]
+local function GetStatProxy(row)
+    local proxy = statProxies[row.statID]
 
     if proxy then
         return proxy
@@ -1020,13 +888,10 @@ local function GetStatProxy(key, row)
         return nil, "CharacterStatFrameTemplate not loaded"
     end
 
-    local name = "KamiUICharacterStatProxy" .. key
+    local name = "KamiUICharacterStatProxy"
+        .. row.statID:gsub("[^%w]", "")
     local ok, created = pcall(
-        CreateFrame,
-        "Frame",
-        name,
-        row,
-        "CharacterStatFrameTemplate"
+        CreateFrame, "Frame", name, row, "CharacterStatFrameTemplate"
     )
 
     if not ok then
@@ -1036,25 +901,14 @@ local function GetStatProxy(key, row)
     proxy = created
     proxy:SetAllPoints(row)
     proxy:EnableMouse(false)
-    -- Blizzard fills Label/Value/Background itself; keep the native frame
-    -- and its visuals invisible, but still allow its methods to execute.
     proxy:SetAlpha(0)
 
-    statProxies[key] = proxy
+    statProxies[row.statID] = proxy
     return proxy
 end
 
-local function UpdateNativeStat(proxy, key)
-    local statKey = nativeStatKeys[key]
-    local info = statKey
-        and PAPERDOLL_STATINFO
-        and PAPERDOLL_STATINFO[statKey]
-
-    if not info or type(info.updateFunc) ~= "function" then
-        return false, "PAPERDOLL_STATINFO[" .. tostring(statKey) .. "] unavailable"
-    end
-
-    -- Native stat frames are pooled and reset by Blizzard before updating.
+local function UpdateNativeStat(proxy, data)
+    -- All stat text and values come from Blizzard's own update functions.
     proxy.tooltip = nil
     proxy.tooltip2 = nil
     proxy.tooltip3 = nil
@@ -1064,19 +918,247 @@ local function UpdateNativeStat(proxy, key)
     proxy.UpdateTooltip = nil
     proxy.lineWrap = nil
 
-    local ok, errorMessage = pcall(info.updateFunc, proxy, "player")
+    if data.damageClass then
+        -- Blizzard builds its resistance rows separately from
+        -- PAPERDOLL_STATCATEGORIES. The underlying helpers are still native.
+        if not UnitResistance or not PaperDollFrame_SetResistanceTooltips then
+            return false, "native resistance functions unavailable"
+        end
+
+        local _base, effective = UI:SafeCall(
+            UnitResistance, "player", data.damageClass
+        )
+        if type(effective) ~= "number"
+            or not UI:CanAccessValue(effective)
+        then
+            return false, "UnitResistance unavailable"
+        end
+
+        local ok, err = pcall(
+            PaperDollFrame_SetResistanceTooltips,
+            proxy, data.resistanceLabel, effective,
+            "player", data.damageClass
+        )
+        if not ok then
+            return false, err
+        end
+
+        proxy.Label:SetText(data.resistanceLabel)
+        proxy.Value:SetText(
+            BreakUpLargeNumbers and BreakUpLargeNumbers(effective)
+                or tostring(effective)
+        )
+        proxy.numericValue = effective
+        return true, effective
+    end
+
+    local info = PAPERDOLL_STATINFO
+        and PAPERDOLL_STATINFO[data.statKey]
+
+    if not info or type(info.updateFunc) ~= "function" then
+        return false, "PAPERDOLL_STATINFO[" .. tostring(data.statKey)
+            .. "] unavailable"
+    end
+
+    local ok, value = pcall(
+        info.updateFunc, proxy, "player", data.nativeID
+    )
 
     if not ok then
-        return false, errorMessage
+        return false, value
+    end
+
+    return true, value
+end
+
+local function IsStatVisibleForPlayer(stat, spec, role, primaryStat)
+    if stat.unit and stat.unit ~= "player" then
+        return false
+    end
+
+    if spec and stat.primary and stat.primary ~= primaryStat then
+        return false
+    end
+
+    if stat.roles then
+        local found = false
+
+        for _, allowedRole in ipairs(stat.roles) do
+            if allowedRole == role then
+                found = true
+                break
+            end
+        end
+
+        if not found then
+            return false
+        end
+    end
+
+    if stat.showFunc and UI:SafeCall(stat.showFunc) ~= true then
+        return false
     end
 
     return true
 end
 
-ShowStatTooltip = function(row)
-    local key = row.statKey
+local function GetNativeStatLayout()
+    if type(PAPERDOLL_STATCATEGORIES) ~= "table"
+        or type(PAPERDOLL_STATINFO) ~= "table"
+    then
+        ReportNativeStatError(
+            "categories", "PAPERDOLL_STATCATEGORIES unavailable"
+        )
+        return {}
+    end
 
-    if not key then
+    local definitions = {}
+    local spec = C_SpecializationInfo
+        and UI:SafeCall(C_SpecializationInfo.GetSpecialization)
+        or nil
+    local role = spec and GetSpecializationRoleEnum
+        and UI:SafeCall(GetSpecializationRoleEnum, spec)
+        or nil
+    local primaryStat = spec
+        and C_SpecializationInfo
+        and select(6, UI:SafeCall(
+            C_SpecializationInfo.GetSpecializationInfo,
+            spec, false, false, nil, UnitSex("player")
+        ))
+        or nil
+
+    for categoryIndex, category in ipairs(PAPERDOLL_STATCATEGORIES) do
+        if (not category.unit or category.unit == "player")
+            and type(category.stats) == "table"
+        then
+            local rows = {}
+
+            for statIndex, stat in ipairs(category.stats) do
+                if type(stat.stat) == "string"
+                    and PAPERDOLL_STATINFO[stat.stat]
+                    and IsStatVisibleForPlayer(stat, spec, role, primaryStat)
+                then
+                    rows[#rows + 1] = {
+                        statID = "native_" .. categoryIndex
+                            .. "_" .. statIndex,
+                        statKey = stat.stat,
+                        nativeID = stat.id,
+                        hideAt = stat.hideAt,
+                    }
+                end
+            end
+
+            if #rows > 0 then
+                definitions[#definitions + 1] = {
+                    header = category.categoryName,
+                    statID = "category_" .. categoryIndex
+                        .. "_" .. tostring(category.categoryName),
+                }
+                for _, row in ipairs(rows) do
+                    definitions[#definitions + 1] = row
+                end
+            end
+        end
+    end
+
+    -- The client's resistance category is built separately using a local
+    -- RESISTANCE_STAT_ENTRIES table, which Blizzard does not expose.
+    -- Use the very same enum IDs, localized DAMAGE_SCHOOL names, and native
+    -- resistance tooltip formatter rather than hardcoded descriptions.
+    if Enum and Enum.Damageclass then
+        local resistanceSchools = {
+            { 7, Enum.Damageclass.Arcane },
+            { 3, Enum.Damageclass.Fire },
+            { 5, Enum.Damageclass.Frost },
+            { 4, Enum.Damageclass.Nature },
+            { 6, Enum.Damageclass.Shadow },
+        }
+
+        definitions[#definitions + 1] = {
+            header = _G.STAT_CATEGORY_RESISTANCE,
+            statID = "category_resistances",
+        }
+
+        for _, school in ipairs(resistanceSchools) do
+            if school[2] then
+                definitions[#definitions + 1] = {
+                    statID = "resistance_" .. school[1],
+                    damageClass = school[2],
+                    resistanceLabel = _G["DAMAGE_SCHOOL" .. school[1]],
+                }
+            end
+        end
+    end
+
+    return definitions
+end
+
+UpdateStatsPane = function(frame)
+    local pane = frame.sidebar and frame.sidebar.statsPane
+
+    if not pane or not pane.RenderStatLayout then
+        return
+    end
+
+    local _, _, isCurrent = Module:GetViewedCharacter()
+
+    pane:RenderStatLayout(GetNativeStatLayout(), function(row, data)
+        row.statData = data
+
+        local proxy, reason = GetStatProxy(row)
+
+        if not proxy then
+            ReportNativeStatError(data.statID, reason)
+            return false
+        end
+
+        local ok, value = UpdateNativeStat(proxy, data)
+
+        if not ok then
+            ReportNativeStatError(data.statID, value)
+            return false
+        end
+
+        local numeric = proxy.numericValue
+        if numeric == nil then
+            numeric = value
+        end
+
+        if data.hideAt ~= nil
+            and numeric == data.hideAt
+        then
+            return false
+        end
+
+        local label = proxy.Label and proxy.Label:GetText()
+        local display = proxy.Value and proxy.Value:GetText()
+
+        if type(label) ~= "string" or label == "" then
+            -- The Blizzard update function did not provide a label.
+            ReportNativeStatError(
+                data.statID, "native stat label unavailable"
+            )
+            return false
+        end
+
+        row.label:SetText(label:gsub(":%s*$", ""))
+
+        if isCurrent then
+            row.value:SetText(
+                type(display) == "string" and display or "-"
+            )
+        else
+            row.value:SetText("-")
+        end
+
+        return true
+    end)
+end
+
+ShowStatTooltip = function(row)
+    local data = row.statData
+
+    if not data then
         return
     end
 
@@ -1086,32 +1168,32 @@ ShowStatTooltip = function(row)
         return
     end
 
-    local proxy, createError = GetStatProxy(key, row)
+    local proxy, reason = GetStatProxy(row)
 
     if not proxy then
-        ReportNativeStatError(key, createError)
+        ReportNativeStatError(data.statID, reason)
         return
     end
 
-    local updated, updateError = UpdateNativeStat(proxy, key)
+    local ok, errorMessage = UpdateNativeStat(proxy, data)
 
-    if not updated then
-        ReportNativeStatError(key, updateError)
+    if not ok then
+        ReportNativeStatError(data.statID, errorMessage)
         return
     end
 
     if type(proxy.OnEnter) ~= "function" then
-        ReportNativeStatError(key, "native CharacterStatFrameMixin:OnEnter unavailable")
+        ReportNativeStatError(
+            data.statID, "native CharacterStatFrameMixin:OnEnter unavailable"
+        )
         return
     end
 
-    -- The built-in handler generates the tooltip, including class-specific
-    -- primary-stat details, without copying or formatting its text here.
     GameTooltip:Hide()
-    local ok, enterError = pcall(proxy.OnEnter, proxy)
+    local shown, enterError = pcall(proxy.OnEnter, proxy)
 
-    if not ok then
-        ReportNativeStatError(key, enterError)
+    if not shown then
+        ReportNativeStatError(data.statID, enterError)
         GameTooltip:Hide()
         return
     end
@@ -1119,13 +1201,14 @@ ShowStatTooltip = function(row)
     if not GameTooltip:IsShown()
         or (GameTooltip.GetOwner and GameTooltip:GetOwner() ~= proxy)
     then
-        ReportNativeStatError(key, "native OnEnter did not show a tooltip")
+        ReportNativeStatError(
+            data.statID, "native OnEnter did not show a tooltip"
+        )
         return
     end
 
-    reportedStatErrors[key] = nil
+    reportedStatErrors[data.statID] = nil
 
-    -- Preserve our cursor anchor without touching Blizzard's tooltip lines.
     if GameTooltip.SetAnchorType and Styles.Tooltip then
         GameTooltip:SetAnchorType(Styles.Tooltip.anchor, 14, 12)
     end
@@ -3327,123 +3410,111 @@ local function CreateSidebar(frame)
         UpdateStatsScrollRange()
     end)
 
-    local statLayout = {
-        { header = "General" },
-        { key = "health", label = "Health" },
-        { key = "power", label = "Power" },
-        { key = "moveSpeed", label = "Movement Speed" },
-
-        { header = "Primary Attributes" },
-        { key = "strength", label = "Strength" },
-        { key = "agility", label = "Agility" },
-        { key = "stamina", label = "Stamina" },
-        { key = "intellect", label = "Intellect" },
-        { key = "spirit", label = "Spirit" },
-
-        { header = "Weapons" },
-        { key = "attackPower", label = "Attack Power" },
-        { key = "crit", label = "Crit" },
-        { key = "hit", label = "Hit" },
-
-        { header = "Defense" },
-        { key = "armor", label = "Armor" },
-        { key = "dodge", label = "Dodge" },
-        { key = "parry", label = "Parry" },
-        { key = "block", label = "Block" },
-
-        { header = "Resistances" },
-        { key = "fire", label = "Fire" },
-        { key = "nature", label = "Nature" },
-        { key = "frost", label = "Frost" },
-        { key = "shadow", label = "Shadow" },
-        { key = "arcane", label = "Arcane" },
-    }
-
     local LayoutStatsContent
-    local currentSection
 
-    for _, data in ipairs(statLayout) do
-        if data.header then
-            currentSection = data.header
-
-            local header = CreateSidebarHeader(
-                statsContent,
-                -4,
-                data.header
-            )
-            header.section = data.header
-            header.collapsed = false
-            data.frame = header
-
-            header:SetScript("OnClick", function(self)
-                self.collapsed = not self.collapsed
-                self:SetExpanded(not self.collapsed)
-                LayoutStatsContent()
-            end)
-        else
-            local row = CreateSidebarRow(statsContent, -4)
-            row:SetHeight(13)
-            row.label:SetText(data.label)
-            row.value:SetText("-")
-            row.section = currentSection
-            row.statKey = data.key
-            data.frame = row
-            statsPane.rows[data.key] = row
-        end
-    end
+    statsPane.rowWidgets = {}
+    statsPane.headerWidgets = {}
 
     LayoutStatsContent = function()
         local y = -4
         local collapsed = false
 
-        for _, data in ipairs(statLayout) do
-            local widget = data.frame
+        for _, widget in pairs(statsPane.rowWidgets) do
+            widget:Hide()
+        end
+        for _, widget in pairs(statsPane.headerWidgets) do
+            widget:Hide()
+        end
 
-            if data.header then
-                collapsed = widget.collapsed == true
-                widget:ClearAllPoints()
-                widget:SetPoint(
-                    "TOPLEFT",
-                    statsContent,
-                    "TOPLEFT",
-                    0,
-                    y
-                )
-                widget:SetPoint(
-                    "TOPRIGHT",
-                    statsContent,
-                    "TOPRIGHT",
-                    0,
-                    y
-                )
-                widget:SetExpanded(not collapsed)
-                widget:Show()
-                y = y - 18
-            elseif collapsed then
-                widget:Hide()
-            else
-                widget:ClearAllPoints()
-                widget:SetPoint(
-                    "TOPLEFT",
-                    statsContent,
-                    "TOPLEFT",
-                    8,
-                    y
-                )
-                widget:SetPoint(
-                    "TOPRIGHT",
-                    statsContent,
-                    "TOPRIGHT",
-                    -8,
-                    y
-                )
-                widget:Show()
-                y = y - 14
+        for _, section in ipairs(statsPane.sections or {}) do
+            local header = section.header
+
+            header:ClearAllPoints()
+            header:SetPoint(
+                "TOPLEFT", statsContent, "TOPLEFT", 0, y
+            )
+            header:SetPoint(
+                "TOPRIGHT", statsContent, "TOPRIGHT", 0, y
+            )
+            header:Show()
+            collapsed = header.collapsed == true
+            header:SetExpanded(not collapsed)
+            y = y - 18
+
+            if not collapsed then
+                for _, row in ipairs(section.rows) do
+                    row:ClearAllPoints()
+                    row:SetPoint(
+                        "TOPLEFT", statsContent, "TOPLEFT", 8, y
+                    )
+                    row:SetPoint(
+                        "TOPRIGHT", statsContent, "TOPRIGHT", -8, y
+                    )
+                    row:Show()
+                    y = y - 14
+                end
             end
         end
 
         statsContent:SetHeight(math.max(1, -y + 4))
         UpdateStatsScrollRange()
+    end
+
+    statsPane.RenderStatLayout = function(self, definitions, updateRow)
+        local sections = {}
+        local section
+
+        for _, data in ipairs(definitions) do
+            if data.header then
+                section = {
+                    data = data,
+                    rows = {},
+                }
+                sections[#sections + 1] = section
+            elseif section then
+                local row = self.rowWidgets[data.statID]
+
+                if not row then
+                    row = CreateSidebarRow(statsContent, -4)
+                    row:SetHeight(13)
+                    row.statID = data.statID
+                    self.rowWidgets[data.statID] = row
+                end
+
+                if updateRow(row, data) then
+                    section.rows[#section.rows + 1] = row
+                end
+            end
+        end
+
+        self.sections = {}
+
+        for _, candidate in ipairs(sections) do
+            if #candidate.rows > 0 then
+                local data = candidate.data
+                local header = self.headerWidgets[data.statID]
+
+                if not header then
+                    header = CreateSidebarHeader(
+                        statsContent, -4, data.header
+                    )
+                    header.collapsed = false
+                    header:SetScript("OnClick", function(self)
+                        self.collapsed = not self.collapsed
+                        self:SetExpanded(not self.collapsed)
+                        LayoutStatsContent()
+                    end)
+                    self.headerWidgets[data.statID] = header
+                end
+
+                self.sections[#self.sections + 1] = {
+                    header = header,
+                    rows = candidate.rows,
+                }
+            end
+        end
+
+        LayoutStatsContent()
     end
 
     LayoutStatsContent()
