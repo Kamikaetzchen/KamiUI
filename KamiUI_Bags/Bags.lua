@@ -9,7 +9,14 @@ local Layout = UI.Layout.Bags
 
 local pendingRebuild = false
 local sortingBags = false
-local pendingSortRefresh = false
+local pendingEventRefresh = false
+local sortGeneration = 0
+
+-- Sorting can emit BAG_UPDATE_DELAYED/ITEM_LOCK_CHANGED long after the
+-- SortBags() call returns. Do not resume full inventory rebuilds on a
+-- fixed 0.25-second timer while those events are still arriving.
+local SORT_SETTLE_SECONDS = 0.75
+local EVENT_REFRESH_SECONDS = 0.10
 
 local function TryReceiveDragOnMouseFocus()
     local frames = {}
@@ -405,7 +412,7 @@ local function GetInventoryBags()
     return bags
 end
 
-local function UpdateItemButton(button, bagID, slotID)
+local function UpdateItemButton(button, bagID, slotID, borderColor)
     local search = Module.frame
         and Module.frame.search
         and Module.frame.search:GetText()
@@ -416,7 +423,7 @@ local function UpdateItemButton(button, bagID, slotID)
         bagID,
         slotID,
         {
-            borderColor = GetBagFamilyColor(bagID),
+            borderColor = borderColor or GetBagFamilyColor(bagID),
             search = search,
         }
     )
@@ -1412,68 +1419,65 @@ function Module:Rebuild()
     frame.bagBarToggle:Show()
     frame.sort:Show()
 
-    local activeIndex = 0
+    local activeButtons = {}
     local bags = GetInventoryBags()
+    local keyring = KEYRING_CONTAINER
+        or (Enum and Enum.BagIndex and Enum.BagIndex.Keyring)
 
     for _, bagID in ipairs(bags) do
         if not GetDatabase().hiddenBags[bagID] then
             local carrier = frame.bagCarriers[bagID]
 
-        if not carrier then
-            carrier = Components:CreateCarrier(frame.content, bagID)
-            frame.bagCarriers[bagID] = carrier
-        end
+            if not carrier then
+                carrier = Components:CreateCarrier(frame.content, bagID)
+                frame.bagCarriers[bagID] = carrier
+            end
 
-        carrier:SetID(bagID)
+            carrier:SetID(bagID)
 
-        local slotCount = UI:GetContainerNumSlots(bagID)
-        local keyring = KEYRING_CONTAINER
-            or (Enum and Enum.BagIndex and Enum.BagIndex.Keyring)
+            -- Cache the actual button for each bag/slot, not its transient
+            -- position in the combined grid. A changed keyring/hidden-bag
+            -- layout must never create replacement ItemButton frames.
+            local bySlot = frame.itemButtonsByBag[bagID]
+
+            if not bySlot then
+                bySlot = {}
+                frame.itemButtonsByBag[bagID] = bySlot
+            end
+
+            local slotCount = UI:GetContainerNumSlots(bagID)
+            local borderColor = GetBagFamilyColor(bagID)
 
             for slotID = 1, slotCount do
                 local showSlot = bagID ~= keyring
                     or UI:GetContainerItemInfo(bagID, slotID) ~= nil
 
                 if showSlot then
-                    activeIndex = activeIndex + 1
+                    local button = bySlot[slotID]
 
-                    local button = frame.itemButtons[activeIndex]
-
-                    if not button or button:GetParent() ~= carrier then
+                    if not button then
                         button = Components:CreateContainerItemButton(
-                        carrier,
-                        {
-                            size = Layout.SLOT_SIZE,
-                            corners = true,
-                            onDragStart = function()
-                                itemDragFrame:Show()
-                            end,
-                        }
-                    )
-                        frame.itemButtons[activeIndex] = button
+                            carrier,
+                            {
+                                size = Layout.SLOT_SIZE,
+                                corners = true,
+                                onDragStart = function()
+                                    itemDragFrame:Show()
+                                end,
+                            }
+                        )
+                        bySlot[slotID] = button
                     end
 
                     button:Show()
-                    UpdateItemButton(button, bagID, slotID)
+                    UpdateItemButton(button, bagID, slotID, borderColor)
+                    activeButtons[#activeButtons + 1] = button
                 end
             end
         end
     end
 
-    for index = activeIndex + 1, #frame.itemButtons do
-        frame.itemButtons[index]:Hide()
-    end
-
-    while #frame.itemButtons > activeIndex do
-        frame.itemButtons[#frame.itemButtons] = nil
-    end
-
-    local activeButtons = {}
-
-    for index = 1, activeIndex do
-        activeButtons[index] = frame.itemButtons[index]
-    end
-
+    frame.itemButtons = activeButtons
     frame.activeButtons = activeButtons
 
     if self.highlightedBagID then
@@ -1538,6 +1542,56 @@ function Module:ResetPosition()
     end
 
     UI:Print("Bag position reset")
+end
+
+-- Delay the final rebuild until the latest sort-related inventory event
+-- has settled. Generation tokens make stale timer callbacks harmless.
+local function ScheduleSortFinish(delay)
+    if not sortingBags then
+        return
+    end
+
+    sortGeneration = sortGeneration + 1
+    local generation = sortGeneration
+
+    C_Timer.After(delay or SORT_SETTLE_SECONDS, function()
+        if not sortingBags or sortGeneration ~= generation then
+            return
+        end
+
+        sortingBags = false
+
+        if Module.frame and Module.frame.sort then
+            Module.frame.sort:Enable()
+        end
+
+        -- Rebuild() already calls SaveCurrentCharacter(). Previously
+        -- the sort completion ran both functions and scanned every item twice.
+        if Module.frame and Module.frame:IsShown() then
+            Module:Refresh()
+        else
+            SaveCurrentCharacter()
+        end
+    end)
+end
+
+-- BAG_UPDATE_COOLDOWN/ITEM_LOCK_CHANGED may fire dozens of times during
+-- a sort or a single inventory transaction. Coalesce normal UI refreshes.
+local function ScheduleEventRefresh()
+    if pendingEventRefresh then
+        return
+    end
+
+    pendingEventRefresh = true
+    C_Timer.After(EVENT_REFRESH_SECONDS, function()
+        pendingEventRefresh = false
+
+        if sortingBags or _G.KamiUIBankSortInProgress then
+            return
+        end
+
+        Module:Refresh()
+    end)
 end
 
 local function CreateFrameUI()
@@ -1661,6 +1715,7 @@ local function CreateFrameUI()
     local content = CreateFrame("Frame", nil, frame)
     frame.content = content
     frame.itemButtons = {}
+    frame.itemButtonsByBag = {}
     frame.cachedButtons = {}
     frame.activeButtons = frame.itemButtons
     frame.bagCarriers = {}
@@ -1678,7 +1733,6 @@ local function CreateFrameUI()
         end
 
         sortingBags = true
-        pendingSortRefresh = false
         sort:Disable()
 
         if C_Container and C_Container.SortBags then
@@ -1687,17 +1741,7 @@ local function CreateFrameUI()
             SortBags()
         end
 
-        C_Timer.After(0.25, function()
-            sortingBags = false
-            sort:Enable()
-
-            if pendingSortRefresh then
-                pendingSortRefresh = false
-            end
-
-            SaveCurrentCharacter()
-            Module:Refresh()
-        end)
+        ScheduleSortFinish(1.0)
     end)
     frame.sort = sort
 
@@ -2061,45 +2105,40 @@ function Module:Initialize()
     InstallTooltipHook()
 
     UI:RegisterEvent("BAG_UPDATE_DELAYED", function()
-        if sortingBags or _G.KamiUIBankSortInProgress then
-            pendingSortRefresh = true
+        if sortingBags then
+            ScheduleSortFinish()
             return
         end
 
-        SaveCurrentCharacter()
-        Module:Refresh()
+        if not _G.KamiUIBankSortInProgress then
+            ScheduleEventRefresh()
+        end
     end)
 
     UI:RegisterEvent("BAG_UPDATE_COOLDOWN", function()
-        if sortingBags or _G.KamiUIBankSortInProgress then
-            return
+        if not sortingBags and not _G.KamiUIBankSortInProgress then
+            ScheduleEventRefresh()
         end
-
-        Module:Refresh()
     end)
 
     UI:RegisterEvent("ITEM_LOCK_CHANGED", function()
-        if sortingBags or _G.KamiUIBankSortInProgress then
-            return
+        if sortingBags then
+            ScheduleSortFinish()
+        elseif not _G.KamiUIBankSortInProgress then
+            ScheduleEventRefresh()
         end
-
-        Module:Refresh()
     end)
 
     UI:RegisterEvent("MAIL_SEND_INFO_UPDATE", function()
-        if sortingBags or _G.KamiUIBankSortInProgress then
-            return
+        if not sortingBags and not _G.KamiUIBankSortInProgress then
+            ScheduleEventRefresh()
         end
-
-        Module:Refresh()
     end)
 
     UI:RegisterEvent("MAIL_CLOSED", function()
-        if sortingBags or _G.KamiUIBankSortInProgress then
-            return
+        if not sortingBags and not _G.KamiUIBankSortInProgress then
+            ScheduleEventRefresh()
         end
-
-        Module:Refresh()
     end)
 
     UI:RegisterEvent("PLAYER_MONEY", function()
