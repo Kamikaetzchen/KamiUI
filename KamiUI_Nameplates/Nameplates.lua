@@ -39,20 +39,26 @@ local function ConfigureSingleLine(fontString)
 end
 
 local function GetDisplayIdentity(unit)
-    local name = GetUnitName and GetUnitName(unit) or UnitName(unit)
-
-    if not name or not UI:CanAccessValue(name) then
-        return "", "", 1, 0.10, 0.10
+    -- Names and levels may be secret in instances. Keep the raw values:
+    -- FontString:SetText / SetFormattedText can render them even though
+    -- Lua cannot compare, concatenate or stringify them.
+    local name
+    if GetUnitName then
+        name = GetUnitName(unit)
+    end
+    if UI:CanAccessValue(name) and not name and UnitName then
+        name = UnitName(unit)
     end
 
     local level = UnitLevel(unit)
+    local levelIsSecret = not UI:CanAccessValue(level)
     local classification = UnitClassification(unit)
 
     local levelText = ""
     local suffix = ""
     local levelR, levelG, levelB = 1, 0.10, 0.10
 
-    if level and UI:CanAccessValue(level) then
+    if not levelIsSecret and type(level) == "number" then
         levelText = level > 0 and tostring(level) or "??"
 
         if level > 0 then
@@ -66,11 +72,12 @@ local function GetDisplayIdentity(unit)
         end
     end
 
-    if classification and UI:CanAccessValue(classification) then
+    if UI:CanAccessValue(classification) and classification then
         suffix = CLASSIFICATION_SUFFIX[classification] or ""
     end
 
-    return name, levelText .. suffix, levelR, levelG, levelB
+    return name, level, levelText, suffix, levelIsSecret,
+        levelR, levelG, levelB
 end
 
 local function GetUnitColor(unit)
@@ -439,23 +446,35 @@ local function UpdateIdentity(data)
         return
     end
 
-    local nameText, levelText, levelR, levelG, levelB =
-        GetDisplayIdentity(data.unit)
+    local nameText, level, levelText, suffix, levelIsSecret,
+        levelR, levelG, levelB = GetDisplayIdentity(data.unit)
 
-    data.level:SetText(levelText)
+    -- Only the widget gets to handle secret level/name values. Never
+    -- branch on a secret or run tostring/string operations on it.
+    if levelIsSecret then
+        data.level:SetFormattedText("%s%s", level, suffix)
+    else
+        data.level:SetText(levelText .. suffix)
+    end
+
     data.level:SetTextColor(levelR, levelG, levelB)
-    data.level:SetShown(levelText ~= "")
+    local hasLevel = levelIsSecret or levelText ~= "" or suffix ~= ""
+    data.level:SetShown(hasLevel)
 
     data.name:ClearAllPoints()
 
-    if levelText ~= "" then
+    if hasLevel then
         data.name:SetPoint("LEFT", data.level, "RIGHT", 3, 0)
     else
         data.name:SetPoint("LEFT", data.textRow, "LEFT", 3, 0)
     end
 
     data.name:SetPoint("RIGHT", data.textRow, "RIGHT", -36, 0)
-    data.name:SetText(nameText)
+    if UI:CanAccessValue(nameText) then
+        data.name:SetText(nameText or "")
+    else
+        data.name:SetText(nameText)
+    end
 
     local isTarget = UnitIsUnit and UnitIsUnit(data.unit, "target")
 
@@ -512,7 +531,12 @@ local function UpdateCast(data)
 end
 
 local function UpdatePlate(data)
-    if not data.unit or not UnitExists(data.unit) then
+    if not data.unit or not UI:CanAccessValue(data.unit) then
+        return
+    end
+
+    local exists = UnitExists(data.unit)
+    if UI:CanAccessValue(exists) and not exists then
         return
     end
 
