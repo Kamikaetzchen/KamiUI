@@ -9,6 +9,10 @@ end
 local RARITY_GLOW_TEXTURE =
     "Interface\\AddOns\\KamiUI\\Media\\ItemRarityGlow_16x16.tga"
 
+-- Quest gold: the same warm golden-yellow family as Blizzard's bag quest
+-- overlay. Quest highlighting takes precedence over item rarity coloring.
+local QUEST_GLOW_COLOR = { 1.00, 0.80, 0.20 }
+
 local RARITY_GLOW_TEXCOORDS = {
     topLeft = { 0.0000, 0.4375, 0.0000, 0.4375 },
     top = { 0.4375, 0.5625, 0.0000, 0.4375 },
@@ -227,6 +231,17 @@ function Components:SetItemSlotQuality(button, quality)
         return
     end
 
+    if button.KamiQuestItem then
+        glow:SetVertexColor(
+            QUEST_GLOW_COLOR[1],
+            QUEST_GLOW_COLOR[2],
+            QUEST_GLOW_COLOR[3],
+            1
+        )
+        glow:Show()
+        return
+    end
+
     if quality == nil or quality <= 1 then
         glow:Hide()
         return
@@ -240,6 +255,39 @@ function Components:SetItemSlotQuality(button, quality)
         glow:Show()
     else
         glow:Hide()
+    end
+end
+
+-- These textures belong to Blizzard's ContainerFrameItemButtonTemplate.
+-- A quest starter shows the ! overlay; other quest items show the native
+-- quest border. Both are independent of the item's quality.
+local function UpdateQuestItemDecoration(button, data)
+    local questID = data.questID
+    local isQuestItem = data.isQuestItem == true
+        or (questID ~= nil and questID ~= 0)
+
+    button.KamiQuestItem = isQuestItem
+
+    local marker = button.IconQuestTexture
+
+    if not marker then
+        return
+    end
+
+    if not button.KamiQuestMarkerAnchored then
+        button.KamiQuestMarkerAnchored = true
+        marker:ClearAllPoints()
+        marker:SetAllPoints(button)
+    end
+
+    if questID and questID ~= 0 and not data.questActive then
+        marker:SetTexture(TEXTURE_ITEM_QUEST_BANG)
+        marker:Show()
+    elseif isQuestItem then
+        marker:SetTexture(TEXTURE_ITEM_QUEST_BORDER)
+        marker:Show()
+    else
+        marker:Hide()
     end
 end
 
@@ -699,6 +747,7 @@ function Components:SetItemSlotData(button, data)
         self:SetItemSlotBorderColor(button, data.borderColor)
     end
 
+    UpdateQuestItemDecoration(button, data)
     self:RefreshItemSlotQuality(button, data)
 end
 
@@ -743,6 +792,19 @@ function Components:SetContainerItemSlotData(
     self:SuppressItemButtonFlash(button)
 
     local info = UI:GetContainerItemInfo(bagID, slotID)
+    local questInfo
+
+    if info
+        and C_Container
+        and C_Container.GetContainerItemQuestInfo
+    then
+        questInfo = UI:SafeCall(
+            C_Container.GetContainerItemQuestInfo,
+            bagID,
+            slotID
+        )
+    end
+
     local search = options.search or ""
     local filtered = info and info.isFiltered == true or false
 
@@ -770,6 +832,9 @@ function Components:SetContainerItemSlotData(
         icon = info and info.iconFileID or nil,
         count = info and (info.stackCount or 1) or 0,
         quality = info and info.quality or nil,
+        isQuestItem = questInfo and questInfo.isQuestItem,
+        questID = questInfo and questInfo.questID,
+        questActive = questInfo and questInfo.isActive,
         borderColor = options.borderColor,
         alpha = filtered and 0.20 or 1.00,
         desaturated = info and info.isLocked == true or false,
