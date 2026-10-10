@@ -317,15 +317,7 @@ end
 
 local function ShowRestedTooltip(owner)
     PrepareTooltip(owner, "Rested XP")
-    GameTooltip:AddLine(
-        "Percent of the XP needed for one level (base cap: 150%).",
-        0.74, 0.74, 0.79, true
-    )
-    GameTooltip:AddLine(" ")
-
     local currentRealm = GetRealmName and GetRealmName() or ""
-    local hasOfflineValues = false
-    local hasOutsideRestingArea = false
 
     for _, entry in ipairs(RestedXP:GetCharacterEntries()) do
         local profile = entry.character or {}
@@ -342,12 +334,9 @@ local function ShowRestedTooltip(owner)
         elseif entry.percent ~= nil then
             local outsideRestingArea = not entry.isCurrent
                 and entry.restingOnLogout == false
-            value = string.format("%.1f%%%s",
-                entry.percent, outsideRestingArea and "*" or "")
+            value = string.format("%s%.1f%%",
+                outsideRestingArea and "*" or "", entry.percent)
             vr, vg, vb = GetRestedColor(entry.percent)
-            hasOfflineValues = hasOfflineValues or entry.estimated
-            hasOutsideRestingArea =
-                hasOutsideRestingArea or outsideRestingArea
         else
             value = "N/A"
         end
@@ -370,27 +359,6 @@ local function ShowRestedTooltip(owner)
         )
     end
 
-    if hasOfflineValues then
-        GameTooltip:AddLine(" ")
-        if hasOutsideRestingArea then
-            GameTooltip:AddLine(
-                "* = logged out outside a resting area (slower rested XP gain).",
-                0.67, 0.69, 0.75, true
-            )
-        end
-        GameTooltip:AddLine(
-            "Offline XP is estimated (5% per 8h rested / 32h elsewhere).",
-            0.67, 0.69, 0.75, true
-        )
-        GameTooltip:AddLine(
-            "Well Rested: +4% gain and +4 cap points per rank (0-5).",
-            0.67, 0.69, 0.75, true
-        )
-        GameTooltip:AddLine(
-            "Values are measured again when you log into each character.",
-            0.67, 0.69, 0.75, true
-        )
-    end
     GameTooltip:Show()
 end
 
