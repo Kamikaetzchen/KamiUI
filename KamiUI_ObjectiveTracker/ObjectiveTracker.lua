@@ -926,11 +926,29 @@ local function CreateFrameUI()
     header:RegisterForDrag("LeftButton")
     header:SetScript("OnDragStart", function(self)
         self.dragging = true
+
+        -- Quest item buttons are secure children: the whole tracker
+        -- cannot be moved by insecure addon code during combat.
+        if InCombatLockdown and InCombatLockdown() then
+            return
+        end
+
         frame:StartMoving()
+        self.kamiMoving = true
     end)
     header:SetScript("OnDragStop", function(self)
-        frame:StopMovingOrSizing()
-        SavePosition(frame)
+        if self.kamiMoving then
+            if InCombatLockdown and InCombatLockdown() then
+                -- Combat can start between mouse-down and mouse-up.
+                -- Defer the protected stop/save until combat ends.
+                self.kamiStopAfterCombat = true
+            else
+                frame:StopMovingOrSizing()
+                SavePosition(frame)
+                self.kamiMoving = nil
+                self.kamiStopAfterCombat = nil
+            end
+        end
 
         C_Timer.After(0, function()
             self.dragging = false
@@ -1141,6 +1159,15 @@ function Module:Initialize()
     end)
 
     UI:RegisterEvent("PLAYER_REGEN_ENABLED", function()
+        -- If combat began during a drag, finish it safely now.
+        local header = Module.frame and Module.frame.header
+        if header and header.kamiStopAfterCombat then
+            Module.frame:StopMovingOrSizing()
+            SavePosition(Module.frame)
+            header.kamiMoving = nil
+            header.kamiStopAfterCombat = nil
+        end
+
         if Module.combatRefreshPending or Module.questItemRefreshPending then
             Module.combatRefreshPending = nil
             Module.questItemRefreshPending = nil
