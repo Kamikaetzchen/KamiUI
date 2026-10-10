@@ -173,37 +173,104 @@ local function SetupGCDSwipe(button)
     end
 end
 
-local function GetGCDState()
-    if not C_Spell then return end
+-- Only use an actual GCD. Other spells may have much longer
+-- cooldowns, which must not be drawn over the entire action bar.
+local function ReadGCDCooldown(info, durationObject)
+    if not info or info.isActive == false then
+        return nil
+    end
 
-    local info = C_Spell.GetSpellCooldown
-        and C_Spell.GetSpellCooldown(GCD_SPELL_ID)
-    local durationObject = C_Spell.GetSpellCooldownDuration
-        and C_Spell.GetSpellCooldownDuration(GCD_SPELL_ID)
-
-    -- isActive is a non-secret field on the current cooldown API.
-    local active = info and info.isActive
     local start, seconds
-    if info and UI:CanAccessValue(info.startTime)
+    if UI:CanAccessValue(info.startTime)
         and UI:CanAccessValue(info.duration)
     then
         start, seconds = info.startTime, info.duration
-        if active == nil then
-            active = type(start) == "number" and start > 0
-                and type(seconds) == "number" and seconds > 0
+    end
+
+    local shortCooldown = type(start) == "number" and start > 0
+        and type(seconds) == "number" and seconds > 0
+        and seconds <= 2.5
+
+    if info.isOnGCD == false
+        or (info.isOnGCD ~= true and not shortCooldown)
+        or (type(seconds) == "number" and seconds > 2.5)
+    then
+        return nil
+    end
+
+    if not durationObject and not shortCooldown then
+        return nil
+    end
+
+    return true, durationObject, start, seconds
+end
+
+local lastCastSpellID
+
+local function GetGCDState()
+    -- Blizzard's GCD dummy spell 61304 returns nil on this Forever build.
+    -- Keep it for clients where it is implemented, then try real actions.
+    if C_Spell and C_Spell.GetSpellCooldown then
+        local info = C_Spell.GetSpellCooldown(GCD_SPELL_ID)
+        local durationObject = C_Spell.GetSpellCooldownDuration
+            and C_Spell.GetSpellCooldownDuration(GCD_SPELL_ID)
+        if info and info.isActive == true then
+            local start, seconds
+            if UI:CanAccessValue(info.startTime)
+                and UI:CanAccessValue(info.duration)
+            then
+                start, seconds = info.startTime, info.duration
+            end
+            return true, durationObject, start, seconds, true, "61304"
         end
     end
-    -- Older Forever builds may return a duration object without the
-    -- newer isActive flag. Let the cooldown widget handle zero durations.
-    if active == nil then
-        active = durationObject ~= nil
+
+    -- A real action's cooldown includes the GCD by default. Prefer the
+    -- engine-provided DurationObject, so secret timestamps are never used
+    -- for addon-side arithmetic.
+    if C_ActionBar and C_ActionBar.GetActionCooldown then
+        for _, bar in pairs(Module.bars) do
+            for _, button in ipairs(bar.buttons) do
+                local slot = button._state_action
+                if type(slot) == "number" and UI:CanAccessValue(slot)
+                    and slot > 0 and button:HasAction()
+                then
+                    local info = C_ActionBar.GetActionCooldown(slot)
+                    local durationObject
+                    if info and C_ActionBar.GetActionCooldownDuration then
+                        durationObject =
+                            C_ActionBar.GetActionCooldownDuration(slot)
+                    end
+                    local active, object, start, seconds =
+                        ReadGCDCooldown(info, durationObject)
+                    if active then
+                        return true, object, start, seconds, true,
+                            "action:" .. slot
+                    end
+                end
+            end
+        end
     end
-    return active, durationObject, start, seconds, info ~= nil
+
+    -- A cast need not occupy an action bar slot (e.g. spellbook casting).
+    if lastCastSpellID and C_Spell and C_Spell.GetSpellCooldown then
+        local info = C_Spell.GetSpellCooldown(lastCastSpellID)
+        local durationObject = info and C_Spell.GetSpellCooldownDuration
+            and C_Spell.GetSpellCooldownDuration(lastCastSpellID)
+        local active, object, start, seconds =
+            ReadGCDCooldown(info, durationObject)
+        if active then
+            return true, object, start, seconds, true,
+                "spell:" .. lastCastSpellID
+        end
+    end
+
+    return false, nil, nil, nil, false, "none"
 end
 
 -- Keep the actual cooldown state sampled *when* the event fires. A GCD
 -- normally ends before someone can type /kami actionbars gcd by hand.
-local function SampleGCD(source, active, durationObject, start, seconds, hasInfo)
+local function SampleGCD(source, active, durationObject, start, seconds, hasInfo, provider)
     source = type(source) == "string" and source or "refresh"
     gcdEventCounts[source] = (gcdEventCounts[source] or 0) + 1
     local snapshot = {
@@ -212,6 +279,7 @@ local function SampleGCD(source, active, durationObject, start, seconds, hasInfo
         active = active,
         hasInfo = hasInfo,
         hasDuration = durationObject ~= nil,
+        provider = provider,
         start = start,
         seconds = seconds,
     }
@@ -225,8 +293,9 @@ local function SampleGCD(source, active, durationObject, start, seconds, hasInfo
 end
 
 local function UpdateGCDSwipes(source)
-    local active, durationObject, start, seconds, hasInfo = GetGCDState()
-    SampleGCD(source, active, durationObject, start, seconds, hasInfo)
+    local active, durationObject, start, seconds, hasInfo, provider =
+        GetGCDState()
+    SampleGCD(source, active, durationObject, start, seconds, hasInfo, provider)
     for _, bar in pairs(Module.bars) do
         for _, button in ipairs(bar.buttons) do
             local swipe = button.KamiGCDSwipe
@@ -265,12 +334,14 @@ local function FindVisibleActionButton()
 end
 
 local function PrintGCDStatus()
-    local active, durationObject, start, seconds, hasInfo = GetGCDState()
+    local active, durationObject, start, seconds, hasInfo, provider =
+        GetGCDState()
     local button = FindVisibleActionButton()
     local swipe = button and button.KamiGCDSwipe
     UI:Print(
         "GCD now: active", tostring(active),
-        "spell info", tostring(hasInfo),
+        "provider", tostring(provider),
+        "info", tostring(hasInfo),
         "duration object", durationObject and "yes" or "no",
         "swipe shown", swipe and tostring(swipe:IsShown()) or "none"
     )
@@ -292,6 +363,7 @@ local function PrintGCDStatus()
         UI:Print(
             "Last active GCD", string.format("%.1fs ago", GetTime() - lastActiveGCD.when),
             "from", lastActiveGCD.source,
+            "provider", tostring(lastActiveGCD.provider),
             "duration object", lastActiveGCD.hasDuration and "yes" or "no"
         )
     else
@@ -302,6 +374,7 @@ local function PrintGCDStatus()
             "GCD sample:", sample.source,
             string.format("%.2fs ago", GetTime() - sample.when),
             "active", tostring(sample.active),
+            "provider", tostring(sample.provider),
             "info", tostring(sample.hasInfo),
             "object", sample.hasDuration and "yes" or "no",
             "seconds", sample.seconds and tostring(sample.seconds) or "-"
@@ -1118,8 +1191,13 @@ function Module:Initialize()
     UI:RegisterEvent("ACTIONBAR_UPDATE_COOLDOWN", function()
         UpdateGCDSwipes("ACTIONBAR_UPDATE_COOLDOWN")
     end)
-    UI:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED", function(_, unit)
+    UI:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED", function(_, unit, _, spellID)
         if unit == "player" then
+            if type(spellID) == "number"
+                and UI:CanAccessValue(spellID)
+            then
+                lastCastSpellID = spellID
+            end
             UpdateGCDSwipes("CAST")
             C_Timer.After(0.06, function()
                 UpdateGCDSwipes("CAST+0.06")
