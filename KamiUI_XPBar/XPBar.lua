@@ -115,7 +115,9 @@ local function UpdateDividers(frame)
         frame.dividers = {}
 
         for index = 1, Layout.SEGMENTS - 1 do
-            local divider = frame:CreateTexture(nil, "OVERLAY")
+            -- The high-level overlay keeps the segment markers in front
+            -- of both the purple XP fill and the blue rested fill.
+            local divider = frame.overlay:CreateTexture(nil, "OVERLAY")
             divider:SetColorTexture(unpack(Palette.xpBar.divider))
             divider:SetWidth(1)
             frame.dividers[index] = divider
@@ -243,9 +245,10 @@ local function ShowTooltip(frame)
         if maxXP > 0 and restedXP > 0 then
             local restedPercent = restedXP / maxXP * 100
             text = string.format(
-                "%s (+%.1f%% rested)",
+                "%s (+%.1f%% rested, %s XP)",
                 text,
-                restedPercent
+                restedPercent,
+                UI:FormatNumber(restedXP)
             )
         end
 

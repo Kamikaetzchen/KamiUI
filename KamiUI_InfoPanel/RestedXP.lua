@@ -229,25 +229,25 @@ local function GetEstimatedPercent(snapshot, isCurrent)
     local maxXP = snapshot.maxXP
     local restedXP = snapshot.restedXP
     local level = snapshot.level
+    local rank = ClampRank(snapshot.manualLegacyRank)
+        or ClampRank(snapshot.legacyRank)
 
     -- Old snapshots wrongly marked some low-level characters as max-level.
     -- They also discarded their actual restedXP. Never interpret that
     -- artificial zero as real data: mark unknown until next login.
     if snapshot.maxLevel and SafeNumber(level) and level < MAX_LEVEL then
-        return nil, false, false, snapshot.legacyRank
+        return nil, false, false, rank
     end
 
     if SafeNumber(level) and level >= MAX_LEVEL then
-        return nil, false, true, snapshot.legacyRank
+        return nil, false, true, rank
     end
 
     if not SafeNumber(maxXP) or maxXP <= 0
         or not SafeNumber(restedXP) then
-        return nil, false, false, snapshot.legacyRank
+        return nil, false, false, rank
     end
 
-    local rank = ClampRank(snapshot.manualLegacyRank)
-        or ClampRank(snapshot.legacyRank)
     -- The per-rank 4% cap increase is treated as four percentage points,
     -- making a rank-5 character's projection limit 170%. The game's
     -- exact additive-vs-multiplicative cap semantics are unverified.

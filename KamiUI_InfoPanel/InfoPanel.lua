@@ -352,6 +352,11 @@ local function ShowRestedTooltip(owner)
             name = string.format("%s - %s", name, profile.realm)
         end
 
+        -- Do not imply that an unknown Legacy talent rank equals 0.
+        local rankText = entry.legacyRank == nil
+            and "?" or tostring(entry.legacyRank)
+        name = string.format("%s (%s/5)", name, rankText)
+
         GameTooltip:AddDoubleLine(
             name,
             value,
