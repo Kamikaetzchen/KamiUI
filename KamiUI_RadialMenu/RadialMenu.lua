@@ -361,6 +361,15 @@ local function VariantRadius(count)
         math.ceil(minimumSeparation / (2 * math.sin(math.pi / count))))
 end
 
+-- Start each wheel on its inward-facing side, towards screen center.
+-- Q (left): 3 o'clock, clockwise. E (right): 9 o'clock, counterclockwise.
+-- Apply the same order to category wheels and their variant rings.
+local function WheelAngle(key, index, count)
+    local start = key == "Q" and 0 or 180
+    local direction = key == "Q" and -1 or 1
+    return math.rad(start + direction * (index - 1) * 360 / count)
+end
+
 -- Give crowded variant rings enough room to stay clear of their parent icon.
 local function SubmenuOffset(radius)
     return math.max(L.SUB_OFFSET,
@@ -408,7 +417,7 @@ local function CreateWheel(key, categories)
     catcher:SetAttribute("_onclick", [[self:GetFrameRef("root"):Hide()]])
 
     for index, category in ipairs(categories) do
-        local theta = math.rad(90 - (index - 1) * 360 / #categories)
+        local theta = WheelAngle(key, index, #categories)
         local x, y = math.cos(theta) * L.RADIUS, math.sin(theta) * L.RADIUS
         local main = CreateFrame("Button", nil, root, "SecureActionButtonTemplate")
         main:SetFrameLevel(root:GetFrameLevel() + 3)
@@ -471,7 +480,7 @@ function Module:Refresh()
             local sub = wheel.submenus[index]
             local count = math.min(#entries, MAX_VISIBLE)
             local radius = VariantRadius(count)
-            local theta = math.rad(90 - (index - 1) * 360 / #categories)
+            local theta = WheelAngle(key, index, #categories)
             local offset = SubmenuOffset(radius)
             sub:ClearAllPoints()
             sub:SetPoint("CENTER", main, "CENTER",
@@ -488,7 +497,7 @@ function Module:Refresh()
                     sub.buttons[slot] = CreateVariantButton(wheel, sub, category)
                 end
                 local button = sub.buttons[slot]
-                local angle = math.rad(90 - (slot - 1) * 360 / count)
+                local angle = WheelAngle(key, slot, count)
                 button:ClearAllPoints()
                 button:SetPoint("CENTER", sub, "CENTER",
                     math.cos(angle) * radius, math.sin(angle) * radius)
