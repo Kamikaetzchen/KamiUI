@@ -7,4 +7,5 @@
 ## RequiredDeps: KamiUI
 ## OptionalDeps: KamiUI_Characters
 
+RestedXP.lua
 InfoPanel.lua

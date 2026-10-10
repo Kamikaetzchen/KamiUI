@@ -157,6 +157,7 @@ UI.Layout = {
             location = 210,
             speed = 52,
             xp = 78,
+            rested = 72,
             levelup = 72,
             bags = 52,
             durability = 52,

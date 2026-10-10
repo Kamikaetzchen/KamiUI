@@ -1,6 +1,7 @@
 local UI = KamiUI
 local Styles = UI.Styles
 local Palette = UI.Palette
+local RestedXP = UI.RestedXP
 
 local Module = UI:NewModule("InfoPanel", "KamiUI_InfoPanel")
 
@@ -11,6 +12,7 @@ local slotOrder = {
     "location",
     "speed",
     "xp",
+    "rested",
     "levelup",
     "bags",
     "durability",
@@ -296,6 +298,63 @@ local function ShowDurabilityTooltip(owner)
     GameTooltip:Show()
 end
 
+local function ShowRestedTooltip(owner)
+    PrepareTooltip(owner, "Rested XP")
+    GameTooltip:AddLine(
+        "Percent of the XP needed for one level (maximum 150%).",
+        0.74, 0.74, 0.79, true
+    )
+    GameTooltip:AddLine(" ")
+
+    local currentRealm = GetRealmName and GetRealmName() or ""
+    local hasEstimates = false
+
+    for _, entry in ipairs(RestedXP:GetCharacterEntries()) do
+        local profile = entry.character or {}
+        local name = profile.name or select(2, UI:ParseCharacterKey(entry.key))
+        local classColor = Palette:GetClassColor(profile.classFile)
+        local r = classColor and (classColor.r or classColor[1]) or 1
+        local g = classColor and (classColor.g or classColor[2]) or 1
+        local b = classColor and (classColor.b or classColor[3]) or 1
+        local value
+
+        if entry.maxLevel then
+            value = "Max level"
+        elseif entry.percent ~= nil then
+            value = string.format("%s%.1f%%",
+                entry.estimated and "~" or "", entry.percent)
+            hasEstimates = hasEstimates or entry.estimated
+        else
+            value = "Log in once"
+        end
+
+        if profile.realm and profile.realm ~= ""
+            and profile.realm ~= currentRealm then
+            name = string.format("%s - %s", name, profile.realm)
+        end
+
+        GameTooltip:AddDoubleLine(
+            name,
+            value,
+            r, g, b,
+            0.80, 0.88, 1
+        )
+    end
+
+    if hasEstimates then
+        GameTooltip:AddLine(" ")
+        GameTooltip:AddLine(
+            "~ = estimated offline gain (5% per 8h rested / 32h elsewhere).",
+            0.67, 0.69, 0.75, true
+        )
+        GameTooltip:AddLine(
+            "Values are measured again when you log into each character.",
+            0.67, 0.69, 0.75, true
+        )
+    end
+    GameTooltip:Show()
+end
+
 local function ShowGoldTooltip(owner)
     PrepareTooltip(owner, "Gold")
 
@@ -382,6 +441,7 @@ local function ShowClockTooltip(owner)
 end
 
 local tooltipHandlers = {
+    rested = ShowRestedTooltip,
     bags = ShowBagsTooltip,
     durability = ShowDurabilityTooltip,
     gold = ShowGoldTooltip,
@@ -671,6 +731,21 @@ function Module:Refresh()
         "|TInterface\\Icons\\xp_icon:13:13:0:2:64:64:4:60:4:60|t %s/h",
         FormatXPPerHour(xpPerHour)
     ))
+    local restedPercent, atMaxLevel = RestedXP:GetCurrentPercent()
+    if atMaxLevel then
+        self.texts.rested:SetText(
+            "|TInterface\\Icons\\Spell_Nature_Sleep:13:13:0:2|t Max"
+        )
+    elseif restedPercent then
+        self.texts.rested:SetText(string.format(
+            "|TInterface\\Icons\\Spell_Nature_Sleep:13:13:0:2|t %.0f%%",
+            restedPercent
+        ))
+    else
+        self.texts.rested:SetText(
+            "|TInterface\\Icons\\Spell_Nature_Sleep:13:13:0:2|t --"
+        )
+    end
     self.texts.levelup:SetText(string.format("     %s", timeToLevel))
 
     local bagIcon = GetLinenBagIcon()
@@ -703,17 +778,30 @@ end
 
 function Module:Initialize()
     ResetSession()
+    RestedXP:CaptureCurrent()
     CreatePanel()
     self:Refresh()
 
     UI:RegisterEvent("PLAYER_ENTERING_WORLD", function()
         C_Timer.After(0, function()
+            RestedXP:CaptureCurrent()
             Module:Refresh()
         end)
+    end)
+    UI:RegisterEvent("UPDATE_EXHAUSTION", function()
+        RestedXP:CaptureCurrent()
+        Module:Refresh()
+    end)
+    UI:RegisterEvent("PLAYER_UPDATE_RESTING", function()
+        RestedXP:CaptureCurrent()
+    end)
+    UI:RegisterEvent("PLAYER_LOGOUT", function()
+        RestedXP:CaptureCurrent()
     end)
 
     UI:RegisterEvent("PLAYER_XP_UPDATE", function()
         UpdateXPTracking()
+        RestedXP:CaptureCurrent()
         Module:Refresh()
     end)
 
@@ -723,6 +811,7 @@ function Module:Initialize()
         Module.lastXP = 0
 
         C_Timer.After(0, function()
+            RestedXP:CaptureCurrent()
             Module:Refresh()
         end)
     end)
@@ -751,8 +840,15 @@ function Module:Initialize()
         Module:Refresh()
     end)
 
+    self.lastRestedSnapshot = GetTime()
     self.ticker = C_Timer.NewTicker(1, function()
         Module:Refresh()
+        -- Record occasional fresh snapshots without updating SavedVariables
+        -- every frame/second. Login, logout, XP and rest changes save instantly.
+        if GetTime() - Module.lastRestedSnapshot >= 60 then
+            Module.lastRestedSnapshot = GetTime()
+            RestedXP:CaptureCurrent()
+        end
     end)
 end
 
