@@ -171,14 +171,23 @@ local function StyleKnownTooltips()
 end
 
 local function IsValidPlayerUnit(unit)
-    if not unit
-        or not UnitExists(unit)
-        or not UnitIsPlayer(unit)
+    -- Tooltip:GetUnit() can return a secret unit token in combat,
+    -- particularly for grouped players and world-cursor tooltips.
+    -- Never pass it to protected unit APIs before checking access.
+    if not UI:CanAccessValue(unit)
+        or type(unit) ~= "string"
+        or unit == ""
     then
         return false
     end
 
-    return true
+    local exists = UnitExists(unit)
+    if not UI:CanAccessValue(exists) or not exists then
+        return false
+    end
+
+    local isPlayer = UnitIsPlayer(unit)
+    return UI:CanAccessValue(isPlayer) and isPlayer == true
 end
 
 local function GetLocalizedSpecName(
