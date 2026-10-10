@@ -118,9 +118,9 @@ UI.Layout = {
         SUB_GAP = 6,
         SUB_OFFSET = 134,
         SUB_ICON_SIZE = 40,
-        Q_SCREEN_X = 0.25,
-        E_SCREEN_X = 0.75,
-        SCREEN_INSET_PX = 200,
+        Q_SCREEN_X = 0.35,
+        E_SCREEN_X = 0.65,
+        AUTO_CLOSE_SECONDS = 5,
         SCREEN_Y = 0.58,
     },
 
