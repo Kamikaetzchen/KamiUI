@@ -5,6 +5,46 @@ local Module = UI:NewModule("Professions", "KamiUI_Professions")
 
 local RECIPE_CACHE_VERSION = 3
 
+-- Recipe schematics are fetched once per recipe during the session.
+-- Keep the list of ingredient IDs in SavedVariables for offline searches.
+local reagentIDsByRecipe = {}
+
+function Module:GetRecipeReagentIDs(recipeID)
+    if not recipeID then return nil end
+
+    local cached = reagentIDsByRecipe[recipeID]
+    if cached then return cached end
+
+    if not C_TradeSkillUI or not C_TradeSkillUI.GetRecipeSchematic then
+        return nil
+    end
+
+    local schematic = UI:SafeCall(
+        C_TradeSkillUI.GetRecipeSchematic, recipeID, false
+    )
+    local slots = schematic and schematic.reagentSlotSchematics
+    if type(slots) ~= "table" then return nil end
+
+    local ids = {}
+    local seen = {}
+
+    for _, slot in ipairs(slots) do
+        if not slot.hiddenInCraftingForm then
+            for _, reagent in ipairs(slot.reagents or {}) do
+                local itemID = reagent.itemID
+                if type(itemID) == "number" and itemID > 0
+                    and not seen[itemID] then
+                    seen[itemID] = true
+                    ids[#ids + 1] = itemID
+                end
+            end
+        end
+    end
+
+    reagentIDsByRecipe[recipeID] = ids
+    return ids
+end
+
 local function GetDatabase()
     return UI:GetDatabase("professions")
 end
@@ -283,6 +323,7 @@ function Module:SnapshotCurrentProfession()
     end
 
     local discoveredRecipes = {}
+    local previousRecipes = saved.recipes or {}
 
     for _, recipeID in ipairs(recipeIDs) do
         local belongsToSkillLine = true
@@ -311,9 +352,12 @@ function Module:SnapshotCurrentProfession()
                 local learnedRecipeID =
                     recipeInfo.recipeID or recipeID
 
+                local previous = previousRecipes[learnedRecipeID]
                 discoveredRecipes[learnedRecipeID] = {
                     name = recipeInfo.name,
                     icon = recipeInfo.icon,
+                    reagents = self:GetRecipeReagentIDs(learnedRecipeID)
+                        or (previous and previous.reagents),
                 }
             end
         end
