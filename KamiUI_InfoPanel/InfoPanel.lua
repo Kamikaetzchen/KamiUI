@@ -518,23 +518,139 @@ local function ShowGoldTooltip(owner)
     GameTooltip:Show()
 end
 
+-- The native game-menu tooltip already knows how to display latency,
+-- protocol, FPS, bandwidth, downloads, CPU and the largest addons.
+-- Add the total for all KamiUI modules, which might not appear in its top 3.
+local function FormatAddonMemory(kilobytes)
+    if kilobytes >= 1024 then
+        return string.format("%.2f MB", kilobytes / 1024)
+    end
+
+    return string.format("%.1f KB", kilobytes)
+end
+
+local function GetAddonCount()
+    if C_AddOns and C_AddOns.GetNumAddOns then
+        return C_AddOns.GetNumAddOns() or 0
+    end
+
+    return GetNumAddOns and GetNumAddOns() or 0
+end
+
+local function GetAddonName(index)
+    local info
+
+    if C_AddOns and C_AddOns.GetAddOnInfo then
+        info = UI:SafeCall(C_AddOns.GetAddOnInfo, index)
+    elseif GetAddOnInfo then
+        info = UI:SafeCall(GetAddOnInfo, index)
+    end
+
+    return type(info) == "table" and info.name or info
+end
+
+local function GetKamiUIMemory()
+    if not GetAddOnMemoryUsage then
+        return nil
+    end
+
+    -- Blizzard refreshes this cache when building the native tooltip;
+    -- doing it here also supports clients without that tooltip function.
+    if UpdateAddOnMemoryUsage then
+        UI:SafeCall(UpdateAddOnMemoryUsage)
+    end
+
+    local total = 0
+    local modules = {}
+
+    for index = 1, GetAddonCount() do
+        local name = GetAddonName(index)
+
+        if type(name) == "string"
+            and (name == "KamiUI" or string.find(name, "^KamiUI_"))
+        then
+            -- A few protected Blizzard addons reject memory queries;
+            -- do not let any such failure break the performance tooltip.
+            local usage = UI:SafeCall(GetAddOnMemoryUsage, index)
+
+            if type(usage) == "number"
+                and UI:CanAccessValue(usage)
+                and usage >= 0
+            then
+                total = total + usage
+                modules[#modules + 1] = {
+                    name = name,
+                    usage = usage,
+                }
+            end
+        end
+    end
+
+    table.sort(modules, function(a, b)
+        return a.usage > b.usage
+    end)
+
+    return total, modules
+end
+
 local function ShowLatencyTooltip(owner)
-    PrepareTooltip(owner, "Latency")
+    HideRestedTooltipColumns()
 
-    local home, world = GetLatencies()
+    -- Reuse Blizzard's full game-menu performance tooltip when available.
+    -- The original microbutton may be hidden by KamiUI, so use our hover
+    -- frame as the tooltip owner rather than its original button.
+    local shown = false
+    if MainMenuBarPerformanceBarFrame_OnEnter then
+        owner.tooltipText = "Performance"
+        owner.newbieText = nil
+        shown = pcall(MainMenuBarPerformanceBarFrame_OnEnter, owner)
+    end
 
-    GameTooltip:AddDoubleLine(
-        "Home",
-        string.format("%d ms", home),
-        1, 1, 1,
-        0.82, 0.82, 0.82
-    )
-    GameTooltip:AddDoubleLine(
-        "World",
-        string.format("%d ms", world),
-        1, 1, 1,
-        0.82, 0.82, 0.82
-    )
+    if not shown then
+        -- Safe fallback for clients that do not load Blizzard_PerformanceBar.
+        PrepareTooltip(owner, "Performance")
+        local home, world = GetLatencies()
+        GameTooltip:AddDoubleLine("Home latency",
+            string.format("%d ms", home), 1, 1, 1, 0.82, 0.82, 0.82)
+        GameTooltip:AddDoubleLine("World latency",
+            string.format("%d ms", world), 1, 1, 1, 0.82, 0.82, 0.82)
+
+        if GetFramerate then
+            GameTooltip:AddDoubleLine("Framerate",
+                string.format("%.0f fps", GetFramerate()),
+                1, 1, 1, 0.82, 0.82, 0.82)
+        end
+
+        if GetAvailableBandwidth then
+            local bandwidth = UI:SafeCall(GetAvailableBandwidth)
+            if type(bandwidth) == "number" then
+                GameTooltip:AddDoubleLine("Bandwidth",
+                    string.format("%.2f Mbps", bandwidth),
+                    1, 1, 1, 0.82, 0.82, 0.82)
+            end
+        end
+    end
+
+    local total, modules = GetKamiUIMemory()
+    if total and #modules > 0 then
+        GameTooltip:AddLine(" ")
+        GameTooltip:AddDoubleLine(
+            "KamiUI (all modules)",
+            FormatAddonMemory(total),
+            1, 0.82, 0, 1, 1, 1
+        )
+
+        -- Show the largest contributors without making the tooltip huge.
+        for index = 1, math.min(3, #modules) do
+            local module = modules[index]
+            GameTooltip:AddDoubleLine(
+                "  " .. module.name,
+                FormatAddonMemory(module.usage),
+                0.72, 0.72, 0.72, 0.82, 0.82, 0.82
+            )
+        end
+    end
+
     GameTooltip:Show()
 end
 
