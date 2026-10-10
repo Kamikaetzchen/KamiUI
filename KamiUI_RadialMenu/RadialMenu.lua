@@ -348,11 +348,17 @@ local function VariantRadius(count)
         math.ceil(minimumSeparation / (2 * math.sin(math.pi / count))))
 end
 
+-- Give crowded variant rings enough room to stay clear of their parent icon.
+local function SubmenuOffset(radius)
+    return math.max(L.SUB_OFFSET,
+        radius + (L.SUB_ICON_SIZE + L.ICON_SIZE) / 2 + (L.SUB_GAP or 7))
+end
+
 local function CreateWheel(key, categories)
     local root = CreateFrame("Frame", "KamiUIRadial" .. key, UIParent,
         "SecureHandlerBaseTemplate")
-    -- Keep the secure root small; a separate full-screen click catcher
-    -- provides dismissal. Both wheels receive a fixed screen position.
+    -- Keep the secure root small. The click catcher covers only the wheel,
+    -- allowing normal world mouse input everywhere else.
     root:SetSize(1, 1)
     root:SetPoint("CENTER", UIParent, "CENTER")
     root:SetFrameStrata("DIALOG")
@@ -368,7 +374,7 @@ local function CreateWheel(key, categories)
     ]], #categories))
 
     local bg = root:CreateTexture(nil, "BACKGROUND")
-    bg:SetSize(120, 120)
+    bg:SetSize(L.CENTER_SIZE, L.CENTER_SIZE)
     bg:SetPoint("CENTER")
     bg:SetTexture("Interface\\Minimap\\UI-Minimap-Background")
     bg:SetAlpha(.72)
@@ -376,9 +382,13 @@ local function CreateWheel(key, categories)
     title:SetPoint("CENTER")
     title:SetText(key)
 
-    -- Full-screen secure catcher: clicking outside the wheel closes it.
+    -- Only intercept clicks in the primary wheel's bounding square.
+    -- Full-screen catching prevented mouse-look and world interactions.
+    -- Q/E still close the wheel from anywhere, including during combat.
     local catcher = CreateFrame("Button", nil, root, "SecureHandlerClickTemplate")
-    catcher:SetAllPoints(UIParent)
+    local hitSize = L.RADIUS * 2 + L.ICON_SIZE + 12
+    catcher:SetSize(hitSize, hitSize)
+    catcher:SetPoint("CENTER", root, "CENTER")
     catcher:SetFrameLevel(root:GetFrameLevel() + 1)
     catcher:RegisterForClicks("AnyUp")
     catcher:SetFrameRef("root", root)
@@ -398,7 +408,8 @@ local function CreateWheel(key, categories)
         sub:SetSize(L.SUB_ICON_SIZE, L.SUB_ICON_SIZE)
         sub:SetFrameLevel(root:GetFrameLevel() + 4)
         sub:SetPoint("CENTER", main, "CENTER",
-            (x >= 0 and 1 or -1) * L.SUB_OFFSET, 0)
+            math.cos(theta) * L.SUB_OFFSET,
+            math.sin(theta) * L.SUB_OFFSET)
         sub:Hide()
         sub.buttons = {}
         local label = sub:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
@@ -447,6 +458,11 @@ function Module:Refresh()
             local sub = wheel.submenus[index]
             local count = math.min(#entries, MAX_VISIBLE)
             local radius = VariantRadius(count)
+            local theta = math.rad(90 - (index - 1) * 360 / #categories)
+            local offset = SubmenuOffset(radius)
+            sub:ClearAllPoints()
+            sub:SetPoint("CENTER", main, "CENTER",
+                math.cos(theta) * offset, math.sin(theta) * offset)
             sub:SetAttribute("hasVariants", count > 0)
             sub:SetSize(radius * 2 + L.SUB_ICON_SIZE + 12,
                 radius * 2 + L.SUB_ICON_SIZE + 12)
@@ -496,8 +512,9 @@ local function BindKeys()
     end
 end
 
--- Use exactly the same position in and out of combat. These coordinates
--- are relative to UIParent (Q: left quarter, E: right quarter, Y: 58%).
+-- Q/E remain screen-relative, with a fixed inward pixel offset from their
+-- former quarter-screen positions. Convert physical pixels to UI coordinates
+-- so the movement stays consistent under UI scaling.
 -- Protected frames are never repositioned by insecure Lua in combat.
 function Module:PositionWheels()
     if Locked() then
@@ -511,17 +528,20 @@ function Module:PositionWheels()
         return
     end
 
-    -- Keep the largest potential variant wheel on-screen where possible.
-    local maxHorizontalExtent = L.RADIUS + L.SUB_OFFSET
-        + L.SUB_MAX_RADIUS + L.SUB_ICON_SIZE / 2
-    local minX = math.min(maxHorizontalExtent, width / 2)
-    local maxVerticalExtent = L.RADIUS + L.SUB_MAX_RADIUS
-        + L.SUB_ICON_SIZE / 2
-    local minY = math.min(maxVerticalExtent, height / 2)
+    -- Account for secondary wheels now extending along each icon's angle.
+    local maxRadius = VariantRadius(MAX_VISIBLE)
+    local maxExtent = L.RADIUS + SubmenuOffset(maxRadius)
+        + maxRadius + L.SUB_ICON_SIZE / 2
+    local minX = math.min(maxExtent, width / 2)
+    local minY = math.min(maxExtent, height / 2)
+    local scale = UIParent:GetEffectiveScale()
+    local inset = (L.SCREEN_INSET_PX or 0) / (scale and scale > 0 and scale or 1)
 
     for key, wheel in pairs(self.wheels) do
         local fractionX = key == "Q" and L.Q_SCREEN_X or L.E_SCREEN_X
-        local x = math.max(minX, math.min(width - minX, width * fractionX))
+        local direction = key == "Q" and 1 or -1
+        local desiredX = width * fractionX + direction * inset
+        local x = math.max(minX, math.min(width - minX, desiredX))
         local y = math.max(minY, math.min(height - minY,
             height * L.SCREEN_Y))
         wheel:ClearAllPoints()
