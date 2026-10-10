@@ -684,6 +684,14 @@ function Module:Refresh()
         return
     end
 
+    -- Native PaperDoll stat calculations can receive combat-secret values.
+    -- Keep existing UI values during combat and refresh after lockdown.
+    if InCombatLockdown and InCombatLockdown() then
+        self.refreshPending = true
+        return
+    end
+    self.refreshPending = false
+
     SaveCurrentEquipmentSnapshot()
     UpdatePlayerInfo(self.frame)
 
@@ -856,12 +864,21 @@ local UpdateStatsPane
 local statProxies = {}
 local reportedStatErrors = {}
 
+local function StatsLocked()
+    return InCombatLockdown and InCombatLockdown()
+end
+
 -- Blizzard's MOVESPEED stat installs MovementSpeed_OnUpdate on its frame.
 -- That handler performs arithmetic on values which become secret in combat,
 -- and cannot run in an addon-created (tainted) stat proxy.
 -- Keep this one row independent from CharacterStatFrameTemplate.
 local function UpdateMovementSpeedRow(row, isCurrent)
     row.label:SetText(_G.STAT_MOVEMENT_SPEED or "Movement Speed")
+
+    if StatsLocked() then
+        row.value:SetText("-")
+        return
+    end
 
     if not isCurrent or not GetUnitSpeed then
         row.value:SetText("-")
@@ -1132,12 +1149,36 @@ UpdateStatsPane = function(frame)
         return
     end
 
+    -- This path can also run when switching character tabs in combat.
+    -- Never invoke Blizzard's native stat providers during lockdown.
+    if StatsLocked() then
+        Module.refreshPending = true
+        return
+    end
+
     local _, _, isCurrent = Module:GetViewedCharacter()
 
     pane:RenderStatLayout(GetNativeStatLayout(), function(row, data)
         row.statData = data
 
         if data.statKey == "MOVESPEED" then
+            -- Only this row needs live polling. The timer runs while visible
+            -- and never queries protected speed values in combat.
+            if not row.KamiSpeedTicker then
+                row.KamiSpeedTicker = 0
+                row:SetScript("OnUpdate", function(self, elapsed)
+                    if StatsLocked() then
+                        return
+                    end
+                    self.KamiSpeedTicker = self.KamiSpeedTicker + elapsed
+                    if self.KamiSpeedTicker < 0.25 then
+                        return
+                    end
+                    self.KamiSpeedTicker = 0
+                    local _, _, current = Module:GetViewedCharacter()
+                    UpdateMovementSpeedRow(self, current)
+                end)
+            end
             UpdateMovementSpeedRow(row, isCurrent)
             return true
         end
@@ -1213,6 +1254,12 @@ ShowStatTooltip = function(row)
     local data = row.statData
 
     if not data then
+        return
+    end
+
+    -- Native OnEnter routines can also compare secret buff values.
+    if StatsLocked() then
+        GameTooltip:Hide()
         return
     end
 
@@ -4223,15 +4270,17 @@ function Module:Initialize()
         Module:Refresh()
     end)
 
-    -- Update only the movement-speed row on speed / combat transitions.
-    -- Do not refresh every native stat when speed changes.
-    UI:RegisterEvent("UNIT_SPEED", function(_, unit)
-        if unit == "player" then
+    -- UNIT_SPEED does not exist in the Forever client. The visible speed
+    -- row has its own throttled update instead. Never poll native stats
+    -- during combat; replay queued refreshes on leaving combat.
+    UI:RegisterEvent("PLAYER_REGEN_DISABLED", RefreshMovementSpeedRow)
+    UI:RegisterEvent("PLAYER_REGEN_ENABLED", function()
+        if Module.refreshPending then
+            Module:Refresh()
+        else
             RefreshMovementSpeedRow()
         end
     end)
-    UI:RegisterEvent("PLAYER_REGEN_DISABLED", RefreshMovementSpeedRow)
-    UI:RegisterEvent("PLAYER_REGEN_ENABLED", RefreshMovementSpeedRow)
 
     UI:RegisterEvent("KNOWN_TITLES_UPDATE", function()
         Module:Refresh()
