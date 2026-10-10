@@ -652,11 +652,34 @@ local function ShowLatencyTooltip(owner)
         end
     end
 
-    -- Blizzard anchors the performance tooltip to the screen corner.
-    -- Restore the same cursor-relative anchor as the other InfoPanel
-    -- tooltips, after the native handler has finished building its lines.
-    GameTooltip:SetOwner(owner, "ANCHOR_CURSOR_RIGHT")
     GameTooltip:Show()
+
+    if shown and GameTooltip:IsShown() then
+        -- SetOwner would erase the native tooltip's lines. Reposition it
+        -- instead, using the cursor coordinates in UIParent scale.
+        local cursorX, cursorY = GetCursorPosition()
+        local scale = UIParent:GetEffectiveScale()
+        local width = GameTooltip:GetWidth() or 0
+        local height = GameTooltip:GetHeight() or 0
+        local screenWidth = UIParent:GetWidth()
+        local screenHeight = UIParent:GetHeight()
+
+        if scale and scale > 0 then
+            cursorX = cursorX / scale
+            cursorY = cursorY / scale
+
+            -- Put the top-left corner just below/right of the mouse,
+            -- keeping the entire tooltip within the screen bounds.
+            local x = math.max(8,
+                math.min(cursorX + 16, screenWidth - width - 8))
+            local y = math.min(screenHeight - 8,
+                math.max(height + 8, cursorY - 14))
+
+            GameTooltip:ClearAllPoints()
+            GameTooltip:SetPoint(
+                "TOPLEFT", UIParent, "BOTTOMLEFT", x, y)
+        end
+    end
 end
 
 local function ShowClockTooltip(owner)
