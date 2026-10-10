@@ -12,11 +12,11 @@ local slotOrder = {
     "location",
     "speed",
     "xp",
-    "rested",
     "levelup",
     "bags",
     "durability",
     "gold",
+    "rested",
     "latency",
     "clock",
 }
@@ -298,10 +298,27 @@ local function ShowDurabilityTooltip(owner)
     GameTooltip:Show()
 end
 
+local function GetRestedColor(percent)
+    if percent > 150 then
+        return 1.00, 0.35, 0.35
+    elseif percent >= 100 then
+        return 1.00, 0.85, 0.15
+    end
+    return 0.35, 0.95, 0.45
+end
+
+local function FormatRestedPercent(percent)
+    local r, g, b = GetRestedColor(percent)
+    return string.format("|cff%02x%02x%02x%.1f%%|r",
+        math.floor(r * 255 + 0.5),
+        math.floor(g * 255 + 0.5),
+        math.floor(b * 255 + 0.5), percent)
+end
+
 local function ShowRestedTooltip(owner)
     PrepareTooltip(owner, "Rested XP")
     GameTooltip:AddLine(
-        "Percent of the XP needed for one level (maximum 150%).",
+        "Percent of the XP needed for one level (base cap: 150%).",
         0.74, 0.74, 0.79, true
     )
     GameTooltip:AddLine(" ")
@@ -317,15 +334,17 @@ local function ShowRestedTooltip(owner)
         local g = classColor and (classColor.g or classColor[2]) or 1
         local b = classColor and (classColor.b or classColor[3]) or 1
         local value
+        local vr, vg, vb = 0.72, 0.72, 0.76
 
         if entry.maxLevel then
             value = "Max level"
         elseif entry.percent ~= nil then
             value = string.format("%s%.1f%%",
                 entry.estimated and "~" or "", entry.percent)
+            vr, vg, vb = GetRestedColor(entry.percent)
             hasEstimates = hasEstimates or entry.estimated
         else
-            value = "Log in once"
+            value = "N/A"
         end
 
         if profile.realm and profile.realm ~= ""
@@ -337,7 +356,7 @@ local function ShowRestedTooltip(owner)
             name,
             value,
             r, g, b,
-            0.80, 0.88, 1
+            vr, vg, vb
         )
     end
 
@@ -345,6 +364,10 @@ local function ShowRestedTooltip(owner)
         GameTooltip:AddLine(" ")
         GameTooltip:AddLine(
             "~ = estimated offline gain (5% per 8h rested / 32h elsewhere).",
+            0.67, 0.69, 0.75, true
+        )
+        GameTooltip:AddLine(
+            "Well Rested: +4% gain and +4 cap points per rank (0-5).",
             0.67, 0.69, 0.75, true
         )
         GameTooltip:AddLine(
@@ -738,8 +761,8 @@ function Module:Refresh()
         )
     elseif restedPercent then
         self.texts.rested:SetText(string.format(
-            "|TInterface\\Icons\\Spell_Nature_Sleep:13:13:0:2|t %.0f%%",
-            restedPercent
+            "|TInterface\\Icons\\Spell_Nature_Sleep:13:13:0:2|t %s",
+            FormatRestedPercent(restedPercent)
         ))
     else
         self.texts.rested:SetText(
