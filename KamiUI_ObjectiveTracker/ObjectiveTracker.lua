@@ -234,7 +234,13 @@ local function CreateQuestRow(parent)
     )
     itemButton:SetSize(Layout.QUEST_ITEM_SIZE, Layout.QUEST_ITEM_SIZE)
     itemButton:SetPoint("TOPRIGHT", row, "TOPRIGHT", -1, -1)
-    itemButton:RegisterForClicks("LeftButtonUp")
+    -- SecureActionButtonTemplate needs both mouse phases on Forever's
+    -- modern client. Registering only LeftButtonUp can show the item and
+    -- tooltip but never trigger its protected use action.
+    itemButton:RegisterForClicks("AnyDown", "AnyUp")
+    -- Match the working RadialMenu secure item buttons: use on release,
+    -- regardless of the player's ActionButtonUseKeyDown setting.
+    itemButton:SetAttribute("useOnKeyDown", false)
     itemButton:SetAttribute("type", "item")
     itemButton:Hide()
 
