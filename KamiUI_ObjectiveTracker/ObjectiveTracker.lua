@@ -109,6 +109,13 @@ local function OpenQuest(questID)
         return
     end
 
+    -- QuestMapFrame_OpenToQuestDetails creates map pins through Blizzard's
+    -- protected SetPassThroughButtons path. Opening it from an addon click
+    -- during combat triggers ADDON_ACTION_BLOCKED, so ignore that click.
+    if InCombatLockdown and InCombatLockdown() then
+        return
+    end
+
     if QuestMapFrame_OpenToQuestDetails then
         QuestMapFrame_OpenToQuestDetails(questID)
         return
