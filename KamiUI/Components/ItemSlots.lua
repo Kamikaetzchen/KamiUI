@@ -268,6 +268,7 @@ local function UpdateQuestItemDecoration(button, data)
     button.KamiQuestItem = isQuestItem
 
     if button.IconQuestTexture then
+        button.IconQuestTexture:SetAlpha(0)
         button.IconQuestTexture:Hide()
     end
 
@@ -312,6 +313,7 @@ local function UpdateQuestItemDecoration(button, data)
             math.max(15, math.floor(button:GetWidth() * 0.55)),
             "OUTLINE"
         )
+        bang:SetDrawLayer("OVERLAY", 5)
         bang:SetPoint("BOTTOMLEFT", button, "BOTTOMLEFT", 3, 3)
         bang:SetTextColor(1, 0.88, 0.05)
         bang:SetShadowColor(0, 0, 0, 1)
@@ -444,6 +446,7 @@ function Components:StyleItemSlot(button, options)
     for _, texture in ipairs({
         button.NormalTexture,
         button.IconBorder,
+        button.IconQuestTexture,
         button.NewItemTexture,
         button.BattlepayItemTexture,
     }) do
