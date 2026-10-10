@@ -652,6 +652,10 @@ local function ShowLatencyTooltip(owner)
         end
     end
 
+    -- Blizzard anchors the performance tooltip to the screen corner.
+    -- Restore the same cursor-relative anchor as the other InfoPanel
+    -- tooltips, after the native handler has finished building its lines.
+    GameTooltip:SetOwner(owner, "ANCHOR_CURSOR_RIGHT")
     GameTooltip:Show()
 end
 
