@@ -183,6 +183,7 @@ function Module:Initialize()
     -- Quest tracking can rebuild native map blobs after our initial style.
     -- Reapply only the ring settings so the useful quest-area fill remains.
     UI:RegisterEvent("QUEST_LOG_UPDATE", HideRoundBlobRings)
+    UI:RegisterEvent("QUEST_POI_UPDATE", HideRoundBlobRings)
     UI:RegisterEvent("QUEST_WATCH_LIST_CHANGED", HideRoundBlobRings)
 
     UI:RegisterEvent("ADDON_LOADED", function(_, addonName)
