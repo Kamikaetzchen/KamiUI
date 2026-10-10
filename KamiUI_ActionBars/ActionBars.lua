@@ -148,6 +148,9 @@ end
 -- Forever's action-slot cooldown updates may omit the GCD; spell 61304
 -- is the dedicated global-cooldown spell. Never do math on secret times.
 local GCD_SPELL_ID = 61304
+local gcdEventSamples = {}
+local gcdEventCounts = {}
+local lastActiveGCD
 
 local function SetupGCDSwipe(button)
     if button.KamiGCDSwipe then return end
@@ -195,11 +198,35 @@ local function GetGCDState()
     if active == nil then
         active = durationObject ~= nil
     end
-    return active, durationObject, start, seconds
+    return active, durationObject, start, seconds, info ~= nil
 end
 
-local function UpdateGCDSwipes()
-    local active, durationObject, start, seconds = GetGCDState()
+-- Keep the actual cooldown state sampled *when* the event fires. A GCD
+-- normally ends before someone can type /kami actionbars gcd by hand.
+local function SampleGCD(source, active, durationObject, start, seconds, hasInfo)
+    source = type(source) == "string" and source or "refresh"
+    gcdEventCounts[source] = (gcdEventCounts[source] or 0) + 1
+    local snapshot = {
+        when = GetTime(),
+        source = source,
+        active = active,
+        hasInfo = hasInfo,
+        hasDuration = durationObject ~= nil,
+        start = start,
+        seconds = seconds,
+    }
+    gcdEventSamples[#gcdEventSamples + 1] = snapshot
+    if #gcdEventSamples > 10 then
+        table.remove(gcdEventSamples, 1)
+    end
+    if active == true then
+        lastActiveGCD = snapshot
+    end
+end
+
+local function UpdateGCDSwipes(source)
+    local active, durationObject, start, seconds, hasInfo = GetGCDState()
+    SampleGCD(source, active, durationObject, start, seconds, hasInfo)
     for _, bar in pairs(Module.bars) do
         for _, button in ipairs(bar.buttons) do
             local swipe = button.KamiGCDSwipe
@@ -238,13 +265,14 @@ local function FindVisibleActionButton()
 end
 
 local function PrintGCDStatus()
-    local active, durationObject = GetGCDState()
+    local active, durationObject, start, seconds, hasInfo = GetGCDState()
     local button = FindVisibleActionButton()
     local swipe = button and button.KamiGCDSwipe
     UI:Print(
-        "GCD active:", tostring(active),
-        "duration object:", durationObject and "yes" or "no",
-        "swipe shown:", swipe and tostring(swipe:IsShown()) or "none"
+        "GCD now: active", tostring(active),
+        "spell info", tostring(hasInfo),
+        "duration object", durationObject and "yes" or "no",
+        "swipe shown", swipe and tostring(swipe:IsShown()) or "none"
     )
     if button and swipe then
         UI:Print(
@@ -252,6 +280,31 @@ local function PrintGCDStatus()
             "normal", button.cooldown and button.cooldown:GetFrameLevel() or "-",
             "GCD", swipe:GetFrameLevel(),
             "alpha", swipe:GetEffectiveAlpha()
+        )
+    end
+
+    UI:Print(
+        "GCD event counts: spell", gcdEventCounts.SPELL_UPDATE_COOLDOWN or 0,
+        "action", gcdEventCounts.ACTIONBAR_UPDATE_COOLDOWN or 0,
+        "cast", gcdEventCounts.CAST or 0
+    )
+    if lastActiveGCD then
+        UI:Print(
+            "Last active GCD", string.format("%.1fs ago", GetTime() - lastActiveGCD.when),
+            "from", lastActiveGCD.source,
+            "duration object", lastActiveGCD.hasDuration and "yes" or "no"
+        )
+    else
+        UI:Print("No active GCD observed since /reload")
+    end
+    for _, sample in ipairs(gcdEventSamples) do
+        UI:Print(
+            "GCD sample:", sample.source,
+            string.format("%.2fs ago", GetTime() - sample.when),
+            "active", tostring(sample.active),
+            "info", tostring(sample.hasInfo),
+            "object", sample.hasDuration and "yes" or "no",
+            "seconds", sample.seconds and tostring(sample.seconds) or "-"
         )
     end
 end
@@ -1057,15 +1110,23 @@ function Module:Initialize()
         Module:ReassignBindings()
     end)
 
-    -- Refresh from cooldown events and retry just after a cast because the
-    -- GCD information is not necessarily current during the cast event.
-    UI:RegisterEvent("SPELL_UPDATE_COOLDOWN", UpdateGCDSwipes)
-    UI:RegisterEvent("ACTIONBAR_UPDATE_COOLDOWN", UpdateGCDSwipes)
+    -- Record samples at the precise event time (and shortly after casts)
+    -- so /kami actionbars gcd remains useful after the GCD has ended.
+    UI:RegisterEvent("SPELL_UPDATE_COOLDOWN", function()
+        UpdateGCDSwipes("SPELL_UPDATE_COOLDOWN")
+    end)
+    UI:RegisterEvent("ACTIONBAR_UPDATE_COOLDOWN", function()
+        UpdateGCDSwipes("ACTIONBAR_UPDATE_COOLDOWN")
+    end)
     UI:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED", function(_, unit)
         if unit == "player" then
-            UpdateGCDSwipes()
-            C_Timer.After(0.06, UpdateGCDSwipes)
-            C_Timer.After(0.16, UpdateGCDSwipes)
+            UpdateGCDSwipes("CAST")
+            C_Timer.After(0.06, function()
+                UpdateGCDSwipes("CAST+0.06")
+            end)
+            C_Timer.After(0.16, function()
+                UpdateGCDSwipes("CAST+0.16")
+            end)
         end
     end)
 
