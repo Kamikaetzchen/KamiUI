@@ -144,6 +144,55 @@ local function StyleCooldown(cooldown, button)
     end
 end
 
+-- A separate, visual GCD swipe is kept underneath the real action
+-- cooldown. Forever's action-slot cooldown updates may omit the GCD, while
+-- spell 61304 always represents the global cooldown in Blizzard's API.
+-- DurationObjects can be displayed without inspecting secret time values.
+local GCD_SPELL_ID = 61304
+
+local function SetupGCDSwipe(button)
+    if button.KamiGCDSwipe then return end
+
+    local swipe = CreateFrame("Cooldown", nil, button, "CooldownFrameTemplate")
+    swipe:SetAllPoints(button)
+    swipe:SetFrameLevel(button:GetFrameLevel() + 2)
+    swipe:SetDrawSwipe(true)
+    swipe:SetDrawEdge(false)
+    swipe:SetDrawBling(false)
+    swipe:SetSwipeColor(0, 0, 0, 0.65)
+    swipe:SetHideCountdownNumbers(true)
+    swipe:EnableMouse(false)
+    swipe:Hide()
+    button.KamiGCDSwipe = swipe
+
+    -- Real action/ability cooldowns remain on top of the GCD indicator.
+    if button.cooldown then
+        button.cooldown:SetFrameLevel(button:GetFrameLevel() + 3)
+    end
+end
+
+local function UpdateGCDSwipes()
+    if not C_Spell or not C_Spell.GetSpellCooldownDuration then
+        return
+    end
+
+    local duration = C_Spell.GetSpellCooldownDuration(GCD_SPELL_ID)
+    for _, bar in pairs(Module.bars) do
+        for _, button in ipairs(bar.buttons) do
+            local swipe = button.KamiGCDSwipe
+            if swipe then
+                if duration then
+                    swipe:Show()
+                    swipe:SetCooldownFromDurationObject(duration, true)
+                else
+                    swipe:Clear()
+                    swipe:Hide()
+                end
+            end
+        end
+    end
+end
+
 local function FitStateTexture(texture, button)
     if not texture then
         return
@@ -318,6 +367,7 @@ local function CreateActionBar(def)
                 and Layout.BUTTON_SIZE
                 or Layout.SECONDARY_BUTTON_SIZE
         )
+        SetupGCDSwipe(button)
 
         -- StyleButton must not force empty LAB buttons visible.
         button:UpdateAction(true)
@@ -902,6 +952,7 @@ function Module:Apply()
     HideBlizzardBars()
     UpdatePetBar()
     self:ReassignBindings()
+    UpdateGCDSwipes()
 end
 
 function Module:Initialize()
@@ -915,6 +966,16 @@ function Module:Initialize()
 
     UI:RegisterEvent("UPDATE_BINDINGS", function()
         Module:ReassignBindings()
+    end)
+
+    -- Update the actual GCD independently of the action-slot cooldown.
+    UI:RegisterEvent("SPELL_UPDATE_COOLDOWN", UpdateGCDSwipes)
+    UI:RegisterEvent("ACTIONBAR_UPDATE_COOLDOWN", UpdateGCDSwipes)
+    UI:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED", function(_, unit)
+        if unit == "player" and C_Timer and C_Timer.After then
+            -- Cooldown data can lag the cast event by one frame.
+            C_Timer.After(0, UpdateGCDSwipes)
+        end
     end)
 
     UI:RegisterEvent("UPDATE_SHAPESHIFT_FORMS", function()
