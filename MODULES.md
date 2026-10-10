@@ -19,6 +19,7 @@ KamiUI is split into a small core and independent feature addons.
 | KamiUI_Characters | Account-wide alt data, Altoholic-style |
 | KamiUI_Auras | Player/target buffs and debuffs |
 | KamiUI_Nameplates | Friendly and hostile nameplates |
+| KamiUI_RareAlert | Database-free rare NPC detection (nameplates, target, mouseover), sound and screen alert |
 | KamiUI_Tooltips | Unit, item, spell and hyperlink tooltips |
 | KamiUI_InfoPanel | Top information panel with location, XP, bags, durability, gold, performance and clock |
 

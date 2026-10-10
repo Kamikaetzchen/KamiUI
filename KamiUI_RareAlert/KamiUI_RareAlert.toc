@@ -1,0 +1,9 @@
+## Interface: 16001
+## Title: KamiUI - Rare Alert
+## Notes: Rare NPC alerts from nameplates, target and mouseover
+## Author: Kami Katze
+## Version: 0.1.0
+## IconTexture: Interface\Icons\Ability_Hunter_EagleEye
+## RequiredDeps: KamiUI
+
+RareAlert.lua
