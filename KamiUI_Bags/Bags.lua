@@ -462,6 +462,9 @@ local function UpdateCachedItemButton(button, slot, bag)
         icon = slot and slot.icon or nil,
         count = slot and slot.count or 0,
         quality = slot and slot.quality or nil,
+        isQuestItem = slot and slot.isQuestItem,
+        questID = slot and slot.questID,
+        questActive = slot and slot.questActive,
         borderColor = borderColor,
         alpha = alpha,
     })
@@ -982,6 +985,18 @@ local function SaveCurrentCharacter()
             local info = UI:GetContainerItemInfo(bagID, slotID)
 
             if info then
+                local questInfo
+
+                if C_Container
+                    and C_Container.GetContainerItemQuestInfo
+                then
+                    questInfo = UI:SafeCall(
+                        C_Container.GetContainerItemQuestInfo,
+                        bagID,
+                        slotID
+                    )
+                end
+
                 local itemID = info.itemID
                 local itemName
 
@@ -995,6 +1010,9 @@ local function SaveCurrentCharacter()
                     icon = info.iconFileID,
                     count = info.stackCount or 1,
                     quality = info.quality,
+                    isQuestItem = questInfo and questInfo.isQuestItem,
+                    questID = questInfo and questInfo.questID,
+                    questActive = questInfo and questInfo.isActive,
                     name = itemName,
                 }
 
