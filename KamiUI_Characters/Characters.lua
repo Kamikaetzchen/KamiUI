@@ -367,8 +367,10 @@ local function CreateEquipmentSlot(parent, definition)
         if mouseButton == "LeftButton" then
             if InCombatLockdown and InCombatLockdown() then return end
             local cursorType = GetCursorInfo and UI:SafeCall(GetCursorInfo)
-            local hadItem = not cursorType
-                and GetInventoryItemLink("player", self.slotID) ~= nil
+            local equippedLink = GetInventoryItemLink("player", self.slotID)
+            local hadItem = UI:CanAccessValue(cursorType)
+                and not cursorType and UI:CanAccessValue(equippedLink)
+                and equippedLink ~= nil
             PickupInventoryItem(self.slotID)
             if Module.ToggleEquipmentFlyout then
                 Module:ToggleEquipmentFlyout(self, hadItem)
@@ -429,8 +431,10 @@ local function CreateEquipmentSlot(parent, definition)
         if isCurrent and self.slotID
             and not (InCombatLockdown and InCombatLockdown()) then
             local cursorType = GetCursorInfo and UI:SafeCall(GetCursorInfo)
-            local hadItem = not cursorType
-                and GetInventoryItemLink("player", self.slotID) ~= nil
+            local equippedLink = GetInventoryItemLink("player", self.slotID)
+            local hadItem = UI:CanAccessValue(cursorType)
+                and not cursorType and UI:CanAccessValue(equippedLink)
+                and equippedLink ~= nil
             PickupInventoryItem(self.slotID)
             if Module.ToggleEquipmentFlyout then
                 Module:ToggleEquipmentFlyout(self, hadItem)
