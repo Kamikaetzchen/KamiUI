@@ -305,7 +305,25 @@ local function CreateColumnText(parent)
 end
 
 local function CreateRow(index)
-    local row = CreateFrame("Frame", nil, frame.body)
+    local row = CreateFrame("Button", nil, frame.body)
+    row:RegisterForClicks("LeftButtonUp")
+    row:SetScript("OnClick", function(self)
+        if not self.source or not Module.OpenSourceDetails then return end
+        local source = self.source
+        if state.view == "deaths"
+            and UI:CanAccessValue(source.deathRecapID)
+            and source.deathRecapID and source.deathRecapID ~= 0
+            and OpenDeathRecapUI then
+            OpenDeathRecapUI(source.deathRecapID)
+            return
+        end
+        Module:OpenSourceDetails(
+            source,
+            GetView().primaryType,
+            state.sessionType,
+            state.sessionID
+        )
+    end)
     row:SetHeight(Layout.ROW_HEIGHT)
     row:SetPoint("LEFT", frame.body, "LEFT", 1, 0)
     row:SetPoint("RIGHT", frame.body, "RIGHT", -1, 0)
@@ -537,6 +555,7 @@ end
 
 local function HideRows()
     for _, row in ipairs(rows) do
+        row.source = nil
         row:Hide()
     end
 end
@@ -561,6 +580,7 @@ local function UpdateRows()
         local source = sources[index]
 
         if source then
+            row.source = source
             local r, g, b = GetClassColor(source.classFilename)
 
             row.bar:SetMinMaxValues(0, session.maxAmount)
@@ -589,6 +609,7 @@ local function UpdateRows()
 
             row:Show()
         else
+            row.source = nil
             row:Hide()
         end
     end
@@ -602,6 +623,9 @@ local function Update()
     local available = C_DamageMeter.IsDamageMeterAvailable()
     if not available then
         HideRows()
+        if Module.CloseSourceDetails then
+            Module:CloseSourceDetails()
+        end
         frame:Hide()
         return
     end
@@ -612,6 +636,9 @@ local function Update()
 
     if not state.minimized then
         UpdateRows()
+    end
+    if Module.RefreshSourceDetails then
+        Module:RefreshSourceDetails()
     end
 
     frame:Show()
@@ -683,6 +710,7 @@ end
 
 local function ResetData()
     HidePopups()
+    if Module.CloseSourceDetails then Module:CloseSourceDetails() end
 
     state.sessionID = nil
     state.sessionType = DamageMeterSessionType.Overall
@@ -696,6 +724,7 @@ local function ToggleMinimized()
     HidePopups()
 
     if state.minimized then
+        if Module.CloseSourceDetails then Module:CloseSourceDetails() end
         frame.body:Hide()
         frame.columnHeader:Hide()
         frame:SetHeight(Layout.HEADER_HEIGHT)
@@ -905,6 +934,7 @@ local function CreateFrameUI()
         return state.view == entry.viewKey
     end
     viewOptions.onSelect = function(entry)
+        if Module.CloseSourceDetails then Module:CloseSourceDetails() end
         state.view = entry.viewKey
         QueueUpdate()
     end
@@ -922,6 +952,7 @@ local function CreateFrameUI()
     sessionOptions.getEntries = GetSessionDropdownEntries
     sessionOptions.isSelected = IsSessionDropdownEntrySelected
     sessionOptions.onSelect = function(entry)
+        if Module.CloseSourceDetails then Module:CloseSourceDetails() end
         state.sessionID = entry.sessionID
         state.sessionType = entry.sessionType
             or DamageMeterSessionType.Overall
@@ -955,6 +986,10 @@ local function CreateFrameUI()
     ApplyPosition()
 end
 
+function Module:GetMainFrame()
+    return frame
+end
+
 function Module:Initialize()
     if not C_DamageMeter
         or not DamageMeterType
@@ -986,6 +1021,7 @@ function Module:Initialize()
     UI:RegisterEvent("DAMAGE_METER_CURRENT_SESSION_UPDATED", QueueUpdate)
 
     UI:RegisterEvent("DAMAGE_METER_RESET", function()
+        if Module.CloseSourceDetails then Module:CloseSourceDetails() end
         state.sessionID = nil
         state.sessionType = DamageMeterSessionType.Overall
         QueueUpdate()
