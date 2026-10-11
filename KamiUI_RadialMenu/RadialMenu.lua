@@ -78,6 +78,44 @@ local function TooltipText(bag, slot)
     return table.concat(text, " ")
 end
 
+-- The item level of Classic bandages is always 1, so the generic item
+-- score would pick whichever stack is larger. Rank bandages by the amount
+-- they actually heal. These Classic values are a fallback when a tooltip
+-- has not populated yet; current tooltip healing takes precedence and
+-- works for additional / custom bandages too.
+local BANDAGE_HEAL_FALLBACK = {
+    [1251] = 66,     -- Linen
+    [2581] = 114,    -- Heavy Linen
+    [3530] = 161,    -- Wool
+    [3531] = 301,    -- Heavy Wool
+    [6450] = 400,    -- Silk
+    [6451] = 640,    -- Heavy Silk
+    [8544] = 800,    -- Mageweave
+    [8545] = 1104,   -- Heavy Mageweave
+    [14529] = 1360,  -- Runecloth
+    [14530] = 2000,  -- Heavy Runecloth
+    [21990] = 2800,  -- Netherweave
+    [21991] = 3400,  -- Heavy Netherweave
+}
+
+local function GetBandageStrength(bag, slot, id)
+    local description = TooltipText(bag, slot)
+    -- English tooltip: "Heals 301 damage over 7 sec."
+    -- Include "heals the target for X damage" and "restores X health".
+    local amount = description:match("heals?%s+([%d,]+)%s+damage")
+        or description:match("heals?.-([%d,]+)%s+damage")
+        or description:match("restores?%s+([%d,]+)%s+health")
+        -- German tooltip: "Heilt 7 Sek. lang 301 Punkt(e) Schaden."
+        or description:match("heilt.-([%d%.]+)%s+punkt")
+
+    if amount then
+        local value = tonumber((amount:gsub("[,.]", "")))
+        if value and value > 0 then return value end
+    end
+
+    return BANDAGE_HEAL_FALLBACK[id]
+end
+
 local function Add(catalog, category, id, name, icon, score, quantity, kind)
     catalog[category] = catalog[category] or {}
     kind = kind or "item"
@@ -153,7 +191,10 @@ local function ScanItem(catalog, bag, slot, id, count)
         or Has(n, "elixir", "elixier", "flask", "fläschchen")
     local bandage = subclassID == 7 or Has(n, "bandage", "verband")
     if bandage then
-        Add(catalog, "bandage", id, name, icon, score, count)
+        -- Stronger healing always outranks stack size or alphabetical order.
+        -- Preserve the generic score only for an unrecognized bandage.
+        Add(catalog, "bandage", id, name, icon,
+            GetBandageStrength(bag, slot, id) or score, count)
     elseif elixir then
         Add(catalog, "elixir", id, name, icon, score, count)
     elseif food or potion then
