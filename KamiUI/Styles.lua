@@ -6,7 +6,7 @@ UI.Styles = Styles
 
 Styles.Metrics = {
     borderSize = 1,
-    chamfer = 4,
+    chamfer = 6,
     sectionHeight = 17,
     tabHeight = 22,
     itemSlotSize = 36,
