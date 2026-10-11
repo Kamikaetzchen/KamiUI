@@ -23,6 +23,12 @@ function Module:Initialize()
         Module:Apply()
     end)
 
+    UI:RegisterEvent("PLAYER_LEVEL_UP", function()
+        -- Edit Mode can restore viewer parents during the level-up layout pass.
+        C_Timer.After(0, function() Module:Apply() end)
+        C_Timer.After(0.2, function() Module:Apply() end)
+    end)
+
     UI:RegisterEvent("ADDON_LOADED", function(_, addonName)
         if addonName == "Blizzard_CooldownViewer" then
             Module:Apply()
