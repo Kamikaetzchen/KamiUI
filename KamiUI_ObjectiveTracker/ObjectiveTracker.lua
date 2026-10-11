@@ -400,6 +400,33 @@ local function UpdateQuestItemButton(row, questItem)
     end
 end
 
+-- Append the live countdown to the existing title FontString so the
+-- remaining time wraps naturally with long quest names, and only the timer
+-- has red text. Refreshing the whole tracker every second would touch
+-- protected quest-item buttons during combat.
+local function FormatQuestCountdown(seconds)
+    local minutes = math.floor(seconds / 60)
+    local remainder = seconds % 60
+    if minutes >= 60 then
+        local hours = math.floor(minutes / 60)
+        return string.format("%d:%02d:%02d", hours, minutes % 60, remainder)
+    end
+    return string.format("%d:%02d", minutes, remainder)
+end
+
+local function UpdateQuestTimerTitle(row, now)
+    if not row.timerDeadline then return end
+
+    local seconds = math.max(0, math.ceil(row.timerDeadline - now))
+    if row.timerDisplaySeconds == seconds then return end
+    row.timerDisplaySeconds = seconds
+
+    row.title:SetText(
+        row.questTitle .. " |cffff4040("
+            .. FormatQuestCountdown(seconds) .. ")|r"
+    )
+end
+
 local function UpdateQuestRow(row, item, y)
     row:ClearAllPoints()
     row:SetPoint(
@@ -486,7 +513,14 @@ local function UpdateQuestRow(row, item, y)
                 - 10
     end
 
-    row.title:SetText(item.title or "Unknown")
+    row.questTitle = item.title or "Unknown"
+    row.timerDeadline = item.timerDeadline
+    row.timerDisplaySeconds = nil
+    if row.timerDeadline then
+        UpdateQuestTimerTitle(row, GetTime())
+    else
+        row.title:SetText(row.questTitle)
+    end
     UpdateQuestItemButton(row, item.questItem)
 
     if item.questItem then
@@ -760,6 +794,7 @@ function Module:Refresh()
     end
 
     self.combatRefreshPending = nil
+    self.hasQuestTimers = false
 
     -- Apply any deferred minimize/height-mode settings before laying out rows.
     UpdateHeightModeButton(frame)
@@ -825,6 +860,9 @@ function Module:Refresh()
 
                     row:Show()
                     local rowHeight = UpdateQuestRow(row, item, rowY)
+                    if id == "quests" and row.timerDeadline then
+                        self.hasQuestTimers = true
+                    end
                     rowY = rowY + rowHeight + Layout.QUEST_SPACING
                     sectionHeight = rowY
                 end
@@ -1142,6 +1180,26 @@ function Module:Initialize()
     self.initialized = true
     GetDatabase()
     self.frame = CreateFrameUI()
+
+    -- Update only the visible timer text, including during combat.
+    -- The full tracker refresh may resize secure quest-item buttons and
+    -- therefore remains deferred until combat ends.
+    local timerElapsed = 0
+    self.frame:SetScript("OnUpdate", function(_, elapsed)
+        if not Module.hasQuestTimers then return end
+        timerElapsed = timerElapsed + elapsed
+        if timerElapsed < 0.25 then return end
+        timerElapsed = 0
+
+        local section = Module.frame.sections.quests
+        if not section or not section:IsShown() then return end
+        local now = GetTime()
+        for _, row in ipairs(section.rows) do
+            if row:IsShown() and row.timerDeadline then
+                UpdateQuestTimerTitle(row, now)
+            end
+        end
+    end)
 
     HideBlizzardTracker()
     self:SetMinimized(GetDatabase().minimized)
