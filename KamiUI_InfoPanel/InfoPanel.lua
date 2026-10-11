@@ -199,11 +199,13 @@ local function GetMoneyCharacters()
     }
 end
 
--- Three independent columns for the rested tooltip, kept in sync with
--- Blizzard's tooltip rows. Hide them when a different tooltip is shown.
+-- Three independently aligned numeric columns for the rested tooltip,
+-- kept in sync with Blizzard's tooltip rows. Hide them when another
+-- tooltip is shown.
 local restedTooltipColumns = {}
 local function HideRestedTooltipColumns()
     for _, columns in ipairs(restedTooltipColumns) do
+        columns.level:Hide()
         columns.time:Hide()
         columns.percent:Hide()
         if columns.spacer then
@@ -376,17 +378,18 @@ local function FormatRestedTime(seconds)
     return string.format("%dm", remainingMinutes)
 end
 
+local RESTED_LEVEL_WIDTH = 32
 local RESTED_TIME_WIDTH = 95
 local RESTED_PERCENT_WIDTH = 62
 local RESTED_COLUMN_GAP = 12
 -- The native right-hand text is only a sizing placeholder. Keeping it
 -- short avoids a large empty gap after the character names; the separately
 -- anchored time and percent labels still retain their fixed alignment.
-local RESTED_COLUMN_SPACER = string.rep("W", 10)
+local RESTED_COLUMN_SPACER = string.rep("W", 16)
 
-local function AddRestedTooltipRow(index, name, remaining, value,
+local function AddRestedTooltipRow(index, name, level, remaining, value,
     nr, ng, nb, vr, vg, vb, header)
-    -- Reserve room with the native tooltip layout, but draw two separately
+    -- Reserve room with the native tooltip layout, but draw three separately
     -- right-aligned fields rather than padding proportional-font text.
     GameTooltip:AddDoubleLine(name, RESTED_COLUMN_SPACER,
         nr, ng, nb, 1, 1, 1)
@@ -396,6 +399,8 @@ local function AddRestedTooltipRow(index, name, remaining, value,
     local columns = restedTooltipColumns[index]
     if not columns then
         columns = {
+            level = GameTooltip:CreateFontString(
+                nil, "OVERLAY", "GameFontHighlightSmall"),
             time = GameTooltip:CreateFontString(
                 nil, "OVERLAY", "GameFontHighlightSmall"),
             percent = GameTooltip:CreateFontString(
@@ -406,7 +411,9 @@ local function AddRestedTooltipRow(index, name, remaining, value,
 
     columns.spacer = right
     right:SetTextColor(1, 1, 1, 0)
-    for _, label in ipairs({columns.time, columns.percent}) do
+    for _, label in ipairs({
+        columns.level, columns.time, columns.percent
+    }) do
         label:ClearAllPoints()
         label:SetJustifyH("RIGHT")
         if label.SetWordWrap then label:SetWordWrap(false) end
@@ -419,9 +426,16 @@ local function AddRestedTooltipRow(index, name, remaining, value,
     columns.time:SetPoint("RIGHT", right, "RIGHT",
         -(RESTED_PERCENT_WIDTH + RESTED_COLUMN_GAP), 0)
     columns.time:SetText(remaining)
-    local timeColor = header and 0.65 or 0.85
-    columns.time:SetTextColor(timeColor, timeColor, timeColor)
+    local textColor = header and 0.65 or 0.85
+    columns.time:SetTextColor(textColor, textColor, textColor)
     columns.time:Show()
+
+    columns.level:SetWidth(RESTED_LEVEL_WIDTH)
+    columns.level:SetPoint("RIGHT", columns.time, "LEFT",
+        -RESTED_COLUMN_GAP, 0)
+    columns.level:SetText(level)
+    columns.level:SetTextColor(textColor, textColor, textColor)
+    columns.level:Show()
 
     columns.percent:SetWidth(RESTED_PERCENT_WIDTH)
     columns.percent:SetPoint("RIGHT", right, "RIGHT", 0, 0)
@@ -433,8 +447,8 @@ end
 local function ShowRestedTooltip(owner)
     PrepareTooltip(owner, "Rested XP")
     local row = 1
-    AddRestedTooltipRow(row, "Character (Legacy)", "To cap", "Rested",
-        0.65, 0.65, 0.65, 0.65, 0.65, 0.65, true)
+    AddRestedTooltipRow(row, "Character (Legacy)", "Lvl", "To cap",
+        "Rested", 0.65, 0.65, 0.65, 0.65, 0.65, 0.65, true)
     local currentRealm = GetRealmName and GetRealmName() or ""
 
     for _, entry in ipairs(RestedXP:GetCharacterEntries()) do
@@ -469,8 +483,13 @@ local function ShowRestedTooltip(owner)
             and "?" or tostring(entry.legacyRank)
         name = string.format("%s (%s/5)", name, rankText)
 
+        local level = profile.level
+        local levelText = UI:CanAccessValue(level)
+            and type(level) == "number"
+            and level > 0 and tostring(level) or "--"
+
         row = row + 1
-        AddRestedTooltipRow(row, name,
+        AddRestedTooltipRow(row, name, levelText,
             entry.maxLevel and "--" or FormatRestedTime(entry.timeToCap),
             value, r, g, b, vr, vg, vb)
     end
