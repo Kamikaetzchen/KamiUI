@@ -115,12 +115,16 @@ local function ScanSlot(slotKey)
             if not id and C_Container and C_Container.GetContainerItemID then
                 id = UI:SafeCall(C_Container.GetContainerItemID, bag, slot)
             end
-            if id and UI:CanAccessValue(id) then
+            if UI:CanAccessValue(id) and id then
                 local link = ItemLink(bag, slot)
-                if link and UI:CanAccessValue(link) then
+                if UI:CanAccessValue(link) and link then
                     local name, quality, level, loc, icon =
                         ItemInfo(link, id)
-                    if accepted[loc] and name then
+                    if UI:CanAccessValue(loc)
+                        and UI:CanAccessValue(name)
+                        and UI:CanAccessValue(level)
+                        and UI:CanAccessValue(quality)
+                        and accepted[loc] and name then
                         found[#found + 1] = {
                             bag = bag,
                             slot = slot,
@@ -157,12 +161,23 @@ local function GetEmptyBagSlot()
             free, bagFamily = UI:SafeCall(GetContainerNumFreeSlots, bag)
         end
         -- Specialty bags may refuse gear. Use backpack or normal bags.
-        if (bag == 0 or bagFamily == 0)
-            and (free == nil or (UI:CanAccessValue(free) and free > 0))
+        local freeAccessible = UI:CanAccessValue(free)
+        local familyAccessible = UI:CanAccessValue(bagFamily)
+        if (bag == 0 or (familyAccessible and bagFamily == 0))
+            and (not freeAccessible or free == nil or free > 0)
         then
             for slot = 1, UI:GetContainerNumSlots(bag) do
                 local info = UI:GetContainerItemInfo(bag, slot)
-                if not info then return bag, slot end
+                if not info then
+                    local id
+                    if C_Container and C_Container.GetContainerItemID then
+                        id = UI:SafeCall(C_Container.GetContainerItemID,
+                            bag, slot)
+                    end
+                    if UI:CanAccessValue(id) and not id then
+                        return bag, slot
+                    end
+                end
             end
         end
     end
@@ -201,7 +216,8 @@ local function SelectItem(entry)
     -- it returns the replaced item to a free bag location itself.
     if sourcePickedUp and CursorHasItem() and PickupInventoryItem then
         PickupInventoryItem(slot.slotID)
-    elseif CursorHasItem() then
+    end
+    if CursorHasItem() then
         UI:Print("Place the item on your cursor first.")
         return
     end
@@ -211,7 +227,11 @@ local function SelectItem(entry)
         UI:Print("Equipment swapping is unavailable.")
         return
     end
-    equip(entry.link, slot.slotID)
+    local ok, err = pcall(equip, entry.link, slot.slotID)
+    if not ok then
+        UI:Print("Could not equip item:", tostring(err))
+        return
+    end
     FinishSelection()
 end
 
