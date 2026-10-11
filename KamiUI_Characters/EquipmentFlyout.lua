@@ -238,6 +238,11 @@ end
 local function Unequip()
     if Locked() or not activeSlot then return end
     local slot = activeSlot
+    if not sourcePickedUp and not CursorHasItem()
+        and not GetInventoryItemLink("player", slot.slotID) then
+        FinishSelection()
+        return
+    end
     local bag, bagSlot = GetEmptyBagSlot()
     if not bag then
         UI:Print("No empty bag slot to unequip this item.")
@@ -327,6 +332,7 @@ local function Render()
 
     if paged then
         local nav = EnsureRow(1)
+        nav:RegisterForClicks("AnyUp")
         nav.icon:SetTexture(nil)
         nav.itemEntry = nil
         nav.text:SetText(string.format("   \226\150\178  %d-%d / %d   \226\150\188",
