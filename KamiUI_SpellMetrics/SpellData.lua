@@ -347,79 +347,53 @@ local function IsPartialWeaponDamage(lower)
 end
 
 local function ParseComboPointDamage(lower)
-    local bestAmount
-    local bestDuration
-    local bestPoints = 0
-
+    local variants = {}
     local pointPatterns = {
         "(%d+)%s+points?%s*:%s*",
         "(%d+)%s+combo%s+points?%s*:%s*",
     }
 
     for _, pointPattern in ipairs(pointPatterns) do
-        local periodicPattern =
-            pointPattern
-            .. NUMBER
-            .. "%s+[%a%s]-damage%s+over%s+"
-            .. NUMBER
-            .. "%s*sec"
-
-        for points, amount, duration in lower:gmatch(
-            periodicPattern
-        ) do
+        local periodicPattern = pointPattern .. NUMBER
+            .. "%s+[%a%s]-damage%s+over%s+" .. NUMBER .. "%s*sec"
+        for points, amount, duration in lower:gmatch(periodicPattern) do
             points = tonumber(points)
             amount = ParseNumber(amount)
-            duration = tonumber(duration)
-
-            if points
-                and amount
-                and duration
-                and (
-                    points == 5
-                    or (
-                        bestPoints ~= 5
-                        and points > bestPoints
-                    )
-                )
-            then
-                bestPoints = points
-                bestAmount = amount
-                bestDuration = duration
+            duration = ParseNumber(duration)
+            if points and points >= 1 and points <= 5
+                and amount and duration and duration > 0 then
+                variants[points] = {
+                    amount = amount,
+                    duration = duration,
+                }
             end
         end
-    end
-
-    if bestAmount then
-        return bestAmount, bestDuration, bestPoints
     end
 
     for _, pointPattern in ipairs(pointPatterns) do
-        local directPattern =
-            pointPattern
-            .. NUMBER
+        local directPattern = pointPattern .. NUMBER
             .. "%s+[%a%s]-damage"
-
         for points, amount in lower:gmatch(directPattern) do
             points = tonumber(points)
             amount = ParseNumber(amount)
-
-            if points
-                and amount
-                and (
-                    points == 5
-                    or (
-                        bestPoints ~= 5
-                        and points > bestPoints
-                    )
-                )
-            then
-                bestPoints = points
-                bestAmount = amount
+            if points and points >= 1 and points <= 5
+                and amount and not variants[points] then
+                variants[points] = { amount = amount }
             end
         end
     end
 
-    return bestAmount, nil, bestPoints > 0 and bestPoints or nil
+    local bestPoints
+    for points = 5, 1, -1 do
+        if variants[points] then
+            bestPoints = points
+            break
+        end
+    end
+
+    if not bestPoints then return nil, nil, nil, nil end
+    local best = variants[bestPoints]
+    return best.amount, best.duration, bestPoints, variants
 end
 
 local function ParsePeriodicDamage(lower)
@@ -725,7 +699,7 @@ function Module:BuildSpellData(spellID)
 
     castTime = castTime or GetFallbackCastTime(spellID)
 
-    local comboDamage, comboDuration, comboPoints =
+    local comboDamage, comboDuration, comboPoints, comboVariants =
         ParseComboPointDamage(lower)
     local periodicDamage, damageDuration =
         ParsePeriodicDamage(lower)
@@ -811,6 +785,7 @@ function Module:BuildSpellData(spellID)
         resourceCost = cost,
         resourceType = resourceType,
         comboPoints = comboPoints,
+        comboVariants = comboVariants,
         castTime = castTime,
         instant = instant,
         channeled = channeled,
