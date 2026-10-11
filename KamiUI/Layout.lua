@@ -198,11 +198,11 @@ UI.Layout = {
             PRIMARY_CAST_HEIGHT = 8,
             -- Druid Cat/Bear: secondary mana fits inside the same 38px
             -- content area alongside the regular power and optional cast.
-            PRIMARY_MANA_HEIGHT = 8,
+            PRIMARY_MANA_HEIGHT = 6,
             PRIMARY_HEALTH_MANA_HEIGHT = 18,
-            PRIMARY_POWER_MANA_HEIGHT = 10,
+            PRIMARY_POWER_MANA_HEIGHT = 12,
             PRIMARY_HEALTH_MANA_CAST_HEIGHT = 12,
-            PRIMARY_POWER_MANA_CAST_HEIGHT = 7,
+            PRIMARY_POWER_MANA_CAST_HEIGHT = 9,
             PRIMARY_NAME_WIDTH = 110,
             PRIMARY_TEXT_INSET = 3,
             COMPACT_WIDTH = 150,
