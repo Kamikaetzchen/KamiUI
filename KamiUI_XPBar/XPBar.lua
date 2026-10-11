@@ -457,6 +457,9 @@ function Module:Initialize()
 
     UI:RegisterEvent("PLAYER_LEVEL_UP", function()
         Module:Refresh()
+        -- Blizzard may rebuild tracking-bar containers after this handler.
+        C_Timer.After(0, SuppressNativeTrackingBars)
+        C_Timer.After(0.2, SuppressNativeTrackingBars)
     end)
 
     UI:RegisterEvent("UPDATE_EXHAUSTION", function()
