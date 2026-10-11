@@ -136,6 +136,9 @@ function Module:SetViewedCharacter(key)
     self.viewCharacterKey = key == currentKey and nil or key
 
     if self.frame then
+        if self.CloseEquipmentFlyout then
+            self:CloseEquipmentFlyout()
+        end
         self.frame.page = "character"
 
         if self.frame.characterMenu then
@@ -323,6 +326,7 @@ local function CreateEquipmentSlot(parent, definition)
 
     button.slotKey = definition.key
     button.slotID = GetSlotID(definition.key)
+    button.KamiEquipmentSide = definition.side
 
     button:SetScript("OnEnter", function(self)
         if not self.slotID then
@@ -361,7 +365,14 @@ local function CreateEquipmentSlot(parent, definition)
         end
 
         if mouseButton == "LeftButton" then
+            if InCombatLockdown and InCombatLockdown() then return end
+            local cursorType = GetCursorInfo and UI:SafeCall(GetCursorInfo)
+            local hadItem = not cursorType
+                and GetInventoryItemLink("player", self.slotID) ~= nil
             PickupInventoryItem(self.slotID)
+            if Module.ToggleEquipmentFlyout then
+                Module:ToggleEquipmentFlyout(self, hadItem)
+            end
         elseif mouseButton == "RightButton" then
             UseInventoryItem(self.slotID)
         elseif mouseButton == "MiddleButton" then
@@ -415,8 +426,15 @@ local function CreateEquipmentSlot(parent, definition)
     button:SetScript("OnDragStart", function(self)
         local _, _, isCurrent = Module:GetViewedCharacter()
 
-        if isCurrent and self.slotID then
+        if isCurrent and self.slotID
+            and not (InCombatLockdown and InCombatLockdown()) then
+            local cursorType = GetCursorInfo and UI:SafeCall(GetCursorInfo)
+            local hadItem = not cursorType
+                and GetInventoryItemLink("player", self.slotID) ~= nil
             PickupInventoryItem(self.slotID)
+            if Module.ToggleEquipmentFlyout then
+                Module:ToggleEquipmentFlyout(self, hadItem)
+            end
         end
     end)
 
@@ -425,6 +443,9 @@ local function CreateEquipmentSlot(parent, definition)
 
         if isCurrent and self.slotID then
             PickupInventoryItem(self.slotID)
+            if Module.CloseEquipmentFlyout then
+                Module:CloseEquipmentFlyout()
+            end
         end
     end)
 
@@ -698,6 +719,9 @@ function Module:Refresh()
     for _, button in ipairs(self.frame.equipmentSlots or {}) do
         UpdateEquipmentSlot(button)
     end
+    if self.RefreshEquipmentFlyout then
+        self:RefreshEquipmentFlyout()
+    end
 
     if self.frame.sidebar then
         SetSidebarMode(
@@ -727,6 +751,9 @@ end
 
 function Module:Hide()
     if self.frame then
+        if self.CloseEquipmentFlyout then
+            self:CloseEquipmentFlyout()
+        end
         self.frame:Hide()
     end
 end
@@ -3384,6 +3411,9 @@ local function HideNativeCharacterPages(frame, exceptPage)
 end
 
 SetOuterPage = function(frame, page)
+    if page ~= "character" and Module.CloseEquipmentFlyout then
+        Module:CloseEquipmentFlyout()
+    end
     local _, _, isCurrent = Module:GetViewedCharacter()
     local validPages = {
         character = true,
