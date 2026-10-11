@@ -616,14 +616,43 @@ local function InitializeExistingPlate(plate)
     end
 end
 
+-- Blizzard forbids custom friendly nameplate rendering in instanced
+-- dungeons/raids. Prefer its native player name-only display there rather
+-- than the bulky default health bars. Outside those instances our custom
+-- 7px friendly plates remain unchanged.
+local friendlyModePending = false
+local function UpdateFriendlyInstanceMode()
+    if not SetCVar then return end
+    if InCombatLockdown and InCombatLockdown() then
+        friendlyModePending = true
+        return
+    end
+    friendlyModePending = false
+
+    local inInstance, instanceType = IsInInstance and IsInInstance()
+    local nameOnly = inInstance
+        and (instanceType == "party" or instanceType == "raid")
+    local desired = nameOnly and "1" or "0"
+    local cvar = "nameplateShowOnlyNameForFriendlyPlayerUnits"
+
+    if not GetCVar or GetCVar(cvar) ~= desired then
+        SetCVar(cvar, desired)
+    end
+end
+
 function Module:Initialize()
     if SetCVar then
         SetCVar("nameplateShowEnemies", 1)
         -- Include friendly players and NPCs instead of styling enemies only.
         -- A nameplate must exist before the shared custom layout can apply.
         SetCVar("nameplateShowFriends", 1)
-        SetCVar("nameplateShowOnlyNameForFriendlyPlayerUnits", 0)
     end
+    UpdateFriendlyInstanceMode()
+    UI:RegisterEvent("PLAYER_ENTERING_WORLD", UpdateFriendlyInstanceMode)
+    UI:RegisterEvent("ZONE_CHANGED_NEW_AREA", UpdateFriendlyInstanceMode)
+    UI:RegisterEvent("PLAYER_REGEN_ENABLED", function()
+        if friendlyModePending then UpdateFriendlyInstanceMode() end
+    end)
 
     UI:RegisterEvent("NAME_PLATE_UNIT_ADDED", function(_, unit)
         RefreshUnit(unit)
