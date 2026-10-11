@@ -538,12 +538,14 @@ end
 function UF:CreateCompactFrame(options)
     options = options or {}
 
-    local width = Layout.COMPACT_WIDTH
-    local height = Layout.COMPACT_HEIGHT
+    -- Party/personal pets request a 100px compact frame; secondary units
+    -- request 150px. Respect those sizes instead of forcing the default.
+    local width = options.width or Layout.COMPACT_WIDTH
+    local height = options.height or Layout.COMPACT_HEIGHT
     local borderSize = Styles.Metrics.borderSize
     local separatorSize = Styles.Metrics.borderSize
-    local healthHeight = Layout.COMPACT_HEALTH_HEIGHT
-    local powerHeight = Layout.COMPACT_POWER_HEIGHT
+    local healthHeight = options.healthHeight or Layout.COMPACT_HEALTH_HEIGHT
+    local powerHeight = options.powerHeight or Layout.COMPACT_POWER_HEIGHT
     local contentWidth = width - borderSize * 2
 
     local frame = self:CreateUnitFrameBase({
