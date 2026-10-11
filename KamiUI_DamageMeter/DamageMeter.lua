@@ -321,7 +321,8 @@ local function CreateRow(index)
             source,
             GetView().primaryType,
             state.sessionType,
-            state.sessionID
+            state.sessionID,
+            self
         )
     end)
     row:SetHeight(Layout.ROW_HEIGHT)
