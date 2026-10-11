@@ -519,6 +519,7 @@ function UF:CreatePrimaryFrame(options)
     local barWidth = contentWidth - portraitSize
     local healthHeight = Layout.PRIMARY_HEALTH_HEIGHT
     local powerHeight = Layout.PRIMARY_POWER_HEIGHT
+    local manaHeight = Layout.PRIMARY_MANA_HEIGHT
     local healthCastHeight = Layout.PRIMARY_HEALTH_CAST_HEIGHT
     local powerCastHeight = Layout.PRIMARY_POWER_CAST_HEIGHT
     local castHeight = Layout.PRIMARY_CAST_HEIGHT
@@ -560,7 +561,20 @@ function UF:CreatePrimaryFrame(options)
     local power = self:CreateBar(content, barWidth, powerHeight)
     power:SetPoint("TOPLEFT", health, "BOTTOMLEFT", 0, -separatorSize)
 
+    -- Secondary mana occupies the same player frame, not an overlay.
+    local druidMana
+    if options.druidMana then
+        druidMana = self:CreateBar(content, barWidth, manaHeight)
+        druidMana:SetPoint(
+            "TOPLEFT", power, "BOTTOMLEFT", 0, -separatorSize)
+        druidMana:SetStatusBarColor(
+            Palette:GetReadablePowerColor(
+                "MANA", self.powerColorMultiplier))
+        druidMana:Hide()
+    end
+
     local cast = self:CreateBar(content, barWidth, castHeight)
+    -- Reanchor below mana only when Cat/Bear is active.
     cast:SetPoint("TOPLEFT", power, "BOTTOMLEFT", 0, -separatorSize)
     cast:SetStatusBarColor(0.65, 0.45, 0.10)
     cast:Hide()
@@ -575,6 +589,14 @@ function UF:CreatePrimaryFrame(options)
 
     local powerText = self:CreateText(power, powerHeight, "RIGHT")
     powerText:SetPoint("RIGHT", -(Layout.PRIMARY_TEXT_INSET), 0)
+
+    local druidManaText
+    if druidMana then
+        druidManaText = self:CreateText(
+            druidMana, manaHeight, "RIGHT")
+        druidManaText:SetPoint(
+            "RIGHT", -(Layout.PRIMARY_TEXT_INSET), 0)
+    end
 
     local fontPath, _, fontFlags = GameFontNormalSmall:GetFont()
 
@@ -601,6 +623,10 @@ function UF:CreatePrimaryFrame(options)
     frame.content = content
     frame.health = health
     frame.power = power
+    frame.druidMana = druidMana
+    frame.druidManaText = druidManaText
+    frame.druidManaActive = false
+    frame.castAnchorHasMana = false
     frame.cast = cast
     frame.portrait = portrait
     frame.nameText = nameText
@@ -613,6 +639,12 @@ function UF:CreatePrimaryFrame(options)
         powerHeight = powerHeight,
         healthCastHeight = healthCastHeight,
         powerCastHeight = powerCastHeight,
+        manaHeight = manaHeight,
+        healthManaHeight = Layout.PRIMARY_HEALTH_MANA_HEIGHT,
+        powerManaHeight = Layout.PRIMARY_POWER_MANA_HEIGHT,
+        healthManaCastHeight = Layout.PRIMARY_HEALTH_MANA_CAST_HEIGHT,
+        powerManaCastHeight = Layout.PRIMARY_POWER_MANA_CAST_HEIGHT,
+        separatorSize = separatorSize,
         fontPath = fontPath,
         fontFlags = fontFlags,
     }
@@ -837,6 +869,59 @@ function UF:UpdateHealthColor(frame)
     frame.health:SetStatusBarColor(r, g, b)
 end
 
+local function GetDruidManaVisibility()
+    -- Stable form IDs: Cat = 1, Bear = 5 (unlike the form-bar order).
+    if GetShapeshiftFormID then
+        local form = GetShapeshiftFormID()
+        if UI:CanAccessValue(form) then
+            return form == (CAT_FORM or 1)
+                or form == (BEAR_FORM or 5)
+        end
+    end
+
+    -- Fallback when a client doesn't expose form IDs.
+    if UnitPowerType then
+        local id, token = UnitPowerType("player")
+        if UI:CanAccessValue(token) and token then
+            return token == "ENERGY" or token == "RAGE"
+        end
+        if UI:CanAccessValue(id) then
+            return id == ((Enum and Enum.PowerType
+                and Enum.PowerType.Energy) or 3)
+                or id == ((Enum and Enum.PowerType
+                    and Enum.PowerType.Rage) or 1)
+        end
+    end
+    -- If both APIs return secret values during combat, preserve the
+    -- previous bar layout until the next readable form/power update.
+end
+
+function UF:UpdateDruidMana(frame)
+    if not frame or not frame.druidMana then return end
+
+    local visible = GetDruidManaVisibility()
+    if visible ~= nil and frame.druidManaActive ~= visible then
+        frame.druidManaActive = visible
+        frame.druidMana:SetShown(visible)
+        self:SetCastingLayout(
+            frame, frame.castStart ~= nil and frame.castEnd ~= nil)
+    end
+
+    if not frame.druidManaActive then return end
+
+    -- Query true mana by explicit power type even in Cat/Bear form.
+    -- StatusBar/FontString native setters can consume secret combat data.
+    local manaType = (Enum and Enum.PowerType
+        and Enum.PowerType.Mana) or 0
+    local current = UnitPower("player", manaType)
+    local maximum = UnitPowerMax("player", manaType)
+    frame.druidMana:SetMinMaxValues(0, maximum)
+    frame.druidMana:SetValue(current)
+    if frame.druidManaText then
+        frame.druidManaText:SetFormattedText("%d", current)
+    end
+end
+
 function UF:UpdatePower(frame)
     if not frame or not frame.power or not UnitExists(frame.unit) then
         return
@@ -854,6 +939,9 @@ function UF:UpdatePower(frame)
 
     local r, g, b = self:GetPowerColor(frame.unit)
     frame.power:SetStatusBarColor(r, g, b)
+    if frame.druidMana then
+        self:UpdateDruidMana(frame)
+    end
 end
 
 function UF:UpdateIdentity(frame)
@@ -910,12 +998,35 @@ function UF:SetCastingLayout(frame, isCasting)
     end
 
     local layout = frame.castLayout
-    local healthHeight = isCasting
-        and layout.healthCastHeight
-        or layout.healthHeight
-    local powerHeight = isCasting
-        and layout.powerCastHeight
-        or layout.powerHeight
+    local manaActive = frame.druidMana
+        and frame.druidManaActive == true
+    local healthHeight
+    local powerHeight
+
+    if manaActive then
+        healthHeight = isCasting
+            and layout.healthManaCastHeight
+            or layout.healthManaHeight
+        powerHeight = isCasting
+            and layout.powerManaCastHeight
+            or layout.powerManaHeight
+    else
+        healthHeight = isCasting
+            and layout.healthCastHeight
+            or layout.healthHeight
+        powerHeight = isCasting
+            and layout.powerCastHeight
+            or layout.powerHeight
+    end
+
+    -- Cast must sit below the last currently visible resource bar.
+    if frame.druidMana and frame.castAnchorHasMana ~= manaActive then
+        frame.cast:ClearAllPoints()
+        frame.cast:SetPoint(
+            "TOPLEFT", manaActive and frame.druidMana or frame.power,
+            "BOTTOMLEFT", 0, -layout.separatorSize)
+        frame.castAnchorHasMana = manaActive
+    end
 
     frame.health:SetHeight(healthHeight)
     frame.power:SetHeight(powerHeight)
