@@ -12,7 +12,7 @@
 - **Left-click a main icon:** Use the default item/spell and close.
 - **Right-click a main icon:** Show its variants (no hover or delay).
 - **Left-click a variant:** Use that variant and close.
-- **Right-click a variant:** Set a per-character favorite (out of combat).
+- **Right-click a variant:** Set a per-character favorite (out of combat). Right-click the same favorite again to clear it and return to automatic selection.
 - **Click unused space inside the main wheel:** Close the menu.
 - **Click or mouse-look elsewhere:** Interact with the world normally;
   the menu stays open until Q/E or an item action closes it.
