@@ -672,14 +672,45 @@ local function ConfigureNativeFriendlyPlates()
         end
     end
 
-    -- Use Blizzard's flatter Default style for native friendly plates.
-    local defaultStyle = Enum and Enum.NamePlateStyle
-        and Enum.NamePlateStyle.Default or 0
-    SetOption("nameplateStyle", tostring(defaultStyle))
+    -- On Forever's 12.0 client 0 is displayed as "Large" and 2 as
+    -- "Block". The slimmer "Default" preset is the intermediate value.
+    -- Don't use Enum.NamePlateStyle.Default: that member is absent here.
+    SetOption("nameplateStyle", "1")
     SetOption("nameplateSize", "1")
     SetOption("nameplateAuraScale", "0.7")
     SetOption("nameplateShowOnlyNameForFriendlyPlayerUnits", "0")
     SetOption("nameplateShowFriendlyClassColor", "1")
+
+    -- Blizzard separates the ordinary aura rows from its enlarged
+    -- loss-of-control icon (which appears beside the nameplate). Keep
+    -- regular buffs and debuffs above the bar, regardless of who cast them,
+    -- and turn off that separate side indicator.
+    local auraCVar = "nameplateFriendlyPlayerAuraDisplay"
+    local auraOptions = Enum and Enum.NamePlateFriendlyPlayerAuraDisplay
+    local setBit = C_CVar and C_CVar.SetCVarBitfield
+        or SetCVarBitfield
+    local getBit = C_CVar and C_CVar.GetCVarBitfield
+        or GetCVarBitfield
+    local hasAuraCVar = GetCVar and GetCVar(auraCVar) ~= nil
+    if hasAuraCVar and auraOptions and setBit then
+        local function SetAuraBit(key, enabled)
+            local bitIndex = auraOptions[key]
+            if type(bitIndex) ~= "number" then return end
+            local current = getBit and UI:SafeCall(
+                getBit, auraCVar, bitIndex)
+            if current ~= enabled then
+                UI:SafeCall(setBit, auraCVar, bitIndex, enabled)
+            end
+        end
+
+        SetAuraBit("Buffs", true)
+        SetAuraBit("Debuffs", true)
+        SetAuraBit("LossOfControl", false)
+    end
+    SetOption("nameplateShowDebuffsOnFriendly", "1")
+    -- Include player-cast auras that Blizzard would otherwise omit.
+    -- The native filters still decide which other auras may be displayed.
+    SetOption("nameplateShowAllPersonalAuras", "1")
 end
 
 function Module:Initialize()
