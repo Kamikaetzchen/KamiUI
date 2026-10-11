@@ -12,6 +12,20 @@ local function IsTruthy(value)
     return UI:CanAccessValue(value) and value and true or false
 end
 
+-- Evaluate potentially secret unit-state booleans in a native widget sink.
+-- Keep shown-state ordinary so LayoutCenterIndicators can inspect IsShown.
+local function SetIndicatorVisible(icon, state)
+    if UI:CanAccessValue(state) then
+        icon:SetAlpha(0.60)
+        icon:SetShown(state == true)
+    elseif icon.SetAlphaFromBoolean then
+        icon:Show()
+        icon:SetAlphaFromBoolean(state, 0.60, 0)
+    else
+        icon:Hide()
+    end
+end
+
 local function SetIndicatorAtlas(icon, atlas, fallbackTexture)
     if icon.SetAtlas and atlas then
         local ok = pcall(icon.SetAtlas, icon, atlas, false)
@@ -136,7 +150,10 @@ local function UpdateRaidMarker(frame)
     local icon = frame.centerIndicators.icons.raid
     local index = GetRaidTargetIndex and GetRaidTargetIndex(frame.unit)
 
-    if not index or not UI:CanAccessValue(index) then
+    -- The index can be a secret number in instances. Pass it directly to
+    -- Blizzard's texture sink rather than discarding it or comparing it.
+    if UI:CanAccessValue(index)
+        and (type(index) ~= "number" or index < 1 or index > 8) then
         icon:Hide()
         return
     end
@@ -146,6 +163,7 @@ local function UpdateRaidMarker(frame)
     if SetRaidTargetIconTexture
         and pcall(SetRaidTargetIconTexture, icon, index)
     then
+        icon:SetAlpha(0.60)
         icon:Show()
     else
         icon:Hide()
@@ -190,16 +208,12 @@ local function UpdateResurrection(frame)
     local incoming = UnitHasIncomingResurrection
         and UnitHasIncomingResurrection(frame.unit)
 
-    if IsTruthy(incoming) then
-        SetIndicatorAtlas(
-            icon,
-            "RaidFrame-Icon-Rez",
-            "Interface\\RaidFrame\\Raid-Icon-Rez"
-        )
-        icon:Show()
-    else
-        icon:Hide()
-    end
+    SetIndicatorAtlas(
+        icon,
+        "RaidFrame-Icon-Rez",
+        "Interface\\RaidFrame\\Raid-Icon-Rez"
+    )
+    SetIndicatorVisible(icon, incoming)
 end
 
 local function UpdateSummon(frame)
@@ -208,7 +222,7 @@ local function UpdateSummon(frame)
         and C_IncomingSummon.HasIncomingSummon
         and C_IncomingSummon.HasIncomingSummon(frame.unit)
 
-    if not IsTruthy(incoming) then
+    if UI:CanAccessValue(incoming) and not incoming then
         icon:Hide()
         return
     end
@@ -225,13 +239,13 @@ local function UpdateSummon(frame)
         and Enum.SummonStatus.Declined
         or 3
 
-    if status == accepted then
+    if UI:CanAccessValue(status) and status == accepted then
         SetIndicatorAtlas(
             icon,
             "RaidFrame-Icon-SummonAccepted",
             "Interface\\RaidFrame\\Raid-Icon-SummonAccepted"
         )
-    elseif status == declined then
+    elseif UI:CanAccessValue(status) and status == declined then
         SetIndicatorAtlas(
             icon,
             "RaidFrame-Icon-SummonDeclined",
@@ -245,35 +259,50 @@ local function UpdateSummon(frame)
         )
     end
 
-    icon:Show()
+    SetIndicatorVisible(icon, incoming)
 end
+
 local function UpdateConnection(frame)
     local offlineIcon = frame.centerIndicators.icons.offline
     local ghostIcon = frame.centerIndicators.icons.ghost
 
     local connected = UnitIsConnected and UnitIsConnected(frame.unit)
-    if UI:CanAccessValue(connected) and connected == false then
-        offlineIcon:SetTexture("Interface\\CharacterFrame\\Disconnect-Icon")
-        offlineIcon:SetTexCoord(0, 1, 0, 1)
+    offlineIcon:SetTexture("Interface\\CharacterFrame\\Disconnect-Icon")
+    offlineIcon:SetTexCoord(0, 1, 0, 1)
+    if UI:CanAccessValue(connected) then
+        SetIndicatorVisible(offlineIcon, connected == false)
+    elseif offlineIcon.SetAlphaFromBoolean then
+        -- C-side inversion avoids 'not' on the secret connection flag.
         offlineIcon:Show()
+        offlineIcon:SetAlphaFromBoolean(connected, 0, 0.60)
     else
         offlineIcon:Hide()
     end
 
-    local ghost = UnitIsGhost and UnitIsGhost(frame.unit)
-    if IsTruthy(ghost) then
-        ghostIcon:SetTexture(
-            "Interface\\TargetingFrame\\UI-TargetingFrame-Skull"
-        )
-        ghostIcon:SetTexCoord(0, 1, 0, 1)
-        ghostIcon:Show()
-    else
-        ghostIcon:Hide()
+    -- Released ghosts and dead players both need a status indicator.
+    local deadOrGhost
+    if UnitIsDeadOrGhost then
+        deadOrGhost = UnitIsDeadOrGhost(frame.unit)
+    elseif UnitIsGhost then
+        deadOrGhost = UnitIsGhost(frame.unit)
     end
+
+    ghostIcon:SetTexture(
+        "Interface\\TargetingFrame\\UI-TargetingFrame-Skull"
+    )
+    ghostIcon:SetTexCoord(0, 1, 0, 1)
+    SetIndicatorVisible(ghostIcon, deadOrGhost)
 end
 
 local function UpdateCenterIndicators(frame)
-    if not frame.centerIndicators or not UnitExists(frame.unit) then
+    if not frame.centerIndicators then return end
+
+    local exists = UnitExists(frame.unit)
+    if UI:CanAccessValue(exists) and not exists then
+        -- Reused group frames must not retain a previous unit's icons.
+        for _, icon in pairs(frame.centerIndicators.icons) do
+            icon:Hide()
+        end
         return
     end
 
@@ -720,7 +749,7 @@ UI:RegisterEvent("PARTY_LEADER_CHANGED", UpdateAll)
 UI:RegisterEvent("PARTY_LOOT_METHOD_CHANGED", UpdateAll)
 UI:RegisterEvent("PLAYER_ROLES_ASSIGNED", UpdateAll)
 UI:RegisterEvent("ROLE_CHANGED_INFORM", UpdateAll)
-UI:RegisterEvent("RAID_TARGET_UPDATE", UpdateAll)
+UI:RegisterEvent("RAID_TARGET_UPDATE", RefreshCenterIndicatorsForUnit)
 
 UI:RegisterEvent("READY_CHECK", BeginReadyCheck)
 UI:RegisterEvent("READY_CHECK_CONFIRM", ConfirmReadyCheck)
@@ -736,6 +765,8 @@ UI:RegisterEvent(
 
 UI:RegisterEvent("UNIT_FLAGS", UpdateUnit)
 UI:RegisterEvent("UNIT_CONNECTION", UpdateUnit)
+UI:RegisterEvent("UNIT_HEALTH", RefreshCenterIndicatorsForUnit)
+UI:RegisterEvent("UNIT_MAXHEALTH", RefreshCenterIndicatorsForUnit)
 UI:RegisterEvent("UNIT_NAME_UPDATE", UpdateUnit)
 UI:RegisterEvent("UNIT_HEAL_PREDICTION", UpdateUnit)
 UI:RegisterEvent("UNIT_ABSORB_AMOUNT_CHANGED", UpdateUnit)
