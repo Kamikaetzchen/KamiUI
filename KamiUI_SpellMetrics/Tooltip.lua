@@ -144,6 +144,37 @@ local function AddMixedMetrics(tooltip, analysis, labels)
     )
 end
 
+local function AddComboMetrics(tooltip, analysis)
+    if not analysis.comboMetrics then return end
+
+    tooltip:AddLine(" ")
+    tooltip:AddLine("Combo point breakdown", unpack(HEADING_COLOR))
+    tooltip:AddDoubleLine(
+        "CP    Damage    DPS",
+        analysis.resourceCost and "Damage / resource" or "",
+        unpack(HEADING_COLOR)
+    )
+
+    for points = 1, 5 do
+        local metric = analysis.comboMetrics[points]
+        if metric then
+            local left = string.format(
+                "%d       %s       %s",
+                points,
+                Module:FormatMetric(metric.damage),
+                Module:FormatMetric(metric.dps)
+            )
+            tooltip:AddDoubleLine(
+                left,
+                metric.efficiency
+                    and Module:FormatMetric(metric.efficiency) or "",
+                LABEL_COLOR[1], LABEL_COLOR[2], LABEL_COLOR[3],
+                VALUE_COLOR[1], VALUE_COLOR[2], VALUE_COLOR[3]
+            )
+        end
+    end
+end
+
 local function ResetTooltipMarker(tooltip)
     tooltip.KamiSpellMetricsSpellID = nil
 end
@@ -203,6 +234,8 @@ local function AddSpellAnalysis(tooltip, data)
     else
         AddSingleMetrics(tooltip, analysis, labels)
     end
+
+    AddComboMetrics(tooltip, analysis)
 
     if analysis.weaponEstimate then
         tooltip:AddLine(
