@@ -291,6 +291,21 @@ local function ParseWeaponFormula(lower)
         end
     end
 
+    -- Some physical melee attacks omit "normal" or "weapon" from their
+    -- coefficient. E.g. Forever Shred: "causing 155% damage plus 99 to
+    -- the target". This describes the same weapon-hit multiplier + flat
+    -- bonus as Claw; keep the "to the target" clause to avoid treating
+    -- arbitrary spell damage percentages as weapon damage.
+    local percent, bonus = lower:match(
+        NUMBER .. "%%%s+damage%s+plus%s+" .. NUMBER
+            .. "%s+to%s+the%s+target"
+    )
+
+    if percent then
+        return ParseNumber(percent) / 100,
+            ParseNumber(bonus), "weapon"
+    end
+
     local added = lower:match(
         NUMBER .. "%s+damage%s+in%s+addition%s+to%s+your%s+"
             .. "normal%s+weapon%s+damage"
@@ -826,6 +841,17 @@ function Module:GetSpellAnalysis(spellID)
 
     if data and self.CalculateMetrics then
         analysis = self:CalculateMetrics(data)
+    end
+
+    if analysis then
+        -- Remember a valid estimate across buff / stat invalidations.
+        -- When instance combat temporarily makes UnitDamage inaccessible,
+        -- keep showing the last known value instead of a blank button.
+        self.lastValidAnalyses[spellID] = analysis
+    elseif reason == "noWeaponDamage" or reason == "noTooltip" then
+        -- These are temporary data failures, not unsupported spells.
+        -- Do not cache the failure: the next refresh should retry.
+        return self.lastValidAnalyses[spellID], reason
     end
 
     self.analysisCache[spellID] = {
