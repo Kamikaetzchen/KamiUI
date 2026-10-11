@@ -28,6 +28,16 @@ local function BuildMetricSet(
     }
 end
 
+local function GetPhysicalCritChance()
+    if not GetCritChance then return nil end
+    local chance = GetCritChance()
+    if not UI:CanAccessValue(chance)
+        or type(chance) ~= "number" then
+        return nil
+    end
+    return math.max(0, math.min(100, chance))
+end
+
 function Module:CalculateMetrics(data)
     if not data then
         return nil
@@ -35,6 +45,18 @@ function Module:CalculateMetrics(data)
 
     local direct = tonumber(data.direct) or 0
     local periodic = tonumber(data.periodic) or 0
+    -- Physical Feral attacks and bleeds use the player's melee crit chance.
+    -- A 200% crit adds one extra normal hit on average.
+    local critChance
+    if data.outputType == "damage"
+        and (data.resourceType == "Energy"
+            or data.resourceType == "Rage") then
+        critChance = GetPhysicalCritChance()
+    end
+    local critMultiplier = critChance and (1 + critChance / 100) or 1
+    data.critChance = critChance
+    direct = direct * critMultiplier
+    periodic = periodic * critMultiplier
     local total = direct + periodic
 
     if total <= 0 then
@@ -49,7 +71,7 @@ function Module:CalculateMetrics(data)
         for points = 1, 5 do
             local variant = data.comboVariants[points]
             if variant then
-                local amount = variant.amount
+                local amount = variant.amount * critMultiplier
                 local duration = variant.duration
                 data.comboMetrics[points] = {
                     damage = amount,
