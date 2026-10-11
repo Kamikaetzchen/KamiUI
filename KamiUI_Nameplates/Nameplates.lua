@@ -629,7 +629,10 @@ local function UpdateFriendlyInstanceMode()
     end
     friendlyModePending = false
 
-    local inInstance, instanceType = IsInInstance and IsInInstance()
+    local inInstance, instanceType
+    if IsInInstance then
+        inInstance, instanceType = IsInInstance()
+    end
     local nameOnly = inInstance
         and (instanceType == "party" or instanceType == "raid")
     local desired = nameOnly and "1" or "0"
