@@ -585,17 +585,20 @@ local function RefreshUnit(unit)
     if not plate then return end
 
     local data = styled[plate]
+    local native = plate.UnitFrame
+    local forbidden = (plate.IsForbidden and plate:IsForbidden())
+        or (native and native.IsForbidden and native:IsForbidden())
 
-    -- Use Blizzard's own frames for ALL friendlies, including outdoors:
-    -- the exact same preview can therefore be tested without a dungeon.
-    -- Forbidden friendly plates must never be modified by addon code.
+    -- Dungeon-friendly plates are protected. Don't even try to build
+    -- a custom frame when the player's unit reaction is a secret.
+    if forbidden then return end
+
+    -- Native friendlies everywhere, so their appearance can be tested
+    -- in the open world without entering an instance.
     if IsFriendlyPlate(unit) then
         if data then
             HideCustomPlate(data)
-            local native = plate.UnitFrame
-            local forbidden = (plate.IsForbidden and plate:IsForbidden())
-                or (native and native.IsForbidden and native:IsForbidden())
-            if data.nativeHidden and not forbidden then
+            if data.nativeHidden then
                 SetNativeVisualAlpha(native, 1)
             end
             data.nativeHidden = false
