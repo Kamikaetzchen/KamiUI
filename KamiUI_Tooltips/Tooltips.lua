@@ -1501,6 +1501,107 @@ local function InstallManualInspectPriority()
     end)
 end
 
+-- Append item level without rebuilding Blizzard's tooltip contents.
+-- KamiUI_Bags invokes this before its character counts, and this hook
+-- keeps the feature available when the Bags module is disabled.
+-- Pre-call edits would risk tainting secret tooltip data on Forever.
+local function ResolveItemLevel(tooltip, data)
+    local link
+    local dataLink = data and data.hyperlink
+    if UI:CanAccessValue(dataLink) and type(dataLink) == "string" then
+        link = dataLink
+    end
+
+    if not link and tooltip.GetItem then
+        local _, tooltipLink = UI:SafeCall(tooltip.GetItem, tooltip)
+        if UI:CanAccessValue(tooltipLink)
+            and type(tooltipLink) == "string" then
+            link = tooltipLink
+        end
+    end
+
+    local id = data and data.id
+    if not UI:CanAccessValue(id) then id = nil end
+    if not link and type(id) ~= "number" then return nil end
+
+    local query = link or id
+    local detailed = (C_Item and C_Item.GetDetailedItemLevelInfo)
+        or GetDetailedItemLevelInfo
+    if detailed then
+        local level = UI:SafeCall(detailed, query)
+        if UI:CanAccessValue(level)
+            and type(level) == "number" and level > 0 then
+            return level
+        end
+    end
+
+    local getInfo = (C_Item and C_Item.GetItemInfo) or GetItemInfo
+    if getInfo then
+        local _, _, _, level = UI:SafeCall(getInfo, query)
+        if UI:CanAccessValue(level)
+            and type(level) == "number" and level > 0 then
+            return level
+        end
+    end
+
+    local override = data and data.overrideItemLevel
+    if UI:CanAccessValue(override)
+        and type(override) == "number" and override > 0 then
+        return override
+    end
+end
+
+local function AlreadyShowsItemLevel(tooltip)
+    local count = tooltip.NumLines and tooltip:NumLines() or 0
+    for index = 1, count do
+        local line = GetTooltipLine(tooltip, "left", index)
+        local text = line and line.GetText
+            and UI:SafeCall(line.GetText, line)
+        if UI:CanAccessValue(text) and type(text) == "string" then
+            local clean = StripColorCodes(text)
+            if clean:match("^Item Level%s*:?%s*%d")
+                or clean:match("^Gegenstandsstufe%s*:?%s*%d") then
+                return true
+            end
+        end
+    end
+    return false
+end
+
+function Module:AppendItemLevel(tooltip, data)
+    if not tooltip or not tooltip.AddLine
+        or AlreadyShowsItemLevel(tooltip) then
+        return
+    end
+    local level = ResolveItemLevel(tooltip, data)
+    if not level then return end
+    tooltip:AddLine(
+        string.format("Item Level %d", math.floor(level)),
+        0.78, 0.78, 0.86
+    )
+end
+
+local function InstallItemLevelHook()
+    if Module.itemLevelHookInstalled then return end
+    if TooltipDataProcessor and TooltipDataProcessor.AddTooltipPostCall
+        and Enum and Enum.TooltipDataType and Enum.TooltipDataType.Item then
+        Module.itemLevelHookInstalled = true
+        TooltipDataProcessor.AddTooltipPostCall(
+            Enum.TooltipDataType.Item,
+            function(tooltip, data)
+                Module:AppendItemLevel(tooltip, data)
+            end
+        )
+    elseif GameTooltip and GameTooltip.HookScript
+        and GameTooltip.HasScript
+        and GameTooltip:HasScript("OnTooltipSetItem") then
+        Module.itemLevelHookInstalled = true
+        GameTooltip:HookScript("OnTooltipSetItem", function(tooltip)
+            Module:AppendItemLevel(tooltip)
+        end)
+    end
+end
+
 local function InstallUnitTooltipHook()
     if Module.unitTooltipHookInstalled then
         return
@@ -1633,6 +1734,7 @@ function Module:Initialize()
     InstallStatusBarSuppression()
     InstallInstantUnitTooltipHide()
     InstallUnitTooltipHook()
+    InstallItemLevelHook()
 
     UI:RegisterEvent("INSPECT_READY", function(_, guid)
         HandleInspectReady(guid)
@@ -1646,6 +1748,7 @@ function Module:Initialize()
         InstallStatusBarSuppression()
         InstallInstantUnitTooltipHide()
         InstallUnitTooltipHook()
+        InstallItemLevelHook()
     end)
 end
 
