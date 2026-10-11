@@ -1020,6 +1020,9 @@ function Module:Initialize()
 
     UI:RegisterEvent("DAMAGE_METER_COMBAT_SESSION_UPDATED", QueueUpdate)
     UI:RegisterEvent("DAMAGE_METER_CURRENT_SESSION_UPDATED", QueueUpdate)
+    -- The protected per-source data can become readable when combat ends,
+    -- even if Blizzard does not send another meter-session update.
+    UI:RegisterEvent("PLAYER_REGEN_ENABLED", QueueUpdate)
 
     UI:RegisterEvent("DAMAGE_METER_RESET", function()
         if Module.CloseSourceDetails then Module:CloseSourceDetails() end
