@@ -129,39 +129,36 @@ local function GetUnitColor(unit)
     return 0.20, 0.65, 0.20
 end
 
+local NATIVE_VISUAL_KEYS = {
+    "name", "Name", "nameText", "AurasFrame",
+    "ClassificationFrame", "classificationIndicator",
+    "LevelFrame", "PlayerLevelDiffFrame", "RaidTargetFrame",
+    "selectionHighlight", "SelectionHighlight", "aggroHighlight",
+}
+
+local function SetNativeVisualAlpha(unitFrame, alpha)
+    if not unitFrame then return end
+    -- Never alter native StatusBars themselves: only their containers.
+    if unitFrame.HealthBarsContainer then
+        unitFrame.HealthBarsContainer:SetAlpha(alpha)
+    end
+    if unitFrame.CastBarsContainer then
+        unitFrame.CastBarsContainer:SetAlpha(alpha)
+    end
+    for _, key in ipairs(NATIVE_VISUAL_KEYS) do
+        local object = unitFrame[key]
+        if object and object.SetAlpha then
+            object:SetAlpha(alpha)
+        end
+    end
+end
+
 local function HideNativeVisuals(unitFrame)
     -- Do not touch Blizzard's native health/cast StatusBars themselves.
     -- They can contain secret values and become unusable by Blizzard code
     -- once addon code taints their state. Only fade their surrounding
     -- containers/regions; our bars are completely separate objects.
-    if unitFrame.HealthBarsContainer then
-        unitFrame.HealthBarsContainer:SetAlpha(0)
-    end
-
-    if unitFrame.CastBarsContainer then
-        unitFrame.CastBarsContainer:SetAlpha(0)
-    end
-
-    for _, key in ipairs({
-        "name",
-        "Name",
-        "nameText",
-        "AurasFrame",
-        "ClassificationFrame",
-        "classificationIndicator",
-        "LevelFrame",
-        "PlayerLevelDiffFrame",
-        "RaidTargetFrame",
-        "selectionHighlight",
-        "SelectionHighlight",
-        "aggroHighlight",
-    }) do
-        local object = unitFrame[key]
-
-        if object and object.SetAlpha then
-            object:SetAlpha(0)
-        end
-    end
+    SetNativeVisualAlpha(unitFrame, 0)
 end
 
 local function InitializeAuraButton(button)
@@ -541,6 +538,7 @@ local function UpdatePlate(data)
     end
 
     HideNativeVisuals(data.unitFrame)
+    data.nativeHidden = true
     UpdateIdentity(data)
     UpdateHealth(data)
     UpdateAuras(data)
@@ -552,6 +550,29 @@ local function IsNamePlateUnitToken(unit)
         and string.match(unit, "^nameplate%d+$") ~= nil
 end
 
+local function IsFriendlyPlate(unit)
+    -- These checks are deliberately only used when their answers are
+    -- readable. Do not branch on a combat-secret classification value.
+    local friendly = UnitIsFriend and UnitIsFriend("player", unit)
+    if UI:CanAccessValue(friendly) and friendly ~= nil then
+        return friendly == true
+    end
+    local attackable = UnitCanAttack and UnitCanAttack("player", unit)
+    if UI:CanAccessValue(attackable) and attackable ~= nil then
+        return attackable == false
+    end
+    return false
+end
+
+local function HideCustomPlate(data)
+    data.unit = nil
+    data.auraUnit = nil
+    data.castDuration = nil
+    data.root:Hide()
+    data.auras:Hide()
+    data.cast:Hide()
+end
+
 local function RefreshUnit(unit)
     if not IsNamePlateUnitToken(unit)
         or not C_NamePlate
@@ -561,21 +582,34 @@ local function RefreshUnit(unit)
     end
 
     local plate = C_NamePlate.GetNamePlateForUnit(unit)
+    if not plate then return end
 
-    if not plate then
+    local data = styled[plate]
+
+    -- Use Blizzard's own frames for ALL friendlies, including outdoors:
+    -- the exact same preview can therefore be tested without a dungeon.
+    -- Forbidden friendly plates must never be modified by addon code.
+    if IsFriendlyPlate(unit) then
+        if data then
+            HideCustomPlate(data)
+            local native = plate.UnitFrame
+            local forbidden = (plate.IsForbidden and plate:IsForbidden())
+                or (native and native.IsForbidden and native:IsForbidden())
+            if data.nativeHidden and not forbidden then
+                SetNativeVisualAlpha(native, 1)
+            end
+            data.nativeHidden = false
+        end
         return
     end
 
-    local data = styled[plate] or CreateCustomPlate(plate)
+    data = data or CreateCustomPlate(plate)
+    if not data then return end
 
-    if not data then
-        return
-    end
-
+    data.unitFrame = plate.UnitFrame
     data.unit = unit
     data.root:Show()
     data.auras:Show()
-
     UpdatePlate(data)
 end
 
@@ -616,31 +650,34 @@ local function InitializeExistingPlate(plate)
     end
 end
 
--- Blizzard forbids custom friendly nameplate rendering in instanced
--- dungeons/raids. Prefer its native player name-only display there rather
--- than the bulky default health bars. Outside those instances our custom
--- 7px friendly plates remain unchanged.
-local friendlyModePending = false
-local function UpdateFriendlyInstanceMode()
+-- Test profile for Blizzard-native friendly plates, everywhere.
+-- Their native style CVars apply globally; enemies remain rendered with
+-- our existing custom overlays. Never attempt to modify forbidden frames.
+local nativeOptionsPending = false
+local function ConfigureNativeFriendlyPlates()
     if not SetCVar then return end
     if InCombatLockdown and InCombatLockdown() then
-        friendlyModePending = true
+        nativeOptionsPending = true
         return
     end
-    friendlyModePending = false
+    nativeOptionsPending = false
 
-    local inInstance, instanceType
-    if IsInInstance then
-        inInstance, instanceType = IsInInstance()
+    local function SetOption(name, value)
+        if GetCVar and GetCVar(name) == nil then return end
+        if not GetCVar or GetCVar(name) ~= value then
+            UI:SafeCall(SetCVar, name, value)
+        end
     end
-    local nameOnly = inInstance
-        and (instanceType == "party" or instanceType == "raid")
-    local desired = nameOnly and "1" or "0"
-    local cvar = "nameplateShowOnlyNameForFriendlyPlayerUnits"
 
-    if not GetCVar or GetCVar(cvar) ~= desired then
-        SetCVar(cvar, desired)
-    end
+    -- "Block" is available in Forever's style dropdown. Use the
+    -- client enum if possible, otherwise its standard value (2).
+    local blockStyle = Enum and Enum.NamePlateStyle
+        and Enum.NamePlateStyle.Block or 2
+    SetOption("nameplateStyle", tostring(blockStyle))
+    SetOption("nameplateSize", "1")
+    SetOption("nameplateAuraScale", "0.7")
+    SetOption("nameplateShowOnlyNameForFriendlyPlayerUnits", "0")
+    SetOption("nameplateShowFriendlyClassColor", "1")
 end
 
 function Module:Initialize()
@@ -650,11 +687,10 @@ function Module:Initialize()
         -- A nameplate must exist before the shared custom layout can apply.
         SetCVar("nameplateShowFriends", 1)
     end
-    UpdateFriendlyInstanceMode()
-    UI:RegisterEvent("PLAYER_ENTERING_WORLD", UpdateFriendlyInstanceMode)
-    UI:RegisterEvent("ZONE_CHANGED_NEW_AREA", UpdateFriendlyInstanceMode)
+    ConfigureNativeFriendlyPlates()
+    UI:RegisterEvent("PLAYER_ENTERING_WORLD", ConfigureNativeFriendlyPlates)
     UI:RegisterEvent("PLAYER_REGEN_ENABLED", function()
-        if friendlyModePending then UpdateFriendlyInstanceMode() end
+        if nativeOptionsPending then ConfigureNativeFriendlyPlates() end
     end)
 
     UI:RegisterEvent("NAME_PLATE_UNIT_ADDED", function(_, unit)
@@ -673,12 +709,7 @@ function Module:Initialize()
         local data = plate and styled[plate]
 
         if data then
-            data.unit = nil
-            data.auraUnit = nil
-            data.castDuration = nil
-            data.root:Hide()
-            data.auras:Hide()
-            data.cast:Hide()
+            HideCustomPlate(data)
         end
     end)
 
