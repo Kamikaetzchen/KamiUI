@@ -125,6 +125,89 @@ local function CreateFrameBackground(parent)
     return background
 end
 
+-- Chained tokens (targettarget, focustarget, ...) can temporarily lack
+-- readable class data in instance combat. Remember the non-secret
+-- identities of members already known through the party / raid roster.
+local groupClassByGUID = {}
+local groupClassByName = {}
+local ambiguousGroupNames = {}
+
+local function ReadUnitClass(unit)
+    if not UnitClass then return nil end
+    local _, class = UnitClass(unit)
+    if not UI:CanAccessValue(class) then class = nil end
+
+    if not class and UnitClassBase then
+        local ok, baseClass = pcall(UnitClassBase, unit)
+        if ok and UI:CanAccessValue(baseClass) then
+            class = baseClass
+        end
+    end
+
+    return class
+end
+
+local function ReadUnitName(unit)
+    if not GetUnitName then return nil end
+    local name = GetUnitName(unit, true)
+    if UI:CanAccessValue(name) and type(name) == "string"
+        and name ~= "" then
+        return name
+    end
+end
+
+function UF:RefreshGroupClassCache()
+    wipe(groupClassByGUID)
+    wipe(groupClassByName)
+    wipe(ambiguousGroupNames)
+
+    local function Capture(member)
+        local exists = UnitExists(member)
+        if not UI:CanAccessValue(exists) or not exists then return end
+        local player = UnitIsPlayer and UnitIsPlayer(member)
+        if not UI:CanAccessValue(player) or not player then return end
+
+        local class = ReadUnitClass(member)
+        if not class or not Palette:GetClassColor(class) then return end
+
+        local guid = UnitGUID and UnitGUID(member)
+        if UI:CanAccessValue(guid) and guid then
+            groupClassByGUID[guid] = class
+        end
+
+        local name = ReadUnitName(member)
+        if name then
+            if groupClassByName[name] and groupClassByName[name] ~= class then
+                -- Don't confuse players with identical display names.
+                ambiguousGroupNames[name] = true
+                groupClassByName[name] = nil
+            elseif not ambiguousGroupNames[name] then
+                groupClassByName[name] = class
+            end
+        end
+    end
+
+    Capture("player")
+    if IsInRaid and IsInRaid() then
+        for i = 1, 40 do Capture("raid" .. i) end
+    else
+        for i = 1, 4 do Capture("party" .. i) end
+    end
+end
+
+local function GetGroupClass(unit)
+    local guid = UnitGUID and UnitGUID(unit)
+    if UI:CanAccessValue(guid) and guid then
+        local class = groupClassByGUID[guid]
+        if class then return class end
+    end
+
+    local name = ReadUnitName(unit)
+    if name and not ambiguousGroupNames[name] then
+        return groupClassByName[name]
+    end
+end
+
 function UF:GetUnitColor(unit)
     local tapDenied = UnitIsTapDenied and UnitIsTapDenied(unit)
 
@@ -144,30 +227,26 @@ function UF:GetUnitColor(unit)
         end
     end
 
-    -- Compound units may expose their class after their first health
-    -- update, or temporarily protect it during combat. Neither the
-    -- player flag nor the class name may be tested when secret.
+    -- Prefer the direct class; when target chains conceal player identity
+    -- use the previously identified matching group member (GUID or name).
+    -- Never infer NPC classes from UnitClass alone: many NPCs report
+    -- "WARRIOR" despite not being actual player characters.
     local isPlayer = UnitIsPlayer and UnitIsPlayer(unit)
+    local class
     if UI:CanAccessValue(isPlayer) and isPlayer then
-        local _, class = UnitClass(unit)
-        if not UI:CanAccessValue(class) then
-            class = nil
-        end
-        if not class and UnitClassBase then
-            local ok, baseClass = pcall(UnitClassBase, unit)
-            if ok and UI:CanAccessValue(baseClass) then
-                class = baseClass
-            end
-        end
+        class = ReadUnitClass(unit)
+    end
+    if not class then
+        class = GetGroupClass(unit)
+    end
 
-        local color = class and Palette:GetClassColor(class)
-        if color then
-            return self:DarkenColor(
-                color.r or color[1],
-                color.g or color[2],
-                color.b or color[3]
-            )
-        end
+    local color = class and Palette:GetClassColor(class)
+    if color then
+        return self:DarkenColor(
+            color.r or color[1],
+            color.g or color[2],
+            color.b or color[3]
+        )
     end
 
     local reaction = UnitReaction(unit, "player")
@@ -752,7 +831,7 @@ end
 function UF:UpdateHealthColor(frame)
     if not frame or not frame.health then return end
     local exists = UnitExists(frame.unit)
-    if not UI:CanAccessValue(exists) or not exists then return end
+    if UI:CanAccessValue(exists) and not exists then return end
 
     local r, g, b = self:GetUnitColor(frame.unit)
     frame.health:SetStatusBarColor(r, g, b)
@@ -956,6 +1035,7 @@ local function DispatchCast(_, unit)
 end
 
 local function RefreshUnitColors()
+    UF:RefreshGroupClassCache()
     UF:ForEachFrame(function(frame)
         UF:UpdateHealthColor(frame)
     end)
@@ -965,6 +1045,7 @@ UI:RegisterEvent("GROUP_ROSTER_UPDATE", RefreshUnitColors)
 UI:RegisterEvent("PLAYER_REGEN_ENABLED", RefreshUnitColors)
 
 UI:RegisterEvent("PLAYER_ENTERING_WORLD", function()
+    UF:RefreshGroupClassCache()
     UF:UpdateAllFrames()
 end)
 
