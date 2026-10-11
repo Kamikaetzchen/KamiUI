@@ -1920,6 +1920,14 @@ local function AddCharacterCountsToTooltip(tooltip, data)
         return
     end
 
+    -- Keep the item level immediately above KamiUI's alt inventory table.
+    -- The Tooltips module also has its own independent item post-hook;
+    -- its existing-line check prevents duplicate item level labels.
+    local tooltips = UI.GetModule and UI:GetModule("Tooltips")
+    if tooltips and tooltips.AppendItemLevel then
+        tooltips:AppendItemLevel(tooltip, data)
+    end
+
     local itemID = data and data.id
 
     if not itemID and type(tooltip.GetItem) == "function" then
