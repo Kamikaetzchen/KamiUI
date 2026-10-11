@@ -32,6 +32,27 @@ local function GetWatchedQuestIDs()
     return questIDs
 end
 
+-- Read the per-quest timer instead of the currently selected quest's timer.
+-- Forbidden/restricted quest API calls can fail in 12.x combat, so guard
+-- them and only do arithmetic on readable, ordinary numbers.
+local function GetQuestTimerDeadline(questID)
+    if not C_QuestLog or not C_QuestLog.GetTimeAllowed then
+        return nil
+    end
+
+    local ok, total, elapsed = pcall(C_QuestLog.GetTimeAllowed, questID)
+    if not ok or not UI:CanAccessValue(total)
+        or not UI:CanAccessValue(elapsed) then
+        return nil
+    end
+    if type(total) ~= "number" or type(elapsed) ~= "number"
+        or total <= 0 then
+        return nil
+    end
+
+    return GetTime() + math.max(0, total - elapsed)
+end
+
 local function GetQuestData(questID)
     local logIndex = C_QuestLog
         and C_QuestLog.GetLogIndexForQuestID
@@ -101,6 +122,7 @@ local function GetQuestData(questID)
     return {
         questID = questID,
         title = title or ("Quest " .. tostring(questID)),
+        timerDeadline = GetQuestTimerDeadline(questID),
         level = level,
         objectives = objectives,
         questItem = questItem,
