@@ -44,6 +44,23 @@ function Module:CalculateMetrics(data)
     local fullDuration = data.periodicDuration
         or data.executionTime
 
+    if data.comboVariants then
+        data.comboMetrics = {}
+        for points = 1, 5 do
+            local variant = data.comboVariants[points]
+            if variant then
+                local amount = variant.amount
+                local duration = variant.duration
+                data.comboMetrics[points] = {
+                    damage = amount,
+                    duration = duration,
+                    dps = Divide(amount, duration or data.executionTime),
+                    efficiency = Divide(amount, data.resourceCost),
+                }
+            end
+        end
+    end
+
     data.total = total
     data.metrics = {
         full = BuildMetricSet(
