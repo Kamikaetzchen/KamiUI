@@ -86,8 +86,8 @@ function Module:ShowNextAlert()
         r, g, b = unpack(Palette.gold)
     end
 
-    alertFrame.heading:SetText(elite and "RARE ELITE ENTDECKT"
-        or "RARE ENTDECKT")
+    alertFrame.heading:SetText(elite and "RARE ELITE NEARBY"
+        or "RARE NEARBY")
     alertFrame.heading:SetTextColor(r, g, b)
     alertFrame.name:SetText(nextAlert.name)
     alertFrame.remaining = ALERT_SECONDS
