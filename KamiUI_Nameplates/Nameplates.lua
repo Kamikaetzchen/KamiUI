@@ -742,6 +742,46 @@ local function ConfigureNativeFriendlyPlates()
     SetOption("nameplateShowAllPersonalAuras", "1")
 end
 
+-- Forever uses Blizzard's native hit-test area for nameplate targeting.
+-- Keep our custom text and bars mouse-transparent, and expand that native
+-- area instead. SetNamePlateSize applies to all nameplates, not just enemies.
+local clickAreaPending = false
+local clickAreaQueued = false
+
+local function ApplyClickArea()
+    if not C_NamePlate
+        or not C_NamePlate.GetNamePlateSize
+        or not C_NamePlate.SetNamePlateSize then
+        return
+    end
+    if InCombatLockdown and InCombatLockdown() then
+        clickAreaPending = true
+        return
+    end
+
+    clickAreaPending = false
+    local currentWidth, currentHeight = C_NamePlate.GetNamePlateSize()
+    if type(currentWidth) ~= "number"
+        or type(currentHeight) ~= "number" then
+        return
+    end
+
+    local width = math.max(currentWidth, Layout.PLATE_WIDTH)
+    local height = math.max(currentHeight, Layout.CLICK_HEIGHT)
+    if width ~= currentWidth or height ~= currentHeight then
+        UI:SafeCall(C_NamePlate.SetNamePlateSize, width, height)
+    end
+end
+
+local function QueueClickArea()
+    if clickAreaQueued then return end
+    clickAreaQueued = true
+    C_Timer.After(0, function()
+        clickAreaQueued = false
+        ApplyClickArea()
+    end)
+end
+
 function Module:Initialize()
     if SetCVar then
         SetCVar("nameplateShowEnemies", 1)
@@ -750,6 +790,7 @@ function Module:Initialize()
         SetCVar("nameplateShowFriends", 1)
     end
     ConfigureNativeFriendlyPlates()
+    QueueClickArea()
     local function RefreshAfterZoneChange()
         if C_Timer and C_Timer.After then
             C_Timer.After(0, function()
@@ -762,10 +803,17 @@ function Module:Initialize()
     UI:RegisterEvent("PLAYER_ENTERING_WORLD", function()
         ConfigureNativeFriendlyPlates()
         RefreshAfterZoneChange()
+        QueueClickArea()
     end)
-    UI:RegisterEvent("ZONE_CHANGED_NEW_AREA", RefreshAfterZoneChange)
+    UI:RegisterEvent("ZONE_CHANGED_NEW_AREA", function()
+        RefreshAfterZoneChange()
+        QueueClickArea()
+    end)
+    UI:RegisterEvent("DISPLAY_SIZE_CHANGED", QueueClickArea)
+    UI:RegisterEvent("UI_SCALE_CHANGED", QueueClickArea)
     UI:RegisterEvent("PLAYER_REGEN_ENABLED", function()
         if nativeOptionsPending then ConfigureNativeFriendlyPlates() end
+        if clickAreaPending then QueueClickArea() end
     end)
 
     UI:RegisterEvent("NAME_PLATE_UNIT_ADDED", function(_, unit)
