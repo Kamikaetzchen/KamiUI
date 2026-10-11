@@ -589,10 +589,15 @@ local function NeedsNativeFriendlyPlate(unit, plate)
     return false
 end
 
-local function HideCustomPlate(data)
+local function HideCustomPlate(data, forbidden)
     data.unit = nil
     data.auraUnit = nil
     data.castDuration = nil
+
+    -- Clear our logical state even on a forbidden plate, without touching
+    -- its widgets. NAME_PLATE_UNIT_REMOVED normally hides the addon root
+    -- before Blizzard reuses a frame in an instance.
+    if forbidden then return end
     data.root:Hide()
     data.auras:Hide()
     data.cast:Hide()
@@ -618,12 +623,12 @@ local function RefreshUnit(unit)
         -- Blizzard owns friendlies inside protected instances; retain the
         -- native Default style, aura rows and side icons as configured.
         -- Don't mutate Blizzard's forbidden frame.
-        if data and not protected then
-            if data.nativeHidden then
+        if data then
+            if data.nativeHidden and not protected then
                 SetNativeVisualAlpha(native, 1)
                 data.nativeHidden = false
             end
-            HideCustomPlate(data)
+            HideCustomPlate(data, protected)
         end
         return
     end
@@ -745,7 +750,20 @@ function Module:Initialize()
         SetCVar("nameplateShowFriends", 1)
     end
     ConfigureNativeFriendlyPlates()
-    UI:RegisterEvent("PLAYER_ENTERING_WORLD", ConfigureNativeFriendlyPlates)
+    local function RefreshAfterZoneChange()
+        if C_Timer and C_Timer.After then
+            C_Timer.After(0, function()
+                RefreshExistingNameplates(InitializeExistingPlate)
+            end)
+        else
+            RefreshExistingNameplates(InitializeExistingPlate)
+        end
+    end
+    UI:RegisterEvent("PLAYER_ENTERING_WORLD", function()
+        ConfigureNativeFriendlyPlates()
+        RefreshAfterZoneChange()
+    end)
+    UI:RegisterEvent("ZONE_CHANGED_NEW_AREA", RefreshAfterZoneChange)
     UI:RegisterEvent("PLAYER_REGEN_ENABLED", function()
         if nativeOptionsPending then ConfigureNativeFriendlyPlates() end
     end)
@@ -770,11 +788,12 @@ function Module:Initialize()
         if data then
             -- Restore Blizzard's visual regions before this plate can be
             -- recycled for a forbidden friendly unit in an instance.
-            if data.nativeHidden and not IsProtectedPlate(plate) then
+            local protected = IsProtectedPlate(plate)
+            if data.nativeHidden and not protected then
                 SetNativeVisualAlpha(plate.UnitFrame, 1)
                 data.nativeHidden = false
             end
-            HideCustomPlate(data)
+            HideCustomPlate(data, protected)
         end
     end)
 
