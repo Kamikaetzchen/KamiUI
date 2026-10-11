@@ -237,9 +237,17 @@ local function AddSpellAnalysis(tooltip, data)
 
     AddComboMetrics(tooltip, analysis)
 
+    if analysis.critChance then
+        tooltip:AddLine(
+            string.format("Expected damage incl. %.1f%% melee crit (2x).",
+                analysis.critChance),
+            0.65, 0.65, 0.68
+        )
+    end
+
     if analysis.weaponEstimate then
         tooltip:AddLine(
-            "~ Weapon damage estimate (before armor/crit/misses).",
+            "~ Weapon damage estimate (before armor/misses).",
             0.65, 0.65, 0.68,
             true
         )
