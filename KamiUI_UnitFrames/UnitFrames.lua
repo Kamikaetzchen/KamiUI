@@ -144,19 +144,29 @@ function UF:GetUnitColor(unit)
         end
     end
 
-    if UnitIsPlayer(unit) then
+    -- Compound units may expose their class after their first health
+    -- update, or temporarily protect it during combat. Neither the
+    -- player flag nor the class name may be tested when secret.
+    local isPlayer = UnitIsPlayer and UnitIsPlayer(unit)
+    if UI:CanAccessValue(isPlayer) and isPlayer then
         local _, class = UnitClass(unit)
-
-        if class and UI:CanAccessValue(class) then
-            local color = Palette:GetClassColor(class)
-
-            if color then
-                return self:DarkenColor(
-                    color.r or color[1],
-                    color.g or color[2],
-                    color.b or color[3]
-                )
+        if not UI:CanAccessValue(class) then
+            class = nil
+        end
+        if not class and UnitClassBase then
+            local ok, baseClass = pcall(UnitClassBase, unit)
+            if ok and UI:CanAccessValue(baseClass) then
+                class = baseClass
             end
+        end
+
+        local color = class and Palette:GetClassColor(class)
+        if color then
+            return self:DarkenColor(
+                color.r or color[1],
+                color.g or color[2],
+                color.b or color[3]
+            )
         end
     end
 
@@ -736,6 +746,14 @@ function UF:UpdateHealth(frame)
         end
     end
 
+    self:UpdateHealthColor(frame)
+end
+
+function UF:UpdateHealthColor(frame)
+    if not frame or not frame.health then return end
+    local exists = UnitExists(frame.unit)
+    if not UI:CanAccessValue(exists) or not exists then return end
+
     local r, g, b = self:GetUnitColor(frame.unit)
     frame.health:SetStatusBarColor(r, g, b)
 end
@@ -775,6 +793,10 @@ function UF:UpdateIdentity(frame)
     if frame.portrait then
         frame.portrait:SetUnit(frame.unit)
     end
+
+    -- Player identity can become available after the chain's first
+    -- UNIT_TARGET event. Recolor on identity updates even when HP is full.
+    self:UpdateHealthColor(frame)
 end
 
 function UF:GetCastInfo(unit)
@@ -932,6 +954,15 @@ end
 local function DispatchCast(_, unit)
     DispatchUnitUpdate(unit, UF.UpdateCast)
 end
+
+local function RefreshUnitColors()
+    UF:ForEachFrame(function(frame)
+        UF:UpdateHealthColor(frame)
+    end)
+end
+
+UI:RegisterEvent("GROUP_ROSTER_UPDATE", RefreshUnitColors)
+UI:RegisterEvent("PLAYER_REGEN_ENABLED", RefreshUnitColors)
 
 UI:RegisterEvent("PLAYER_ENTERING_WORLD", function()
     UF:UpdateAllFrames()
