@@ -391,9 +391,11 @@ local function CreateVariantButton(root, submenu, category)
         local favorites = GetDB().favorites
         -- Click the same favorite again to return to automatic
         -- strongest-first selection for this category.
-        favorites[self.category] =
-            favorites[self.category] == self.entry.key
-                and nil or self.entry.key
+        if favorites[self.category] == self.entry.key then
+            favorites[self.category] = nil
+        else
+            favorites[self.category] = self.entry.key
+        end
         Module:Refresh()
     end)
     return item
