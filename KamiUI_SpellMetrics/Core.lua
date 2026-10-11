@@ -10,6 +10,10 @@ Module.defaults = {
 }
 
 Module.analysisCache = {}
+-- Retain the last valid estimate when the client temporarily hides
+-- weapon values during combat. Ordinary invalidation still forces a
+-- fresh calculation as soon as those values become accessible again.
+Module.lastValidAnalyses = {}
 
 function Module:InvalidateCache()
     wipe(self.analysisCache)
