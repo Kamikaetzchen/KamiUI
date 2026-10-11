@@ -13,6 +13,7 @@ local MAX_ROWS = 7
 local ROW_HEIGHT = 21
 
 local window
+local savedPosition = UI:GetDatabase("DamageMeter")
 local sourceSelection
 local spellRows = {}
 local offset = 0
@@ -273,6 +274,14 @@ local function ScrollDetails(direction)
     RenderDetails()
 end
 
+local function SaveDetailsPosition(frame)
+    local x, y = frame:GetCenter()
+    local parentX, parentY = UIParent:GetCenter()
+    if x and y and parentX and parentY then
+        savedPosition.detailsPosition = { x = x - parentX, y = y - parentY }
+    end
+end
+
 local function CreateDetailsWindow()
     if window then return end
     window = Components:CreateWindow("KamiUIDamageMeterDetails", {
@@ -281,6 +290,7 @@ local function CreateDetailsWindow()
         strata = "DIALOG",
         movable = true,
         clamped = true,
+        onDragStop = SaveDetailsPosition,
         header = {
             title = "Spell Breakdown",
             subtitle = "",
@@ -373,6 +383,7 @@ local function CreateDetailsWindow()
         end)
     end
     window:SetScript("OnHide", function()
+        SaveDetailsPosition(window)
         sourceSelection = nil
         displayedSpells = {}
         offset = 0
@@ -447,7 +458,12 @@ function Module:OpenSourceDetails(source, meterType, sessionType,
     window.header:SetSubtitle("Spell Breakdown")
     if not window:IsShown() then
         window:ClearAllPoints()
-        if self.GetMainFrame then
+        local position = savedPosition.detailsPosition
+        if type(position) == "table"
+            and type(position.x) == "number"
+            and type(position.y) == "number" then
+            window:SetPoint("CENTER", UIParent, "CENTER", position.x, position.y)
+        elseif self.GetMainFrame then
             local main = self:GetMainFrame()
             if main then
                 window:SetPoint("BOTTOMRIGHT", main, "BOTTOMLEFT", -4, 0)
