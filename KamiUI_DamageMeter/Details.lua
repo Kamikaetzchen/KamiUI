@@ -3,6 +3,7 @@ local Module = UI:GetModule("DamageMeter")
 local Palette = UI.Palette
 local Styles = UI.Styles
 local Components = UI.Components
+local DamageMeterSessionType = Enum.DamageMeterSessionType
 
 -- Blizzard's meter exposes per-spell information for an individual source,
 -- including while combat meter totals are protected. No CombatLog parsing.
@@ -44,6 +45,24 @@ local function GetSourceBreakdown()
     if not UI:CanAccessValue(guid) then guid = nil end
     local creatureID = sourceSelection.sourceCreatureID
     if not UI:CanAccessValue(creatureID) then creatureID = nil end
+    -- Some builds expose the player's current source by a fixed
+    -- unit token, even when its GUID is secret. Never substitute
+    -- Current details for the selected Overall/historical session.
+    if sourceSelection.isLocalPlayer
+        and sourceSelection.sessionID == nil
+        and DamageMeterSessionType
+        and sourceSelection.sessionType == DamageMeterSessionType.Current
+        and C_DamageMeter.GetCurrentCombatSessionSource then
+        local success, localSource = pcall(
+            C_DamageMeter.GetCurrentCombatSessionSource,
+            sourceSelection.meterType, "player"
+        )
+        if success and localSource
+            and UI:CanAccessValue(localSource) then
+            return localSource
+        end
+    end
+
     if not guid and not creatureID then
         return nil, "restricted"
     end
@@ -362,10 +381,52 @@ local function CreateDetailsWindow()
     window:Hide()
 end
 
-function Module:OpenSourceDetails(source, meterType, sessionType, sessionID)
+local function IsSameSource(source, meterType, sessionType,
+    sessionID, rowFrame)
+    if not sourceSelection or not window or not window:IsShown() then
+        return false
+    end
+    if sourceSelection.meterType ~= meterType
+        or sourceSelection.sessionType ~= sessionType
+        or sourceSelection.sessionID ~= sessionID then
+        return false
+    end
+
+    -- Match a stable identity when the client exposes it; otherwise
+    -- use the clicked physical row while the GUID/name remain secret.
+    local guid, oldGUID = source.sourceGUID, sourceSelection.sourceGUID
+    if UI:CanAccessValue(guid) and UI:CanAccessValue(oldGUID)
+        and guid and oldGUID then
+        return guid == oldGUID
+    end
+
+    local creatureID = source.sourceCreatureID
+    local oldCreatureID = sourceSelection.sourceCreatureID
+    if UI:CanAccessValue(creatureID)
+        and UI:CanAccessValue(oldCreatureID)
+        and creatureID and oldCreatureID then
+        return creatureID == oldCreatureID
+    end
+
+    local name, oldName = source.name, sourceSelection.sourceName
+    if UI:CanAccessValue(name) and UI:CanAccessValue(oldName)
+        and type(name) == "string" and type(oldName) == "string" then
+        return name == oldName
+    end
+
+    return rowFrame ~= nil and rowFrame == sourceSelection.rowFrame
+end
+
+function Module:OpenSourceDetails(source, meterType, sessionType,
+    sessionID, rowFrame)
     if not source or not meterType then return end
     if not C_DamageMeter.GetCombatSessionSourceFromType
         or not C_DamageMeter.GetCombatSessionSourceFromID then
+        return
+    end
+
+    if IsSameSource(source, meterType, sessionType, sessionID, rowFrame) then
+        window:Hide()
         return
     end
 
@@ -373,10 +434,13 @@ function Module:OpenSourceDetails(source, meterType, sessionType, sessionID)
     sourceSelection = {
         sourceGUID = source.sourceGUID,
         sourceCreatureID = source.sourceCreatureID,
+        sourceName = source.name,
         classFilename = source.classFilename,
+        isLocalPlayer = source.isLocalPlayer == true,
         sessionType = sessionType,
         sessionID = sessionID,
         meterType = meterType,
+        rowFrame = rowFrame,
     }
     offset = 0
     window.header:SetTitle(source.name)
