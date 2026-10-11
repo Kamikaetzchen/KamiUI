@@ -918,7 +918,7 @@ function UF:UpdateDruidMana(frame)
     frame.druidMana:SetMinMaxValues(0, maximum)
     frame.druidMana:SetValue(current)
     if frame.druidManaText then
-        frame.druidManaText:SetFormattedText("%d", current)
+        frame.druidManaText:SetFormattedText("%d/%d", current, maximum)
     end
 end
 
