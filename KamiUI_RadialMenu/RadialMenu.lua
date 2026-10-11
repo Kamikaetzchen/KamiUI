@@ -388,7 +388,12 @@ local function CreateVariantButton(root, submenu, category)
             UI:Print("Favorites can only be changed out of combat.")
             return
         end
-        GetDB().favorites[self.category] = self.entry.key
+        local favorites = GetDB().favorites
+        -- Click the same favorite again to return to automatic
+        -- strongest-first selection for this category.
+        favorites[self.category] =
+            favorites[self.category] == self.entry.key
+                and nil or self.entry.key
         Module:Refresh()
     end)
     return item
