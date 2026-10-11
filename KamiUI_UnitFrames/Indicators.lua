@@ -617,21 +617,30 @@ local function UpdateUnit(_, unit)
     end
 end
 
+-- Frequent health events need only one exact-token refresh: avoid
+-- scheduling an extra callback and scanning every unit frame per hit.
+local function UpdateCenterIndicatorsForUnit(_, unit)
+    if unit then
+        UF:ForEachUnitFrame(unit, UpdateCenterIndicators, "indicators")
+    else
+        UF:ForEachFrame(UpdateCenterIndicators, "indicators")
+    end
+end
+
 local function RefreshCenterIndicatorsForUnit(_, unit)
     local function Refresh()
         if unit then
             UF:ForEachMatchingUnitFrame(
-                unit,
-                UpdateCenterIndicators,
-                "indicators"
+                unit, UpdateCenterIndicators, "indicators"
             )
         else
             UF:ForEachFrame(UpdateCenterIndicators, "indicators")
         end
     end
 
+    -- Resurrection/summon/marker changes are infrequent; a next-frame
+    -- retry accounts for Blizzard applying those flags after the event.
     Refresh()
-
     if C_Timer and C_Timer.After then
         C_Timer.After(0, Refresh)
     end
@@ -765,8 +774,8 @@ UI:RegisterEvent(
 
 UI:RegisterEvent("UNIT_FLAGS", UpdateUnit)
 UI:RegisterEvent("UNIT_CONNECTION", UpdateUnit)
-UI:RegisterEvent("UNIT_HEALTH", RefreshCenterIndicatorsForUnit)
-UI:RegisterEvent("UNIT_MAXHEALTH", RefreshCenterIndicatorsForUnit)
+UI:RegisterEvent("UNIT_HEALTH", UpdateCenterIndicatorsForUnit)
+UI:RegisterEvent("UNIT_MAXHEALTH", UpdateCenterIndicatorsForUnit)
 UI:RegisterEvent("UNIT_NAME_UPDATE", UpdateUnit)
 UI:RegisterEvent("UNIT_HEAL_PREDICTION", UpdateUnit)
 UI:RegisterEvent("UNIT_ABSORB_AMOUNT_CHANGED", UpdateUnit)
