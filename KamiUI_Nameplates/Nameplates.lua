@@ -16,6 +16,9 @@ local healthFadeTexture =
 local fontPath, _, fontFlags = GameFontNormalSmall:GetFont()
 
 local styled = {}
+-- NAME_PLATE_UNIT_REMOVED may arrive after the token-to-plate mapping is
+-- cleared by Blizzard. Retain our own mapping to clean up reused plates.
+local activePlatesByUnit = {}
 
 local healthPercentCurve = C_CurveUtil.CreateCurve()
 healthPercentCurve:AddPoint(0.0, 0.0)
@@ -551,8 +554,8 @@ local function IsNamePlateUnitToken(unit)
 end
 
 local function IsFriendlyPlate(unit)
-    -- These checks are deliberately only used when their answers are
-    -- readable. Do not branch on a combat-secret classification value.
+    -- Only act on known, readable reactions. Values can be secret during
+    -- instance combat, and Lua must not branch on them.
     local friendly = UnitIsFriend and UnitIsFriend("player", unit)
     if UI:CanAccessValue(friendly) and friendly ~= nil then
         return friendly == true
@@ -560,6 +563,28 @@ local function IsFriendlyPlate(unit)
     local attackable = UnitCanAttack and UnitCanAttack("player", unit)
     if UI:CanAccessValue(attackable) and attackable ~= nil then
         return attackable == false
+    end
+    return false
+end
+
+local function IsProtectedPlate(plate)
+    local native = plate and plate.UnitFrame
+    return (plate and plate.IsForbidden and plate:IsForbidden())
+        or (native and native.IsForbidden and native:IsForbidden())
+        or false
+end
+
+local function NeedsNativeFriendlyPlate(unit, plate)
+    -- A forbidden plate can only be rendered by Blizzard. This includes
+    -- friendly nameplates in protected instances.
+    if IsProtectedPlate(plate) then return true end
+
+    -- Explicitly keep native friendlies in dungeons/raids even if a
+    -- particular client build doesn't expose IsForbidden on that frame.
+    local inInstance, kind
+    if IsInInstance then inInstance, kind = IsInInstance() end
+    if inInstance and (kind == "party" or kind == "raid") then
+        return IsFriendlyPlate(unit)
     end
     return false
 end
@@ -583,33 +608,32 @@ local function RefreshUnit(unit)
 
     local plate = C_NamePlate.GetNamePlateForUnit(unit)
     if not plate then return end
+    activePlatesByUnit[unit] = plate
 
     local data = styled[plate]
     local native = plate.UnitFrame
-    local forbidden = (plate.IsForbidden and plate:IsForbidden())
-        or (native and native.IsForbidden and native:IsForbidden())
+    local protected = IsProtectedPlate(plate)
 
-    -- Dungeon-friendly plates are protected. Don't even try to build
-    -- a custom frame when the player's unit reaction is a secret.
-    if forbidden then return end
-
-    -- Native friendlies everywhere, so their appearance can be tested
-    -- in the open world without entering an instance.
-    if IsFriendlyPlate(unit) then
-        if data then
-            HideCustomPlate(data)
+    if NeedsNativeFriendlyPlate(unit, plate) then
+        -- Blizzard owns friendlies inside protected instances; retain the
+        -- native Default style, aura rows and side icons as configured.
+        -- Don't mutate Blizzard's forbidden frame.
+        if data and not protected then
             if data.nativeHidden then
                 SetNativeVisualAlpha(native, 1)
+                data.nativeHidden = false
             end
-            data.nativeHidden = false
+            HideCustomPlate(data)
         end
         return
     end
 
+    -- In the open world both friendly and hostile nameplates use the
+    -- original 7px KamiUI bars and custom aura row.
     data = data or CreateCustomPlate(plate)
     if not data then return end
 
-    data.unitFrame = plate.UnitFrame
+    data.unitFrame = native
     data.unit = unit
     data.root:Show()
     data.auras:Show()
@@ -653,9 +677,9 @@ local function InitializeExistingPlate(plate)
     end
 end
 
--- Test profile for Blizzard-native friendly plates, everywhere.
--- Their native style CVars apply globally; enemies remain rendered with
--- our existing custom overlays. Never attempt to modify forbidden frames.
+-- Blizzard-native style is needed only for protected friendly plates in
+-- instances. Its CVars are global, but in the open world KamiUI renders
+-- its own 7px bars for both friendly and hostile units.
 local nativeOptionsPending = false
 local function ConfigureNativeFriendlyPlates()
     if not SetCVar then return end
@@ -735,13 +759,21 @@ function Module:Initialize()
             return
         end
 
-        local plate = C_NamePlate
-            and C_NamePlate.GetNamePlateForUnit
-            and C_NamePlate.GetNamePlateForUnit(unit)
+        local plate = activePlatesByUnit[unit]
+        activePlatesByUnit[unit] = nil
+        if not plate and C_NamePlate
+            and C_NamePlate.GetNamePlateForUnit then
+            plate = C_NamePlate.GetNamePlateForUnit(unit)
+        end
 
         local data = plate and styled[plate]
-
         if data then
+            -- Restore Blizzard's visual regions before this plate can be
+            -- recycled for a forbidden friendly unit in an instance.
+            if data.nativeHidden and not IsProtectedPlate(plate) then
+                SetNativeVisualAlpha(plate.UnitFrame, 1)
+                data.nativeHidden = false
+            end
             HideCustomPlate(data)
         end
     end)
