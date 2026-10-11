@@ -672,11 +672,10 @@ local function ConfigureNativeFriendlyPlates()
         end
     end
 
-    -- "Block" is available in Forever's style dropdown. Use the
-    -- client enum if possible, otherwise its standard value (2).
-    local blockStyle = Enum and Enum.NamePlateStyle
-        and Enum.NamePlateStyle.Block or 2
-    SetOption("nameplateStyle", tostring(blockStyle))
+    -- Use Blizzard's flatter Default style for native friendly plates.
+    local defaultStyle = Enum and Enum.NamePlateStyle
+        and Enum.NamePlateStyle.Default or 0
+    SetOption("nameplateStyle", tostring(defaultStyle))
     SetOption("nameplateSize", "1")
     SetOption("nameplateAuraScale", "0.7")
     SetOption("nameplateShowOnlyNameForFriendlyPlayerUnits", "0")
