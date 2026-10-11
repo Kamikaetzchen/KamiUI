@@ -24,6 +24,21 @@ local CONFIG = {
     },
 }
 
+-- Mana consumables have no use for classes without a mana pool.
+-- Filter before creating secure wheel buttons so remaining slots
+-- redistribute evenly rather than leaving an empty gap.
+local _, playerClass = UnitClass("player")
+if playerClass == "WARRIOR" or playerClass == "ROGUE" then
+    for _, categories in pairs(CONFIG) do
+        for index = #categories, 1, -1 do
+            local category = categories[index][1]
+            if category == "drink" or category == "mana" then
+                table.remove(categories, index)
+            end
+        end
+    end
+end
+
 -- Tint only the circular outlines; icons and their backgrounds stay intact.
 -- Use the same colors for category buttons and their variant submenus.
 local BORDER_COLORS = {
