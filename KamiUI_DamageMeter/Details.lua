@@ -7,8 +7,8 @@ local Components = UI.Components
 -- Blizzard's meter exposes per-spell information for an individual source,
 -- including while combat meter totals are protected. No CombatLog parsing.
 local WIDTH = 432
-local HEIGHT = 361
-local MAX_ROWS = 13
+local HEIGHT = 228
+local MAX_ROWS = 7
 local ROW_HEIGHT = 21
 
 local window
@@ -16,6 +16,7 @@ local sourceSelection
 local spellRows = {}
 local offset = 0
 local displayedSpells = {}
+local sliderSyncing = false
 local meterFont, _, meterFlags = GameFontNormalSmall:GetFont()
 
 local function SetFont(fontString, size, color)
@@ -35,27 +36,37 @@ end
 local function GetSourceBreakdown()
     if not sourceSelection or not C_DamageMeter then return nil end
 
-    -- Match Blizzard_DamageMeter's source window API. Store the original
-    -- GUID/creature ID and forward directly; don't stringify/compare them.
+    -- On Forever sourceGUID can be ConditionalSecret while fighting.
+    -- The per-source API explicitly disallows tainted secret arguments,
+    -- unlike the session list (which supports direct display sinks).
+    -- Never submit an opaque GUID to that API, even inside pcall.
+    local guid = sourceSelection.sourceGUID
+    if not UI:CanAccessValue(guid) then guid = nil end
+    local creatureID = sourceSelection.sourceCreatureID
+    if not UI:CanAccessValue(creatureID) then creatureID = nil end
+    if not guid and not creatureID then
+        return nil, "restricted"
+    end
+
     local ok, result
-    if sourceSelection.sessionID then
+    if sourceSelection.sessionID ~= nil then
         ok, result = pcall(
             C_DamageMeter.GetCombatSessionSourceFromID,
             sourceSelection.sessionID,
-            sourceSelection.meterType,
-            sourceSelection.sourceGUID,
-            sourceSelection.sourceCreatureID
+            sourceSelection.meterType, guid, creatureID
         )
     else
         ok, result = pcall(
             C_DamageMeter.GetCombatSessionSourceFromType,
             sourceSelection.sessionType,
-            sourceSelection.meterType,
-            sourceSelection.sourceGUID,
-            sourceSelection.sourceCreatureID
+            sourceSelection.meterType, guid, creatureID
         )
     end
-    if ok and UI:CanAccessValue(result) then return result end
+
+    if not ok or not result or not UI:CanAccessValue(result) then
+        return nil, "restricted"
+    end
+    return result
 end
 
 local function GetSpellIdentity(spell)
@@ -85,7 +96,7 @@ local function CreateSpellRow(index)
     local row = CreateFrame("Button", nil, window)
     row:SetHeight(ROW_HEIGHT)
     row:SetPoint("LEFT", window, "LEFT", 7, 0)
-    row:SetPoint("RIGHT", window, "RIGHT", -7, 0)
+    row:SetPoint("RIGHT", window, "RIGHT", -23, 0)
     if index == 1 then
         row:SetPoint("TOP", window.columnHeader, "BOTTOM", 0, -1)
     else
@@ -121,7 +132,7 @@ local function CreateSpellRow(index)
 
     local name = CreateText(overlay, Styles.FontSize.DamageMeter)
     name:SetPoint("LEFT", icon, "RIGHT", 5, 0)
-    name:SetWidth(239)
+    name:SetWidth(212)
     name:SetJustifyH("LEFT")
 
     local rate = CreateText(overlay, Styles.FontSize.DamageMeter,
@@ -169,8 +180,14 @@ local function RenderDetails()
         return
     end
 
-    local breakdown = GetSourceBreakdown()
+    local breakdown, restriction = GetSourceBreakdown()
     local spells = breakdown and breakdown.combatSpells or {}
+    -- The native session may not grant an accessible per-spell table
+    -- while the addon is tainted by combat. Show a reason, not a blank.
+    if not UI:CanAccessValue(spells) then
+        spells = {}
+        restriction = "restricted"
+    end
     displayedSpells = spells
 
     local maxOffset = math.max(0, #spells - MAX_ROWS)
@@ -209,21 +226,31 @@ local function RenderDetails()
     end
 
     if #spells == 0 then
+        if restriction == "restricted" then
+            window.emptyText:SetText(
+                "Spell details unavailable during combat"
+                .. "\n(Blizzard restricts the source data)")
+        else
+            window.emptyText:SetText("No spell breakdown available")
+        end
         window.emptyText:Show()
     else
         window.emptyText:Hide()
     end
 
+    window.scrollbar:SetShown(maxOffset > 0)
+    sliderSyncing = true
+    window.scrollbar:SetMinMaxValues(0, maxOffset)
+    window.scrollbar:SetValue(offset)
+    sliderSyncing = false
     window.pageLabel:SetFormattedText("%d-%d / %d",
         #spells == 0 and 0 or offset + 1,
         math.min(#spells, offset + MAX_ROWS), #spells)
-    window.previous:SetEnabled(offset > 0)
-    window.next:SetEnabled(offset < maxOffset)
 end
 
 local function ScrollDetails(direction)
     local last = math.max(0, #displayedSpells - MAX_ROWS)
-    offset = math.max(0, math.min(last, offset + direction * MAX_ROWS))
+    offset = math.max(0, math.min(last, offset + direction))
     RenderDetails()
 end
 
@@ -244,9 +271,17 @@ local function CreateDetailsWindow()
     })
     window:SetFrameLevel(110)
 
-    Components:CreateWindowCloseButton(window, {
+    -- The header sits above the base window. Its close button must be
+    -- parented/raised above the header or clicks hit the header instead.
+    local close = Components:CreateWindowCloseButton(window.header, {
+        relativeTo = window.header,
+        frameLevelOffset = 12,
+        x = -2, y = -4,
         onClick = function() window:Hide() end,
     })
+    close:EnableMouse(true)
+    close:RegisterForClicks("LeftButtonUp")
+    window.closeButton = close
     Components:RegisterEscapeClose(window)
 
     local header = CreateFrame("Frame", nil, window)
@@ -276,30 +311,48 @@ local function CreateDetailsWindow()
     emptyText:SetText("No spell breakdown available")
     window.emptyText = emptyText
 
+    local scrollbar = CreateFrame("Slider", nil, window)
+    scrollbar:SetOrientation("VERTICAL")
+    scrollbar:SetWidth(10)
+    scrollbar:SetHeight(MAX_ROWS * ROW_HEIGHT)
+    scrollbar:SetPoint(
+        "TOPRIGHT", header, "BOTTOMRIGHT", -2, -1)
+    scrollbar:SetMinMaxValues(0, 0)
+    scrollbar:SetValueStep(1)
+    if scrollbar.SetObeyStepOnDrag then
+        scrollbar:SetObeyStepOnDrag(true)
+    end
+    local track = scrollbar:CreateTexture(nil, "BACKGROUND")
+    track:SetAllPoints()
+    track:SetColorTexture(0.10, 0.10, 0.12, 0.85)
+    scrollbar:SetThumbTexture("Interface\\Buttons\\WHITE8X8")
+    local thumb = scrollbar:GetThumbTexture()
+    thumb:SetSize(10, 26)
+    thumb:SetVertexColor(0.54, 0.54, 0.59, 1)
+    scrollbar:SetScript("OnValueChanged", function(_, value)
+        if sliderSyncing then return end
+        local nextOffset = math.floor(value + 0.5)
+        if nextOffset ~= offset then
+            offset = nextOffset
+            RenderDetails()
+        end
+    end)
+    window.scrollbar = scrollbar
+
     local pageLabel = CreateText(window, 9, Palette.muted)
-    pageLabel:SetPoint("BOTTOM", window, "BOTTOM", 0, 7)
+    pageLabel:SetPoint("BOTTOM", window, "BOTTOM", 0, 6)
     window.pageLabel = pageLabel
-
-    local previous = CreateFrame("Button", nil, window)
-    previous:SetSize(32, 19)
-    previous:SetPoint("RIGHT", pageLabel, "LEFT", -8, 0)
-    Components:StyleButton(previous, {text = "<",
-        backgroundColor = Palette.panelStrong, textRole = "small"})
-    previous:SetScript("OnClick", function() ScrollDetails(-1) end)
-    window.previous = previous
-
-    local nextPage = CreateFrame("Button", nil, window)
-    nextPage:SetSize(32, 19)
-    nextPage:SetPoint("LEFT", pageLabel, "RIGHT", 8, 0)
-    Components:StyleButton(nextPage, {text = ">",
-        backgroundColor = Palette.panelStrong, textRole = "small"})
-    nextPage:SetScript("OnClick", function() ScrollDetails(1) end)
-    window.next = nextPage
 
     window:EnableMouseWheel(true)
     window:SetScript("OnMouseWheel", function(_, delta)
         ScrollDetails(delta < 0 and 1 or -1)
     end)
+    for _, row in ipairs(spellRows) do
+        row:EnableMouseWheel(true)
+        row:SetScript("OnMouseWheel", function(_, delta)
+            ScrollDetails(delta < 0 and 1 or -1)
+        end)
+    end
     window:SetScript("OnHide", function()
         sourceSelection = nil
         displayedSpells = {}
