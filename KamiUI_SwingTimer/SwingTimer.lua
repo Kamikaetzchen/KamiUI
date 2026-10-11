@@ -201,6 +201,12 @@ function Module:Initialize()
         QueueLayout()
     end)
 
+    UI:RegisterEvent("PLAYER_LEVEL_UP", function()
+        -- Restore our anchors after Blizzard has reapplied Edit Mode layout.
+        QueueLayout()
+        C_Timer.After(0.2, function() Module:Apply() end)
+    end)
+
     UI:RegisterEvent("ADDON_LOADED", function(_, addonName)
         if addonName == "Blizzard_SwingTimer" then
             QueueLayout()
