@@ -92,6 +92,10 @@ local function CreateSpellRow(index)
         row:SetPoint("TOP", spellRows[index - 1], "BOTTOM", 0, 0)
     end
 
+    local highlight = row:CreateTexture(nil, "HIGHLIGHT")
+    highlight:SetAllPoints()
+    highlight:SetColorTexture(1, 1, 1, 0.075)
+
     local bar = CreateFrame("StatusBar", nil, row)
     bar:SetAllPoints()
     bar:SetStatusBarTexture("Interface\\Buttons\\WHITE8X8")
@@ -146,8 +150,8 @@ local function CreateSpellRow(index)
             GameTooltip:Show()
         end
     end)
-    row:SetScript("OnLeave", function()
-        if GameTooltip and GameTooltip:IsShown() then
+    row:SetScript("OnLeave", function(self)
+        if GameTooltip and GameTooltip:IsOwned(self) then
             GameTooltip:Hide()
         end
     end)
@@ -276,8 +280,7 @@ local function CreateDetailsWindow()
     pageLabel:SetPoint("BOTTOM", window, "BOTTOM", 0, 7)
     window.pageLabel = pageLabel
 
-    local previous = Components:CreateWindowCloseButton -- placeholder
-    previous = CreateFrame("Button", nil, window)
+    local previous = CreateFrame("Button", nil, window)
     previous:SetSize(32, 19)
     previous:SetPoint("RIGHT", pageLabel, "LEFT", -8, 0)
     Components:StyleButton(previous, {text = "<",
