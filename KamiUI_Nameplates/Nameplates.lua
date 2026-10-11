@@ -684,7 +684,15 @@ local function RefreshUnit(unit)
     data.unit = unit
     data.root:Show()
     data.auras:Show()
-    ApplyPlateHitArea(data)
+
+    -- Keep the larger custom hit region exclusive to attackable enemies.
+    -- Friendly plates retain Blizzard's native hit testing.
+    local attackable = UnitCanAttack and UnitCanAttack("player", unit)
+    if UI:CanAccessValue(attackable) and attackable then
+        ApplyPlateHitArea(data)
+    else
+        RestorePlateHitArea(data)
+    end
     UpdatePlate(data)
 end
 
