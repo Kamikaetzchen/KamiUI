@@ -103,6 +103,8 @@ UI.Layout = {
         CAST_HEIGHT = 10,
         TEXT_ROW_HEIGHT = 12,
         TEXT_GAP = 3,
+        -- Native click area; does not affect the visible health bar.
+        CLICK_HEIGHT = 40,
         AURA_GAP = 4,
         AURA_SIZE = 20,
         AURA_SPACING = 2,
