@@ -104,6 +104,16 @@ local function HideBlizzardTracker()
     UI:KeepFrameHidden(_G.ObjectiveTrackerFrame)
 end
 
+local trackerHideQueued = false
+local function QueueHideBlizzardTracker()
+    if trackerHideQueued then return end
+    trackerHideQueued = true
+    C_Timer.After(0, function()
+        trackerHideQueued = false
+        HideBlizzardTracker()
+    end)
+end
+
 local function OpenQuest(questID)
     if not questID then
         return
@@ -1158,6 +1168,14 @@ function Module:Initialize()
     }) do
         UI:RegisterEvent(event, ScheduleRefresh)
     end
+
+    UI:RegisterEvent("PLAYER_LEVEL_UP", function()
+        QueueHideBlizzardTracker()
+        C_Timer.After(0.2, HideBlizzardTracker)
+    end)
+
+    UI:RegisterEvent("QUEST_WATCH_LIST_CHANGED", QueueHideBlizzardTracker)
+    UI:RegisterEvent("QUEST_LOG_UPDATE", QueueHideBlizzardTracker)
 
     UI:RegisterEvent("ADDON_LOADED", function(_, addonName)
         if addonName == "Blizzard_ObjectiveTracker" then
