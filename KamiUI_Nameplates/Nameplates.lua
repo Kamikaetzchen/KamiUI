@@ -313,6 +313,14 @@ local function CreateCustomPlate(namePlate)
         Layout.TEXT_GAP
     )
 
+    -- This frame is only geometry for Blizzard's native nameplate hit test.
+    -- It does not receive clicks or attempt to target units from Lua.
+    -- Include the complete text row, its gap and the narrow health bar.
+    local hitArea = CreateFrame("Frame", nil, root)
+    hitArea:SetPoint("TOPLEFT", textRow, "TOPLEFT", -2, 2)
+    hitArea:SetPoint("BOTTOMRIGHT", health, "BOTTOMRIGHT", 2, -3)
+    hitArea:EnableMouse(false)
+
     local raidMarker = root:CreateTexture(nil, "OVERLAY")
     raidMarker:SetSize(14, 14)
     raidMarker:SetPoint("RIGHT", health, "LEFT", -3, 0)
@@ -389,6 +397,7 @@ local function CreateCustomPlate(namePlate)
         root = root,
         health = health,
         textRow = textRow,
+        hitArea = hitArea,
         raidMarker = raidMarker,
         level = level,
         name = name,
@@ -574,6 +583,38 @@ local function IsProtectedPlate(plate)
         or false
 end
 
+-- A native nameplate can use an addon-owned frame as its click geometry.
+-- Do not replace Blizzard's secure unit button or create a target macro.
+local function ApplyPlateHitArea(data)
+    local plate = data.plate
+    if not plate or IsProtectedPlate(plate) then return end
+    if not plate.SetAllHitTestPoints
+        or not plate.CanChangeHitTestPoints
+        or not plate:CanChangeHitTestPoints() then
+        return
+    end
+
+    if not data.hitTestInstalled then
+        local ok = pcall(plate.SetAllHitTestPoints, plate, data.hitArea)
+        data.hitTestInstalled = ok
+    end
+end
+
+local function RestorePlateHitArea(data)
+    if not data or not data.hitTestInstalled then return end
+    local plate = data.plate
+    if not plate or IsProtectedPlate(plate) then return end
+    if not plate.ClearAllHitTestPoints
+        or not plate.CanChangeHitTestPoints
+        or not plate:CanChangeHitTestPoints() then
+        return
+    end
+
+    if pcall(plate.ClearAllHitTestPoints, plate) then
+        data.hitTestInstalled = false
+    end
+end
+
 local function NeedsNativeFriendlyPlate(unit, plate)
     -- A forbidden plate can only be rendered by Blizzard. This includes
     -- friendly nameplates in protected instances.
@@ -628,6 +669,7 @@ local function RefreshUnit(unit)
                 SetNativeVisualAlpha(native, 1)
                 data.nativeHidden = false
             end
+            RestorePlateHitArea(data)
             HideCustomPlate(data, protected)
         end
         return
@@ -642,6 +684,7 @@ local function RefreshUnit(unit)
     data.unit = unit
     data.root:Show()
     data.auras:Show()
+    ApplyPlateHitArea(data)
     UpdatePlate(data)
 end
 
@@ -771,6 +814,17 @@ local function ApplyClickArea()
     if width ~= currentWidth or height ~= currentHeight then
         UI:SafeCall(C_NamePlate.SetNamePlateSize, width, height)
     end
+
+    -- Size alone does not expand the hit test. Some Forever builds permit
+    -- these native insets; on restricted builds the per-plate API above
+    -- remains our preferred path. Insets are clamped to nameplate bounds.
+    if C_NamePlateManager
+        and C_NamePlateManager.SetNamePlateHitTestInsets then
+        local enemyType = Enum and Enum.NamePlateType
+            and Enum.NamePlateType.Enemy or 1
+        pcall(C_NamePlateManager.SetNamePlateHitTestInsets,
+            enemyType, -1000, -1000, -1000, -1000)
+    end
 end
 
 local function QueueClickArea()
@@ -841,6 +895,7 @@ function Module:Initialize()
                 SetNativeVisualAlpha(plate.UnitFrame, 1)
                 data.nativeHidden = false
             end
+            RestorePlateHitArea(data)
             HideCustomPlate(data, protected)
         end
     end)
