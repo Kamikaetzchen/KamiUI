@@ -5,6 +5,7 @@ local Module = UI:GetModule("SpellMetrics")
 
 local refreshPending = false
 local invalidatePending = false
+local actionSettlingPending = false
 
 local fontPath, _, fontFlags =
     GameFontNormalSmall:GetFont()
@@ -196,6 +197,19 @@ end
 
 local function RefreshActions()
     Module:ScheduleActionButtonRefresh(false)
+
+    -- LAB's secure paging / form changes may finish after the first
+    -- ACTIONBAR_PAGE_CHANGED event. Re-read the actual button spell IDs
+    -- once the secure action states have settled.
+    if actionSettlingPending or not C_Timer or not C_Timer.After then
+        return
+    end
+
+    actionSettlingPending = true
+    C_Timer.After(0.35, function()
+        actionSettlingPending = false
+        Module:RefreshActionButtons(false)
+    end)
 end
 
 Module:RefreshActionButtons(true)
@@ -251,6 +265,17 @@ UI:RegisterEvent(
 )
 UI:RegisterEvent(
     "UPDATE_SHAPESHIFT_FORM",
+    function()
+        RefreshWithNewValues()
+        RefreshActions()
+    end
+)
+UI:RegisterEvent(
+    "UPDATE_SHAPESHIFT_FORMS",
+    RefreshActions
+)
+UI:RegisterEvent(
+    "PLAYER_REGEN_ENABLED",
     RefreshWithNewValues
 )
 UI:RegisterEvent(
