@@ -99,7 +99,7 @@ UI.Layout = {
 
     Nameplates = {
         PLATE_WIDTH = 200,
-        HEALTH_HEIGHT = 5,
+        HEALTH_HEIGHT = 7,
         CAST_HEIGHT = 10,
         TEXT_ROW_HEIGHT = 12,
         TEXT_GAP = 3,
