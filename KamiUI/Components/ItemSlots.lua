@@ -2,6 +2,10 @@ local UI = KamiUI
 local Palette = UI.Palette
 local Styles = UI.Styles
 local Components = UI.Components
+
+-- One dimming value for live and cached bags/bank items.
+Components.SEARCH_DIM_ALPHA = 0.20
+
 local function GetItemSlotIcon(button)
     return button and (button.icon or button.Icon) or nil
 end
@@ -45,6 +49,12 @@ local function CreateRarityGlowController(textures)
     function glow:SetVertexColor(r, g, b, a)
         for _, texture in ipairs(self.textures) do
             texture:SetVertexColor(r, g, b, a)
+        end
+    end
+
+    function glow:SetAlpha(alpha)
+        for _, texture in ipairs(self.textures) do
+            texture:SetAlpha(alpha)
         end
     end
 
@@ -734,6 +744,37 @@ function Components:CreateItemDisplayButton(parent, options)
     return button
 end
 
+-- Do not rely on ItemButton:SetAlpha() for search highlighting: Blizzard
+-- may reset the parent alpha during ContainerFrameItemButton_Update. Apply
+-- the same opacity to each KamiUI visual, including additive rarity/quest
+-- glows, and restore them all to full opacity when the query clears.
+local function SetItemSlotVisualAlpha(button, alpha)
+    local icon = GetItemSlotIcon(button)
+
+    if icon then icon:SetAlpha(alpha) end
+    if button.Count then button.Count:SetAlpha(alpha) end
+    if button.label then button.label:SetAlpha(alpha) end
+    if button.KamiQuestBang then button.KamiQuestBang:SetAlpha(alpha) end
+    if button.KamiBackground then button.KamiBackground:SetAlpha(alpha) end
+    if button.KamiRarityGlow then button.KamiRarityGlow:SetAlpha(alpha) end
+    if button.KamiQuestGlow then button.KamiQuestGlow:SetAlpha(alpha) end
+    if button.Cooldown then button.Cooldown:SetAlpha(alpha) end
+
+    for _, edge in ipairs(button.KamiBorders or {}) do
+        edge:SetAlpha(alpha)
+    end
+    for _, corner in ipairs(button.KamiBorderCorners or {}) do
+        corner:SetAlpha(alpha)
+    end
+
+    local highlight = button.KamiItemHighlight
+        or (button.GetHighlightTexture and button:GetHighlightTexture())
+    if highlight then
+        -- Highlight art has its own intentionally low base opacity.
+        highlight:SetAlpha(alpha * 0.12)
+    end
+end
+
 function Components:SetItemSlotData(button, data)
     if not button then
         return
@@ -747,13 +788,12 @@ function Components:SetItemSlotData(button, data)
     button.itemID = data.itemID
     button.itemLink = data.link
     button.itemTooltip = data.tooltip
-    button:SetAlpha(alpha)
+    -- Keep the parent neutral: live Blizzard item buttons may reset its alpha.
+    -- The individual textures are dimmed explicitly below instead.
+    button:SetAlpha(1)
 
     if icon then
         icon:SetTexture(data.icon)
-        -- The parent button already applies the search alpha to every child.
-        -- Reset any stale per-icon alpha to avoid multiplying it twice.
-        icon:SetAlpha(1)
 
         if icon.SetDesaturated then
             icon:SetDesaturated(data.desaturated == true)
@@ -769,7 +809,6 @@ function Components:SetItemSlotData(button, data)
         end
 
         button.Count:SetText(countText)
-        button.Count:SetAlpha(1)
 
         if data.countColor then
             Styles:SetTextColor(button.Count, data.countColor)
@@ -790,6 +829,8 @@ function Components:SetItemSlotData(button, data)
 
     UpdateQuestItemDecoration(button, data)
     self:RefreshItemSlotQuality(button, data)
+    -- Apply last, after all native and custom slot decorations are updated.
+    SetItemSlotVisualAlpha(button, alpha)
 end
 
 function Components:CreateCarrier(parent, id, shown)
@@ -929,7 +970,7 @@ function Components:SetContainerItemSlotData(
         questID = questInfo and questInfo.questID,
         questActive = questInfo and questInfo.isActive,
         borderColor = options.borderColor,
-        alpha = filtered and 0.10 or 1.00,
+        alpha = filtered and Components.SEARCH_DIM_ALPHA or 1.00,
         desaturated = info and info.isLocked == true or false,
     })
 
