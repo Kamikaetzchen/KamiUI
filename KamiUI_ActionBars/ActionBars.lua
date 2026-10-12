@@ -1089,7 +1089,7 @@ local function LabelFunctionKey(button, index)
     label:SetTextColor(1, 1, 1)
     label:SetShadowColor(0, 0, 0, 1)
     label:SetShadowOffset(1, -1)
-    label:SetPoint("TOPRIGHT", button, "TOPRIGHT", -2, -1)
+    label:SetPoint("TOPLEFT", button, "TOPLEFT", 2, -1)
     label:SetText("F" .. index)
     button.KamiFunctionKey = label
 end
