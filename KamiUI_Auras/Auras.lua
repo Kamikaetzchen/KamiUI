@@ -6,8 +6,8 @@ local Module = UI:NewModule("Auras", "KamiUI_Auras")
 
 local Layout = UI.Layout.Auras
 
--- The alpha mask softens 4 pixels at every edge of the aura fill/background.
--- Reuse the same silhouette for Blizzard's auras and Forever's weapon imbues.
+-- Fade the top/bottom edges by about 4 displayed pixels; keep both ends
+-- fully opaque. Reuse for Blizzard's auras and Forever's weapon imbues.
 local BAR_FADE_TEXTURE =
     "Interface\\AddOns\\KamiUI_Auras\\Textures\\BarFade"
 
