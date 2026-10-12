@@ -1989,10 +1989,26 @@ local function AddCharacterCountsToTooltip(tooltip, data)
         local bankCount = entry.character.bankItems
             and entry.character.bankItems[itemID]
             or 0
-        local count = bagCount + bankCount
+        local equippedCount = 0
+        local bankEquippedCount = 0
+
+        for _, slot in ipairs(entry.character.equippedBags or {}) do
+            if slot.itemID == itemID then
+                equippedCount = equippedCount + (slot.count or 1)
+            end
+        end
+
+        local bank = entry.character.bank
+        for _, slot in ipairs(bank and bank.equippedBags or {}) do
+            if slot.itemID == itemID then
+                bankEquippedCount = bankEquippedCount + (slot.count or 1)
+            end
+        end
+
+        local count = bagCount + bankCount + equippedCount + bankEquippedCount
 
         if count > 0 then
-            local profile = entry.profile
+            local profile = entry.profile or {}
 
             lines[#lines + 1] = {
                 name = profile.name or "Unknown",
@@ -2000,6 +2016,8 @@ local function AddCharacterCountsToTooltip(tooltip, data)
                 count = count,
                 bagCount = bagCount,
                 bankCount = bankCount,
+                equippedCount = equippedCount,
+                bankEquippedCount = bankEquippedCount,
             }
         end
     end
@@ -2020,8 +2038,22 @@ local function AddCharacterCountsToTooltip(tooltip, data)
         local b = color and color.b or 0.90
 
         local countText
-
-        if line.bankCount > 0 then
+        if line.equippedCount > 0 or line.bankEquippedCount > 0 then
+            local locations = {}
+            if line.bagCount > 0 then
+                locations[#locations + 1] = "Bags: " .. line.bagCount
+            end
+            if line.bankCount > 0 then
+                locations[#locations + 1] = "Bank: " .. line.bankCount
+            end
+            if line.equippedCount > 0 then
+                locations[#locations + 1] = "Equipped: " .. line.equippedCount
+            end
+            if line.bankEquippedCount > 0 then
+                locations[#locations + 1] = "Bank bags: " .. line.bankEquippedCount
+            end
+            countText = line.count .. " (" .. table.concat(locations, ", ") .. ")"
+        elseif line.bankCount > 0 then
             countText = string.format(
                 "%d (Bags: %d, Bank: %d)",
                 line.count,
