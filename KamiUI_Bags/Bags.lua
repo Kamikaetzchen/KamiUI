@@ -2052,30 +2052,18 @@ local function AddCharacterCountsToTooltip(tooltip, data)
         local g = color and color.g or 0.65
         local b = color and color.b or 0.90
 
-        local countText
-        if line.equippedCount > 0 or line.bankEquippedCount > 0 then
-            local locations = {}
-            if line.bagCount > 0 then
-                locations[#locations + 1] = "Bags: " .. line.bagCount
-            end
-            local bankTotal = line.bankCount + line.bankEquippedCount
-            if bankTotal > 0 then
-                locations[#locations + 1] = "Bank: " .. bankTotal
-            end
-            if line.equippedCount > 0 then
-                locations[#locations + 1] = "Equipped: " .. line.equippedCount
-            end
-            countText = line.count .. " (" .. table.concat(locations, ", ") .. ")"
-        elseif line.bankCount > 0 then
-            countText = string.format(
-                "%d (Bags: %d, Bank: %d)",
-                line.count,
-                line.bagCount,
-                line.bankCount
-            )
-        else
-            countText = tostring(line.bagCount)
+        local locations = {}
+        if line.bagCount > 0 then
+            locations[#locations + 1] = "Bags: " .. line.bagCount
         end
+        local bankTotal = line.bankCount + line.bankEquippedCount
+        if bankTotal > 0 then
+            locations[#locations + 1] = "Bank: " .. bankTotal
+        end
+        if line.equippedCount > 0 then
+            locations[#locations + 1] = "Equipped: " .. line.equippedCount
+        end
+        local countText = line.count .. " (" .. table.concat(locations, ", ") .. ")"
 
         tooltip:AddDoubleLine(
             line.name,
