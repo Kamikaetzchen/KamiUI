@@ -6,5 +6,4 @@
 ## IconTexture: Interface\Icons\INV_Misc_Book_09
 ## RequiredDeps: KamiUI, KamiUI_Characters, KamiUI_Bags
 
-Bindings.xml
 Account.lua
