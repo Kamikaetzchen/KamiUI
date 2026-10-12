@@ -18,6 +18,11 @@ local weaponEnchantBars = {}
 local weaponEnchantTimers = {}
 local weaponEnchantCount = 0
 local pendingEnchantLayout = false
+local weaponAnchor
+local weaponAnchorHeight
+-- Session-only experiment. Protected AuraContainer gets a fixed anchor to
+-- this unprotected frame before combat; only its height changes in combat.
+Module.anchorTest = false
 local nativeEnchantButtons = {}
 local nativeEnchantSlots = {}
 -- Test mode is intentionally session-only. /reload restores the working
@@ -284,14 +289,62 @@ local function CreateWeaponEnchantBar()
     return button
 end
 
--- AuraContainer uses a protected flow layout. Moving its anchor while
--- combat-locked would taint it, even though Forever imbues are ordinary data.
--- Keep that anchor fixed, and expand the *unprotected* imbue rows below it.
--- This maintains a gap-free visual stack without any combat-only reflow.
-local function PositionWeaponEnchantBars()
-    local bottom = Layout.Y + UI:GetBottomInset()
-        - Layout.GROUP_GAP
+-- Experimental linked layout: create an ordinary sizing anchor while OOC,
+-- then attach the secure Blizzard AuraContainer to its TOPRIGHT *once*.
+-- The experiment is whether Forever allows this nonsecure frame's height to
+-- change during lockdown without treating it as protected/tainted.
+local function EnsureWeaponAnchor()
+    if weaponAnchor then return weaponAnchor end
+    if InCombatLockdown and InCombatLockdown() then return nil end
 
+    weaponAnchor = CreateFrame("Frame", "KamiUIWeaponEnchantAnchor", UIParent)
+    weaponAnchor:SetSize(Layout.WIDTH, 0)
+    weaponAnchor:SetPoint(
+        "BOTTOMRIGHT", UIParent, "BOTTOMRIGHT",
+        Layout.X, Layout.Y + UI:GetBottomInset()
+    )
+    weaponAnchorHeight = 0
+    return weaponAnchor
+end
+
+local function SizeWeaponAnchor()
+    if not Module.anchorTest or not weaponAnchor then return end
+    local height = weaponEnchantCount > 0
+        and weaponEnchantCount * Layout.HEIGHT + Layout.GROUP_GAP
+        or 0
+    if height == weaponAnchorHeight then return end
+
+    -- Only this test frame is resized in combat, never the AuraContainer.
+    -- Some clients may prohibit even this indirect movement; leave the
+    -- existing below-stack fallback available through /kami auras auto.
+    local ok, reason = pcall(weaponAnchor.SetHeight, weaponAnchor, height)
+    if ok then
+        weaponAnchorHeight = height
+    elseif not Module.anchorResizeErrorPrinted then
+        Module.anchorResizeErrorPrinted = true
+        UI:Print("Weapon anchor resize blocked: " .. tostring(reason))
+    end
+end
+
+local function PositionWeaponEnchantBars()
+    if Module.anchorTest and weaponAnchor then
+        -- Anchor grows up: mainhand at its bottom, offhand directly above.
+        SizeWeaponAnchor()
+        for index, button in ipairs(weaponEnchantBars) do
+            if index <= weaponEnchantCount and button:IsShown() then
+                button:ClearAllPoints()
+                button:SetPoint(
+                    "BOTTOMRIGHT", weaponAnchor, "BOTTOMRIGHT",
+                    0, (index - 1) * Layout.HEIGHT
+                )
+            end
+        end
+        return
+    end
+
+    -- Normal mode never moves the secure container in combat: our own rows
+    -- grow below the fixed Blizzard buff stack instead.
+    local bottom = Layout.Y + UI:GetBottomInset() - Layout.GROUP_GAP
     for index, button in ipairs(weaponEnchantBars) do
         if index <= weaponEnchantCount and button:IsShown() then
             button:ClearAllPoints()
@@ -308,18 +361,33 @@ local function UpdatePosition()
     if not container then return end
 
     if InCombatLockdown and InCombatLockdown() then
-        -- Only an external bottom-inset change needs a later secure update.
+        -- Do not touch either the secure AuraContainer's anchors or the
+        -- experiment anchor's screen position during lockdown.
         pendingEnchantLayout = true
         PositionWeaponEnchantBars()
         return
     end
 
     pendingEnchantLayout = false
+    if weaponAnchor then
+        weaponAnchor:ClearAllPoints()
+        weaponAnchor:SetPoint(
+            "BOTTOMRIGHT", UIParent, "BOTTOMRIGHT",
+            Layout.X, Layout.Y + UI:GetBottomInset()
+        )
+    end
+
     container:ClearAllPoints()
-    container:SetPoint(
-        "BOTTOMRIGHT", UIParent, "BOTTOMRIGHT",
-        Layout.X, Layout.Y + UI:GetBottomInset()
-    )
+    if Module.anchorTest and weaponAnchor then
+        container:SetPoint(
+            "BOTTOMRIGHT", weaponAnchor, "TOPRIGHT", 0, 0
+        )
+    else
+        container:SetPoint(
+            "BOTTOMRIGHT", UIParent, "BOTTOMRIGHT",
+            Layout.X, Layout.Y + UI:GetBottomInset()
+        )
+    end
     PositionWeaponEnchantBars()
 end
 
@@ -707,6 +775,8 @@ function Module:Initialize()
             UI:Print("Enable the native enchant test before combat.")
             return
         end
+        Module.anchorTest = false
+        UpdatePosition()
         Module.nativeEnchantTest = true
         RefreshWeaponEnchants()
         UI:Print("Native-only enchant test enabled. Cast Rockbiter and"
@@ -719,10 +789,37 @@ function Module:Initialize()
             UI:Print("Restore the normal mode after combat.")
             return
         end
+        Module.anchorTest = false
         Module.nativeEnchantTest = false
+        UpdatePosition()
         RefreshWeaponEnchants()
         UI:Print("Normal weapon enchant fallback restored.")
     end, "Restore standard weapon enchant rendering")
+
+    UI:RegisterCommand("auras", "anchor", function()
+        if InCombatLockdown and InCombatLockdown() then
+            UI:Print("Start the anchor experiment before combat.")
+            return
+        end
+        local anchor = EnsureWeaponAnchor()
+        if not anchor then
+            UI:Print("Cannot create the weapon enchant anchor.")
+            return
+        end
+        Module.nativeEnchantTest = false
+        Module.anchorTest = true
+        Module.anchorResizeErrorPrinted = false
+        RefreshWeaponEnchants()
+        UpdatePosition()
+
+        -- Read this only outside combat. It may already be protected as a
+        -- result of being an anchor of the secure AuraContainer.
+        local protected = anchor.IsProtected and anchor:IsProtected()
+        UI:Print("Linked weapon anchor test ON (protected: "
+            .. tostring(protected) .. ").")
+        UI:Print("Apply/renew Rockbiter in combat. If blocked, report"
+            .. " BugGrabber's error. /kami auras auto reverts the test.")
+    end, "Test combat-safe dynamic anchoring of weapon imbues")
 
     HideBlizzardAuras()
     container = CreateAuraContainer()
