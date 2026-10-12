@@ -6,6 +6,12 @@ local Module = UI:NewModule("Auras", "KamiUI_Auras")
 
 local Layout = UI.Layout.Auras
 
+-- The alpha mask softens 4 pixels at every edge of the aura fill/background.
+-- Reuse the same silhouette for Blizzard's auras and Forever's weapon imbues.
+local BAR_FADE_TEXTURE =
+    "Interface\\AddOns\\KamiUI_Auras\\Textures\\BarFade"
+
+
 local container
 local weaponEnchantBars = {}
 local weaponEnchantTimers = {}
@@ -193,7 +199,8 @@ local function CreateWeaponEnchantBar()
     local background = button:CreateTexture(nil, "BACKGROUND")
     background:SetPoint("TOPLEFT", icon, "TOPRIGHT")
     background:SetPoint("BOTTOMRIGHT")
-    background:SetColorTexture(
+    background:SetTexture(BAR_FADE_TEXTURE)
+    background:SetVertexColor(
         Palette.auras.background[1],
         Palette.auras.background[2],
         Palette.auras.background[3],
@@ -207,7 +214,7 @@ local function CreateWeaponEnchantBar()
 
     local bar = CreateFrame("StatusBar", nil, barContainer)
     bar:SetAllPoints()
-    bar:SetStatusBarTexture("Interface\\Buttons\\WHITE8X8")
+    bar:SetStatusBarTexture(BAR_FADE_TEXTURE)
     local color = Palette.auras.weaponEnchant
     bar:SetStatusBarColor(color[1], color[2], color[3], 1)
     button.bar = bar
@@ -242,13 +249,6 @@ local function CreateWeaponEnchantBar()
     countText:SetPoint("BOTTOMRIGHT", icon, "BOTTOMRIGHT", -2, 2)
     countText:SetTextColor(1, 1, 1)
     button.countText = countText
-
-    Styles:CreateBorder(overlay, {
-        color = { 0, 0, 0, 1 },
-        top = false,
-        left = false,
-        right = false,
-    })
 
     button:SetScript("OnEnter", function(self)
         if not self.inventorySlot then return end
@@ -374,7 +374,7 @@ local function InitializeAuraButton(button, color, useDispelColor)
 
     local bar = CreateFrame("StatusBar", nil, barContainer)
     bar:SetAllPoints()
-    bar:SetStatusBarTexture("Interface\\Buttons\\WHITE8X8")
+    bar:SetStatusBarTexture(BAR_FADE_TEXTURE)
     bar:SetStatusBarColor(color[1], color[2], color[3], 1)
 
     local statusTexture = bar:GetStatusBarTexture()
@@ -384,7 +384,8 @@ local function InitializeAuraButton(button, color, useDispelColor)
     local background = button:CreateTexture(nil, "BACKGROUND")
     background:SetPoint("TOPLEFT", barContainer, "TOPLEFT")
     background:SetPoint("BOTTOMRIGHT", barContainer, "BOTTOMRIGHT")
-    background:SetColorTexture(
+    background:SetTexture(BAR_FADE_TEXTURE)
+    background:SetVertexColor(
         Palette.auras.background[1],
         Palette.auras.background[2],
         Palette.auras.background[3],
@@ -426,14 +427,6 @@ local function InitializeAuraButton(button, color, useDispelColor)
     nameText:SetFont(fontPath, Styles.FontSize.Auras, fontFlags)
     timeText:SetFont(fontPath, Styles.FontSize.Auras, fontFlags)
     stackText:SetFont(fontPath, Styles.FontSize.Auras, "OUTLINE")
-
-    -- Shared 1 px separator between stacked rows.
-    Styles:CreateBorder(overlay, {
-        color = { 0, 0, 0, 1 },
-        top = false,
-        left = false,
-        right = false,
-    })
 
     -- Bind only after the complete visual tree exists. Blizzard applies
     -- access restrictions to these objects as part of the binding calls.
@@ -482,12 +475,6 @@ local function CreateAuraContainer()
         AnchorUtil.FlowDirection.Up
     )
     auraContainer:SetFlowLayoutMaximumLineSize(math.huge)
-
-    -- Outer border. Child anchors are established before aura groups make the
-    -- container layout-restricted in combat.
-    Styles:CreateBorder(auraContainer, {
-        color = { 0, 0, 0, 1 },
-    })
 
     -- Temporary weapon imbues (Rockbiter, Windfury Weapon, rogue poisons,
     -- weapon oils, etc.) are not regular HELPFUL unit auras. Let Blizzard's
