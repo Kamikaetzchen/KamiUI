@@ -298,20 +298,23 @@ local function EnsureWeaponAnchor()
     if InCombatLockdown and InCombatLockdown() then return nil end
 
     weaponAnchor = CreateFrame("Frame", "KamiUIWeaponEnchantAnchor", UIParent)
-    weaponAnchor:SetSize(Layout.WIDTH, 0)
+    -- A zero-height Frame has no reliable rectangle for anchors on this
+    -- client. Keep a 1px structural baseline even when no imbue is active;
+    -- the AuraContainer is offset -1px to preserve its original position.
+    weaponAnchor:SetSize(Layout.WIDTH, 1)
     weaponAnchor:SetPoint(
         "BOTTOMRIGHT", UIParent, "BOTTOMRIGHT",
         Layout.X, Layout.Y + UI:GetBottomInset()
     )
-    weaponAnchorHeight = 0
+    weaponAnchorHeight = 1
     return weaponAnchor
 end
 
 local function SizeWeaponAnchor()
     if not Module.anchorTest or not weaponAnchor then return end
-    local height = weaponEnchantCount > 0
+    local height = 1 + (weaponEnchantCount > 0
         and weaponEnchantCount * Layout.HEIGHT + Layout.GROUP_GAP
-        or 0
+        or 0)
     if height == weaponAnchorHeight then return end
 
     -- Only this test frame is resized in combat, never the AuraContainer.
@@ -380,7 +383,7 @@ local function UpdatePosition()
     container:ClearAllPoints()
     if Module.anchorTest and weaponAnchor then
         container:SetPoint(
-            "BOTTOMRIGHT", weaponAnchor, "TOPRIGHT", 0, 0
+            "BOTTOMRIGHT", weaponAnchor, "TOPRIGHT", 0, -1
         )
     else
         container:SetPoint(
