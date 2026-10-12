@@ -1,0 +1,10 @@
+## Interface: 16001
+## Title: KamiUI - Account
+## Notes: Account-wide character overview and item finder
+## Author: Kami Katze
+## Version: 0.2.0
+## IconTexture: Interface\Icons\INV_Misc_Book_09
+## RequiredDeps: KamiUI, KamiUI_Characters, KamiUI_Bags
+
+Bindings.xml
+Account.lua
