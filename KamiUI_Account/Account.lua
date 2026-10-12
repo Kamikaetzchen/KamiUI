@@ -640,15 +640,44 @@ local function QueueRefresh()
     end)
 end
 
+-- XML bindings support a command and header but not a "default"
+-- attribute. Assign the requested backslash once, only when that key is
+-- free and the account action has no binding already. Never steal a key.
+local function BindDefaultKeyOnce()
+    local db = GetDatabase()
+    if db.defaultKeyChecked then return end
+    if not GetBindingKey or not GetBindingAction or not SetBinding then
+        return
+    end
+
+    db.defaultKeyChecked = true
+    if GetBindingKey("KAMIUIACCOUNTTOGGLE") then return end
+
+    local key = "\\"
+    local action = GetBindingAction(key)
+    if action == nil or action == "" then
+        if SetBinding(key, "KAMIUIACCOUNTTOGGLE") then
+            if GetCurrentBindingSet and SaveBindings then
+                SaveBindings(GetCurrentBindingSet())
+            end
+        end
+    end
+end
+
 function Module:Initialize()
     GetDatabase()
     CreateAccountFrame()
     self:Refresh()
 
+    UI:RegisterEvent("PLAYER_ENTERING_WORLD", BindDefaultKeyOnce)
+
     UI:RegisterEvent("BAG_UPDATE_DELAYED", QueueRefresh)
     UI:RegisterEvent("PLAYER_EQUIPMENT_CHANGED", QueueRefresh)
     UI:RegisterEvent("PLAYER_MONEY", QueueRefresh)
     UI:RegisterEvent("PLAYER_LEVEL_UP", QueueRefresh)
+    UI:RegisterEvent("PLAYER_XP_UPDATE", function(_, unit)
+        if unit == "player" then QueueRefresh() end
+    end)
     UI:RegisterEvent("PLAYER_REGEN_ENABLED", QueueRefresh)
     UI:RegisterEvent("BANKFRAME_OPENED", QueueRefresh)
     UI:RegisterEvent("BANKFRAME_CLOSED", QueueRefresh)
