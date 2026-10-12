@@ -20,14 +20,6 @@ local weaponEnchantCount = 0
 local pendingEnchantLayout = false
 local weaponAnchor
 local weaponAnchorHeight
--- Session-only experiment. Protected AuraContainer gets a fixed anchor to
--- this unprotected frame before combat; only its height changes in combat.
-Module.anchorTest = false
-local nativeEnchantButtons = {}
-local nativeEnchantSlots = {}
--- Test mode is intentionally session-only. /reload restores the working
--- Forever-specific imbue bars if the native API does not support them.
-Module.nativeEnchantTest = false
 
 -- Forever exposes Shaman imbues separately from the temporary enchants
 -- consumed by Blizzard's AuraContainer. Keep this reader separate: only
@@ -66,12 +58,6 @@ end
 
 local function ReadWeaponEnchantList()
     local entries = {}
-    -- In test mode, let Blizzard's AuraContainer be the sole owner of
-    -- weapon-enchant display and combat-safe layout. Do not destroy the
-    -- working fallback or change the registration of protected frames.
-    if Module.nativeEnchantTest then
-        return entries
-    end
     local hasNativeSlots = container and container.AddItemEnchantment
     local permanent = Enum and Enum.ItemEnchantType
         and Enum.ItemEnchantType.Permanent or 1
@@ -289,18 +275,15 @@ local function CreateWeaponEnchantBar()
     return button
 end
 
--- Experimental linked layout: create an ordinary sizing anchor while OOC,
--- then attach the secure Blizzard AuraContainer to its TOPRIGHT *once*.
--- The experiment is whether Forever allows this nonsecure frame's height to
--- change during lockdown without treating it as protected/tainted.
+-- Attach the protected AuraContainer to a normal sizing frame before
+-- combat. Updating the frame's height keeps the aura and weapon-imbue bars
+-- connected without changing the protected container's anchors in combat.
 local function EnsureWeaponAnchor()
     if weaponAnchor then return weaponAnchor end
-    if InCombatLockdown and InCombatLockdown() then return nil end
 
     weaponAnchor = CreateFrame("Frame", "KamiUIWeaponEnchantAnchor", UIParent)
-    -- A zero-height Frame has no reliable rectangle for anchors on this
-    -- client. Keep a 1px structural baseline even when no imbue is active;
-    -- the AuraContainer is offset -1px to preserve its original position.
+    -- A zero-height anchor makes the aura group disappear on Forever.
+    -- Keep a 1px baseline and offset the AuraContainer by -1px.
     weaponAnchor:SetSize(Layout.WIDTH, 1)
     weaponAnchor:SetPoint(
         "BOTTOMRIGHT", UIParent, "BOTTOMRIGHT",
@@ -311,87 +294,50 @@ local function EnsureWeaponAnchor()
 end
 
 local function SizeWeaponAnchor()
-    if not Module.anchorTest or not weaponAnchor then return end
+    if not weaponAnchor then return end
+
     local height = 1 + (weaponEnchantCount > 0
         and weaponEnchantCount * Layout.HEIGHT + Layout.GROUP_GAP
         or 0)
     if height == weaponAnchorHeight then return end
 
-    -- Only this test frame is resized in combat, never the AuraContainer.
-    -- Some clients may prohibit even this indirect movement; leave the
-    -- existing below-stack fallback available through /kami auras auto.
-    local ok, reason = pcall(weaponAnchor.SetHeight, weaponAnchor, height)
-    if ok then
-        weaponAnchorHeight = height
-    elseif not Module.anchorResizeErrorPrinted then
-        Module.anchorResizeErrorPrinted = true
-        UI:Print("Weapon anchor resize blocked: " .. tostring(reason))
-    end
+    -- Only the sizing frame changes in combat; AuraContainer follows the
+    -- already-established anchor relationship.
+    weaponAnchor:SetHeight(height)
+    weaponAnchorHeight = height
 end
 
 local function PositionWeaponEnchantBars()
-    if Module.anchorTest and weaponAnchor then
-        -- Anchor grows up: mainhand at its bottom, offhand directly above.
-        SizeWeaponAnchor()
-        for index, button in ipairs(weaponEnchantBars) do
-            if index <= weaponEnchantCount and button:IsShown() then
-                button:ClearAllPoints()
-                button:SetPoint(
-                    "BOTTOMRIGHT", weaponAnchor, "BOTTOMRIGHT",
-                    0, (index - 1) * Layout.HEIGHT
-                )
-            end
-        end
-        return
-    end
+    if not weaponAnchor then return end
 
-    -- Normal mode never moves the secure container in combat: our own rows
-    -- grow below the fixed Blizzard buff stack instead.
-    local bottom = Layout.Y + UI:GetBottomInset() - Layout.GROUP_GAP
+    SizeWeaponAnchor()
     for index, button in ipairs(weaponEnchantBars) do
         if index <= weaponEnchantCount and button:IsShown() then
             button:ClearAllPoints()
             button:SetPoint(
-                "BOTTOMRIGHT", UIParent, "BOTTOMRIGHT",
-                Layout.X,
-                bottom - (weaponEnchantCount - index + 1) * Layout.HEIGHT
+                "BOTTOMRIGHT", weaponAnchor, "BOTTOMRIGHT",
+                0, (index - 1) * Layout.HEIGHT
             )
         end
     end
 end
 
 local function UpdatePosition()
-    if not container then return end
+    if not weaponAnchor then return end
 
+    -- A screen-inset change is deferred until after combat. Weapon-enchant
+    -- height updates do not need this function and stay live during combat.
     if InCombatLockdown and InCombatLockdown() then
-        -- Do not touch either the secure AuraContainer's anchors or the
-        -- experiment anchor's screen position during lockdown.
         pendingEnchantLayout = true
-        PositionWeaponEnchantBars()
         return
     end
 
     pendingEnchantLayout = false
-    if weaponAnchor then
-        weaponAnchor:ClearAllPoints()
-        weaponAnchor:SetPoint(
-            "BOTTOMRIGHT", UIParent, "BOTTOMRIGHT",
-            Layout.X, Layout.Y + UI:GetBottomInset()
-        )
-    end
-
-    container:ClearAllPoints()
-    if Module.anchorTest and weaponAnchor then
-        container:SetPoint(
-            "BOTTOMRIGHT", weaponAnchor, "TOPRIGHT", 0, -1
-        )
-    else
-        container:SetPoint(
-            "BOTTOMRIGHT", UIParent, "BOTTOMRIGHT",
-            Layout.X, Layout.Y + UI:GetBottomInset()
-        )
-    end
-    PositionWeaponEnchantBars()
+    weaponAnchor:ClearAllPoints()
+    weaponAnchor:SetPoint(
+        "BOTTOMRIGHT", UIParent, "BOTTOMRIGHT",
+        Layout.X, Layout.Y + UI:GetBottomInset()
+    )
 end
 
 local function RefreshWeaponEnchants()
@@ -444,8 +390,6 @@ local function RefreshWeaponEnchants()
     end
 
     weaponEnchantCount = #entries
-    -- Unlike protected AuraContainer reanchoring, these unprotected rows can
-    -- be positioned as soon as an imbue appears/disappears, even in combat.
     PositionWeaponEnchantBars()
 end
 
@@ -560,12 +504,10 @@ local function CreateAuraContainer()
         "CustomAuraContainerTemplate, DisableUntrustedLayoutScriptsTemplate"
     )
 
+    -- This relationship is established once, outside combat. The weapon
+    -- anchor grows upward when imbues appear, moving all auras with it.
     auraContainer:SetPoint(
-        "BOTTOMRIGHT",
-        UIParent,
-        "BOTTOMRIGHT",
-        Layout.X,
-        Layout.Y + UI:GetBottomInset()
+        "BOTTOMRIGHT", EnsureWeaponAnchor(), "TOPRIGHT", 0, -1
     )
 
     auraContainer:SetFlowLayoutAxis(AnchorUtil.FlowLayoutAxis.Vertical)
@@ -615,24 +557,18 @@ local function CreateAuraContainer()
             )
         end
 
-        -- Register native slots once at creation time, never during combat.
-        -- Use the client's official slot enum, including Ranged if present.
-        local nativeSlots = {
-            { name = "Main Hand", slot = slots.MainHand },
-            { name = "Off Hand", slot = slots.OffHand },
-            { name = "Ranged", slot = slots.Ranged },
-        }
-        for _, definition in ipairs(nativeSlots) do
+        -- Keep Blizzard's own temporary enchants for all native slots.
+        -- Forever imbues not covered by this API use the linked bars below.
+        for _, definition in ipairs({
+            { slot = slots.MainHand },
+            { slot = slots.OffHand },
+            { slot = slots.Ranged },
+        }) do
             if definition.slot ~= nil then
-                local button = auraContainer:AddItemEnchantment(
-                    definition.slot,
-                    {
-                        initializeFrame = InitializeWeaponEnchant,
-                        hidePermanent = false,
-                    }
-                )
-                nativeEnchantButtons[definition.name] = button
-                nativeEnchantSlots[definition.name] = definition.slot
+                auraContainer:AddItemEnchantment(definition.slot, {
+                    initializeFrame = InitializeWeaponEnchant,
+                    hidePermanent = false,
+                })
             end
         end
     end
@@ -676,154 +612,6 @@ local function CreateAuraContainer()
 end
 
 function Module:Initialize()
-    -- Compare native and Forever-specific weapon enchant sources. When
-    -- Blizzard recognizes the enchant, its own AuraContainer should be able
-    -- to place it without our independent bars or protected repositioning.
-    UI:RegisterCommand("auras", "enchants", function()
-        UI:Print("Weapon enchant diagnostics (native test: "
-            .. (Module.nativeEnchantTest and "ON" or "OFF") .. "):")
-        local sources = GetWeaponEnchantSources()
-        if #sources == 0 then
-            UI:Print("C_Item.GetWeaponEnchantInfo unavailable")
-        end
-
-        for _, source in ipairs(sources) do
-            if source.weapon ~= nil then
-                local status = {}
-                local nativeSlot = nativeEnchantSlots[source.name]
-                local nativeButton = nativeEnchantButtons[source.name]
-
-                if nativeSlot ~= nil then
-                    status[#status + 1] = "registered"
-                    if nativeButton then
-                        local ok, shown = pcall(
-                            nativeButton.IsShown, nativeButton
-                        )
-                        if ok and IsReadable(shown)
-                            and type(shown) == "boolean"
-                        then
-                            status[#status + 1] = shown and "shown" or "hidden"
-                        else
-                            status[#status + 1] = "visibility unknown"
-                        end
-                    end
-                else
-                    status[#status + 1] = "not registered"
-                end
-
-                if C_PaperDollInfo
-                    and C_PaperDollInfo.GetTemporaryEnchantmentInfo
-                then
-                    local info = UI:SafeCall(
-                        C_PaperDollInfo.GetTemporaryEnchantmentInfo,
-                        source.inventory
-                    )
-                    if IsReadableTable(info) then
-                        local function Field(key)
-                            local v = info[key]
-                            if not IsReadable(v) then return "secret" end
-                            if v == nil then return "-" end
-                            if type(v) == "number"
-                                or type(v) == "boolean"
-                            then
-                                return tostring(v)
-                            end
-                            return "unknown"
-                        end
-                        status[#status + 1] = string.format(
-                            "native ID=%s time=%sms expires=%s",
-                            Field("enchantID"),
-                            Field("remainingTimeMs"),
-                            Field("hasExpirationTime")
-                        )
-                    else
-                        status[#status + 1] = "native: none/secret"
-                    end
-                else
-                    status[#status + 1] = "native API unavailable"
-                end
-
-                local list = C_Item and C_Item.GetWeaponEnchantInfo
-                    and UI:SafeCall(
-                        C_Item.GetWeaponEnchantInfo, source.weapon
-                    )
-                local descriptions = {}
-                if IsReadableTable(list) then
-                    for _, enchant in ipairs(list) do
-                        if IsReadableTable(enchant)
-                            and IsReadableNumber(enchant.enchantType)
-                            and IsReadableNumber(enchant.enchantID)
-                            and IsReadableNumber(enchant.timeLeft)
-                        then
-                            descriptions[#descriptions + 1] = string.format(
-                                "type=%d id=%d time=%ds",
-                                enchant.enchantType, enchant.enchantID,
-                                math.floor(enchant.timeLeft / 1000)
-                            )
-                        end
-                    end
-                end
-                status[#status + 1] = "Forever: "
-                    .. (#descriptions > 0
-                        and table.concat(descriptions, ", ")
-                        or "none/secret")
-                UI:Print(source.name .. ": " .. table.concat(status, " | "))
-            end
-        end
-        UI:Print("KamiUI separate bars: " .. weaponEnchantCount)
-    end, "Compare native and Forever weapon enchant APIs")
-
-    UI:RegisterCommand("auras", "native", function()
-        if InCombatLockdown and InCombatLockdown() then
-            UI:Print("Enable the native enchant test before combat.")
-            return
-        end
-        Module.anchorTest = false
-        UpdatePosition()
-        Module.nativeEnchantTest = true
-        RefreshWeaponEnchants()
-        UI:Print("Native-only enchant test enabled. Cast Rockbiter and"
-            .. " check whether Blizzard shows and reorders it in combat."
-            .. " /kami auras auto restores the fallback.")
-    end, "Test Blizzard-only weapon enchant rendering")
-
-    UI:RegisterCommand("auras", "auto", function()
-        if InCombatLockdown and InCombatLockdown() then
-            UI:Print("Restore the normal mode after combat.")
-            return
-        end
-        Module.anchorTest = false
-        Module.nativeEnchantTest = false
-        UpdatePosition()
-        RefreshWeaponEnchants()
-        UI:Print("Normal weapon enchant fallback restored.")
-    end, "Restore standard weapon enchant rendering")
-
-    UI:RegisterCommand("auras", "anchor", function()
-        if InCombatLockdown and InCombatLockdown() then
-            UI:Print("Start the anchor experiment before combat.")
-            return
-        end
-        local anchor = EnsureWeaponAnchor()
-        if not anchor then
-            UI:Print("Cannot create the weapon enchant anchor.")
-            return
-        end
-        Module.nativeEnchantTest = false
-        Module.anchorTest = true
-        Module.anchorResizeErrorPrinted = false
-        RefreshWeaponEnchants()
-        UpdatePosition()
-
-        -- Read this only outside combat. It may already be protected as a
-        -- result of being an anchor of the secure AuraContainer.
-        local protected = anchor.IsProtected and anchor:IsProtected()
-        UI:Print("Linked weapon anchor test ON (protected: "
-            .. tostring(protected) .. ").")
-        UI:Print("Apply/renew Rockbiter in combat. If blocked, report"
-            .. " BugGrabber's error. /kami auras auto reverts the test.")
-    end, "Test combat-safe dynamic anchoring of weapon imbues")
-
     HideBlizzardAuras()
     container = CreateAuraContainer()
     RefreshWeaponEnchants()
