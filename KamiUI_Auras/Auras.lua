@@ -6,10 +6,11 @@ local Module = UI:NewModule("Auras", "KamiUI_Auras")
 
 local Layout = UI.Layout.Auras
 
--- Fade the top/bottom edges by about 4 displayed pixels; keep both ends
--- fully opaque. Reuse for Blizzard's auras and Forever's weapon imbues.
-local BAR_FADE_TEXTURE =
-    "Interface\\AddOns\\KamiUI_Auras\\Textures\\BarFade"
+-- Kami Facet: soft light facets in the top/bottom 25% of each bar,
+-- with a flat center from 25-75%. Its alpha stays completely uniform:
+-- only RGB brightness changes, so the bars remain full-height beside icons.
+local BAR_FACET_TEXTURE =
+    "Interface\\AddOns\\KamiUI_Auras\\Textures\\KamiFacet"
 
 
 local container
@@ -199,7 +200,7 @@ local function CreateWeaponEnchantBar()
     local background = button:CreateTexture(nil, "BACKGROUND")
     background:SetPoint("TOPLEFT", icon, "TOPRIGHT")
     background:SetPoint("BOTTOMRIGHT")
-    background:SetTexture(BAR_FADE_TEXTURE)
+    background:SetTexture(BAR_FACET_TEXTURE)
     background:SetVertexColor(
         Palette.auras.background[1],
         Palette.auras.background[2],
@@ -214,7 +215,7 @@ local function CreateWeaponEnchantBar()
 
     local bar = CreateFrame("StatusBar", nil, barContainer)
     bar:SetAllPoints()
-    bar:SetStatusBarTexture(BAR_FADE_TEXTURE)
+    bar:SetStatusBarTexture(BAR_FACET_TEXTURE)
     local color = Palette.auras.weaponEnchant
     bar:SetStatusBarColor(color[1], color[2], color[3], 1)
     button.bar = bar
@@ -374,7 +375,7 @@ local function InitializeAuraButton(button, color, useDispelColor)
 
     local bar = CreateFrame("StatusBar", nil, barContainer)
     bar:SetAllPoints()
-    bar:SetStatusBarTexture(BAR_FADE_TEXTURE)
+    bar:SetStatusBarTexture(BAR_FACET_TEXTURE)
     bar:SetStatusBarColor(color[1], color[2], color[3], 1)
 
     local statusTexture = bar:GetStatusBarTexture()
@@ -384,7 +385,7 @@ local function InitializeAuraButton(button, color, useDispelColor)
     local background = button:CreateTexture(nil, "BACKGROUND")
     background:SetPoint("TOPLEFT", barContainer, "TOPLEFT")
     background:SetPoint("BOTTOMRIGHT", barContainer, "BOTTOMRIGHT")
-    background:SetTexture(BAR_FADE_TEXTURE)
+    background:SetTexture(BAR_FACET_TEXTURE)
     background:SetVertexColor(
         Palette.auras.background[1],
         Palette.auras.background[2],
