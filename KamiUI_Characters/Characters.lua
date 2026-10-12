@@ -742,6 +742,13 @@ function Module:Refresh()
     end
 end
 
+function Module:SaveCurrentEquipmentSnapshot()
+    if InCombatLockdown and InCombatLockdown() then
+        return
+    end
+    SaveCurrentEquipmentSnapshot()
+end
+
 function Module:Show()
     if not self.frame then
         return
