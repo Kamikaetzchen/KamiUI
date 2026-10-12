@@ -327,7 +327,7 @@ local function UpdateCachedItemButton(button, slot, tab)
     if slot and search ~= ""
         and not Components:ItemMatchesSearch(
             slot.name,
-            slot.link,
+            slot.link or slot.itemID,
             search
         )
     then
