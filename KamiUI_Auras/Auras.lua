@@ -577,6 +577,46 @@ local function CreateAuraContainer()
 end
 
 function Module:Initialize()
+    UI:RegisterCommand("auras", "enchants", function()
+        local sources = GetWeaponEnchantSources()
+        UI:Print("Weapon enchant diagnostics:")
+        if #sources == 0 then
+            UI:Print("C_Item.GetWeaponEnchantInfo unavailable")
+            return
+        end
+
+        for _, source in ipairs(sources) do
+            if source.weapon ~= nil then
+                local list = UI:SafeCall(
+                    C_Item.GetWeaponEnchantInfo, source.weapon
+                )
+                if IsReadableTable(list) then
+                    local descriptions = {}
+                    for _, enchant in ipairs(list) do
+                        if IsReadableTable(enchant)
+                            and IsReadableNumber(enchant.enchantType)
+                            and IsReadableNumber(enchant.enchantID)
+                            and IsReadableNumber(enchant.timeLeft)
+                        then
+                            descriptions[#descriptions + 1] = string.format(
+                                "type=%d id=%d remaining=%ds",
+                                enchant.enchantType, enchant.enchantID,
+                                math.floor(enchant.timeLeft / 1000)
+                            )
+                        end
+                    end
+                    UI:Print(source.name .. ": "
+                        .. (#descriptions > 0
+                            and table.concat(descriptions, ", ")
+                            or "none"))
+                else
+                    UI:Print(source.name .. ": unavailable or secret")
+                end
+            end
+        end
+        UI:Print("KamiUI separate bars: " .. weaponEnchantCount)
+    end, "Show weapon enchant API diagnostics")
+
     HideBlizzardAuras()
     container = CreateAuraContainer()
     RefreshWeaponEnchants()
