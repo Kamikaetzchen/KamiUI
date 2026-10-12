@@ -788,6 +788,16 @@ local function CreateTotemBar()
     -- The legacy slide script continuously restores the MainMenuBar anchor.
     -- Leave its event handlers and native secure click scripts intact.
     native:SetScript("OnUpdate", nil)
+    -- Older clients use OnShow/OnHide only to reposition the default
+    -- action bar. Do not suppress different handlers from newer clients.
+    if UIParent_ManageFramePositions then
+        if native:GetScript("OnShow") == UIParent_ManageFramePositions then
+            native:SetScript("OnShow", nil)
+        end
+        if native:GetScript("OnHide") == UIParent_ManageFramePositions then
+            native:SetScript("OnHide", nil)
+        end
+    end
     Module.totemBar = native
 
     local function StyleNative(button)
@@ -1072,6 +1082,42 @@ end
 -- These F-keys belong to whichever bar currently occupies the shared
 -- secondary position. A single owner avoids conflicts between hidden bars.
 -- Priority is intentional: F1 normally targets the player in WoW.
+local function LabelFunctionKey(button, index)
+    if not button or button.KamiFunctionKey then return end
+    local label = button:CreateFontString(nil, "OVERLAY")
+    label:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+    label:SetTextColor(1, 1, 1)
+    label:SetShadowColor(0, 0, 0, 1)
+    label:SetShadowOffset(1, -1)
+    label:SetPoint("TOPRIGHT", button, "TOPRIGHT", -2, -1)
+    label:SetText("F" .. index)
+    button.KamiFunctionKey = label
+end
+
+local function LabelSecondaryBarButtons()
+    local bar6 = Module.bars[6]
+    if bar6 then
+        for index, button in ipairs(bar6.buttons) do
+            LabelFunctionKey(button, index)
+        end
+    end
+    if Module.stanceBar then
+        for index = 1, 8 do
+            LabelFunctionKey(Module.stanceBar.buttons[index], index)
+        end
+    end
+    if Module.totemBar then
+        LabelFunctionKey(MultiCastSummonSpellButton, 1)
+        LabelFunctionKey(MultiCastRecallSpellButton, 6)
+        for page = 1, 3 do
+            for index = 1, 4 do
+                LabelFunctionKey(_G["MultiCastActionButton" ..
+                    ((page - 1) * 4 + index)], index + 1)
+            end
+        end
+    end
+end
+
 local function BindFunctionKeys()
     local owner = Module.functionKeyOwner
     if not owner then return end
@@ -1190,6 +1236,7 @@ local function CreateBars()
     CreatePetBar()
     CreateStanceBar()
     CreateTotemBar()
+    LabelSecondaryBarButtons()
     if not Module.functionKeyOwner then
         Module.functionKeyOwner = CreateFrame(
             "Frame", "KamiUISecondaryFunctionKeys", UIParent)
