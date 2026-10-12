@@ -449,7 +449,7 @@ local function UpdateCachedItemButton(button, slot, bag)
             search
         )
     then
-        alpha = 0.20
+        alpha = 0.10
     end
 
     Components:SetItemSlotData(button, {
