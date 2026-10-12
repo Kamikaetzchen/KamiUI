@@ -2005,11 +2005,20 @@ local function AddCharacterCountsToTooltip(tooltip, data)
             end
         end
 
+        -- Character equipment is cached by KamiUI_Characters. Read it
+        -- rather than keeping a duplicate copy inside the bag database.
+        local profile = entry.profile or {}
+        for _, slot in pairs(profile.equipment or {}) do
+            local equippedID = slot.link
+                and tonumber(string.match(slot.link, "item:(%d+)"))
+            if equippedID == itemID then
+                equippedCount = equippedCount + 1
+            end
+        end
+
         local count = bagCount + bankCount + equippedCount + bankEquippedCount
 
         if count > 0 then
-            local profile = entry.profile or {}
-
             lines[#lines + 1] = {
                 name = profile.name or "Unknown",
                 classFile = profile.classFile,
@@ -2043,14 +2052,12 @@ local function AddCharacterCountsToTooltip(tooltip, data)
             if line.bagCount > 0 then
                 locations[#locations + 1] = "Bags: " .. line.bagCount
             end
-            if line.bankCount > 0 then
-                locations[#locations + 1] = "Bank: " .. line.bankCount
+            local bankTotal = line.bankCount + line.bankEquippedCount
+            if bankTotal > 0 then
+                locations[#locations + 1] = "Bank: " .. bankTotal
             end
             if line.equippedCount > 0 then
                 locations[#locations + 1] = "Equipped: " .. line.equippedCount
-            end
-            if line.bankEquippedCount > 0 then
-                locations[#locations + 1] = "Bank bags: " .. line.bankEquippedCount
             end
             countText = line.count .. " (" .. table.concat(locations, ", ") .. ")"
         elseif line.bankCount > 0 then
