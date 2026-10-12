@@ -11,6 +11,7 @@ local pendingRebuild = false
 local pendingSnapshot = false
 local sortingBags = false
 local pendingEventRefresh = false
+local pendingEventSnapshot = false
 local sortGeneration = 0
 
 -- Sorting can emit BAG_UPDATE_DELAYED/ITEM_LOCK_CHANGED long after the
@@ -1451,7 +1452,7 @@ function Module:Rebuild()
         return
     end
 
-    SaveCurrentCharacter()
+    self:SaveCurrentCharacter()
 
     for _, button in ipairs(frame.itemButtons) do
         button:Hide()
@@ -1496,6 +1497,8 @@ function Module:Rebuild()
                             frame.cachedButtons[index] = button
                         end
 
+                        button.KamiCachedSlot = slot
+                        button.KamiCachedBag = bag
                         UpdateCachedItemButton(button, slot, bag)
                         button:Show()
                         activeButtons[#activeButtons + 1] = button
@@ -1611,10 +1614,23 @@ function Module:Refresh()
     if not frame or not frame:IsShown() then return end
 
     local _, _, isCurrent = GetViewedCharacter()
-    if not isCurrent or not frame.liveInventory then
-        -- Cached-character view changes still require an actual rebuild.
-        self:Rebuild()
+    if not isCurrent then
+        if frame.liveInventory then
+            self:Rebuild()
+            return true
+        end
+
+        -- Cached characters only need their search dimming refreshed;
+        -- their nonsecure display buttons do not need reconstructing.
+        for _, button in ipairs(frame.activeButtons or {}) do
+            UpdateCachedItemButton(
+                button, button.KamiCachedSlot, button.KamiCachedBag
+            )
+        end
         return
+    elseif not frame.liveInventory then
+        self:Rebuild()
+        return true
     end
 
     if pendingRebuild
@@ -1622,7 +1638,7 @@ function Module:Refresh()
     then
         if not (InCombatLockdown and InCombatLockdown()) then
             self:Rebuild()
-            return
+            return true
         end
 
         -- Keep existing slots usable until the deferred structural rebuild.
@@ -1721,35 +1737,43 @@ local function ScheduleSortFinish(delay)
             Module.frame.sort:Enable()
         end
 
+        local rebuilt
         if Module.frame and Module.frame:IsShown() then
-            Module:Refresh()
+            rebuilt = Module:Refresh()
         end
         -- Sorting changes slot contents, not the grid topology.
-        Module:SaveCurrentCharacter()
+        if not rebuilt then Module:SaveCurrentCharacter() end
     end)
 end
 
 -- BAG_UPDATE_COOLDOWN/ITEM_LOCK_CHANGED may fire dozens of times during
 -- a sort or a single inventory transaction. Coalesce normal UI refreshes.
-local function ScheduleEventRefresh()
-    if pendingEventRefresh then
-        return
-    end
+local function ScheduleEventRefresh(saveSnapshot)
+    -- Cooldown/lock events need only a visual refresh. BAG_UPDATE_DELAYED
+    -- (or a mail transaction) signals a genuine content change to persist.
+    if saveSnapshot then pendingEventSnapshot = true end
+    if pendingEventRefresh then return end
 
     pendingEventRefresh = true
     C_Timer.After(EVENT_REFRESH_SECONDS, function()
         pendingEventRefresh = false
+        local shouldSave = pendingEventSnapshot
+        pendingEventSnapshot = false
 
         if sortingBags or _G.KamiUIBankSortInProgress then
             return
         end
 
+        local rebuilt
         if Module.frame and Module.frame:IsShown() then
-            Module:Refresh()
+            rebuilt = Module:Refresh()
         end
         -- The persistent account snapshot can be deferred during combat;
-        -- this must not delay the visible inventory update.
-        Module:SaveCurrentCharacter()
+        -- it must not delay the visible inventory update. Rebuild() already
+        -- saves it, so never scan the whole inventory a second time.
+        if shouldSave and not rebuilt then
+            Module:SaveCurrentCharacter()
+        end
     end)
 end
 
@@ -2301,7 +2325,7 @@ function Module:Initialize()
         end
 
         if not _G.KamiUIBankSortInProgress then
-            ScheduleEventRefresh()
+            ScheduleEventRefresh(true)
         end
     end)
 
@@ -2321,13 +2345,13 @@ function Module:Initialize()
 
     UI:RegisterEvent("MAIL_SEND_INFO_UPDATE", function()
         if not sortingBags and not _G.KamiUIBankSortInProgress then
-            ScheduleEventRefresh()
+            ScheduleEventRefresh(true)
         end
     end)
 
     UI:RegisterEvent("MAIL_CLOSED", function()
         if not sortingBags and not _G.KamiUIBankSortInProgress then
-            ScheduleEventRefresh()
+            ScheduleEventRefresh(true)
         end
     end)
 
