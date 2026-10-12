@@ -955,6 +955,7 @@ local function SaveCurrentCharacter()
     local character = {
         items = {},
         bags = {},
+        equippedBags = {},
         updated = time and time() or 0,
         bank = existing.bank,
         bankItems = existing.bankItems,
@@ -1021,9 +1022,47 @@ local function SaveCurrentCharacter()
         character.bags[#character.bags + 1] = bag
     end
 
+    -- Worn bags are separate inventory items; they do not appear in their
+    -- own container slots. Save them for account-wide searches without
+    -- counting the contents of the bags twice.
+    for _, bag in ipairs(character.bags) do
+        if bag.bagID ~= (BACKPACK_CONTAINER or 0)
+            and not bag.isKeyring
+        then
+            local inventoryID = UI:GetBagInventoryID(bag.bagID)
+            local link = inventoryID
+                and GetInventoryItemLink
+                and GetInventoryItemLink("player", inventoryID)
+            if link then
+                local itemID = tonumber(string.match(link, "item:(%d+)"))
+                local name, _, quality = GetItemInfo
+                    and GetItemInfo(link)
+                local icon = GetInventoryItemTexture
+                    and GetInventoryItemTexture("player", inventoryID)
+                character.equippedBags[#character.equippedBags + 1] = {
+                    itemID = itemID,
+                    link = link,
+                    name = name,
+                    icon = icon,
+                    quality = quality,
+                    count = 1,
+                    bagID = bag.bagID,
+                }
+            end
+        end
+    end
+
     db.characters[key] = character
 
     return key, character
+end
+
+function Module:SaveCurrentCharacter()
+    if InCombatLockdown and InCombatLockdown() then
+        return
+    end
+
+    return SaveCurrentCharacter()
 end
 
 local function GetViewedCharacter()
@@ -1603,7 +1642,11 @@ local function ScheduleEventRefresh()
             return
         end
 
-        Module:Refresh()
+        if Module.frame and Module.frame:IsShown() then
+            Module:Refresh()
+        else
+            Module:SaveCurrentCharacter()
+        end
     end)
 end
 
