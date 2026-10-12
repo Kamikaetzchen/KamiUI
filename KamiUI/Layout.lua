@@ -140,7 +140,9 @@ UI.Layout = {
         ICON_SIZE = 25,
         GROUP_GAP = 4,
         X = 0,
-        Y = 300,
+        -- Keep room below the secure aura stack for two combat-time imbues.
+        -- Shift the whole stack up by one 25px aura row.
+        Y = 325,
     },
 
     DamageMeter = {
