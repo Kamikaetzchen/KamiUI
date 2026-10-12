@@ -324,17 +324,14 @@ local function UpdateCachedItemButton(button, slot, tab)
         or ""
     local alpha = 1
 
-    if slot and search ~= "" then
-        local haystack = string.lower(slot.name or slot.link or "")
-
-        if not string.find(
-            haystack,
-            string.lower(search),
-            1,
-            true
-        ) then
-            alpha = 0.20
-        end
+    if slot and search ~= ""
+        and not Components:ItemMatchesSearch(
+            slot.name,
+            slot.link,
+            search
+        )
+    then
+        alpha = 0.20
     end
 
     Components:SetItemSlotData(button, {
@@ -1054,6 +1051,10 @@ local function CreateFrameUI()
 
     local searchControl = Components:AttachHeaderSearch(frame, header, {
         onTextChanged = function()
+            Components:ClearNativeContainerSearch()
+            Module:Rebuild()
+        end,
+        onEscape = function()
             Module:Rebuild()
         end,
     })
