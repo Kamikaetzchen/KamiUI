@@ -34,6 +34,8 @@ Palette.nameplates = {
 Palette.auras = {
     helpful = HexColor(0x338CE6),
     harmful = HexColor(0xCC3333),
+    -- Blizzard's purple Curse/enchant-style tint (RGB 0.6, 0, 1).
+    weaponEnchant = HexColor(0x9900FF),
     background = HexColor(0x080808),
 }
 
