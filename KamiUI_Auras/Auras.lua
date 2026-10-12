@@ -148,6 +148,55 @@ local function CreateAuraContainer()
         color = { 0, 0, 0, 1 },
     })
 
+    -- Temporary weapon imbues (Rockbiter, Windfury Weapon, rogue poisons,
+    -- weapon oils, etc.) are not regular HELPFUL unit auras. Let Blizzard's
+    -- AuraContainer own their duration, icon, tooltip and secure cancellation.
+    -- This avoids polling secret enchant data ourselves during combat.
+    --
+    -- The layout grows up from BOTTOMRIGHT: enchantments placed before the
+    -- aura groups therefore occupy the first (bottommost) rows.
+    if auraContainer.AddItemEnchantment
+        and auraContainer.SetItemEnchantmentLayout
+    then
+        local enchantLayout = {
+            layoutIndex = 0,
+            elementWidth = Layout.WIDTH,
+            elementHeight = Layout.HEIGHT,
+            groupSpacing = Layout.GROUP_GAP,
+        }
+
+        -- Blizzard defaults to BeforeAuraGroups; pass the explicit placement
+        -- when the client exposes its enum.
+        if CustomAuraContainerItemEnchantmentPlacement then
+            enchantLayout.placement =
+                CustomAuraContainerItemEnchantmentPlacement.BeforeAuraGroups
+        end
+
+        auraContainer:SetItemEnchantmentLayout(enchantLayout)
+
+        local slots = AuraContainerItemEnchantmentSlot or {
+            MainHand = 0,
+            OffHand = 1,
+        }
+
+        local function InitializeWeaponEnchant(button)
+            InitializeAuraButton(
+                button,
+                Palette.auras.weaponEnchant,
+                false
+            )
+        end
+
+        for _, slot in ipairs({ slots.MainHand, slots.OffHand }) do
+            if slot ~= nil then
+                auraContainer:AddItemEnchantment(slot, {
+                    initializeFrame = InitializeWeaponEnchant,
+                    hidePermanent = true,
+                })
+            end
+        end
+    end
+
     auraContainer:AddAuraGroup("helpful", "HELPFUL", {
         maxFrameCount = 40,
         sortMethod = AuraContainerSortMethod.ExpirationOnly,
