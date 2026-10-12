@@ -1,5 +1,5 @@
 <Bindings>
-    <Binding name="KAMIUIACCOUNTTOGGLE" header="KAMIUIACCOUNT">
+    <Binding name="KAMIUIACCOUNTTOGGLE">
         local account = KamiUI and KamiUI.GetModule and KamiUI:GetModule("Account")
         if account then account:Toggle() end
     </Binding>
