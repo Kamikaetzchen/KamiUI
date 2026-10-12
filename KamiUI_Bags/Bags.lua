@@ -1035,8 +1035,13 @@ local function SaveCurrentCharacter()
                 and GetInventoryItemLink("player", inventoryID)
             if link then
                 local itemID = tonumber(string.match(link, "item:(%d+)"))
-                local name, _, quality = GetItemInfo
-                    and GetItemInfo(link)
+                local name, quality
+                if GetItemInfo then
+                    name, _, quality = GetItemInfo(link)
+                end
+                if quality == nil and GetInventoryItemQuality then
+                    quality = GetInventoryItemQuality("player", inventoryID)
+                end
                 local icon = GetInventoryItemTexture
                     and GetInventoryItemTexture("player", inventoryID)
                 character.equippedBags[#character.equippedBags + 1] = {
@@ -1059,6 +1064,7 @@ end
 
 function Module:SaveCurrentCharacter()
     if InCombatLockdown and InCombatLockdown() then
+        pendingRebuild = true
         return
     end
 
