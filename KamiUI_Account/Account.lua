@@ -259,7 +259,15 @@ local function RenderCharacters()
 
     local maxOffset = math.max(0, #entries - CHARACTER_ROWS)
     pane.offset = math.min(maxOffset, math.max(0, pane.offset or 0))
-    pane.count:SetText(#entries .. " characters")
+    local totalGold = 0
+    for _, entry in ipairs(entries) do
+        totalGold = totalGold + (tonumber(entry.character
+            and entry.character.money) or 0)
+    end
+    pane.count:SetText(
+        #entries .. " characters  |  Total: "
+        .. UI:FormatMoney(totalGold, { iconSize = 11 })
+    )
 
     for _, heading in ipairs(pane.headings) do
         local active = heading.sortKey == pane.sortKey
@@ -422,9 +430,12 @@ local function CreateCharactersPane(frame)
         heading.sortKey = column.key
         heading:SetNormalFontObject("GameFontNormalSmall")
         heading:SetHighlightFontObject("GameFontHighlightSmall")
-        heading:GetFontString():SetJustifyH(
-            column.key == "gold" and "RIGHT" or "LEFT"
-        )
+        local headingText = heading:GetFontString()
+        if headingText then
+            headingText:SetJustifyH(
+                column.key == "gold" and "RIGHT" or "LEFT"
+            )
+        end
 
         local h = heading:CreateTexture(nil, "HIGHLIGHT")
         h:SetAllPoints()
@@ -476,7 +487,9 @@ local function CreateCharactersPane(frame)
             field:SetJustifyH(
                 column.key == "gold" and "RIGHT" or "LEFT"
             )
-            field:SetMaxLines(1)
+            if field.SetMaxLines then
+                field:SetMaxLines(1)
+            end
         end
 
         local highlight = row:CreateTexture(nil, "HIGHLIGHT")
