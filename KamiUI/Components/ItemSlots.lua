@@ -914,7 +914,7 @@ function Components:SetContainerItemSlotData(
     local filtered = info and search ~= ""
         and not self:ItemMatchesSearch(
             info.itemName,
-            info.hyperlink,
+            info.hyperlink or info.itemID,
             search
         ) or false
 
