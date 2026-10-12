@@ -804,6 +804,59 @@ function Components:CreateCarrier(parent, id, shown)
     return carrier
 end
 
+-- Search uses Blizzard's own item name, class and subclass strings.
+-- Item links work for both live inventory and cached characters; the instant
+-- API supplies category names even when regular GetItemInfo is not cached.
+local function SearchFieldMatches(value, needle)
+    return UI:CanAccessValue(value)
+        and type(value) == "string"
+        and string.find(string.lower(value), needle, 1, true) ~= nil
+end
+
+function Components:ItemMatchesSearch(itemName, itemLink, search)
+    if type(search) ~= "string" or search == "" then
+        return true
+    end
+
+    local needle = string.lower(search)
+    if SearchFieldMatches(itemName, needle) then
+        return true
+    end
+
+    local item = itemLink or itemName
+    if not item or not UI:CanAccessValue(item) then
+        return false
+    end
+
+    if GetItemInfo then
+        local ok, name, _, _, _, _, itemType, itemSubType =
+            pcall(GetItemInfo, item)
+        if ok and (
+            SearchFieldMatches(name, needle)
+            or SearchFieldMatches(itemType, needle)
+            or SearchFieldMatches(itemSubType, needle)
+        ) then
+            return true
+        end
+    end
+
+    local getInstant = GetItemInfoInstant
+        or (C_Item and C_Item.GetItemInfoInstant)
+    if getInstant then
+        local ok, _, itemType, itemSubType =
+            pcall(getInstant, item)
+        if ok and (
+            SearchFieldMatches(itemType, needle)
+            or SearchFieldMatches(itemSubType, needle)
+        ) then
+            return true
+        end
+    end
+
+    -- An old cache entry can contain a link before its name is cached.
+    return not itemName and SearchFieldMatches(itemLink, needle) or false
+end
+
 function Components:SetContainerItemSlotData(
     button,
     bagID,
@@ -844,27 +897,15 @@ function Components:SetContainerItemSlotData(
         )
     end
 
+    -- The Blizzard filter flag may remain set after Escape clears the
+    -- search and only considers names. Use our own current query exclusively.
     local search = options.search or ""
-    local filtered = info and info.isFiltered == true or false
-
-    if info and search ~= "" then
-        local itemName = info.itemName
-
-        if not itemName and info.hyperlink and GetItemInfo then
-            itemName = GetItemInfo(info.hyperlink)
-        end
-
-        local haystack = string.lower(
-            itemName or info.hyperlink or ""
-        )
-
-        filtered = not string.find(
-            haystack,
-            string.lower(search),
-            1,
-            true
-        )
-    end
+    local filtered = info and search ~= ""
+        and not self:ItemMatchesSearch(
+            info.itemName,
+            info.hyperlink,
+            search
+        ) or false
 
     self:SetItemSlotData(button, {
         link = info and info.hyperlink or nil,
