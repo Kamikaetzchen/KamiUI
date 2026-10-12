@@ -1661,8 +1661,10 @@ function Module:Refresh()
     -- refreshing here. Its icons and positions change during Rebuild().
     for _, button in ipairs(frame.bagBarButtons or {}) do
         if not button.isCached and button.bagID ~= nil and button.count then
+            -- Ask the container API for its free count instead of scanning
+            -- every slot just to redraw the small bag-bar counter.
             local free = UI:SafeCall(
-                UI.CountContainerFreeSlots, UI, button.bagID
+                UI.GetContainerNumFreeSlots, UI, button.bagID
             )
             if UI:CanAccessValue(free) and type(free) == "number" then
                 button.count:SetText(free)
@@ -2370,6 +2372,12 @@ function Module:Initialize()
             Module:Rebuild()
         elseif pendingSnapshot then
             Module:SaveCurrentCharacter()
+        end
+
+        -- New quest item decorations are created only outside combat, so
+        -- finish any deferred visual details on the next safe opportunity.
+        if Module.frame and Module.frame:IsShown() then
+            Module:Refresh()
         end
     end)
 end
