@@ -154,6 +154,7 @@ local function SaveCurrentBank()
     character.bankItems = {}
     character.bank = {
         tabs = {},
+        equippedBags = {},
         updated = time and time() or 0,
     }
 
@@ -196,6 +197,32 @@ local function SaveCurrentBank()
         end
 
         character.bank.tabs[#character.bank.tabs + 1] = savedTab
+    end
+
+    -- Bank bags live in the bank's bag slots, not inside their contents.
+    -- Save them separately so account search includes them exactly once.
+    local bankBagSlots = Enum
+        and Enum.BagIndex
+        and Enum.BagIndex.Characterbanktab
+
+    if bankBagSlots then
+        for _, tab in ipairs(character.bank.tabs) do
+            if tab.index and tab.index > 1 then
+                local info = UI:GetContainerItemInfo(bankBagSlots, tab.index)
+                if info and info.itemID then
+                    local name, _, quality = GetItemInfo
+                        and GetItemInfo(info.hyperlink or info.itemID)
+                    character.bank.equippedBags[#character.bank.equippedBags + 1] = {
+                        itemID = info.itemID,
+                        link = info.hyperlink,
+                        name = name or info.itemName,
+                        icon = info.iconFileID,
+                        quality = info.quality or quality,
+                        count = 1,
+                    }
+                end
+            end
+        end
     end
 
     db.characters[key] = character
