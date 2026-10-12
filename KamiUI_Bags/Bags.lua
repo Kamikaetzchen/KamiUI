@@ -442,19 +442,14 @@ local function UpdateCachedItemButton(button, slot, bag)
         or ""
     local alpha = 1
 
-    if slot and search ~= "" then
-        local haystack = string.lower(
-            slot.name or slot.link or ""
+    if slot and search ~= ""
+        and not Components:ItemMatchesSearch(
+            slot.name,
+            slot.link,
+            search
         )
-
-        if not string.find(
-            haystack,
-            string.lower(search),
-            1,
-            true
-        ) then
-            alpha = 0.20
-        end
+    then
+        alpha = 0.20
     end
 
     Components:SetItemSlotData(button, {
@@ -1630,17 +1625,13 @@ local function CreateFrameUI()
 
     Components:AttachHeaderSearch(frame, header, {
         closeOnFocusLost = true,
-        onTextChanged = function(text)
-            local _, _, isCurrent = GetViewedCharacter()
-
-            if isCurrent then
-                if C_Container and C_Container.SetItemSearch then
-                    C_Container.SetItemSearch(text)
-                elseif SetItemSearch then
-                    SetItemSearch(text)
-                end
-            end
-
+        onTextChanged = function()
+            Components:ClearNativeContainerSearch()
+            Module:Refresh()
+        end,
+        onEscape = function()
+            -- SetText("") may not trigger OnTextChanged if already empty.
+            -- Reapply full opacity after the search field closes.
             Module:Refresh()
         end,
     })
