@@ -258,6 +258,9 @@ function Components:SetItemSlotQuality(button, quality)
 
     if color then
         glow:SetVertexColor(color.r, color.g, color.b, 1)
+        -- Quality can load asynchronously after the slot was filtered.
+        -- Preserve the active search opacity when repainting its glow.
+        glow:SetAlpha(button.KamiSearchAlpha or 1)
         glow:Show()
     else
         glow:Hide()
@@ -770,8 +773,11 @@ local function SetItemSlotVisualAlpha(button, alpha)
     local highlight = button.KamiItemHighlight
         or (button.GetHighlightTexture and button:GetHighlightTexture())
     if highlight then
-        -- Highlight art has its own intentionally low base opacity.
-        highlight:SetAlpha(alpha * 0.12)
+        -- Preserve the native/KamiUI highlight's original transparency.
+        if button.KamiSearchHighlightBaseAlpha == nil then
+            button.KamiSearchHighlightBaseAlpha = highlight:GetAlpha()
+        end
+        highlight:SetAlpha(button.KamiSearchHighlightBaseAlpha * alpha)
     end
 end
 
@@ -785,6 +791,7 @@ function Components:SetItemSlotData(button, data)
     local icon = GetItemSlotIcon(button)
     local alpha = data.alpha or 1
 
+    button.KamiSearchAlpha = alpha
     button.itemID = data.itemID
     button.itemLink = data.link
     button.itemTooltip = data.tooltip
