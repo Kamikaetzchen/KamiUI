@@ -7,6 +7,307 @@ local Module = UI:NewModule("Auras", "KamiUI_Auras")
 local Layout = UI.Layout.Auras
 
 local container
+local weaponEnchantBars = {}
+local weaponEnchantTimers = {}
+local weaponEnchantCount = 0
+local pendingEnchantLayout = false
+
+-- Forever exposes Shaman imbues separately from the temporary enchants
+-- consumed by Blizzard's AuraContainer. Keep this reader separate: only
+-- effects NOT already represented by the native container are drawn here.
+local function IsReadable(value)
+    return UI:CanAccessValue(value)
+end
+
+local function IsReadableNumber(value)
+    return IsReadable(value) and type(value) == "number"
+end
+
+local function IsReadableTable(value)
+    return IsReadable(value)
+        and not (issecrettable and issecrettable(value))
+        and type(value) == "table"
+end
+
+local function GetWeaponEnchantSources()
+    if not C_Item or not C_Item.GetWeaponEnchantInfo
+        or not Enum or not Enum.WeaponSlot
+    then
+        return {}
+    end
+
+    local slots = Enum.WeaponSlot
+    return {
+        { weapon = slots.MainHand, inventory = INVSLOT_MAINHAND or 16,
+            name = "Main Hand" },
+        { weapon = slots.OffHand, inventory = INVSLOT_OFFHAND or 17,
+            name = "Off Hand" },
+        { weapon = slots.Ranged, inventory = INVSLOT_RANGED or 18,
+            name = "Ranged" },
+    }
+end
+
+local function ReadWeaponEnchantList()
+    local entries = {}
+    local hasNativeSlots = container and container.AddItemEnchantment
+    local permanent = Enum and Enum.ItemEnchantType
+        and Enum.ItemEnchantType.Permanent or 1
+    local imbueType = Enum and Enum.ItemEnchantType
+        and Enum.ItemEnchantType.Imbue or 3
+
+    for _, source in ipairs(GetWeaponEnchantSources()) do
+        if source.weapon ~= nil then
+            local nativeEnchantID
+            local nativeHasEnchant = false
+            if hasNativeSlots and source.weapon ~= (Enum.WeaponSlot.Ranged)
+                and C_PaperDollInfo
+                and C_PaperDollInfo.GetTemporaryEnchantmentInfo
+            then
+                local info = UI:SafeCall(
+                    C_PaperDollInfo.GetTemporaryEnchantmentInfo,
+                    source.inventory
+                )
+                if IsReadableTable(info) then
+                    nativeHasEnchant = true
+                    if IsReadableNumber(info.enchantID) then
+                        nativeEnchantID = info.enchantID
+                    end
+                end
+            end
+
+            local list = UI:SafeCall(
+                C_Item.GetWeaponEnchantInfo, source.weapon
+            )
+            if IsReadableTable(list) then
+                for _, enchant in ipairs(list) do
+                    if IsReadableTable(enchant)
+                        and IsReadable(enchant.hasEnchant)
+                        and enchant.hasEnchant == true
+                        and IsReadableNumber(enchant.enchantType)
+                        and enchant.enchantType ~= permanent
+                        and IsReadableNumber(enchant.enchantID)
+                        and IsReadableNumber(enchant.timeLeft)
+                        and enchant.timeLeft > 0
+                        -- The native bar is responsible for its own enchant.
+                        and enchant.enchantID ~= nativeEnchantID
+                        and (not nativeHasEnchant
+                            or enchant.enchantType == imbueType)
+                    then
+                        local icon = IsReadableNumber(enchant.enchantIconID)
+                            and enchant.enchantIconID or nil
+                        local charges = IsReadableNumber(enchant.charges)
+                            and enchant.charges or 0
+                        entries[#entries + 1] = {
+                            id = enchant.enchantID,
+                            inventorySlot = source.inventory,
+                            slotName = source.name,
+                            icon = icon,
+                            charges = charges,
+                            remaining = enchant.timeLeft / 1000,
+                        }
+                    end
+                end
+            end
+        end
+    end
+
+    return entries
+end
+
+local function FormatEnchantTime(seconds)
+    if seconds >= 3600 then
+        return string.format("%dh %dm", math.floor(seconds / 3600),
+            math.floor(seconds % 3600 / 60))
+    elseif seconds >= 60 then
+        return string.format("%dm %ds", math.floor(seconds / 60),
+            math.floor(seconds % 60))
+    end
+    return string.format("%ds", math.ceil(seconds))
+end
+
+local function GetEnchantName(entry)
+    if C_Item and C_Item.GetEnchantInfo then
+        local info = UI:SafeCall(C_Item.GetEnchantInfo, entry.id)
+        if IsReadableTable(info) and IsReadable(info.name)
+            and type(info.name) == "string" and info.name ~= ""
+        then
+            return info.name
+        end
+    end
+    -- The equipped weapon's tooltip contains the precise imbue name if
+    -- the client does not expose an enchant-ID -> name lookup.
+    return entry.slotName .. " Imbue"
+end
+
+local function CreateWeaponEnchantBar()
+    local button = CreateFrame("Button", nil, UIParent)
+    button:SetSize(Layout.WIDTH, Layout.HEIGHT)
+    button:EnableMouse(true)
+
+    local icon = button:CreateTexture(nil, "ARTWORK")
+    icon:SetSize(Layout.ICON_SIZE, Layout.ICON_SIZE)
+    icon:SetPoint("LEFT")
+    icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    button.icon = icon
+
+    local background = button:CreateTexture(nil, "BACKGROUND")
+    background:SetPoint("TOPLEFT", icon, "TOPRIGHT")
+    background:SetPoint("BOTTOMRIGHT")
+    background:SetColorTexture(
+        Palette.auras.background[1],
+        Palette.auras.background[2],
+        Palette.auras.background[3],
+        Styles.State.aurasBackgroundAlpha
+    )
+
+    local barContainer = CreateFrame("Frame", nil, button)
+    barContainer:SetPoint("TOPLEFT", icon, "TOPRIGHT")
+    barContainer:SetPoint("BOTTOMRIGHT")
+    barContainer:SetAlpha(Styles.State.aurasBarAlpha)
+
+    local bar = CreateFrame("StatusBar", nil, barContainer)
+    bar:SetAllPoints()
+    bar:SetStatusBarTexture("Interface\\Buttons\\WHITE8X8")
+    local color = Palette.auras.weaponEnchant
+    bar:SetStatusBarColor(color[1], color[2], color[3], 1)
+    button.bar = bar
+
+    local overlay = CreateFrame("Frame", nil, button)
+    overlay:SetAllPoints()
+    overlay:SetFrameLevel(bar:GetFrameLevel() + 10)
+    overlay:EnableMouse(false)
+
+    local fontPath, _, fontFlags = GameFontNormalSmall:GetFont()
+    local name = overlay:CreateFontString(nil, "OVERLAY")
+    name:SetFont(fontPath, Styles.FontSize.Auras, fontFlags)
+    name:SetPoint("LEFT", bar, "LEFT", 4, 0)
+    name:SetPoint("RIGHT", bar, "RIGHT", -55, 0)
+    name:SetJustifyH("LEFT")
+    name:SetWordWrap(false)
+    name:SetTextColor(1, 1, 1)
+    name:SetShadowColor(0, 0, 0, 1)
+    name:SetShadowOffset(1, -1)
+    button.nameText = name
+
+    local timeText = overlay:CreateFontString(nil, "OVERLAY")
+    timeText:SetFont(fontPath, Styles.FontSize.Auras, fontFlags)
+    timeText:SetPoint("RIGHT", bar, "RIGHT", -4, 0)
+    timeText:SetTextColor(1, 1, 1)
+    timeText:SetShadowColor(0, 0, 0, 1)
+    timeText:SetShadowOffset(1, -1)
+    button.timeText = timeText
+
+    local countText = overlay:CreateFontString(nil, "OVERLAY")
+    countText:SetFont(fontPath, Styles.FontSize.Auras, "OUTLINE")
+    countText:SetPoint("BOTTOMRIGHT", icon, "BOTTOMRIGHT", -2, 2)
+    countText:SetTextColor(1, 1, 1)
+    button.countText = countText
+
+    Styles:CreateBorder(overlay, {
+        color = { 0, 0, 0, 1 },
+        top = false,
+        left = false,
+        right = false,
+    })
+
+    button:SetScript("OnEnter", function(self)
+        if not self.inventorySlot then return end
+        -- Anchoring the tooltip to a restricted aura layout can taint it.
+        GameTooltip:SetOwner(UIParent, "ANCHOR_CURSOR")
+        GameTooltip:SetInventoryItem("player", self.inventorySlot)
+        GameTooltip:Show()
+    end)
+    button:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
+
+    button:SetScript("OnUpdate", function(self)
+        if not self.expiration or not self.duration then return end
+        local remaining = math.max(0, self.expiration - GetTime())
+        self.bar:SetValue(remaining)
+        self.timeText:SetText(FormatEnchantTime(remaining))
+    end)
+
+    button:Hide()
+    return button
+end
+
+local function UpdatePosition()
+    if not container then return end
+    local height = weaponEnchantCount > 0
+        and weaponEnchantCount * Layout.HEIGHT + Layout.GROUP_GAP
+        or 0
+    if InCombatLockdown and InCombatLockdown() then
+        pendingEnchantLayout = true
+        return
+    end
+
+    pendingEnchantLayout = false
+    container:ClearAllPoints()
+    container:SetPoint(
+        "BOTTOMRIGHT", UIParent, "BOTTOMRIGHT",
+        Layout.X, Layout.Y + UI:GetBottomInset() + height
+    )
+end
+
+local function RefreshWeaponEnchants()
+    if not container then return end
+    local entries = ReadWeaponEnchantList()
+    local now = GetTime()
+    local seen = {}
+
+    for index, entry in ipairs(entries) do
+        local button = weaponEnchantBars[index]
+        if not button then
+            button = CreateWeaponEnchantBar()
+            weaponEnchantBars[index] = button
+        end
+
+        local key = tostring(entry.inventorySlot) .. ":" .. entry.id
+        local expiration = now + entry.remaining
+        local timer = weaponEnchantTimers[key]
+        if not timer or expiration > timer.expiration + 1 then
+            timer = { duration = entry.remaining }
+            weaponEnchantTimers[key] = timer
+        end
+        timer.expiration = expiration
+        seen[key] = true
+
+        button.inventorySlot = entry.inventorySlot
+        button.expiration = expiration
+        button.duration = timer.duration
+        button.icon:SetTexture(entry.icon
+            or (GetInventoryItemTexture
+                and GetInventoryItemTexture("player", entry.inventorySlot)))
+        button.nameText:SetText(GetEnchantName(entry))
+        button.countText:SetText(entry.charges > 1
+            and tostring(entry.charges) or "")
+        button.bar:SetMinMaxValues(0, math.max(1, timer.duration))
+        button.bar:SetValue(entry.remaining)
+        button:ClearAllPoints()
+        button:SetPoint("BOTTOMRIGHT", UIParent, "BOTTOMRIGHT",
+            Layout.X, Layout.Y + UI:GetBottomInset()
+                + (index - 1) * Layout.HEIGHT)
+        button:Show()
+    end
+
+    for key in pairs(weaponEnchantTimers) do
+        if not seen[key] then
+            weaponEnchantTimers[key] = nil
+        end
+    end
+    for index = #entries + 1, #weaponEnchantBars do
+        local button = weaponEnchantBars[index]
+        button.inventorySlot = nil
+        button.expiration = nil
+        button:Hide()
+    end
+
+    if weaponEnchantCount ~= #entries then
+        weaponEnchantCount = #entries
+        UpdatePosition()
+    end
+end
 
 local function HideBlizzardAuras()
     UI:KeepFrameHidden(BuffFrame)
@@ -191,7 +492,7 @@ local function CreateAuraContainer()
             if slot ~= nil then
                 auraContainer:AddItemEnchantment(slot, {
                     initializeFrame = InitializeWeaponEnchant,
-                    hidePermanent = true,
+                    hidePermanent = false,
                 })
             end
         end
@@ -235,31 +536,38 @@ local function CreateAuraContainer()
     return auraContainer
 end
 
-local function UpdatePosition()
-    if not container then
-        return
-    end
-
-    container:ClearAllPoints()
-    container:SetPoint(
-        "BOTTOMRIGHT",
-        UIParent,
-        "BOTTOMRIGHT",
-        Layout.X,
-        Layout.Y + UI:GetBottomInset()
-    )
-end
-
 function Module:Initialize()
     HideBlizzardAuras()
     container = CreateAuraContainer()
+    RefreshWeaponEnchants()
 
     UI:RegisterEvent("PLAYER_ENTERING_WORLD", function()
         HideBlizzardAuras()
+        RefreshWeaponEnchants()
         UpdatePosition()
     end)
 
-    UI:RegisterBottomInsetCallback(UpdatePosition)
+    UI:RegisterEvent("WEAPON_ENCHANT_CHANGED", RefreshWeaponEnchants)
+    UI:RegisterEvent("WEAPON_SLOT_CHANGED", RefreshWeaponEnchants)
+    UI:RegisterEvent("UNIT_INVENTORY_CHANGED", function(_, unit)
+        if unit == "player" then RefreshWeaponEnchants() end
+    end)
+    UI:RegisterEvent("PLAYER_REGEN_ENABLED", function()
+        RefreshWeaponEnchants()
+        if pendingEnchantLayout then UpdatePosition() end
+    end)
+
+    UI:RegisterBottomInsetCallback(function()
+        UpdatePosition()
+        for index, button in ipairs(weaponEnchantBars) do
+            if button:IsShown() then
+                button:ClearAllPoints()
+                button:SetPoint("BOTTOMRIGHT", UIParent, "BOTTOMRIGHT",
+                    Layout.X, Layout.Y + UI:GetBottomInset()
+                        + (index - 1) * Layout.HEIGHT)
+            end
+        end
+    end)
 
     UI:RegisterEvent("ADDON_LOADED", function(_, addonName)
         if addonName == "Blizzard_BuffFrame" then
