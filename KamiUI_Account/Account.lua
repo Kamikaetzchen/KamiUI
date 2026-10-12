@@ -143,7 +143,12 @@ local function BuildItems()
                 item.icon = GetItemIcon(id)
             end
         end
-        item.name = item.name or tostring(id)
+        -- GetItemInfo is not guaranteed to have cached every alt's item
+        -- yet. Saved hyperlinks still contain the display name, which must
+        -- remain searchable while the item cache populates.
+        local linkName = type(item.link) == "string"
+            and string.match(item.link, "|h%[([^%]]+)%]|h")
+        item.name = item.name or linkName or tostring(id)
         result[#result + 1] = item
     end
 
