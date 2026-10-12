@@ -193,34 +193,105 @@ local function SetClassColor(text, classFile)
     end
 end
 
+local CHARACTER_COLUMNS = {
+    { key = "name", label = "Character", x = 3, width = 174 },
+    { key = "class", label = "Class", x = 180, width = 91 },
+    { key = "level", label = "Level", x = 274, width = 53 },
+    { key = "xp", label = "XP", x = 332, width = 54 },
+    { key = "gold", label = "Gold", x = 389, width = 116 },
+}
+
+local function GetXPPercent(profile)
+    local xp = tonumber(profile.xp)
+    local xpMax = tonumber(profile.xpMax)
+    if not xp or not xpMax or xpMax <= 0 then
+        return nil
+    end
+    return math.max(0, math.min(100, xp / xpMax * 100))
+end
+
+local function SortCharacterEntries(entries, pane)
+    local key = pane.sortKey or "level"
+    local ascending = pane.sortAscending == true
+    local currentKey = UI:GetCurrentCharacterKey()
+
+    table.sort(entries, function(left, right)
+        local a = left.character or {}
+        local b = right.character or {}
+        local av, bv
+
+        if key == "name" then
+            av = string.lower(a.name or select(2, UI:ParseCharacterKey(left.key)))
+            bv = string.lower(b.name or select(2, UI:ParseCharacterKey(right.key)))
+        elseif key == "class" then
+            av = string.lower(a.className or a.classFile or "")
+            bv = string.lower(b.className or b.classFile or "")
+        elseif key == "xp" then
+            av = GetXPPercent(a) or -1
+            bv = GetXPPercent(b) or -1
+        elseif key == "gold" then
+            av = tonumber(a.money) or 0
+            bv = tonumber(b.money) or 0
+        else
+            av = tonumber(a.level) or 0
+            bv = tonumber(b.level) or 0
+        end
+
+        if av ~= bv then
+            if ascending then return av < bv end
+            return av > bv
+        end
+
+        -- Deterministic ordering for equal values.
+        if left.key == currentKey then return true end
+        if right.key == currentKey then return false end
+        return left.key < right.key
+    end)
+end
+
 local function RenderCharacters()
     local frame = Module.frame
     if not frame then return end
+
     local pane = frame.charactersPane
     local entries = GetCharacterEntries()
+    SortCharacterEntries(entries, pane)
+
     local maxOffset = math.max(0, #entries - CHARACTER_ROWS)
     pane.offset = math.min(maxOffset, math.max(0, pane.offset or 0))
     pane.count:SetText(#entries .. " characters")
+
+    for _, heading in ipairs(pane.headings) do
+        local active = heading.sortKey == pane.sortKey
+        local arrow = active and (pane.sortAscending and " ^" or " v") or ""
+        heading:SetText(heading.label .. arrow)
+    end
 
     for index, row in ipairs(pane.rows) do
         local entry = entries[pane.offset + index]
         if entry then
             local profile = entry.character or {}
             row.entryKey = entry.key
-            row.name:SetText(profile.name or select(2, UI:ParseCharacterKey(entry.key)))
-            SetClassColor(row.name, profile.classFile)
-            local level = tonumber(profile.level) or 0
-            local className = profile.className
-                or (profile.classFile and string.lower(profile.classFile))
-                or "Character"
-            row.description:SetText(
-                "Level " .. level .. " " .. className
-                .. (profile.realm and profile.realm ~= ""
-                    and "  |  " .. profile.realm or "")
+            row.name:SetText(
+                profile.name or select(2, UI:ParseCharacterKey(entry.key))
             )
-            row.money:SetText(UI:FormatMoney(profile.money or 0, {
-                iconSize = 12,
-            }))
+            SetClassColor(row.name, profile.classFile)
+            row.class:SetText(
+                profile.className or profile.classFile or "-"
+            )
+            SetClassColor(row.class, profile.classFile)
+
+            local level = tonumber(profile.level)
+            row.level:SetText(
+                level and level > 0 and tostring(level) or "-"
+            )
+            local xpPercent = GetXPPercent(profile)
+            row.xp:SetText(
+                xpPercent and string.format("%.0f%%", xpPercent) or "-"
+            )
+            row.money:SetText(
+                UI:FormatMoney(profile.money or 0, { iconSize = 12 })
+            )
             row:Show()
         else
             row.entryKey = nil
@@ -331,34 +402,82 @@ local function CreateCharactersPane(frame)
     pane:SetPoint("TOPLEFT", frame, "TOPLEFT", 14, -47)
     pane:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -14, 35)
     pane.rows = {}
+    pane.headings = {}
     pane.offset = 0
+    pane.sortKey = "level"
+    pane.sortAscending = false
     frame.charactersPane = pane
 
-    local heading = CreateLabel(pane, 12)
-    heading:SetPoint("TOPLEFT", pane, "TOPLEFT", 3, -8)
-    heading:SetText("Characters")
-
     local count = CreateLabel(pane, 10, Palette.muted)
-    count:SetPoint("TOPRIGHT", pane, "TOPRIGHT", -3, -9)
+    count:SetPoint("TOPRIGHT", pane, "TOPRIGHT", -3, -1)
     pane.count = count
+
+    -- A proper sortable table: click a column to sort ascending or
+    -- descending. No row data is duplicated; only the view order changes.
+    for _, column in ipairs(CHARACTER_COLUMNS) do
+        local heading = CreateFrame("Button", nil, pane)
+        heading:SetSize(column.width, 23)
+        heading:SetPoint("TOPLEFT", pane, "TOPLEFT", column.x, -15)
+        heading.label = column.label
+        heading.sortKey = column.key
+        heading:SetNormalFontObject("GameFontNormalSmall")
+        heading:SetHighlightFontObject("GameFontHighlightSmall")
+        heading:GetFontString():SetJustifyH(
+            column.key == "gold" and "RIGHT" or "LEFT"
+        )
+
+        local h = heading:CreateTexture(nil, "HIGHLIGHT")
+        h:SetAllPoints()
+        h:SetColorTexture(1, 1, 1, 0.08)
+        heading:SetScript("OnClick", function(self)
+            if pane.sortKey == self.sortKey then
+                pane.sortAscending = not pane.sortAscending
+            else
+                pane.sortKey = self.sortKey
+                pane.sortAscending = self.sortKey == "name"
+                    or self.sortKey == "class"
+            end
+            pane.offset = 0
+            RenderCharacters()
+        end)
+        pane.headings[#pane.headings + 1] = heading
+    end
+
+    local separator = pane:CreateTexture(nil, "ARTWORK")
+    separator:SetColorTexture(0.35, 0.35, 0.35, 0.6)
+    separator:SetPoint("TOPLEFT", pane, "TOPLEFT", 0, -40)
+    separator:SetPoint("TOPRIGHT", pane, "TOPRIGHT", 0, -40)
+    separator:SetHeight(1)
 
     for i = 1, CHARACTER_ROWS do
         local row = CreateFrame("Button", nil, pane)
-        row:SetPoint("TOPLEFT", pane, "TOPLEFT", 0, -30 - (i - 1) * ROW_HEIGHT)
-        row:SetPoint("TOPRIGHT", pane, "TOPRIGHT", 0, -30 - (i - 1) * ROW_HEIGHT)
+        row:SetPoint("TOPLEFT", pane, "TOPLEFT",
+            0, -43 - (i - 1) * ROW_HEIGHT)
+        row:SetPoint("TOPRIGHT", pane, "TOPRIGHT",
+            0, -43 - (i - 1) * ROW_HEIGHT)
         row:SetHeight(ROW_HEIGHT - 1)
 
-        local name = CreateLabel(row, 12)
-        name:SetPoint("TOPLEFT", row, "TOPLEFT", 8, -4)
-        row.name = name
+        row.name = CreateLabel(row, 11)
+        row.class = CreateLabel(row, 10)
+        row.level = CreateLabel(row, 10)
+        row.xp = CreateLabel(row, 10)
+        row.money = CreateLabel(row, 10)
 
-        local description = CreateLabel(row, 9, Palette.muted)
-        description:SetPoint("TOPLEFT", name, "BOTTOMLEFT", 0, -2)
-        row.description = description
-
-        local money = CreateLabel(row, 11)
-        money:SetPoint("RIGHT", row, "RIGHT", -8, 0)
-        row.money = money
+        for _, column in ipairs(CHARACTER_COLUMNS) do
+            local field = column.key == "gold"
+                and row.money or row[column.key]
+            field:SetPoint(
+                column.key == "gold" and "RIGHT" or "LEFT",
+                row, "LEFT",
+                column.x + (column.key == "gold" and column.width or 0),
+                0
+            )
+            field:SetWidth(column.width - 4)
+            field:SetJustifyH(
+                column.key == "gold" and "RIGHT" or "LEFT"
+            )
+            field:SetMaxLines(1)
+        end
 
         local highlight = row:CreateTexture(nil, "HIGHLIGHT")
         highlight:SetAllPoints(row)
