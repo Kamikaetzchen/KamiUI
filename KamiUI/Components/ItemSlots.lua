@@ -874,6 +874,23 @@ local function SearchFieldMatches(value, needle)
         and string.find(string.lower(value), needle, 1, true) ~= nil
 end
 
+-- Keep category matching intuitive: a short query such as "ma" must
+-- not match the middle of "Consumable". Match the start of a category word
+-- instead (e.g. "mai" for Mail, "her" for Herb, "stone" in Metal & Stone).
+local function SearchCategoryMatches(value, needle)
+    if not UI:CanAccessValue(value) or type(value) ~= "string" then
+        return false
+    end
+
+    for word in string.gmatch(string.lower(value), "[^%s%p]+") do
+        if string.sub(word, 1, #needle) == needle then
+            return true
+        end
+    end
+
+    return false
+end
+
 function Components:ItemMatchesSearch(itemName, itemLink, search)
     if type(search) ~= "string" or search == "" then
         return true
@@ -894,8 +911,8 @@ function Components:ItemMatchesSearch(itemName, itemLink, search)
             pcall(GetItemInfo, item)
         if ok and (
             SearchFieldMatches(name, needle)
-            or SearchFieldMatches(itemType, needle)
-            or SearchFieldMatches(itemSubType, needle)
+            or SearchCategoryMatches(itemType, needle)
+            or SearchCategoryMatches(itemSubType, needle)
         ) then
             return true
         end
@@ -907,8 +924,8 @@ function Components:ItemMatchesSearch(itemName, itemLink, search)
         local ok, _, itemType, itemSubType =
             pcall(getInstant, item)
         if ok and (
-            SearchFieldMatches(itemType, needle)
-            or SearchFieldMatches(itemSubType, needle)
+            SearchCategoryMatches(itemType, needle)
+            or SearchCategoryMatches(itemSubType, needle)
         ) then
             return true
         end
