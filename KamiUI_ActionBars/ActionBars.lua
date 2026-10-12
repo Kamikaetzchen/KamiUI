@@ -11,6 +11,7 @@ Module.bars = {}
 Module.layoutPending = false
 Module.bindingsPending = false
 Module.blizzardHiddenFrames = setmetatable({}, { __mode = "k" })
+local _, playerClass = UnitClass("player")
 
 local cooldownFont = CreateFont("KamiUIActionBarCooldownFont")
 local cooldownFontSmall = CreateFont("KamiUIActionBarCooldownFontSmall")
@@ -771,6 +772,106 @@ local function LayoutPetBar()
     end
 end
 
+-- Forever ships the Wrath-style MultiCast bar. Reuse its native buttons,
+-- pages, flyouts and secure casting rather than recreating totem actions.
+-- Blizzard's default parent (MainMenuBar) is hidden by KamiUI, so the
+-- native bar must be detached before it can appear.
+local function CreateTotemBar()
+    if playerClass ~= "SHAMAN" or Module.totemBar then return end
+    local native = MultiCastActionBarFrame
+    if not native or not MultiCastSummonSpellButton
+        or not MultiCastRecallSpellButton then
+        return
+    end
+
+    native:SetParent(UIParent)
+    -- The legacy slide script continuously restores the MainMenuBar anchor.
+    -- Leave its event handlers and native secure click scripts intact.
+    native:SetScript("OnUpdate", nil)
+    Module.totemBar = native
+
+    local function StyleNative(button)
+        if not button or button.KamiTotemStyled then return end
+        button.KamiTotemStyled = true
+        StyleButton(button, Layout.SECONDARY_BUTTON_SIZE)
+        HideTexture(button.overlayTex)
+        HideTexture(button.Overlay)
+    end
+
+    StyleNative(MultiCastSummonSpellButton)
+    StyleNative(MultiCastRecallSpellButton)
+    for index = 1, 12 do
+        StyleNative(_G["MultiCastActionButton" .. index])
+    end
+    for index = 1, 4 do
+        local slot = _G["MultiCastSlotButton" .. index]
+        if slot and not slot.KamiTotemStyled then
+            slot.KamiTotemStyled = true
+            slot:SetSize(Layout.SECONDARY_BUTTON_SIZE,
+                Layout.SECONDARY_BUTTON_SIZE)
+            CreateButtonChrome(slot)
+            HideTexture(slot.overlay)
+            -- The slot's native background is visible when no totem is
+            -- selected. Keep that indicator and Blizzard's flyout handling.
+        end
+    end
+end
+
+local function LayoutTotemBar()
+    local native = Module.totemBar
+    local bar4 = Module.bars[4]
+    if not native or not bar4 then return end
+    local size = Layout.SECONDARY_BUTTON_SIZE
+
+    native:ClearAllPoints()
+    native:SetSize(size * 6, size)
+    native:SetPoint("BOTTOMLEFT", bar4.buttons[1], "TOPLEFT", 0, 0)
+
+    MultiCastSummonSpellButton:ClearAllPoints()
+    MultiCastSummonSpellButton:SetPoint("BOTTOMLEFT",
+        native, "BOTTOMLEFT", 0, 0)
+
+    for index = 1, 4 do
+        local slot = _G["MultiCastSlotButton" .. index]
+        if slot then
+            slot:ClearAllPoints()
+            slot:SetPoint("BOTTOMLEFT", native, "BOTTOMLEFT",
+                size * index, 0)
+        end
+    end
+
+    for page = 1, 3 do
+        local pageFrame = _G["MultiCastActionPage" .. page]
+        if pageFrame then
+            pageFrame:ClearAllPoints()
+            pageFrame:SetSize(size * 4, size)
+            pageFrame:SetPoint("BOTTOMLEFT", native, "BOTTOMLEFT",
+                size, 0)
+        end
+        for slot = 1, 4 do
+            local button = _G["MultiCastActionButton" ..
+                ((page - 1) * 4 + slot)]
+            if button and pageFrame then
+                button:ClearAllPoints()
+                button:SetPoint("BOTTOMLEFT", pageFrame,
+                    "BOTTOMLEFT", (slot - 1) * size, 0)
+            end
+        end
+    end
+
+    MultiCastRecallSpellButton:ClearAllPoints()
+    MultiCastRecallSpellButton:SetPoint("BOTTOMLEFT",
+        native, "BOTTOMLEFT", size * 5, 0)
+end
+
+local function TotemBarAvailable()
+    if not Module.totemBar then return false end
+    if HasMultiCastActionBar then
+        return HasMultiCastActionBar() and true or false
+    end
+    return (Module.totemBar.numActiveSlots or 0) > 0
+end
+
 local function CreateStanceBar()
     if Module.stanceBar or not StanceButtonMixin then
         return
@@ -872,12 +973,19 @@ local function UpdateStanceBar()
         end
     end
 
+    local totems = count == 0 and playerClass == "SHAMAN"
+        and TotemBarAvailable()
     frame:SetShown(count > 0)
 
     local bar6 = Module.bars[6]
     if bar6 then
-        bar6.frame:SetShown(count == 0)
+        bar6.frame:SetShown(count == 0 and not totems)
     end
+    if Module.totemBar then
+        Module.totemBar:SetShown(totems)
+    end
+    Module.secondaryMode = count > 0 and "stance"
+        or totems and "totem" or "bar6"
 end
 
 local function LayoutBars()
@@ -892,6 +1000,7 @@ local function LayoutBars()
     end
 
     LayoutPetBar()
+    LayoutTotemBar()
     UpdateStanceBar()
 end
 
@@ -960,6 +1069,53 @@ local function HideBlizzardBars()
     HideBlizzardFrame(BagsBar, true)
 end
 
+-- These F-keys belong to whichever bar currently occupies the shared
+-- secondary position. A single owner avoids conflicts between hidden bars.
+-- Priority is intentional: F1 normally targets the player in WoW.
+local function BindFunctionKeys()
+    local owner = Module.functionKeyOwner
+    if not owner then return end
+    ClearOverrideBindings(owner)
+
+    local mode = Module.secondaryMode
+    if mode == "totem" then
+        local native = Module.totemBar
+        local page = native and native.currentPage or 1
+        if type(page) ~= "number" then page = 1 end
+        local names = {
+            "MultiCastSummonSpellButton",
+            "MultiCastActionButton" .. ((page - 1) * 4 + 1),
+            "MultiCastActionButton" .. ((page - 1) * 4 + 2),
+            "MultiCastActionButton" .. ((page - 1) * 4 + 3),
+            "MultiCastActionButton" .. ((page - 1) * 4 + 4),
+            "MultiCastRecallSpellButton",
+        }
+        for index, name in ipairs(names) do
+            if _G[name] then
+                SetOverrideBindingClick(owner, true, "F" .. index,
+                    name, "LeftButton")
+            end
+        end
+    else
+        local buttons = mode == "stance"
+            and Module.stanceBar and Module.stanceBar.buttons
+            or Module.bars[6] and Module.bars[6].buttons
+        local count = mode == "stance"
+            and (GetNumShapeshiftForms and GetNumShapeshiftForms() or 0)
+            or 8
+        if buttons then
+            for index = 1, math.min(8, count) do
+                local button = buttons[index]
+                if button then
+                    SetOverrideBindingClick(owner, true, "F" .. index,
+                        button:GetName(),
+                        mode == "stance" and "LeftButton" or "Keybind")
+                end
+            end
+        end
+    end
+end
+
 local function BindFrameButtons(owner, buttons, bindingPattern, clickButton)
     ClearOverrideBindings(owner)
 
@@ -1020,6 +1176,8 @@ function Module:ReassignBindings()
             "LeftButton"
         )
     end
+
+    BindFunctionKeys()
 end
 
 local function CreateBars()
@@ -1031,6 +1189,11 @@ local function CreateBars()
 
     CreatePetBar()
     CreateStanceBar()
+    CreateTotemBar()
+    if not Module.functionKeyOwner then
+        Module.functionKeyOwner = CreateFrame(
+            "Frame", "KamiUISecondaryFunctionKeys", UIParent)
+    end
 end
 
 function Module:Apply()
@@ -1090,6 +1253,30 @@ function Module:Initialize()
         UpdateStanceBar()
         Module:ReassignBindings()
     end)
+
+    -- A learned Call spell unlocks the native bar; a changed totem set
+    -- swaps the four page buttons. Relayout/rebind only out of combat.
+    local function QueueTotemRefresh()
+        if playerClass ~= "SHAMAN" then return end
+        if Module.totemRefreshQueued then return end
+        Module.totemRefreshQueued = true
+        C_Timer.After(0, function()
+            Module.totemRefreshQueued = false
+            if InCombatLockdown and InCombatLockdown() then
+                Module.layoutPending = true
+            else
+                Module:Apply()
+            end
+        end)
+    end
+
+    if playerClass == "SHAMAN" then
+        UI:RegisterEvent("UPDATE_MULTI_CAST_ACTIONBAR", QueueTotemRefresh)
+        UI:RegisterEvent("SPELLS_CHANGED", QueueTotemRefresh)
+        if ChangeMultiCastActionPage then
+            hooksecurefunc("ChangeMultiCastActionPage", QueueTotemRefresh)
+        end
+    end
 
     UI:RegisterEvent("UPDATE_SHAPESHIFT_FORM", function()
         UpdateStanceState()
