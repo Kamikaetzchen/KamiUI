@@ -399,6 +399,9 @@ local function CreateItemsPane(frame)
     search:SetSize(370, 23)
     search:SetAutoFocus(false)
     search:SetTextInsets(7, 7, 0, 0)
+    if search.SetPropagateKeyboardInput then
+        search:SetPropagateKeyboardInput(false)
+    end
     Components:StyleInput(search)
     pane.search = search
 
