@@ -210,8 +210,12 @@ local function SaveCurrentBank()
             if tab.index and tab.index > 1 then
                 local info = UI:GetContainerItemInfo(bankBagSlots, tab.index)
                 if info and info.itemID then
-                    local name, _, quality = GetItemInfo
-                        and GetItemInfo(info.hyperlink or info.itemID)
+                    local name, quality
+                    if GetItemInfo then
+                        name, _, quality = GetItemInfo(
+                            info.hyperlink or info.itemID
+                        )
+                    end
                     character.bank.equippedBags[#character.bank.equippedBags + 1] = {
                         itemID = info.itemID,
                         link = info.hyperlink,
