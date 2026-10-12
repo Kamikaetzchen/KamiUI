@@ -2941,6 +2941,23 @@ function Module:CloseFrame()
     end
 end
 
+-- ProfessionsFrame contains protected Blizzard frames. Touching its
+-- UIPanel attributes or recursively disabling its mouse input from an addon
+-- (especially during Blizzard_Professions' ADDON_LOADED) causes
+-- ADDON_ACTION_BLOCKED. Leave the native backend/panel management intact and
+-- only suppress its visuals. Our custom window uses HIGH strata.
+local function SuppressNativeProfessionVisuals(frame)
+    if InCombatLockdown and InCombatLockdown() then
+        Module.pendingNativeVisualSuppression = true
+        return
+    end
+
+    UI:SuppressFrame(frame, {
+        disableInput = false,
+    })
+    Module.pendingNativeVisualSuppression = nil
+end
+
 function Module:SuppressNativeFrame()
     local frame = _G.ProfessionsFrame
 
@@ -2948,19 +2965,13 @@ function Module:SuppressNativeFrame()
         return
     end
 
-    UI:DetachUIPanel(frame)
-    UI:SuppressFrame(frame, {
-        children = true,
-    })
+    SuppressNativeProfessionVisuals(frame)
 
     if not frame.KamiProfessionSuppressed then
         frame.KamiProfessionSuppressed = true
 
         frame:HookScript("OnShow", function(self)
-            UI:DetachUIPanel(self)
-            UI:SuppressFrame(self, {
-                children = true,
-            })
+            SuppressNativeProfessionVisuals(self)
             Module:ShowFrame()
         end)
 
@@ -3018,6 +3029,9 @@ function Module:InitializeFrame()
     end)
 
     UI:RegisterEvent("PLAYER_REGEN_ENABLED", function()
+        if Module.pendingNativeVisualSuppression then
+            Module:SuppressNativeFrame()
+        end
         if Module.frame and Module.frame:IsShown() then
             Module:RefreshFrame()
         end
