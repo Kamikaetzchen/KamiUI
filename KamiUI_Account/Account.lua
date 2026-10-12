@@ -381,7 +381,7 @@ local function CreateCharactersPane(frame)
         RenderCharacters()
     end)
 
-    local pageLabel = CreateLabel(frame, 10, Palette.muted)
+    local pageLabel = CreateLabel(pane, 10, Palette.muted)
     pageLabel:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -16, 13)
     pane.pageLabel = pageLabel
     return pane
@@ -445,7 +445,7 @@ local function CreateItemsPane(frame)
         RenderItems()
     end)
 
-    local pageLabel = CreateLabel(frame, 10, Palette.muted)
+    local pageLabel = CreateLabel(pane, 10, Palette.muted)
     pageLabel:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -16, 13)
     pane.pageLabel = pageLabel
     return pane
