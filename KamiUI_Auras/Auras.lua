@@ -125,17 +125,57 @@ local function FormatEnchantTime(seconds)
     return string.format("%ds", math.ceil(seconds))
 end
 
+local weaponEnchantNames = {}
+
 local function GetEnchantName(entry)
+    if weaponEnchantNames[entry.id] then
+        return weaponEnchantNames[entry.id]
+    end
+
     if C_Item and C_Item.GetEnchantInfo then
         local info = UI:SafeCall(C_Item.GetEnchantInfo, entry.id)
         if IsReadableTable(info) and IsReadable(info.name)
             and type(info.name) == "string" and info.name ~= ""
         then
+            weaponEnchantNames[entry.id] = info.name
             return info.name
         end
     end
-    -- The equipped weapon's tooltip contains the precise imbue name if
-    -- the client does not expose an enchant-ID -> name lookup.
+
+    -- The weapon tooltip normally contains a green line such as
+    -- "Rockbiter 3 (28 min)". Only inspect readable tooltip text outside
+    -- combat, and never rely on this optional name for enchant tracking.
+    if not (InCombatLockdown and InCombatLockdown())
+        and C_TooltipInfo and C_TooltipInfo.GetInventoryItem
+    then
+        local tooltip = UI:SafeCall(
+            C_TooltipInfo.GetInventoryItem, "player", entry.inventorySlot
+        )
+        if IsReadableTable(tooltip) and IsReadableTable(tooltip.lines) then
+            for _, line in ipairs(tooltip.lines) do
+                if IsReadableTable(line) and IsReadable(line.leftText)
+                    and type(line.leftText) == "string"
+                    and IsReadableTable(line.leftColor)
+                then
+                    local color = line.leftColor
+                    local r, g, b = color.r, color.g, color.b
+                    if IsReadableNumber(r) and IsReadableNumber(g)
+                        and IsReadableNumber(b)
+                        and r < 0.45 and g > 0.65 and b < 0.45
+                    then
+                        local name = string.match(
+                            line.leftText, "^%s*(.-)%s*%(%d+[^%)]*%)%s*$"
+                        )
+                        if name and name ~= "" then
+                            weaponEnchantNames[entry.id] = name
+                            return name
+                        end
+                    end
+                end
+            end
+        end
+    end
+
     return entry.slotName .. " Imbue"
 end
 
