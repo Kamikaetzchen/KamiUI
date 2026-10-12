@@ -874,21 +874,14 @@ local function SearchFieldMatches(value, needle)
         and string.find(string.lower(value), needle, 1, true) ~= nil
 end
 
--- Keep category matching intuitive: a short query such as "ma" must
--- not match the middle of "Consumable". Match the start of a category word
--- instead (e.g. "mai" for Mail, "her" for Herb, "stone" in Metal & Stone).
-local function SearchCategoryMatches(value, needle)
-    if not UI:CanAccessValue(value) or type(value) ~= "string" then
-        return false
+-- Cached item info can be absent even when an inventory snapshot still
+-- contains the full hyperlink with the displayed item name.
+local function GetItemLinkName(link)
+    if type(link) ~= "string" or not UI:CanAccessValue(link) then
+        return nil
     end
 
-    for word in string.gmatch(string.lower(value), "[^%s%p]+") do
-        if string.sub(word, 1, #needle) == needle then
-            return true
-        end
-    end
-
-    return false
+    return string.match(link, "|h%[([^%]]+)%]|h")
 end
 
 function Components:ItemMatchesSearch(itemName, itemLink, search)
@@ -897,7 +890,9 @@ function Components:ItemMatchesSearch(itemName, itemLink, search)
     end
 
     local needle = string.lower(search)
-    if SearchFieldMatches(itemName, needle) then
+    if SearchFieldMatches(itemName, needle)
+        or SearchFieldMatches(GetItemLinkName(itemLink), needle)
+    then
         return true
     end
 
@@ -911,8 +906,8 @@ function Components:ItemMatchesSearch(itemName, itemLink, search)
             pcall(GetItemInfo, item)
         if ok and (
             SearchFieldMatches(name, needle)
-            or SearchCategoryMatches(itemType, needle)
-            or SearchCategoryMatches(itemSubType, needle)
+            or SearchFieldMatches(itemType, needle)
+            or SearchFieldMatches(itemSubType, needle)
         ) then
             return true
         end
@@ -924,15 +919,16 @@ function Components:ItemMatchesSearch(itemName, itemLink, search)
         local ok, _, itemType, itemSubType =
             pcall(getInstant, item)
         if ok and (
-            SearchCategoryMatches(itemType, needle)
-            or SearchCategoryMatches(itemSubType, needle)
+            SearchFieldMatches(itemType, needle)
+            or SearchFieldMatches(itemSubType, needle)
         ) then
             return true
         end
     end
 
-    -- An old cache entry can contain a link before its name is cached.
-    return not itemName and SearchFieldMatches(itemLink, needle) or false
+    -- The only intentional text sources are the item name and its category.
+    -- Avoid matching item IDs or hexadecimal colour codes in raw hyperlinks.
+    return false
 end
 
 function Components:SetContainerItemSlotData(
