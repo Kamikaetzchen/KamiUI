@@ -331,7 +331,7 @@ local function UpdateCachedItemButton(button, slot, tab)
             search
         )
     then
-        alpha = 0.10
+        alpha = Components.SEARCH_DIM_ALPHA
     end
 
     Components:SetItemSlotData(button, {
