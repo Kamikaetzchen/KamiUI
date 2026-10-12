@@ -837,16 +837,13 @@ local function LayoutTotemBar()
     native:SetSize(size * 6, size)
     native:SetPoint("BOTTOMLEFT", bar4.buttons[1], "TOPLEFT", 0, 0)
 
-    MultiCastSummonSpellButton:ClearAllPoints()
-    MultiCastSummonSpellButton:SetPoint("BOTTOMLEFT",
-        native, "BOTTOMLEFT", 0, 0)
-
+    -- F1-F4: totems; F5: Recall; F6: Call (with Blizzard's set flyout).
     for index = 1, 4 do
         local slot = _G["MultiCastSlotButton" .. index]
         if slot then
             slot:ClearAllPoints()
             slot:SetPoint("BOTTOMLEFT", native, "BOTTOMLEFT",
-                size * index, 0)
+                size * (index - 1), 0)
         end
     end
 
@@ -856,7 +853,7 @@ local function LayoutTotemBar()
             pageFrame:ClearAllPoints()
             pageFrame:SetSize(size * 4, size)
             pageFrame:SetPoint("BOTTOMLEFT", native, "BOTTOMLEFT",
-                size, 0)
+                0, 0)
         end
         for slot = 1, 4 do
             local button = _G["MultiCastActionButton" ..
@@ -871,6 +868,10 @@ local function LayoutTotemBar()
 
     MultiCastRecallSpellButton:ClearAllPoints()
     MultiCastRecallSpellButton:SetPoint("BOTTOMLEFT",
+        native, "BOTTOMLEFT", size * 4, 0)
+
+    MultiCastSummonSpellButton:ClearAllPoints()
+    MultiCastSummonSpellButton:SetPoint("BOTTOMLEFT",
         native, "BOTTOMLEFT", size * 5, 0)
 end
 
@@ -1107,12 +1108,12 @@ local function LabelSecondaryBarButtons()
         end
     end
     if Module.totemBar then
-        LabelFunctionKey(MultiCastSummonSpellButton, 1)
-        LabelFunctionKey(MultiCastRecallSpellButton, 6)
+        LabelFunctionKey(MultiCastRecallSpellButton, 5)
+        LabelFunctionKey(MultiCastSummonSpellButton, 6)
         for page = 1, 3 do
             for index = 1, 4 do
                 LabelFunctionKey(_G["MultiCastActionButton" ..
-                    ((page - 1) * 4 + index)], index + 1)
+                    ((page - 1) * 4 + index)], index)
             end
         end
     end
@@ -1129,12 +1130,12 @@ local function BindFunctionKeys()
         local page = native and native.currentPage or 1
         if type(page) ~= "number" then page = 1 end
         local names = {
-            "MultiCastSummonSpellButton",
             "MultiCastActionButton" .. ((page - 1) * 4 + 1),
             "MultiCastActionButton" .. ((page - 1) * 4 + 2),
             "MultiCastActionButton" .. ((page - 1) * 4 + 3),
             "MultiCastActionButton" .. ((page - 1) * 4 + 4),
             "MultiCastRecallSpellButton",
+            "MultiCastSummonSpellButton",
         }
         for index, name in ipairs(names) do
             if _G[name] then
