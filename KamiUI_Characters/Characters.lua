@@ -81,6 +81,19 @@ local function UpdateCurrentCharacter()
     character.level = UnitLevel and UnitLevel("player") or character.level or 0
     character.realm = GetRealmName and GetRealmName() or ""
     character.money = GetMoney and GetMoney() or character.money or 0
+
+    -- Store live progress for the account roster. A capped-level character
+    -- has no XP-to-next-level value, so the dashboard displays a dash.
+    if UnitXP and UnitXPMax then
+        local xp = UnitXP("player")
+        local xpMax = UnitXPMax("player")
+        if UI:CanAccessValue(xp) and UI:CanAccessValue(xpMax)
+            and type(xp) == "number" and type(xpMax) == "number"
+        then
+            character.xp = xp
+            character.xpMax = xpMax
+        end
+    end
     character.updated = time and time() or 0
 
     db.data[key] = character
@@ -4420,7 +4433,14 @@ function Module:Initialize()
     end)
 
     UI:RegisterEvent("PLAYER_LEVEL_UP", function()
+        UpdateCurrentCharacter()
         Module:Refresh()
+    end)
+
+    UI:RegisterEvent("PLAYER_XP_UPDATE", function(_, unit)
+        if unit == "player" then
+            UpdateCurrentCharacter()
+        end
     end)
 
     -- UNIT_SPEED does not exist in the Forever client. The visible speed
