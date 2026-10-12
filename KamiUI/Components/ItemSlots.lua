@@ -290,6 +290,7 @@ local function UpdateQuestItemDecoration(button, data)
     if isQuestItem
         and not button.KamiQuestGlow
         and button.KamiRarityGlow
+        and not (InCombatLockdown and InCombatLockdown())
     then
         local glow = CreateRarityGlow(
             button,
@@ -317,7 +318,9 @@ local function UpdateQuestItemDecoration(button, data)
     -- The native quest bang is baked into the rounded-border image.
     -- Draw a larger, heavier standalone ! so it remains visible on bright
     -- item art without restoring Blizzard's rounded quest border.
-    if startsQuest and not button.KamiQuestBang then
+    if startsQuest and not button.KamiQuestBang
+        and not (InCombatLockdown and InCombatLockdown())
+    then
         local bang = button:CreateFontString(
             nil, "OVERLAY", "GameFontNormalLarge"
         )
@@ -1015,6 +1018,12 @@ function Components:SetContainerItemSlotData(
                 end
             end
         end
+    end
+
+    -- Native tooltip/modified-click logic still depends on HasItem().
+    -- Reconcile its ordinary Lua flag, without changing secure attributes.
+    if options.visualOnly and button.SetHasItem then
+        button:SetHasItem(info ~= nil)
     end
 
     -- The Blizzard filter flag may remain set after Escape clears the
