@@ -20,5 +20,6 @@ Components\Popups.lua
 Components\Sections.lua
 Components\Windows.lua
 Events.lua
+Scheduler.lua
 Modules.lua
 Commands.lua

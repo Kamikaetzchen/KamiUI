@@ -328,21 +328,36 @@ itemDragFrame:SetScript("OnUpdate", function(self)
     end
 end)
 
-local function UpdateItemButton(button, bagID, slotID, family)
+local function UpdateItemButton(button, bagID, slotID, family, visualOnly)
     local search = Module.frame
         and Module.frame.search
         and Module.frame.search:GetText()
         or ""
 
-    Components:SetContainerItemSlotData(
-        button,
-        bagID,
-        slotID,
-        {
-            borderColor = Palette:GetBagFamilyColor(family),
-            search = search,
-        }
-    )
+    if not visualOnly
+        and not Components:BindContainerSlot(button, bagID, slotID)
+    then
+        return
+    end
+    Components:RefreshContainerSlot(button, bagID, slotID, {
+        borderColor = Palette:GetBagFamilyColor(family),
+        search = search,
+    })
+end
+
+local function GetBankStructureKey(tabs)
+    local sections = {}
+    for _, tab in ipairs(tabs) do
+        sections[#sections + 1] = table.concat({
+            tostring(tab.bagID),
+            tostring(tab.slotCount),
+            tostring(tab.family),
+            tostring(tab.icon),
+            tostring(tab.name),
+            GetDatabase().bankHiddenTabs[tab.bagID] and "hidden" or "visible",
+        }, ":")
+    end
+    return table.concat(sections, "|")
 end
 
 local function UpdateCachedItemButton(button, slot, tab)
@@ -924,13 +939,19 @@ function Module:SetViewedCharacter(key)
 end
 
 function Module:Rebuild()
-    local frame = self.frame
-
-    if not frame or not frame:IsShown() then
+    if InCombatLockdown and InCombatLockdown() then
+        UI:RunOutOfCombat("bank.rebuild", function()
+            Module:Rebuild()
+        end)
         return
     end
 
-    for _, button in ipairs(frame.itemButtons) do
+    UI:CancelOutOfCombat("bank.rebuild")
+    local frame = self.frame
+    if not frame or not frame:IsShown() then return end
+
+    -- Includes slots that were hidden by switching characters or bank tabs.
+    for _, button in ipairs(frame.allItemButtons) do
         button:Hide()
     end
 
@@ -944,6 +965,7 @@ function Module:Rebuild()
 
     if not isCurrent or not bankOpen then
         frame.liveBankAccess = false
+        frame.bankStructureKey = nil
         local tabs = character
             and character.bank
             and character.bank.tabs
@@ -964,11 +986,9 @@ function Module:Rebuild()
                         frame.cachedButtons[index] = button
                     end
 
-                    UpdateCachedItemButton(
-                        button,
-                        tab.slots and tab.slots[slotID],
-                        tab
-                    )
+                    button.KamiCachedSlot = tab.slots and tab.slots[slotID]
+                    button.KamiCachedTab = tab
+                    UpdateCachedItemButton(button, button.KamiCachedSlot, tab)
                     button:Show()
                     active[#active + 1] = button
                 end
@@ -990,27 +1010,29 @@ function Module:Rebuild()
     end
 
     frame.liveBankAccess = true
+    local tabs = GetBankTabs()
 
-    for _, tab in ipairs(GetBankTabs()) do
+    for _, tab in ipairs(tabs) do
         if not GetDatabase().bankHiddenTabs[tab.bagID] then
             local carrier = frame.carriers[tab.bagID]
-
             if not carrier then
                 carrier = Components:CreateCarrier(frame.content, tab.bagID)
                 frame.carriers[tab.bagID] = carrier
             end
-
             carrier:SetID(tab.bagID)
 
+            -- Stable native frame for each actual bank tab and slot.
+            local bySlot = frame.itemButtonsByBag[tab.bagID]
+            if not bySlot then
+                bySlot = {}
+                frame.itemButtonsByBag[tab.bagID] = bySlot
+            end
+
             for slotID = 1, tab.slotCount do
-                index = index + 1
-
-                local button = frame.itemButtons[index]
-
-                if not button or button:GetParent() ~= carrier then
+                local button = bySlot[slotID]
+                if not button then
                     button = Components:CreateContainerItemButton(
-                        carrier,
-                        {
+                        carrier, {
                             size = Layout.SLOT_SIZE,
                             corners = true,
                             onDragStart = function()
@@ -1018,22 +1040,23 @@ function Module:Rebuild()
                             end,
                         }
                     )
-                    frame.itemButtons[index] = button
+                    bySlot[slotID] = button
+                    frame.allItemButtons[#frame.allItemButtons + 1] = button
                 end
 
-                button:Show()
                 UpdateItemButton(button, tab.bagID, slotID, tab.family)
+                button.KamiBagID = tab.bagID
+                button.KamiSlotID = slotID
+                button.KamiBankFamily = tab.family
+                button:Show()
                 active[#active + 1] = button
             end
         end
     end
 
-    for i = index + 1, #frame.itemButtons do
-        frame.itemButtons[i]:Hide()
-    end
-
+    frame.itemButtons = active
     frame.activeButtons = active
-    frame.liveBankAccess = true
+    frame.bankStructureKey = GetBankStructureKey(tabs)
 
     if self.highlightedBagID then
         self:SetBagSlotHighlight(self.highlightedBagID, true)
@@ -1043,6 +1066,58 @@ function Module:Rebuild()
     self:UpdateBagBar()
     self:UpdateTitle()
     self:UpdateBagBarVisibility()
+end
+
+-- A content-only bank update never hides or rebinds protected buttons.
+-- Rebuild the grid only if purchased tabs, visibility or slot counts change.
+function Module:Refresh()
+    local frame = self.frame
+    if not frame or not frame:IsShown() then return end
+
+    local _, _, isCurrent = GetViewedCharacter()
+    if not isCurrent or not bankOpen then
+        if frame.liveBankAccess then
+            self:Rebuild()
+            return true
+        end
+        for _, button in ipairs(frame.activeButtons or {}) do
+            UpdateCachedItemButton(
+                button, button.KamiCachedSlot, button.KamiCachedTab
+            )
+        end
+        return
+    end
+
+    if not frame.liveBankAccess then
+        self:Rebuild()
+        return true
+    end
+
+    local tabs = GetBankTabs()
+    if frame.bankStructureKey ~= GetBankStructureKey(tabs) then
+        self:Rebuild()
+        if not (InCombatLockdown and InCombatLockdown()) then
+            return true
+        end
+    end
+
+    for _, button in ipairs(frame.activeButtons or {}) do
+        UpdateItemButton(
+            button, button.KamiBagID, button.KamiSlotID,
+            button.KamiBankFamily, true
+        )
+    end
+
+    for _, button in ipairs(frame.bagBarButtons or {}) do
+        if not button.isCached and not button.emptyBagSlot and button.count then
+            local free = UI:SafeCall(
+                UI.GetContainerNumFreeSlots, UI, button.bagID
+            )
+            if UI:CanAccessValue(free) and type(free) == "number" then
+                button.count:SetText(free)
+            end
+        end
+    end
 end
 
 local function ScheduleRefresh()
@@ -1059,8 +1134,9 @@ local function ScheduleRefresh()
             return
         end
 
+        -- Bank slot changes only require new contents, not a new grid.
         SaveCurrentBank()
-        Module:Rebuild()
+        Module:Refresh()
     end)
 end
 
@@ -1083,10 +1159,10 @@ local function CreateFrameUI()
     local searchControl = Components:AttachHeaderSearch(frame, header, {
         onTextChanged = function()
             Components:ClearNativeContainerSearch()
-            Module:Rebuild()
+            Module:Refresh()
         end,
         onEscape = function()
-            Module:Rebuild()
+            Module:Refresh()
         end,
     })
 
@@ -1187,6 +1263,8 @@ local function CreateFrameUI()
     local content = CreateFrame("Frame", nil, frame)
     frame.content = content
     frame.itemButtons = {}
+    frame.itemButtonsByBag = {}
+    frame.allItemButtons = {}
     frame.cachedButtons = {}
     frame.activeButtons = {}
     frame.carriers = {}
@@ -1224,7 +1302,7 @@ local function CreateFrameUI()
 
             if bankOpen then
                 SaveCurrentBank()
-                Module:Rebuild()
+                Module:Refresh()
             end
         end)
     end)

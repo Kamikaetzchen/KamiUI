@@ -7,8 +7,6 @@ local Module = UI:NewModule("Bags", "KamiUI_Bags")
 
 local Layout = UI.Layout.Bags
 
-local pendingRebuild = false
-local pendingSnapshot = false
 local sortingBags = false
 local pendingEventRefresh = false
 local pendingEventSnapshot = false
@@ -420,16 +418,16 @@ local function UpdateItemButton(button, bagID, slotID, borderColor, visualOnly)
         and Module.frame.search:GetText()
         or ""
 
-    Components:SetContainerItemSlotData(
-        button,
-        bagID,
-        slotID,
-        {
-            borderColor = borderColor or GetBagFamilyColor(bagID),
-            search = search,
-            visualOnly = visualOnly == true,
-        }
-    )
+    if not visualOnly
+        and not Components:BindContainerSlot(button, bagID, slotID)
+    then
+        return
+    end
+
+    Components:RefreshContainerSlot(button, bagID, slotID, {
+        borderColor = borderColor or GetBagFamilyColor(bagID),
+        search = search,
+    })
 end
 
 -- A rebuild is needed only when the grid's set of slots or equipped bag
@@ -1111,15 +1109,9 @@ local function SaveCurrentCharacter()
 end
 
 function Module:SaveCurrentCharacter()
-    if InCombatLockdown and InCombatLockdown() then
-        -- Snapshot serialization is separate from the visible bag layout.
-        -- Keep the current inventory usable; save once combat is over.
-        pendingSnapshot = true
-        return
-    end
-
-    pendingSnapshot = false
-    return SaveCurrentCharacter()
+    -- Persist the latest snapshot once combat ends, without blocking the
+    -- visible bag-slot refresh.
+    return UI:RunOutOfCombat("bags.snapshot", SaveCurrentCharacter)
 end
 
 local function GetViewedCharacter()
@@ -1440,12 +1432,13 @@ end
 
 function Module:Rebuild()
     if InCombatLockdown and InCombatLockdown() then
-        pendingRebuild = true
+        UI:RunOutOfCombat("bags.rebuild", function()
+            Module:Rebuild()
+        end)
         return
     end
 
-    pendingRebuild = false
-
+    UI:CancelOutOfCombat("bags.rebuild")
     local frame = self.frame
 
     if not frame then
@@ -1633,16 +1626,16 @@ function Module:Refresh()
         return true
     end
 
-    if pendingRebuild
-        or frame.inventoryStructureKey ~= GetInventoryStructureKey()
-    then
+    if frame.inventoryStructureKey ~= GetInventoryStructureKey() then
         if not (InCombatLockdown and InCombatLockdown()) then
             self:Rebuild()
             return true
         end
 
-        -- Keep existing slots usable until the deferred structural rebuild.
-        pendingRebuild = true
+        -- The grid is protected: only queue its structural update.
+        UI:RunOutOfCombat("bags.rebuild", function()
+            Module:Rebuild()
+        end)
     end
 
     -- Most inventory events only change what is IN a slot, not the slot
@@ -2368,14 +2361,8 @@ function Module:Initialize()
     end)
 
     UI:RegisterEvent("PLAYER_REGEN_ENABLED", function()
-        if pendingRebuild then
-            Module:Rebuild()
-        elseif pendingSnapshot then
-            Module:SaveCurrentCharacter()
-        end
-
-        -- New quest item decorations are created only outside combat, so
-        -- finish any deferred visual details on the next safe opportunity.
+        -- The central scheduler already replays any deferred rebuild or
+        -- snapshot. Finish combat-deferred quest glows if the bag is open.
         if Module.frame and Module.frame:IsShown() then
             Module:Refresh()
         end

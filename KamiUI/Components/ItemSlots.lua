@@ -934,62 +934,69 @@ function Components:ItemMatchesSearch(itemName, itemLink, search)
     return false
 end
 
-function Components:SetContainerItemSlotData(
-    button,
-    bagID,
-    slotID,
-    options
-)
-    if not button then
+-- Structural operation: establish a native container button's identity.
+-- Assign secure attributes only once (or when genuinely rebinding OOC).
+function Components:BindContainerSlot(button, bagID, slotID)
+    if not button then return false end
+
+    if button.KamiBoundBagID == bagID
+        and button.KamiBoundSlotID == slotID
+    then
+        return true
+    end
+
+    if InCombatLockdown and InCombatLockdown() then
+        return false
+    end
+
+    if button.SetBagID then
+        button:SetBagID(bagID)
+    elseif button.SetAttribute then
+        button:SetAttribute("bagid", bagID)
+    end
+    button:SetID(slotID)
+
+    if ContainerFrameItemButton_Update then
+        ContainerFrameItemButton_Update(button)
+    end
+
+    button.KamiBoundBagID = bagID
+    button.KamiBoundSlotID = slotID
+    return true
+end
+
+-- Content-only operation: never changes bag/slot binding or geometry.
+-- Safe to request during combat provided the item API exposes readable data.
+function Components:RefreshContainerSlot(button, bagID, slotID, options)
+    if not button
+        or button.KamiBoundBagID ~= bagID
+        or button.KamiBoundSlotID ~= slotID
+    then
         return nil
     end
 
     options = options or {}
-
-    -- The native button has already been bound to this bag/slot during
-    -- Rebuild(). Never change its secure bagid/slot ID or invoke Blizzard's
-    -- full item-button updater merely because its contents changed.
-    if not options.visualOnly then
-        if button.SetBagID then
-            button:SetBagID(bagID)
-        elseif button.SetAttribute then
-            button:SetAttribute("bagid", bagID)
-        end
-
-        button:SetID(slotID)
-
-        if ContainerFrameItemButton_Update then
-            ContainerFrameItemButton_Update(button)
-        end
-    end
-
     self:SuppressItemButtonFlash(button)
 
-    local info
-    if options.visualOnly then
-        -- Item APIs can return secret data in combat. Leave the previous
-        -- appearance alone rather than operating on inaccessible fields.
-        local ok, result = pcall(UI.GetContainerItemInfo, UI, bagID, slotID)
-        if not ok
-            or not UI:CanAccessValue(result)
-            or (issecrettable and result and issecrettable(result))
-        then
-            return nil
-        end
 
-        info = result
-        if info then
-            for _, key in ipairs({
-                "itemName", "hyperlink", "itemID", "iconFileID",
-                "stackCount", "quality", "isLocked",
-            }) do
-                if not UI:CanAccessValue(info[key]) then
-                    return nil
-                end
+    -- Avoid secret values in combat; leave the old visuals intact if
+    -- the client does not expose this item's data to addon code.
+    local ok, info = pcall(UI.GetContainerItemInfo, UI, bagID, slotID)
+    if not ok or not UI:CanAccessValue(info)
+        or (issecrettable and info and issecrettable(info))
+    then
+        return nil
+    end
+
+    if info then
+        for _, key in ipairs({
+            "itemName", "hyperlink", "itemID", "iconFileID",
+            "stackCount", "quality", "isLocked",
+        }) do
+            if not UI:CanAccessValue(info[key]) then
+                return nil
             end
         end
-    else
-        info = UI:GetContainerItemInfo(bagID, slotID)
     end
     local questInfo
 
@@ -1002,7 +1009,7 @@ function Components:SetContainerItemSlotData(
             bagID,
             slotID
         )
-        if options.visualOnly and questInfo then
+        if questInfo then
             if not UI:CanAccessValue(questInfo)
                 or (issecrettable and issecrettable(questInfo))
             then
@@ -1022,7 +1029,7 @@ function Components:SetContainerItemSlotData(
 
     -- Native tooltip/modified-click logic still depends on HasItem().
     -- Reconcile its ordinary Lua flag, without changing secure attributes.
-    if options.visualOnly and button.SetHasItem then
+    if button.SetHasItem then
         button:SetHasItem(info ~= nil)
     end
 
@@ -1076,6 +1083,17 @@ function Components:SetContainerItemSlotData(
     end
 
     return info
+end
+
+-- Backwards-compatible entry point for any callers not yet migrated.
+function Components:SetContainerItemSlotData(button, bagID, slotID, options)
+    options = options or {}
+    if not options.visualOnly
+        and not self:BindContainerSlot(button, bagID, slotID)
+    then
+        return nil
+    end
+    return self:RefreshContainerSlot(button, bagID, slotID, options)
 end
 
 function Components:SetContainerSlotHighlight(
