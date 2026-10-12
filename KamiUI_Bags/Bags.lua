@@ -8,6 +8,7 @@ local Module = UI:NewModule("Bags", "KamiUI_Bags")
 local Layout = UI.Layout.Bags
 
 local pendingRebuild = false
+local pendingSnapshot = false
 local sortingBags = false
 local pendingEventRefresh = false
 local sortGeneration = 0
@@ -412,7 +413,7 @@ local function GetInventoryBags()
     return bags
 end
 
-local function UpdateItemButton(button, bagID, slotID, borderColor)
+local function UpdateItemButton(button, bagID, slotID, borderColor, visualOnly)
     local search = Module.frame
         and Module.frame.search
         and Module.frame.search:GetText()
@@ -425,8 +426,54 @@ local function UpdateItemButton(button, bagID, slotID, borderColor)
         {
             borderColor = borderColor or GetBagFamilyColor(bagID),
             search = search,
+            visualOnly = visualOnly == true,
         }
     )
+end
+
+-- A rebuild is needed only when the grid's set of slots or equipped bag
+-- containers changes. Item movement, counts and cooldowns leave this intact.
+local function GetInventoryStructureKey()
+    local sections = {}
+    local hiddenBags = GetDatabase().hiddenBags
+    local keyring = KEYRING_CONTAINER
+        or (Enum and Enum.BagIndex and Enum.BagIndex.Keyring)
+
+    for _, bagID in ipairs(GetInventoryBags()) do
+        local hidden = hiddenBags[bagID] == true
+        local slotCount = UI:GetContainerNumSlots(bagID)
+        local inventoryID = UI:GetBagInventoryID(bagID)
+        local equippedID = inventoryID and GetInventoryItemID
+            and UI:SafeCall(GetInventoryItemID, "player", inventoryID)
+            or 0
+        if not UI:CanAccessValue(equippedID) then
+            equippedID = 0
+        end
+
+        sections[#sections + 1] = table.concat({
+            tostring(bagID),
+            hidden and "hidden" or "visible",
+            tostring(slotCount),
+            tostring(equippedID or 0),
+        }, ":")
+
+        -- Unlike normal bags, the keyring grid intentionally hides unused
+        -- slots. A key appearing/disappearing changes its actual grid size.
+        if bagID == keyring and not hidden then
+            local occupied = {}
+            for slotID = 1, slotCount do
+                local info = UI:SafeCall(
+                    UI.GetContainerItemInfo, UI, bagID, slotID
+                )
+                if info and UI:CanAccessValue(info) then
+                    occupied[#occupied + 1] = tostring(slotID)
+                end
+            end
+            sections[#sections + 1] = table.concat(occupied, ",")
+        end
+    end
+
+    return table.concat(sections, "|")
 end
 
 local function UpdateCachedItemButton(button, slot, bag)
@@ -1064,10 +1111,13 @@ end
 
 function Module:SaveCurrentCharacter()
     if InCombatLockdown and InCombatLockdown() then
-        pendingRebuild = true
+        -- Snapshot serialization is separate from the visible bag layout.
+        -- Keep the current inventory usable; save once combat is over.
+        pendingSnapshot = true
         return
     end
 
+    pendingSnapshot = false
     return SaveCurrentCharacter()
 end
 
@@ -1415,6 +1465,7 @@ function Module:Rebuild()
 
     if not isCurrent and character then
         frame.liveInventory = false
+        frame.inventoryStructureKey = nil
         local activeButtons = {}
         local index = 0
 
@@ -1529,6 +1580,12 @@ function Module:Rebuild()
 
                     button:Show()
                     UpdateItemButton(button, bagID, slotID, borderColor)
+                    -- Slot identity is stable until a real structural rebuild.
+                    -- These fields are ordinary Lua metadata for visual-only
+                    -- refreshes and never replace the native secure binding.
+                    button.KamiBagID = bagID
+                    button.KamiSlotID = slotID
+                    button.KamiBagBorderColor = borderColor
                     activeButtons[#activeButtons + 1] = button
                 end
             end
@@ -1537,6 +1594,7 @@ function Module:Rebuild()
 
     frame.itemButtons = activeButtons
     frame.activeButtons = activeButtons
+    frame.inventoryStructureKey = GetInventoryStructureKey()
 
     if self.highlightedBagID then
         self:SetBagSlotHighlight(self.highlightedBagID, true)
@@ -1550,12 +1608,51 @@ end
 
 function Module:Refresh()
     local frame = self.frame
+    if not frame or not frame:IsShown() then return end
 
-    if not frame or not frame:IsShown() then
+    local _, _, isCurrent = GetViewedCharacter()
+    if not isCurrent or not frame.liveInventory then
+        -- Cached-character view changes still require an actual rebuild.
+        self:Rebuild()
         return
     end
 
-    self:Rebuild()
+    if pendingRebuild
+        or frame.inventoryStructureKey ~= GetInventoryStructureKey()
+    then
+        if not (InCombatLockdown and InCombatLockdown()) then
+            self:Rebuild()
+            return
+        end
+
+        -- Keep existing slots usable until the deferred structural rebuild.
+        pendingRebuild = true
+    end
+
+    -- Most inventory events only change what is IN a slot, not the slot
+    -- itself. Do not hide buttons, move the grid or touch secure attributes.
+    for _, button in ipairs(frame.itemButtons or {}) do
+        UpdateItemButton(
+            button,
+            button.KamiBagID,
+            button.KamiSlotID,
+            button.KamiBagBorderColor,
+            true
+        )
+    end
+
+    -- The bag bar is not a secure container and only its free counts need
+    -- refreshing here. Its icons and positions change during Rebuild().
+    for _, button in ipairs(frame.bagBarButtons or {}) do
+        if not button.isCached and button.bagID ~= nil and button.count then
+            local free = UI:SafeCall(
+                UI.CountContainerFreeSlots, UI, button.bagID
+            )
+            if UI:CanAccessValue(free) and type(free) == "number" then
+                button.count:SetText(free)
+            end
+        end
+    end
 end
 
 function Module:Show()
@@ -1563,7 +1660,8 @@ function Module:Show()
         return
     end
 
-    self:Rebuild()
+    -- OnShow refreshes existing slots and rebuilds only if bag structure
+    -- changed while the window was closed.
     self.frame:Show()
 
     if PlaySound then
@@ -1623,13 +1721,11 @@ local function ScheduleSortFinish(delay)
             Module.frame.sort:Enable()
         end
 
-        -- Rebuild() already calls SaveCurrentCharacter(). Previously
-        -- the sort completion ran both functions and scanned every item twice.
         if Module.frame and Module.frame:IsShown() then
             Module:Refresh()
-        else
-            SaveCurrentCharacter()
         end
+        -- Sorting changes slot contents, not the grid topology.
+        Module:SaveCurrentCharacter()
     end)
 end
 
@@ -1650,9 +1746,10 @@ local function ScheduleEventRefresh()
 
         if Module.frame and Module.frame:IsShown() then
             Module:Refresh()
-        else
-            Module:SaveCurrentCharacter()
         end
+        -- The persistent account snapshot can be deferred during combat;
+        -- this must not delay the visible inventory update.
+        Module:SaveCurrentCharacter()
     end)
 end
 
@@ -1860,7 +1957,7 @@ local function CreateFrameUI()
     end)
 
     frame:SetScript("OnShow", function()
-        Module:Rebuild()
+        Module:Refresh()
     end)
 
     frame:SetScript("OnHide", function()
@@ -2247,6 +2344,8 @@ function Module:Initialize()
     UI:RegisterEvent("PLAYER_REGEN_ENABLED", function()
         if pendingRebuild then
             Module:Rebuild()
+        elseif pendingSnapshot then
+            Module:SaveCurrentCharacter()
         end
     end)
 end

@@ -943,21 +943,51 @@ function Components:SetContainerItemSlotData(
 
     options = options or {}
 
-    if button.SetBagID then
-        button:SetBagID(bagID)
-    elseif button.SetAttribute then
-        button:SetAttribute("bagid", bagID)
-    end
+    -- The native button has already been bound to this bag/slot during
+    -- Rebuild(). Never change its secure bagid/slot ID or invoke Blizzard's
+    -- full item-button updater merely because its contents changed.
+    if not options.visualOnly then
+        if button.SetBagID then
+            button:SetBagID(bagID)
+        elseif button.SetAttribute then
+            button:SetAttribute("bagid", bagID)
+        end
 
-    button:SetID(slotID)
+        button:SetID(slotID)
 
-    if ContainerFrameItemButton_Update then
-        ContainerFrameItemButton_Update(button)
+        if ContainerFrameItemButton_Update then
+            ContainerFrameItemButton_Update(button)
+        end
     end
 
     self:SuppressItemButtonFlash(button)
 
-    local info = UI:GetContainerItemInfo(bagID, slotID)
+    local info
+    if options.visualOnly then
+        -- Item APIs can return secret data in combat. Leave the previous
+        -- appearance alone rather than operating on inaccessible fields.
+        local ok, result = pcall(UI.GetContainerItemInfo, UI, bagID, slotID)
+        if not ok
+            or not UI:CanAccessValue(result)
+            or (issecrettable and result and issecrettable(result))
+        then
+            return nil
+        end
+
+        info = result
+        if info then
+            for _, key in ipairs({
+                "itemName", "hyperlink", "itemID", "iconFileID",
+                "stackCount", "quality", "isLocked",
+            }) do
+                if not UI:CanAccessValue(info[key]) then
+                    return nil
+                end
+            end
+        end
+    else
+        info = UI:GetContainerItemInfo(bagID, slotID)
+    end
     local questInfo
 
     if info
@@ -969,6 +999,22 @@ function Components:SetContainerItemSlotData(
             bagID,
             slotID
         )
+        if options.visualOnly and questInfo then
+            if not UI:CanAccessValue(questInfo)
+                or (issecrettable and issecrettable(questInfo))
+            then
+                questInfo = nil
+            else
+                for _, key in ipairs({
+                    "isQuestItem", "questID", "isActive",
+                }) do
+                    if not UI:CanAccessValue(questInfo[key]) then
+                        questInfo = nil
+                        break
+                    end
+                end
+            end
+        end
     end
 
     -- The Blizzard filter flag may remain set after Escape clears the
@@ -1000,14 +1046,21 @@ function Components:SetContainerItemSlotData(
             and C_Container.GetContainerItemCooldown
         then
             local start, duration, enable =
-                C_Container.GetContainerItemCooldown(bagID, slotID)
+                UI:SafeCall(
+                    C_Container.GetContainerItemCooldown, bagID, slotID
+                )
 
-            CooldownFrame_Set(
-                button.Cooldown,
-                start or 0,
-                duration or 0,
-                enable or 0
-            )
+            if UI:CanAccessValue(start)
+                and UI:CanAccessValue(duration)
+                and UI:CanAccessValue(enable)
+            then
+                CooldownFrame_Set(
+                    button.Cooldown,
+                    start or 0,
+                    duration or 0,
+                    enable or 0
+                )
+            end
         else
             button.Cooldown:Clear()
         end
