@@ -804,6 +804,17 @@ function Components:CreateCarrier(parent, id, shown)
     return carrier
 end
 
+-- Blizzard's name-only search can leave its own overlay on matching items,
+-- even when KamiUI has already decided they should be fully visible.
+-- Keep native search empty and handle highlighting entirely in KamiUI.
+function Components:ClearNativeContainerSearch()
+    if C_Container and C_Container.SetItemSearch then
+        C_Container.SetItemSearch("")
+    elseif SetItemSearch then
+        SetItemSearch("")
+    end
+end
+
 -- Search uses Blizzard's own item name, class and subclass strings.
 -- Item links work for both live inventory and cached characters; the instant
 -- API supplies category names even when regular GetItemInfo is not cached.
