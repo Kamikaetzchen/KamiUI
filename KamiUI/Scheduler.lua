@@ -5,6 +5,7 @@ local UI = KamiUI
 -- arbitrary WoW API or frame operation is protected.
 local pending = {}
 local order = {}
+local scheduled = {}
 
 function UI:CancelOutOfCombat(key)
     pending[key] = nil
@@ -22,8 +23,9 @@ function UI:RunOutOfCombat(key, callback)
 
     -- Coalesce repeated events: retain one task per key, replacing its
     -- callback so it will read the latest state when combat ends.
-    if pending[key] == nil then
+    if not scheduled[key] then
         order[#order + 1] = key
+        scheduled[key] = true
     end
     pending[key] = callback
     return false
@@ -39,6 +41,7 @@ UI:RegisterEvent("PLAYER_REGEN_ENABLED", function()
     local keys = order
     pending = {}
     order = {}
+    scheduled = {}
 
     for _, key in ipairs(keys) do
         local callback = tasks[key]
