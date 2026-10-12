@@ -284,13 +284,33 @@ local function CreateWeaponEnchantBar()
     return button
 end
 
+-- AuraContainer uses a protected flow layout. Moving its anchor while
+-- combat-locked would taint it, even though Forever imbues are ordinary data.
+-- Keep that anchor fixed, and expand the *unprotected* imbue rows below it.
+-- This maintains a gap-free visual stack without any combat-only reflow.
+local function PositionWeaponEnchantBars()
+    local bottom = Layout.Y + UI:GetBottomInset()
+        - Layout.GROUP_GAP
+
+    for index, button in ipairs(weaponEnchantBars) do
+        if index <= weaponEnchantCount and button:IsShown() then
+            button:ClearAllPoints()
+            button:SetPoint(
+                "BOTTOMRIGHT", UIParent, "BOTTOMRIGHT",
+                Layout.X,
+                bottom - (weaponEnchantCount - index + 1) * Layout.HEIGHT
+            )
+        end
+    end
+end
+
 local function UpdatePosition()
     if not container then return end
-    local height = weaponEnchantCount > 0
-        and weaponEnchantCount * Layout.HEIGHT + Layout.GROUP_GAP
-        or 0
+
     if InCombatLockdown and InCombatLockdown() then
+        -- Only an external bottom-inset change needs a later secure update.
         pendingEnchantLayout = true
+        PositionWeaponEnchantBars()
         return
     end
 
@@ -298,8 +318,9 @@ local function UpdatePosition()
     container:ClearAllPoints()
     container:SetPoint(
         "BOTTOMRIGHT", UIParent, "BOTTOMRIGHT",
-        Layout.X, Layout.Y + UI:GetBottomInset() + height
+        Layout.X, Layout.Y + UI:GetBottomInset()
     )
+    PositionWeaponEnchantBars()
 end
 
 local function RefreshWeaponEnchants()
@@ -336,10 +357,6 @@ local function RefreshWeaponEnchants()
             and tostring(entry.charges) or "")
         button.bar:SetMinMaxValues(0, math.max(1, timer.duration))
         button.bar:SetValue(entry.remaining)
-        button:ClearAllPoints()
-        button:SetPoint("BOTTOMRIGHT", UIParent, "BOTTOMRIGHT",
-            Layout.X, Layout.Y + UI:GetBottomInset()
-                + (index - 1) * Layout.HEIGHT)
         button:Show()
     end
 
@@ -355,10 +372,10 @@ local function RefreshWeaponEnchants()
         button:Hide()
     end
 
-    if weaponEnchantCount ~= #entries then
-        weaponEnchantCount = #entries
-        UpdatePosition()
-    end
+    weaponEnchantCount = #entries
+    -- Unlike protected AuraContainer reanchoring, these unprotected rows can
+    -- be positioned as soon as an imbue appears/disappears, even in combat.
+    PositionWeaponEnchantBars()
 end
 
 local function HideBlizzardAuras()
@@ -727,17 +744,7 @@ function Module:Initialize()
         if pendingEnchantLayout then UpdatePosition() end
     end)
 
-    UI:RegisterBottomInsetCallback(function()
-        UpdatePosition()
-        for index, button in ipairs(weaponEnchantBars) do
-            if button:IsShown() then
-                button:ClearAllPoints()
-                button:SetPoint("BOTTOMRIGHT", UIParent, "BOTTOMRIGHT",
-                    Layout.X, Layout.Y + UI:GetBottomInset()
-                        + (index - 1) * Layout.HEIGHT)
-            end
-        end
-    end)
+    UI:RegisterBottomInsetCallback(UpdatePosition)
 
     UI:RegisterEvent("ADDON_LOADED", function(_, addonName)
         if addonName == "Blizzard_BuffFrame" then
