@@ -751,7 +751,9 @@ function Components:SetItemSlotData(button, data)
 
     if icon then
         icon:SetTexture(data.icon)
-        icon:SetAlpha(alpha)
+        -- The parent button already applies the search alpha to every child.
+        -- Reset any stale per-icon alpha to avoid multiplying it twice.
+        icon:SetAlpha(1)
 
         if icon.SetDesaturated then
             icon:SetDesaturated(data.desaturated == true)
@@ -767,7 +769,7 @@ function Components:SetItemSlotData(button, data)
         end
 
         button.Count:SetText(countText)
-        button.Count:SetAlpha(alpha)
+        button.Count:SetAlpha(1)
 
         if data.countColor then
             Styles:SetTextColor(button.Count, data.countColor)
@@ -927,7 +929,7 @@ function Components:SetContainerItemSlotData(
         questID = questInfo and questInfo.questID,
         questActive = questInfo and questInfo.isActive,
         borderColor = options.borderColor,
-        alpha = filtered and 0.20 or 1.00,
+        alpha = filtered and 0.10 or 1.00,
         desaturated = info and info.isLocked == true or false,
     })
 
