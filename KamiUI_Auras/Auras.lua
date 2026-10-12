@@ -18,6 +18,11 @@ local weaponEnchantBars = {}
 local weaponEnchantTimers = {}
 local weaponEnchantCount = 0
 local pendingEnchantLayout = false
+local nativeEnchantButtons = {}
+local nativeEnchantSlots = {}
+-- Test mode is intentionally session-only. /reload restores the working
+-- Forever-specific imbue bars if the native API does not support them.
+Module.nativeEnchantTest = false
 
 -- Forever exposes Shaman imbues separately from the temporary enchants
 -- consumed by Blizzard's AuraContainer. Keep this reader separate: only
@@ -56,6 +61,12 @@ end
 
 local function ReadWeaponEnchantList()
     local entries = {}
+    -- In test mode, let Blizzard's AuraContainer be the sole owner of
+    -- weapon-enchant display and combat-safe layout. Do not destroy the
+    -- working fallback or change the registration of protected frames.
+    if Module.nativeEnchantTest then
+        return entries
+    end
     local hasNativeSlots = container and container.AddItemEnchantment
     local permanent = Enum and Enum.ItemEnchantType
         and Enum.ItemEnchantType.Permanent or 1
@@ -516,12 +527,24 @@ local function CreateAuraContainer()
             )
         end
 
-        for _, slot in ipairs({ slots.MainHand, slots.OffHand }) do
-            if slot ~= nil then
-                auraContainer:AddItemEnchantment(slot, {
-                    initializeFrame = InitializeWeaponEnchant,
-                    hidePermanent = false,
-                })
+        -- Register native slots once at creation time, never during combat.
+        -- Use the client's official slot enum, including Ranged if present.
+        local nativeSlots = {
+            { name = "Main Hand", slot = slots.MainHand },
+            { name = "Off Hand", slot = slots.OffHand },
+            { name = "Ranged", slot = slots.Ranged },
+        }
+        for _, definition in ipairs(nativeSlots) do
+            if definition.slot ~= nil then
+                local button = auraContainer:AddItemEnchantment(
+                    definition.slot,
+                    {
+                        initializeFrame = InitializeWeaponEnchant,
+                        hidePermanent = false,
+                    }
+                )
+                nativeEnchantButtons[definition.name] = button
+                nativeEnchantSlots[definition.name] = definition.slot
             end
         end
     end
@@ -565,21 +588,79 @@ local function CreateAuraContainer()
 end
 
 function Module:Initialize()
+    -- Compare native and Forever-specific weapon enchant sources. When
+    -- Blizzard recognizes the enchant, its own AuraContainer should be able
+    -- to place it without our independent bars or protected repositioning.
     UI:RegisterCommand("auras", "enchants", function()
+        UI:Print("Weapon enchant diagnostics (native test: "
+            .. (Module.nativeEnchantTest and "ON" or "OFF") .. "):")
         local sources = GetWeaponEnchantSources()
-        UI:Print("Weapon enchant diagnostics:")
         if #sources == 0 then
             UI:Print("C_Item.GetWeaponEnchantInfo unavailable")
-            return
         end
 
         for _, source in ipairs(sources) do
             if source.weapon ~= nil then
-                local list = UI:SafeCall(
-                    C_Item.GetWeaponEnchantInfo, source.weapon
-                )
+                local status = {}
+                local nativeSlot = nativeEnchantSlots[source.name]
+                local nativeButton = nativeEnchantButtons[source.name]
+
+                if nativeSlot ~= nil then
+                    status[#status + 1] = "registered"
+                    if nativeButton then
+                        local ok, shown = pcall(
+                            nativeButton.IsShown, nativeButton
+                        )
+                        if ok and IsReadable(shown)
+                            and type(shown) == "boolean"
+                        then
+                            status[#status + 1] = shown and "shown" or "hidden"
+                        else
+                            status[#status + 1] = "visibility unknown"
+                        end
+                    end
+                else
+                    status[#status + 1] = "not registered"
+                end
+
+                if C_PaperDollInfo
+                    and C_PaperDollInfo.GetTemporaryEnchantmentInfo
+                then
+                    local info = UI:SafeCall(
+                        C_PaperDollInfo.GetTemporaryEnchantmentInfo,
+                        source.inventory
+                    )
+                    if IsReadableTable(info) then
+                        local function Field(key)
+                            local v = info[key]
+                            if not IsReadable(v) then return "secret" end
+                            if v == nil then return "-" end
+                            if type(v) == "number"
+                                or type(v) == "boolean"
+                            then
+                                return tostring(v)
+                            end
+                            return "unknown"
+                        end
+                        status[#status + 1] = string.format(
+                            "native ID=%s time=%sms expires=%s",
+                            Field("enchantID"),
+                            Field("remainingTimeMs"),
+                            Field("hasExpirationTime")
+                        )
+                    else
+                        status[#status + 1] = "native: none/secret"
+                    end
+                else
+                    status[#status + 1] = "native API unavailable"
+                end
+
+                local list = C_Item and C_Item.GetWeaponEnchantInfo
+                    and UI:SafeCall(
+                        C_Item.GetWeaponEnchantInfo, source.weapon
+                    )
+                local descriptions = {}
                 if IsReadableTable(list) then
-                    local descriptions = {}
                     for _, enchant in ipairs(list) do
                         if IsReadableTable(enchant)
                             and IsReadableNumber(enchant.enchantType)
@@ -587,23 +668,44 @@ function Module:Initialize()
                             and IsReadableNumber(enchant.timeLeft)
                         then
                             descriptions[#descriptions + 1] = string.format(
-                                "type=%d id=%d remaining=%ds",
+                                "type=%d id=%d time=%ds",
                                 enchant.enchantType, enchant.enchantID,
                                 math.floor(enchant.timeLeft / 1000)
                             )
                         end
                     end
-                    UI:Print(source.name .. ": "
-                        .. (#descriptions > 0
-                            and table.concat(descriptions, ", ")
-                            or "none"))
-                else
-                    UI:Print(source.name .. ": unavailable or secret")
                 end
+                status[#status + 1] = "Forever: "
+                    .. (#descriptions > 0
+                        and table.concat(descriptions, ", ")
+                        or "none/secret")
+                UI:Print(source.name .. ": " .. table.concat(status, " | "))
             end
         end
         UI:Print("KamiUI separate bars: " .. weaponEnchantCount)
-    end, "Show weapon enchant API diagnostics")
+    end, "Compare native and Forever weapon enchant APIs")
+
+    UI:RegisterCommand("auras", "native", function()
+        if InCombatLockdown and InCombatLockdown() then
+            UI:Print("Enable the native enchant test before combat.")
+            return
+        end
+        Module.nativeEnchantTest = true
+        RefreshWeaponEnchants()
+        UI:Print("Native-only enchant test enabled. Cast Rockbiter and"
+            .. " check whether Blizzard shows and reorders it in combat."
+            .. " /kami auras auto restores the fallback.")
+    end, "Test Blizzard-only weapon enchant rendering")
+
+    UI:RegisterCommand("auras", "auto", function()
+        if InCombatLockdown and InCombatLockdown() then
+            UI:Print("Restore the normal mode after combat.")
+            return
+        end
+        Module.nativeEnchantTest = false
+        RefreshWeaponEnchants()
+        UI:Print("Normal weapon enchant fallback restored.")
+    end, "Restore standard weapon enchant rendering")
 
     HideBlizzardAuras()
     container = CreateAuraContainer()
