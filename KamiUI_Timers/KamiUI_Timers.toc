@@ -3,7 +3,7 @@
 ## Notes: Compact totem and multi-unit aura timers
 ## Author: Kami Katze
 ## Version: 0.1.0
-## IconTexture: Interface\\Icons\\Spell_Nature_TotemBarbarian
+## IconTexture: Interface\Icons\Spell_Nature_StoneClawTotem
 ## RequiredDeps: KamiUI, KamiUI_UnitFrames
 
 Timers.lua
