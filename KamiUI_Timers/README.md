@@ -16,7 +16,7 @@ the same external label, displaying "Totem".
   the buttons when the aura order changes.
 - The per-unit `AuraContainer` frames are still chained to grow upwards.
 - The number of pre-created enemy slots is controlled by
-  `UI.Layout.Timers.MAX_NAMEPLATES` (currently 20).
+  `UI.Layout.Timers.MAX_NAMEPLATES` (currently 40).
 
 ## Sources and duplicate policy
 
@@ -25,7 +25,7 @@ to give each effect type **one unit family**:
 
 - Player + party1–4: **HELPFUL|PLAYER** (self buffs such as Battle Shout,
   HoTs cast by the player or pet).
-- nameplate1–20: **HARMFUL|PLAYER** (DoTs on separate visible nameplate units).
+- nameplate1–40: **HARMFUL|PLAYER** (DoTs on separate visible nameplate units).
 - Totems: up to four independent totem slots using Blizzard DurationObject
   where available, with readable `GetTotemInfo` fallback.
 
