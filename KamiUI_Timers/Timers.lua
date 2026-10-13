@@ -458,7 +458,7 @@ function Module:Initialize()
         Module:UpdateTotemCountdowns()
     end)
     self:RefreshTotems()
-    self:RefreshUnitLabels()
+    self:RefreshUnitHeaders()
 
     UI:RegisterEvent("PLAYER_ENTERING_WORLD", function()
         Module:RefreshTotems()
