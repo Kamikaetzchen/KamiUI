@@ -188,11 +188,10 @@ UI.Layout = {
         WIDTH = 200,
         HEIGHT = 15,
         FONT_SIZE = 9,
-        UNIT_WIDTH = 62,
+        UNIT_WIDTH = 90,
+        UNIT_GAP = 5,
         TIME_WIDTH = 38,
         GAP = 2,
-        SECTION_HEIGHT = 12,
-        SECTION_GAP = 2,
         -- Duration filter for short buffs (including Battle Shout),
         -- DoTs and HoTs; totems are tracked separately.
         MAX_AURA_DURATION = 180,
