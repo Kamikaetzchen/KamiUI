@@ -6,7 +6,8 @@ local Layout = UI.Layout.UnitFrames.Base
 local UF = UI:NewModule("UnitFrames", "KamiUI_UnitFrames")
 
 
-UF.flatTexture = "Interface\\Buttons\\WHITE8X8"
+-- Shared faceted artwork; native StatusBars preserve the existing class/power colors.
+UF.barTexture = UI.Media.KamiFacet
 UF.colorMultiplier = 0.60
 UF.powerColorMultiplier = 0.85
 
@@ -440,11 +441,12 @@ end
 function UF:CreateBar(parent, width, height)
     local bar = CreateFrame("StatusBar", nil, parent)
     bar:SetSize(width, height)
-    bar:SetStatusBarTexture(self.flatTexture)
+    bar:SetStatusBarTexture(self.barTexture)
 
     local background = bar:CreateTexture(nil, "BACKGROUND")
     background:SetAllPoints()
-    background:SetColorTexture(0.08, 0.08, 0.08, 1)
+    background:SetTexture(self.barTexture)
+    background:SetVertexColor(0.08, 0.08, 0.08, 1)
 
     bar.background = background
 

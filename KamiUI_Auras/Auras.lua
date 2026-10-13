@@ -9,8 +9,7 @@ local Layout = UI.Layout.Auras
 -- Kami Facet: soft light facets in the top/bottom 25% of each bar,
 -- with a flat center from 25-75%. Its alpha stays completely uniform:
 -- only RGB brightness changes, so the bars remain full-height beside icons.
-local BAR_FACET_TEXTURE =
-    "Interface\\AddOns\\KamiUI_Auras\\Textures\\KamiFacet"
+local BAR_FACET_TEXTURE = UI.Media.KamiFacet
 
 
 local container
