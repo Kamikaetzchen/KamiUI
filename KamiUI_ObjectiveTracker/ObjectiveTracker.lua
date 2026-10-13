@@ -799,6 +799,7 @@ function Module:RefreshLive()
     local data = provider:GetSection()
     if not data or not data.items then return end
     local items = {}
+    self.hasQuestTimers = false
     for _, item in ipairs(data.items) do
         if item.questID then items[item.questID] = item end
     end
