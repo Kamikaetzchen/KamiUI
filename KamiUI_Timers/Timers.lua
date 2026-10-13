@@ -2,20 +2,23 @@ local UI = KamiUI
 local Module = UI:NewModule("Timers", "KamiUI_Timers")
 local Layout = UI.Layout.Timers
 local Palette = UI.Palette
+local Styles = UI.Styles
 
--- Native AuraContainers own secret aura data, filtering, durations and
--- combat updates. Never scan indexed aura data from tainted Lua in 12.1.
--- Each unit owns a contiguous block of bars; the target name on every bar
--- identifies that block even when container heights are combat-secret.
-local TRACKED_UNITS = { "player", "target", "focus" }
+-- Blizzard owns the secure aura data, layout and countdowns. To prevent
+-- duplicates WITHOUT inspecting secret GUIDs, use non-overlapping sources:
+-- friendly self/party tokens only show our buffs and HoTs; nameplates only
+-- show our DoTs. Target/focus/boss are deliberately not scanned separately.
+-- If enemy nameplates are disabled, enemy DoTs cannot be tracked here.
+local TRACKED_UNITS = { { token = "player", friendly = true } }
 for index = 1, 4 do
-    TRACKED_UNITS[#TRACKED_UNITS + 1] = "party" .. index
+    TRACKED_UNITS[#TRACKED_UNITS + 1] = {
+        token = "party" .. index, friendly = true,
+    }
 end
 for index = 1, 8 do
-    TRACKED_UNITS[#TRACKED_UNITS + 1] = "nameplate" .. index
-end
-for index = 1, 5 do
-    TRACKED_UNITS[#TRACKED_UNITS + 1] = "boss" .. index
+    TRACKED_UNITS[#TRACKED_UNITS + 1] = {
+        token = "nameplate" .. index, friendly = false,
+    }
 end
 
 local function Border(frame)
@@ -96,7 +99,7 @@ local function CreateTimerBar(parent, color)
     return frame, bar, unit, name, time
 end
 
-local function InitializeAuraButton(button, unitToken, color, labels)
+local function InitializeAuraButton(button, color)
     button:SetSize(Layout.WIDTH, Layout.HEIGHT)
     local icon = button:CreateTexture(nil, "ARTWORK")
     icon:SetSize(Layout.HEIGHT - 2, Layout.HEIGHT - 2)
@@ -131,12 +134,10 @@ local function InitializeAuraButton(button, unitToken, color, labels)
         if width then fs:SetWidth(width) end
         return fs
     end
-    local targetName = Label(Layout.UNIT_WIDTH, "LEFT")
-    targetName:SetPoint("LEFT", bar, "LEFT", 3, 0)
-    labels[#labels + 1] = targetName
-
+    -- The unit name is a single sectionTitle above the entire group.
+    -- The bar keeps the full remaining width for the spell name.
     local spellName = Label(nil, "LEFT")
-    spellName:SetPoint("LEFT", targetName, "RIGHT", 3, 0)
+    spellName:SetPoint("LEFT", bar, "LEFT", 4, 0)
     spellName:SetPoint("RIGHT", bar, "RIGHT", -Layout.TIME_WIDTH - 5, 0)
 
     local timeText = Label(Layout.TIME_WIDTH, "RIGHT")
@@ -154,7 +155,23 @@ local function InitializeAuraButton(button, unitToken, color, labels)
     button:SetTooltipAnchorPoint("ANCHOR_RIGHT")
 end
 
-local function MakeAuraContainer(parent, unitToken, previous)
+local function CreateUnitHeader(parent, below, token)
+    -- This is a normal UI frame, not part of Blizzard's secure AuraContainer.
+    local frame = CreateFrame("Frame", nil, parent)
+    frame:SetSize(Layout.WIDTH, Layout.SECTION_HEIGHT)
+    frame:SetPoint("BOTTOMLEFT", below, "TOPLEFT", 0, Layout.SECTION_GAP)
+
+    local title = frame:CreateFontString(nil, "OVERLAY")
+    title:SetPoint("LEFT", frame, "LEFT", 2, 0)
+    title:SetPoint("RIGHT", frame, "RIGHT", -2, 0)
+    title:SetJustifyH("LEFT")
+    title:SetWordWrap(false)
+    Styles:ApplyText(title, "sectionTitle")
+    title:SetText(token)
+    return frame, title
+end
+
+local function MakeAuraContainer(parent, unitToken, previous, friendly)
     local container = CreateFrame(
         "AuraContainer", nil, parent,
         "CustomAuraContainerTemplate, DisableUntrustedLayoutScriptsTemplate"
@@ -168,7 +185,6 @@ local function MakeAuraContainer(parent, unitToken, previous)
     )
     container:SetFlowLayoutMaximumLineSize(Layout.WIDTH)
 
-    local labels = {}
     local function Add(key, filter, color, maxCount, order)
         container:AddAuraGroup(key, filter, {
             maxFrameCount = maxCount,
@@ -178,7 +194,7 @@ local function MakeAuraContainer(parent, unitToken, previous)
                 maxDuration = Layout.MAX_AURA_DURATION,
             },
             initializeFrame = function(button)
-                InitializeAuraButton(button, unitToken, color, labels)
+                InitializeAuraButton(button, color)
             end,
             layout = {
                 elementWidth = Layout.WIDTH,
@@ -189,12 +205,21 @@ local function MakeAuraContainer(parent, unitToken, previous)
             },
         })
     end
-    Add("dots", "HARMFUL|PLAYER", Palette.auras.harmful, 6, 1)
-    Add("hots", "HELPFUL|PLAYER", Palette.auras.helpful, 6, 2)
+    if friendly then
+        Add("hots", "HELPFUL|PLAYER", Palette.auras.helpful, 6, 1)
+    else
+        Add("dots", "HARMFUL|PLAYER", Palette.auras.harmful, 6, 1)
+    end
     container:SetEnabled(true)
     container:SetUnit(unitToken)
     container:UpdateAllAuras()
-    return { frame = container, token = unitToken, labels = labels }
+
+    -- Header above this unit's own native aura stack; the next unit anchors
+    -- above the header, so each heading belongs to the bars immediately below.
+    local header, title = CreateUnitHeader(parent, container, unitToken)
+    return { frame = container, header = header, title = title,
+        token = unitToken, headerActive = true }
+
 end
 
 local function RemainingText(seconds)
@@ -349,15 +374,47 @@ function Module:RefreshAuraUnits(token)
     end
 end
 
-function Module:RefreshUnitLabels()
+-- Auras in combat are opaque; we can condition section titles only on the
+-- *unit's existence*, never on whether its secret aura list is empty.
+-- Collapse absent unit headers outside lockdown. Keep the header hierarchy
+-- stable during combat and defer any protected reflow until afterwards.
+function Module:RefreshUnitHeaders()
     if not self.units then return end
+    local locked = InCombatLockdown and InCombatLockdown()
+    local needsLayout = false
+
     for _, entry in ipairs(self.units) do
-        -- UnitName can be a secret string. FontString:SetText accepts it;
-        -- never concatenate, compare or index the returned value.
-        local name = UnitName(entry.token)
-        for _, label in ipairs(entry.labels) do
-            label:SetText(name)
+        local exists = UnitExists and UnitExists(entry.token)
+        if not UI:CanAccessValue(exists) then
+            exists = entry.headerActive
         end
+        exists = exists == true
+
+        if exists then
+            -- UnitName can be a secret string; native FontString accepts it.
+            entry.title:SetText(UnitName(entry.token))
+        else
+            entry.title:SetText("")
+        end
+
+        if entry.headerActive ~= exists then
+            if locked then
+                needsLayout = true
+            else
+                entry.header:SetHeight(
+                    exists and Layout.SECTION_HEIGHT or 0.001
+                )
+                entry.headerActive = exists
+            end
+        end
+    end
+
+    if needsLayout then
+        UI:RunOutOfCombat("timers.headers", function()
+            Module:RefreshUnitHeaders()
+        end)
+    else
+        UI:CancelOutOfCombat("timers.headers")
     end
 end
 
@@ -385,10 +442,12 @@ function Module:Initialize()
 
     self.units = {}
     local previous = self.totemAnchor
-    for _, unit in ipairs(TRACKED_UNITS) do
-        local entry = MakeAuraContainer(anchor, unit, previous)
+    for _, definition in ipairs(TRACKED_UNITS) do
+        local entry = MakeAuraContainer(
+            anchor, definition.token, previous, definition.friendly
+        )
         self.units[#self.units + 1] = entry
-        previous = entry.frame
+        previous = entry.header
     end
 
     local elapsed = 0
@@ -403,37 +462,31 @@ function Module:Initialize()
 
     UI:RegisterEvent("PLAYER_ENTERING_WORLD", function()
         Module:RefreshTotems()
-        Module:RefreshUnitLabels()
+        Module:RefreshUnitHeaders()
         C_Timer.After(0, function() Module:RefreshAuraUnits() end)
     end)
     UI:RegisterEvent("PLAYER_TOTEM_UPDATE", function()
         Module:RefreshTotems()
     end)
-    UI:RegisterEvent("PLAYER_TARGET_CHANGED", function()
-        Module:RefreshUnitLabels()
-        Module:RefreshAuraUnits("target")
-    end)
-    UI:RegisterEvent("PLAYER_FOCUS_CHANGED", function()
-        Module:RefreshUnitLabels()
-        Module:RefreshAuraUnits("focus")
-    end)
+    -- The "target" and "focus" aliases are deliberately not displayed,
+    -- because each could duplicate an existing nameplate/party group.
     UI:RegisterEvent("UNIT_NAME_UPDATE", function()
-        Module:RefreshUnitLabels()
+        Module:RefreshUnitHeaders()
     end)
     UI:RegisterEvent("NAME_PLATE_UNIT_ADDED", function(_, unit)
-        Module:RefreshUnitLabels()
+        Module:RefreshUnitHeaders()
         Module:RefreshAuraUnits(unit)
     end)
     UI:RegisterEvent("NAME_PLATE_UNIT_REMOVED", function(_, unit)
+        Module:RefreshUnitHeaders()
         Module:RefreshAuraUnits(unit)
     end)
     UI:RegisterEvent("GROUP_ROSTER_UPDATE", function()
-        Module:RefreshUnitLabels()
+        Module:RefreshUnitHeaders()
         Module:RefreshAuraUnits()
     end)
-    UI:RegisterEvent("INSTANCE_ENCOUNTER_ENGAGE_UNIT", function()
-        Module:RefreshUnitLabels()
-        Module:RefreshAuraUnits()
+    UI:RegisterEvent("PLAYER_REGEN_ENABLED", function()
+        Module:RefreshUnitHeaders()
     end)
 end
 
