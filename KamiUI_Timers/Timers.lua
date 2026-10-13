@@ -318,6 +318,37 @@ function Module:UpdateTotemCountdowns()
     end
 end
 
+-- SetUnit() is a no-op for an unchanged token. Blizzard may keep the
+-- previously resolved target/focus/nameplate after that token changes.
+-- Match KamiUI_UnitFrames/UnitAuras.lua: refresh immediately in combat,
+-- and defer the rebind/visibility bounce of protected containers.
+function Module:RefreshAuraUnits(token)
+    if not self.units then return end
+    if InCombatLockdown and InCombatLockdown() then
+        for _, entry in ipairs(self.units) do
+            if not token or entry.token == token then
+                entry.frame:UpdateAllAuras()
+            end
+        end
+        UI:RunOutOfCombat("timers.auraBindings", function()
+            Module:RefreshAuraUnits()
+        end)
+        return
+    end
+
+    UI:CancelOutOfCombat("timers.auraBindings")
+    for _, entry in ipairs(self.units) do
+        if not token or entry.token == token then
+            local container = entry.frame
+            container:SetUnit("none")
+            container:SetUnit(entry.token)
+            container:Hide()
+            container:Show()
+            container:UpdateAllAuras()
+        end
+    end
+end
+
 function Module:RefreshUnitLabels()
     if not self.units then return end
     for _, entry in ipairs(self.units) do
@@ -373,24 +404,36 @@ function Module:Initialize()
     UI:RegisterEvent("PLAYER_ENTERING_WORLD", function()
         Module:RefreshTotems()
         Module:RefreshUnitLabels()
+        C_Timer.After(0, function() Module:RefreshAuraUnits() end)
     end)
     UI:RegisterEvent("PLAYER_TOTEM_UPDATE", function()
         Module:RefreshTotems()
     end)
     UI:RegisterEvent("PLAYER_TARGET_CHANGED", function()
         Module:RefreshUnitLabels()
+        Module:RefreshAuraUnits("target")
     end)
     UI:RegisterEvent("PLAYER_FOCUS_CHANGED", function()
         Module:RefreshUnitLabels()
+        Module:RefreshAuraUnits("focus")
     end)
     UI:RegisterEvent("UNIT_NAME_UPDATE", function()
         Module:RefreshUnitLabels()
     end)
-    UI:RegisterEvent("NAME_PLATE_UNIT_ADDED", function()
+    UI:RegisterEvent("NAME_PLATE_UNIT_ADDED", function(_, unit)
         Module:RefreshUnitLabels()
+        Module:RefreshAuraUnits(unit)
+    end)
+    UI:RegisterEvent("NAME_PLATE_UNIT_REMOVED", function(_, unit)
+        Module:RefreshAuraUnits(unit)
     end)
     UI:RegisterEvent("GROUP_ROSTER_UPDATE", function()
         Module:RefreshUnitLabels()
+        Module:RefreshAuraUnits()
+    end)
+    UI:RegisterEvent("INSTANCE_ENCOUNTER_ENGAGE_UNIT", function()
+        Module:RefreshUnitLabels()
+        Module:RefreshAuraUnits()
     end)
 end
 
