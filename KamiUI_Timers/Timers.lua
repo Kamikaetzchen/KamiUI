@@ -21,28 +21,43 @@ for index = 1, 8 do
     }
 end
 
-local function Color(bar, color)
-    bar:SetStatusBarColor(color[1], color[2], color[3])
-    -- SetAlpha() applies to the fill while overlay labels stay fully opaque.
-    bar:SetAlpha(Layout.BAR_ALPHA)
+-- Mirror KamiUI_Auras: a separate parent controls fill alpha while the
+-- background retains its own vertex alpha. This also survives secure aura
+-- callbacks that may override the StatusBar texture's alpha.
+local function CreateBarBackground(parent, barContainer)
+    local background = parent:CreateTexture(nil, "BACKGROUND")
+    background:SetPoint("TOPLEFT", barContainer, "TOPLEFT")
+    background:SetPoint("BOTTOMRIGHT", barContainer, "BOTTOMRIGHT")
+    background:SetTexture(UI.Media.KamiFacet)
+    background:SetVertexColor(
+        Palette.auras.background[1],
+        Palette.auras.background[2],
+        Palette.auras.background[3],
+        Styles.State.aurasBackgroundAlpha
+    )
+end
+
+local function CreateColoredBar(parent, color)
+    local barContainer = CreateFrame("Frame", nil, parent)
+    barContainer:SetAlpha(Styles.State.aurasBarAlpha)
+
+    local bar = CreateFrame("StatusBar", nil, barContainer)
+    bar:SetAllPoints()
+    bar:SetStatusBarTexture(UI.Media.KamiFacet)
+    bar:SetStatusBarColor(color[1], color[2], color[3], 1)
+
+    return barContainer, bar
 end
 
 local function CreateTimerBar(parent, color)
     local frame = CreateFrame("Frame", nil, parent)
     frame:SetSize(Layout.WIDTH, Layout.HEIGHT)
 
-    local background = frame:CreateTexture(nil, "BACKGROUND")
-    background:SetAllPoints()
-    background:SetTexture(UI.Media.KamiFacet)
-    background:SetVertexColor(0.08, 0.08, 0.10)
-    background:SetAlpha(Layout.BACKGROUND_ALPHA)
-
-    local bar = CreateFrame("StatusBar", nil, frame)
-    bar:SetAllPoints()
-    bar:SetStatusBarTexture(UI.Media.KamiFacet)
+    local barContainer, bar = CreateColoredBar(frame, color)
+    barContainer:SetAllPoints()
+    CreateBarBackground(frame, barContainer)
     bar:SetMinMaxValues(0, 1)
     bar:SetValue(1)
-    Color(bar, color)
 
     -- Text stays outside the StatusBar, so the fill never covers it.
     local overlay = CreateFrame("Frame", nil, frame)
@@ -88,17 +103,10 @@ local function InitializeAuraButton(button, unitToken, color, labels)
 
     -- The aura-owned frame and visual regions must be constructed before
     -- SetIcon/SetDurationBar bind the native secure aura aspects.
-    local background = button:CreateTexture(nil, "BACKGROUND")
-    background:SetPoint("TOPLEFT", icon, "TOPRIGHT")
-    background:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT")
-    background:SetTexture(UI.Media.KamiFacet)
-    background:SetVertexColor(0.08, 0.08, 0.10)
-    background:SetAlpha(Layout.BACKGROUND_ALPHA)
-    local bar = CreateFrame("StatusBar", nil, button)
-    bar:SetPoint("TOPLEFT", icon, "TOPRIGHT")
-    bar:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT")
-    bar:SetStatusBarTexture(UI.Media.KamiFacet)
-    Color(bar, color)
+    local barContainer, bar = CreateColoredBar(button, color)
+    barContainer:SetPoint("TOPLEFT", icon, "TOPRIGHT")
+    barContainer:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT")
+    CreateBarBackground(button, barContainer)
 
     local overlay = CreateFrame("Frame", nil, button)
     overlay:SetAllPoints()
