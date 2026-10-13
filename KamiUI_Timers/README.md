@@ -1,8 +1,10 @@
 # KamiUI_Timers
 
-Compact 200 × 12px timer bars styled after the swing timers. The stack is
-anchored above/left of `KamiUIPetFrame` and grows upwards. Layout settings
-are in `UI.Layout.Timers`.
+Compact 200 × 12px visible timer bars styled after the swing timers. Each
+native timer row is 14px tall, with 1px of transparent padding above and
+below the bar and icon. The stack is anchored above/left of
+`KamiUIPetFrame` and grows upwards. Layout settings are in
+`UI.Layout.Timers`.
 
 Each **visible** aura button carries its unit name in a **right-aligned,
 golden `sectionTitle` label immediately to the left** of the 200px bar.
@@ -10,6 +12,10 @@ Inside the bar: aura icon, spell name and remaining time. Totem rows use
 the same external label, displaying "Totem".
 
 - Unit labels use `UNIT_WIDTH=90`, `UNIT_GAP=5`.
+- Within-unit element spacing is 0px (the row padding makes a visible 2px
+  gap). Between native unit containers there is an extra 2px gap, resulting
+  in a nominal 4px separation between visible groups. Empty native groups
+  still occupy space, but their additional gap is halved.
 - No separate section headers: a unit without matching auras does not show
   a title, and there are no "first visible button" assumptions.
 - Blizzard owns native aura sorting and secure countdowns; the labels follow
@@ -42,7 +48,7 @@ comparisons or secret aura inspection are performed in combat.
   comparing potentially secret names. Some aura-owned FontStrings may become
   forbidden in combat; best-effort updates skip rejected writes.
 - The name is intentionally repeated alongside every visible aura row of a
-  unit. Empty native containers still contribute their configured group gap
+  unit. Empty native containers still contribute their 2px group gap
   even without visible bars; raising the slot limit can increase blank space.
   The 1px native baseline is compensated in the anchor chain.
 - Aura duration is capped at 180s by the native `maxDuration` candidate

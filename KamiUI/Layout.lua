@@ -195,14 +195,15 @@ UI.Layout = {
 
     Timers = {
         WIDTH = 200,
-        HEIGHT = 12,
+        HEIGHT = 12,      -- Visible bar and icon
+        ROW_PADDING = 1,  -- Transparent space above/below each row
         MAX_NAMEPLATES = 40,
         FONT_SIZE = 9,
         UNIT_WIDTH = 90,
         UNIT_GAP = 5,
         TIME_WIDTH = 38,
-        GAP = 2,          -- Between bars belonging to the same unit
-        GROUP_GAP = 4,    -- Between nameplate/party/player containers
+        GAP = 0,          -- Row padding supplies 2px visual gap
+        GROUP_GAP = 2,    -- Additional gap between unit containers
         -- Duration filter for short buffs (including Battle Shout),
         -- DoTs and HoTs; totems are tracked separately.
         MAX_AURA_DURATION = 180,

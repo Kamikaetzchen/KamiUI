@@ -3,6 +3,9 @@ local Module = UI:NewModule("Timers", "KamiUI_Timers")
 local Layout = UI.Layout.Timers
 local Palette = UI.Palette
 local Styles = UI.Styles
+-- Keep 12px of visible bar/icon inside a 14px row. The row itself stays
+-- entirely transparent in the 1px padding at the top and bottom.
+local ROW_HEIGHT = Layout.HEIGHT + 2 * Layout.ROW_PADDING
 
 -- Blizzard owns the secure aura data, layout and countdowns. To prevent
 -- duplicates WITHOUT inspecting secret GUIDs, use non-overlapping sources:
@@ -52,10 +55,15 @@ end
 
 local function CreateTimerBar(parent, color)
     local frame = CreateFrame("Frame", nil, parent)
-    frame:SetSize(Layout.WIDTH, Layout.HEIGHT)
+    frame:SetSize(Layout.WIDTH, ROW_HEIGHT)
 
     local barContainer, bar = CreateColoredBar(frame, color)
-    barContainer:SetAllPoints()
+    barContainer:SetPoint(
+        "TOPLEFT", frame, "TOPLEFT", 0, -Layout.ROW_PADDING
+    )
+    barContainer:SetPoint(
+        "BOTTOMRIGHT", frame, "BOTTOMRIGHT", 0, Layout.ROW_PADDING
+    )
     CreateBarBackground(frame, barContainer)
     bar:SetMinMaxValues(0, 1)
     bar:SetValue(1)
@@ -96,7 +104,7 @@ local function CreateTimerBar(parent, color)
 end
 
 local function InitializeAuraButton(button, unitToken, color, labels)
-    button:SetSize(Layout.WIDTH, Layout.HEIGHT)
+    button:SetSize(Layout.WIDTH, ROW_HEIGHT)
     local icon = button:CreateTexture(nil, "ARTWORK")
     icon:SetSize(Layout.HEIGHT, Layout.HEIGHT)
     icon:SetPoint("LEFT", button, "LEFT", 0, 0)
@@ -106,7 +114,9 @@ local function InitializeAuraButton(button, unitToken, color, labels)
     -- SetIcon/SetDurationBar bind the native secure aura aspects.
     local barContainer, bar = CreateColoredBar(button, color)
     barContainer:SetPoint("TOPLEFT", icon, "TOPRIGHT")
-    barContainer:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT")
+    barContainer:SetPoint(
+        "BOTTOMRIGHT", button, "BOTTOMRIGHT", 0, Layout.ROW_PADDING
+    )
     CreateBarBackground(button, barContainer)
 
     local overlay = CreateFrame("Frame", nil, button)
@@ -186,7 +196,7 @@ end
             end,
             layout = {
                 elementWidth = Layout.WIDTH,
-                elementHeight = Layout.HEIGHT,
+                elementHeight = ROW_HEIGHT,
                 elementSpacing = Layout.GAP,
                 groupSpacing = Layout.GROUP_GAP,
                 layoutIndex = order,
@@ -302,7 +312,7 @@ function Module:RefreshTotems()
             row.frame:ClearAllPoints()
             row.frame:SetPoint("BOTTOMLEFT", self.totemAnchor,
                 "BOTTOMLEFT", 0,
-                visible * (Layout.HEIGHT + Layout.GAP))
+                visible * (ROW_HEIGHT + Layout.GAP))
             row.frame:Show()
             visible = visible + 1
         else
@@ -310,7 +320,7 @@ function Module:RefreshTotems()
         end
     end
     self.totemAnchor:SetHeight(math.max(1,
-        visible * (Layout.HEIGHT + Layout.GAP)))
+        visible * (ROW_HEIGHT + Layout.GAP)))
 end
 
 function Module:UpdateTotemCountdowns()
