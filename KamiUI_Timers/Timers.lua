@@ -15,7 +15,8 @@ for index = 1, 4 do
         token = "party" .. index, friendly = true,
     }
 end
-for index = 1, 8 do
+-- Precreate all enemy unit bindings before combat, including add spawns.
+for index = 1, Layout.MAX_NAMEPLATES do
     TRACKED_UNITS[#TRACKED_UNITS + 1] = {
         token = "nameplate" .. index, friendly = false,
     }

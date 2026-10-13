@@ -1,6 +1,6 @@
 # KamiUI_Timers
 
-Compact 200 × 15px timer bars styled after the swing timers. The stack is
+Compact 200 × 12px timer bars styled after the swing timers. The stack is
 anchored above/left of `KamiUIPetFrame` and grows upwards. Layout settings
 are in `UI.Layout.Timers`.
 
@@ -15,6 +15,8 @@ the same external label, displaying "Totem".
 - Blizzard owns native aura sorting and secure countdowns; the labels follow
   the buttons when the aura order changes.
 - The per-unit `AuraContainer` frames are still chained to grow upwards.
+- The number of pre-created enemy slots is controlled by
+  `UI.Layout.Timers.MAX_NAMEPLATES` (currently 20).
 
 ## Sources and duplicate policy
 
@@ -23,7 +25,7 @@ to give each effect type **one unit family**:
 
 - Player + party1–4: **HELPFUL|PLAYER** (self buffs such as Battle Shout,
   HoTs cast by the player or pet).
-- nameplate1–8: **HARMFUL|PLAYER** (DoTs on separate visible nameplate units).
+- nameplate1–20: **HARMFUL|PLAYER** (DoTs on separate visible nameplate units).
 - Totems: up to four independent totem slots using Blizzard DurationObject
   where available, with readable `GetTotemInfo` fallback.
 
@@ -36,13 +38,15 @@ comparisons or secret aura inspection are performed in combat.
 - Enemy nameplates must be enabled. Enemy effects without a nameplate (for
   example, an off-screen enemy or a boss without a nameplate) are not covered.
   The tracker does not persist vanished units by GUID.
-- Unit names are forwarded directly to FontStrings, without attempting to
-  inspect or compare potentially secret unit names.
+- Unit names are forwarded directly to FontStrings without inspecting or
+  comparing potentially secret names. Some aura-owned FontStrings may become
+  forbidden in combat; best-effort updates skip rejected writes.
 - The name is intentionally repeated alongside every visible aura row of a
-  unit; a group with no active auras has no displayed name, although the
-  1px native container baseline may leave a small residual gap.
+  unit. Empty native containers still contribute their configured group gap
+  even without visible bars; raising the slot limit can increase blank space.
+  The 1px native baseline is compensated in the anchor chain.
 - Aura duration is capped at 180s by the native `maxDuration` candidate
   filter. Up to six helpful or harmful aura bars per unit are allocated.
-- This implementation has not been tested inside the WoW Forever client.
-  Validate label placement, combat updates, native unit visibility, stacking,
-  and totem durations in game before considering it stable.
+- Basic self-buff and multi-nameplate combat display has been tested ingame;
+  high-count add spawns, unit-token reuse, group HoTs and totems still require
+  dedicated testing.

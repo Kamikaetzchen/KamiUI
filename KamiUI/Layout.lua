@@ -196,6 +196,7 @@ UI.Layout = {
     Timers = {
         WIDTH = 200,
         HEIGHT = 12,
+        MAX_NAMEPLATES = 20,
         FONT_SIZE = 9,
         UNIT_WIDTH = 90,
         UNIT_GAP = 5,
