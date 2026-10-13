@@ -378,6 +378,8 @@ local function CreateEquipmentSlot(parent, definition)
         end
 
         if mouseButton == "LeftButton" then
+            -- PickupInventoryItem is #nocombat, even though weapons can
+            -- be swapped by Blizzard's secure actions during combat.
             if InCombatLockdown and InCombatLockdown() then return end
             local cursorType = GetCursorInfo and UI:SafeCall(GetCursorInfo)
             local equippedLink = GetInventoryItemLink("player", self.slotID)
@@ -458,7 +460,8 @@ local function CreateEquipmentSlot(parent, definition)
     button:SetScript("OnReceiveDrag", function(self)
         local _, _, isCurrent = Module:GetViewedCharacter()
 
-        if isCurrent and self.slotID then
+        if isCurrent and self.slotID
+            and not (InCombatLockdown and InCombatLockdown()) then
             PickupInventoryItem(self.slotID)
             if Module.CloseEquipmentFlyout then
                 Module:CloseEquipmentFlyout()
@@ -606,10 +609,9 @@ local function UpdateEquipmentSlot(button)
 
     if not slotID then
         button.cachedLink = nil
-        button.icon:SetTexture(nil)
-        button.label:Show()
-        Components:SetItemSlotBorderColor(button, Palette.emptyBorder)
-        Components:SetItemSlotQuality(button, nil)
+        Components:SetItemSlotData(button, {
+            borderColor = Palette.emptyBorder,
+        })
         return
     end
 
@@ -635,16 +637,22 @@ local function UpdateEquipmentSlot(button)
         end
     end
 
-    button.cachedLink = link
-    button.icon:SetTexture(texture)
-    button.label:SetShown(not texture)
-    Components:SetItemSlotBorderColor(button, Palette.emptyBorder)
-
-    if quality == nil and link and GetItemInfo then
-        _, _, quality = GetItemInfo(link)
+    -- A few inventory APIs return secret values in restricted contexts.
+    -- Do not branch on or cache those values in addon-owned UI state.
+    if not UI:CanAccessValue(texture)
+        or not UI:CanAccessValue(link)
+        or not UI:CanAccessValue(quality)
+    then
+        return
     end
 
-    Components:SetItemSlotQuality(button, quality)
+    button.cachedLink = link
+    Components:SetItemSlotData(button, {
+        icon = texture,
+        link = link,
+        quality = quality,
+        borderColor = Palette.emptyBorder,
+    })
 end
 
 local SetSidebarMode
@@ -717,21 +725,21 @@ local function UpdatePlayerInfo(frame)
     end
 end
 
-function Module:Refresh()
-    if not self.frame then
-        return
-    end
+-- Equipment textures and quality are regular item-slot visuals, independent
+-- of native PaperDoll stat proxies and window/page layout.
+function Module:RefreshEquipment()
+    if not self.frame then return end
 
-    -- Native PaperDoll stat calculations can receive combat-secret values.
-    -- Keep existing UI values during combat and refresh after lockdown.
     if InCombatLockdown and InCombatLockdown() then
-        self.refreshPending = true
-        return
+        -- The saved snapshot contains inventory links, which may be secret
+        -- in restricted contexts. Persist only after combat.
+        UI:RunOutOfCombat("characters.equipmentSnapshot", function()
+            SaveCurrentEquipmentSnapshot()
+        end)
+    else
+        UI:CancelOutOfCombat("characters.equipmentSnapshot")
+        SaveCurrentEquipmentSnapshot()
     end
-    self.refreshPending = false
-
-    SaveCurrentEquipmentSnapshot()
-    UpdatePlayerInfo(self.frame)
 
     for _, button in ipairs(self.frame.equipmentSlots or {}) do
         UpdateEquipmentSlot(button)
@@ -739,19 +747,28 @@ function Module:Refresh()
     if self.RefreshEquipmentFlyout then
         self:RefreshEquipmentFlyout()
     end
+end
 
-    if self.frame.sidebar then
-        SetSidebarMode(
-            self.frame,
-            self.frame.sidebar.mode or "stats"
-        )
+-- Full page refresh is for navigation and structural changes, not stat
+-- events. Combat still permits live equipment icons via the path above.
+function Module:Refresh()
+    if not self.frame then return end
+
+    self:RefreshEquipment()
+    if InCombatLockdown and InCombatLockdown() then
+        UI:RunOutOfCombat("characters.fullRefresh", function()
+            Module:Refresh()
+        end)
+        return
     end
+    UI:CancelOutOfCombat("characters.fullRefresh")
 
+    UpdatePlayerInfo(self.frame)
+    if self.frame.sidebar then
+        SetSidebarMode(self.frame, self.frame.sidebar.mode or "stats")
+    end
     if SetOuterPage then
-        SetOuterPage(
-            self.frame,
-            self.frame.page or "character"
-        )
+        SetOuterPage(self.frame, self.frame.page or "character")
     end
 end
 
@@ -951,14 +968,14 @@ local function QueueNativeStatRefresh()
     Module.nativeStatRefreshScheduled = true
     C_Timer.After(1, function()
         Module.nativeStatRefreshScheduled = false
-        if not Module.refreshPending
+        if not Module.nativeStatsPending
             or not Module.frame or not Module.frame:IsShown() then
             return
         end
         if NativeStatValuesRestricted() then
             QueueNativeStatRefresh()
         else
-            Module:Refresh()
+            Module:RefreshStats()
         end
     end)
 end
@@ -1286,11 +1303,12 @@ UpdateStatsPane = function(frame)
     -- The native functions are unsafe whenever *their inputs* are secret,
     -- not only when this character is in combat.
     if NativeStatValuesRestricted() then
-        Module.refreshPending = true
+        Module.nativeStatsPending = true
         QueueNativeStatRefresh()
         return
     end
 
+    Module.nativeStatsPending = nil
     local _, _, isCurrent = Module:GetViewedCharacter()
 
     pane:RenderStatLayout(GetNativeStatLayout(), function(row, data)
@@ -1332,7 +1350,7 @@ UpdateStatsPane = function(frame)
         local ok, value = UpdateNativeStat(proxy, data)
 
         if ok == nil then
-            Module.refreshPending = true
+            Module.nativeStatsPending = true
             QueueNativeStatRefresh()
             return false
         elseif not ok then
@@ -1393,6 +1411,36 @@ UpdateStatsPane = function(frame)
     end)
 end
 
+-- Native stat functions can compare secret inputs and create stat proxies;
+-- do not invoke them during combat. Queue only this part of the sheet.
+function Module:RefreshStats()
+    local frame = self.frame
+    if not frame or not frame:IsShown()
+        or frame.page ~= "character"
+        or not frame.sidebar
+        or frame.sidebar.mode ~= "stats" then
+        return
+    end
+
+    if InCombatLockdown and InCombatLockdown() then
+        UI:RunOutOfCombat("characters.stats", function()
+            Module:RefreshStats()
+        end)
+        return
+    end
+    UI:CancelOutOfCombat("characters.stats")
+    UpdateStatsPane(frame)
+end
+
+function Module:QueueStatsRefresh()
+    if self.statsEventScheduled then return end
+    self.statsEventScheduled = true
+    C_Timer.After(0, function()
+        Module.statsEventScheduled = false
+        Module:RefreshStats()
+    end)
+end
+
 ShowStatTooltip = function(row)
     local data = row.statData
 
@@ -1438,7 +1486,7 @@ ShowStatTooltip = function(row)
     local ok, errorMessage = UpdateNativeStat(proxy, data)
 
     if ok == nil then
-        Module.refreshPending = true
+        Module.nativeStatsPending = true
         QueueNativeStatRefresh()
         GameTooltip:Hide()
         return
@@ -1460,7 +1508,7 @@ ShowStatTooltip = function(row)
     local success, err = pcall(proxy.OnEnter, proxy)
     if not success then
         if IsSecretStatError(err) then
-            Module.refreshPending = true
+            Module.nativeStatsPending = true
             QueueNativeStatRefresh()
             GameTooltip:Hide()
             return
@@ -4423,7 +4471,8 @@ function Module:Initialize()
     end)
 
     UI:RegisterEvent("PLAYER_EQUIPMENT_CHANGED", function()
-        Module:Refresh()
+        Module:RefreshEquipment()
+        Module:QueueStatsRefresh()
     end)
 
     UI:RegisterEvent("UNIT_MODEL_CHANGED", function(_, unit)
@@ -4443,16 +4492,11 @@ function Module:Initialize()
         end
     end)
 
-    -- UNIT_SPEED does not exist in the Forever client. The visible speed
-    -- row has its own throttled update instead. Never poll native stats
-    -- during combat; replay queued refreshes on leaving combat.
+    -- UNIT_SPEED is absent on Forever. Never compute secret movement
+    -- values in combat; native stats have their own deferred update.
     UI:RegisterEvent("PLAYER_REGEN_DISABLED", RefreshMovementSpeedRow)
     UI:RegisterEvent("PLAYER_REGEN_ENABLED", function()
-        if Module.refreshPending then
-            Module:Refresh()
-        else
-            RefreshMovementSpeedRow()
-        end
+        RefreshMovementSpeedRow()
     end)
 
     UI:RegisterEvent("KNOWN_TITLES_UPDATE", function()
@@ -4471,7 +4515,8 @@ function Module:Initialize()
     end)
 
     UI:RegisterEvent("EQUIPMENT_SWAP_FINISHED", function()
-        Module:Refresh()
+        Module:RefreshEquipment()
+        Module:QueueStatsRefresh()
     end)
 
     UI:RegisterEvent("UPDATE_FACTION", function()
@@ -4503,7 +4548,7 @@ function Module:Initialize()
     }) do
         UI:RegisterEvent(event, function(_, unit)
             if not unit or unit == "player" then
-                Module:Refresh()
+                Module:QueueStatsRefresh()
             end
         end)
     end
