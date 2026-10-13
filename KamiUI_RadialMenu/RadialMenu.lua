@@ -270,8 +270,10 @@ local function ScanInventory()
                 or (C_Container and C_Container.GetContainerItemID
                     and C_Container.GetContainerItemID(bag, slot))
                 or (GetContainerItemID and GetContainerItemID(bag, slot))
-            if id then
-                ScanItem(catalog, bag, slot, id, info and info.stackCount or 1)
+            if UI:CanAccessValue(id) and id then
+                local count = info and info.stackCount
+                if not UI:CanAccessValue(count) then count = 1 end
+                ScanItem(catalog, bag, slot, id, count or 1)
             end
         end
     end
@@ -557,7 +559,10 @@ function Module:ApplySecureCatalog(catalog)
                     radius * 2 + L.SUB_ICON_SIZE + 12)
                 sub.layoutCount = count
             end
-            sub:SetAttribute("hasVariants", count > 0)
+            if sub.hasVariants ~= (count > 0) then
+                sub:SetAttribute("hasVariants", count > 0)
+                sub.hasVariants = count > 0
+            end
             sub.label:SetShown(count == 0)
 
             for slot = 1, count do
@@ -588,7 +593,19 @@ function Module:ApplySecureCatalog(catalog)
 end
 
 function Module:Refresh()
-    local catalog = ScanInventory()
+    -- The inventory can expose secret values during certain encounters.
+    -- Keep existing secure assignments intact if the scan is restricted.
+    local ok, catalog = pcall(ScanInventory)
+    if not ok then
+        if Locked() then
+            UI:RunOutOfCombat("radial.secureCatalog", function()
+                Module:Refresh()
+            end)
+        else
+            UI:Print("Radial inventory scan failed:", tostring(catalog))
+        end
+        return
+    end
     if Locked() then
         -- Existing bindings remain executable. Update their quantities
         -- and icons from inventory, never show an unbound new item as usable.
