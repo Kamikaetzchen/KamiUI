@@ -301,19 +301,16 @@ local function Choose(category, list)
 end
 
 local function Action(button, entry)
-    -- Secure action attributes may only change out of combat.
-    button:SetAttribute("type1", nil)
-    button:SetAttribute("item1", nil)
-    button:SetAttribute("spell1", nil)
-    if entry then
-        button:SetAttribute("type1", entry.kind)
-        if entry.kind == "item" then
-            button:SetAttribute("item1", "item:" .. entry.id)
-        else
-            button:SetAttribute("spell1", entry.id)
-        end
-    end
-    button.entry = entry
+    -- Reassign only if the actual secure action changed. This also
+    -- preserves item-ID actions as stacks move between bag slots.
+    local key = entry and entry.key
+    if button.actionKey == key then return end
+    button:SetAttribute("type1", entry and entry.kind or nil)
+    button:SetAttribute("item1", entry and entry.kind == "item"
+        and ("item:" .. entry.id) or nil)
+    button:SetAttribute("spell1", entry and entry.kind == "spell"
+        and entry.id or nil)
+    button.actionKey = key
 end
 
 local function IconButton(button, size, category)
@@ -527,10 +524,17 @@ local function CreateWheel(key, categories)
     return root
 end
 
-function Module:Refresh()
-    if Locked() then self.refreshPending = true return end
-    self.refreshPending = false
-    local catalog = ScanInventory()
+-- Apply the secure bindings/layout only outside combat. The last catalog
+-- is rescanned immediately during combat; a pending binding is never
+-- advertised as usable until the secure action matches it.
+function Module:ApplySecureCatalog(catalog)
+    if Locked() then
+        UI:RunOutOfCombat("radial.secureCatalog", function()
+            Module:Refresh()
+        end)
+        return
+    end
+    UI:CancelOutOfCombat("radial.secureCatalog")
     for key, categories in pairs(CONFIG) do
         local wheel = self.wheels[key]
         for index, category in ipairs(categories) do
@@ -545,25 +549,29 @@ function Module:Refresh()
             local radius = VariantRadius(count)
             local theta = WheelAngle(key, index, #categories)
             local offset = SubmenuOffset(radius)
-            sub:ClearAllPoints()
-            sub:SetPoint("CENTER", main, "CENTER",
-                math.cos(theta) * offset, math.sin(theta) * offset)
+            if sub.layoutCount ~= count then
+                sub:ClearAllPoints()
+                sub:SetPoint("CENTER", main, "CENTER",
+                    math.cos(theta) * offset, math.sin(theta) * offset)
+                sub:SetSize(radius * 2 + L.SUB_ICON_SIZE + 12,
+                    radius * 2 + L.SUB_ICON_SIZE + 12)
+                sub.layoutCount = count
+            end
             sub:SetAttribute("hasVariants", count > 0)
-            sub:SetSize(radius * 2 + L.SUB_ICON_SIZE + 12,
-                radius * 2 + L.SUB_ICON_SIZE + 12)
             sub.label:SetShown(count == 0)
 
-            -- Create protected variants only when required, out of combat.
-            -- The visible buttons are spread evenly over the actual count.
             for slot = 1, count do
                 if not sub.buttons[slot] then
                     sub.buttons[slot] = CreateVariantButton(wheel, sub, category)
                 end
                 local button = sub.buttons[slot]
-                local angle = WheelAngle(key, slot, count)
-                button:ClearAllPoints()
-                button:SetPoint("CENTER", sub, "CENTER",
-                    math.cos(angle) * radius, math.sin(angle) * radius)
+                if button.layoutCount ~= count or button.layoutSlot ~= slot then
+                    local angle = WheelAngle(key, slot, count)
+                    button:ClearAllPoints()
+                    button:SetPoint("CENTER", sub, "CENTER",
+                        math.cos(angle) * radius, math.sin(angle) * radius)
+                    button.layoutCount, button.layoutSlot = count, slot
+                end
                 local entry = entries[slot]
                 Action(button, entry)
                 Display(button, entry, category[3],
@@ -579,6 +587,36 @@ function Module:Refresh()
     end
 end
 
+function Module:Refresh()
+    local catalog = ScanInventory()
+    if Locked() then
+        -- Existing bindings remain executable. Update their quantities
+        -- and icons from inventory, never show an unbound new item as usable.
+        for key, categories in pairs(CONFIG) do
+            local wheel = self.wheels[key]
+            for index, category in ipairs(categories) do
+                local entries = catalog[category[1]] or {}
+                local byKey = {}
+                for _, entry in ipairs(entries) do byKey[entry.key] = entry end
+                local main = wheel.buttons[index]
+                local bound = main.actionKey and byKey[main.actionKey]
+                Display(main, bound, category[3],
+                    bound and GetDB().favorites[category[1]] == bound.key)
+                local sub = wheel.submenus[index]
+                for _, button in ipairs(sub.buttons) do
+                    local active = button.actionKey and byKey[button.actionKey]
+                    Display(button, active, category[3],
+                        active and GetDB().favorites[category[1]] == active.key)
+                end
+            end
+        end
+        UI:RunOutOfCombat("radial.secureCatalog", function()
+            Module:Refresh()
+        end)
+        return
+    end
+    self:ApplySecureCatalog(catalog)
+end
 -- Q and E are deliberately overridden without adding separate entries to
 -- WoW's Key Bindings menu.
 local function BindKeys()
@@ -664,7 +702,7 @@ function Module:Initialize()
     end)
     UI:RegisterEvent("BAG_UPDATE_DELAYED", function() Module:Refresh() end)
     UI:RegisterEvent("GET_ITEM_INFO_RECEIVED", function()
-        if not Locked() then Module:Refresh() end
+        Module:Refresh()
     end)
     UI:RegisterEvent("UPDATE_BINDINGS", BindKeys)
     UI:RegisterEvent("DISPLAY_SIZE_CHANGED", function()
@@ -675,7 +713,6 @@ function Module:Initialize()
     end)
     UI:RegisterEvent("PLAYER_REGEN_ENABLED", function()
         if Module.positionsPending then Module:PositionWheels() end
-        if Module.refreshPending then Module:Refresh() end
         if Module.bindingsPending then BindKeys() end
     end)
     UI:RegisterCommand("radial", "refresh", function()
