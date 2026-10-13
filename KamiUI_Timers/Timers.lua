@@ -158,7 +158,12 @@ end
         "CustomAuraContainerTemplate, DisableUntrustedLayoutScriptsTemplate"
     )
     container:SetSize(Layout.WIDTH, 1)
-    container:SetPoint("BOTTOMLEFT", previous, "TOPLEFT", 0, Layout.GROUP_GAP)
+    -- Native AuraContainers retain a 1px baseline even when empty.
+    -- Offset that baseline in the anchor chain, as in KamiUI_Auras.
+    -- Do not change frame height or protected anchors during combat.
+    container:SetPoint(
+        "BOTTOMLEFT", previous, "TOPLEFT", 0, Layout.GROUP_GAP - 1
+    )
     container:SetFlowLayoutAxis(AnchorUtil.FlowLayoutAxis.Vertical)
     container:SetFlowLayoutAnchorPoint("BOTTOMLEFT")
     container:SetFlowLayoutGrowthDirection(
