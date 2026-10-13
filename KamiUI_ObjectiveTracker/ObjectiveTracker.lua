@@ -374,7 +374,9 @@ local function UpdateQuestItemButton(row, questItem)
             button:SetAttribute("item", nil)
             button:Hide()
         else
-            Module.questItemRefreshPending = true
+            UI:RunOutOfCombat("objectiveTracker.layout", function()
+                Module:Refresh()
+            end)
         end
 
         return
@@ -392,10 +394,13 @@ local function UpdateQuestItemButton(row, questItem)
     else
         local currentItem = button:GetAttribute("item")
 
-        if currentItem == questItem.link then
-            button:Show()
+        if UI:CanAccessValue(currentItem)
+            and currentItem == questItem.link then
+            -- The existing secure action is still valid.
         else
-            Module.questItemRefreshPending = true
+            UI:RunOutOfCombat("objectiveTracker.layout", function()
+                Module:Refresh()
+            end)
         end
     end
 end
@@ -722,7 +727,9 @@ function Module:SetHeightLimited(limited)
     GetDatabase().heightLimited = limited ~= false
 
     if InCombatLockdown and InCombatLockdown() then
-        self.combatRefreshPending = true
+        UI:RunOutOfCombat("objectiveTracker.layout", function()
+            Module:SetHeightLimited(GetDatabase().heightLimited)
+        end)
         return
     end
 
@@ -745,7 +752,9 @@ function Module:SetMinimized(minimized)
     -- Quest-item buttons are secure children. Resizing or showing their
     -- containing frames during combat is protected as well.
     if InCombatLockdown and InCombatLockdown() then
-        self.combatRefreshPending = true
+        UI:RunOutOfCombat("objectiveTracker.layout", function()
+            Module:SetMinimized(GetDatabase().minimized)
+        end)
         return
     end
 
@@ -778,6 +787,73 @@ function Module:ToggleMinimized()
     self:SetMinimized(not GetDatabase().minimized)
 end
 
+-- Never reparent or re-anchor quest rows containing protected buttons in
+-- combat. Repaint only already allocated text and counters, by quest ID.
+-- New/reordered quests and action attribute changes are replayed afterward.
+function Module:RefreshLive()
+    local frame = self.frame
+    if not frame or GetDatabase().minimized then return end
+    local provider = self.providers and self.providers.quests
+    local section = frame.sections and frame.sections.quests
+    if not provider or not section then return end
+    local data = provider:GetSection()
+    if not data or not data.items then return end
+    local items = {}
+    for _, item in ipairs(data.items) do
+        if item.questID then items[item.questID] = item end
+    end
+
+    for _, row in ipairs(section.rows) do
+        local item = row.questID and items[row.questID]
+        if row:IsShown() and item then
+            row.questTitle = item.title or row.questTitle or "Unknown"
+            row.timerDeadline = item.timerDeadline
+            row.timerDisplaySeconds = nil
+            if row.timerDeadline then
+                self.hasQuestTimers = true
+                UpdateQuestTimerTitle(row, GetTime())
+            else
+                row.title:SetText(row.questTitle)
+            end
+
+            for index, objective in ipairs(item.objectives or {}) do
+                local text = row.objectives[index]
+                local count = row.objectiveCounts[index]
+                if text then
+                    local hasCount = objective.countText ~= nil
+                        and objective.countText ~= ""
+                    text:SetText((hasCount and "" or "- ")
+                        .. (objective.text or ""))
+                    text:SetTextColor(unpack(objective.finished
+                        and Palette.success or Palette.objectiveTracker.text))
+                    if count then
+                        count:SetText(hasCount and objective.countText or "")
+                        count:SetTextColor(unpack(objective.finished
+                            and Palette.success or Palette.objectiveTracker.text))
+                    end
+                end
+            end
+
+            -- Do not replace or reveal secured actions in combat. A matching
+            -- link means the already-configured click continues to work.
+            local button = row.itemButton
+            local questItem = item.questItem
+            if button then
+                local action = button:GetAttribute("item")
+                local desired = questItem and questItem.link
+                if UI:CanAccessValue(action)
+                    and UI:CanAccessValue(desired)
+                    and action == desired and desired then
+                    button.itemLink = desired
+                    button.icon:SetTexture(questItem.texture)
+                    local charges = tonumber(questItem.charges) or 0
+                    button.count:SetText(charges > 0 and charges or "")
+                end
+            end
+        end
+    end
+end
+
 function Module:Refresh()
     local frame = self.frame
 
@@ -789,11 +865,14 @@ function Module:Refresh()
     -- SecureActionButtonTemplate quest-item children. Never perform these
     -- operations in combat; coalesce them into one post-combat refresh.
     if InCombatLockdown and InCombatLockdown() then
-        self.combatRefreshPending = true
+        self:RefreshLive()
+        UI:RunOutOfCombat("objectiveTracker.layout", function()
+            Module:Refresh()
+        end)
         return
     end
 
-    self.combatRefreshPending = nil
+    UI:CancelOutOfCombat("objectiveTracker.layout")
     self.hasQuestTimers = false
 
     -- Apply any deferred minimize/height-mode settings before laying out rows.
@@ -1251,13 +1330,7 @@ function Module:Initialize()
             header.kamiStopAfterCombat = nil
         end
 
-        if Module.combatRefreshPending or Module.questItemRefreshPending then
-            Module.combatRefreshPending = nil
-            Module.questItemRefreshPending = nil
-            -- Also apply deferred collapse/expand state, scroll reset and
-            -- height-mode controls, not just the quest row layout.
-            Module:SetMinimized(GetDatabase().minimized)
-        end
+
     end)
 end
 
