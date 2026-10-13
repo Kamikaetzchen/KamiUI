@@ -158,7 +158,9 @@ end
         "CustomAuraContainerTemplate, DisableUntrustedLayoutScriptsTemplate"
     )
     container:SetSize(Layout.WIDTH, 1)
-    container:SetPoint("BOTTOMLEFT", previous, "TOPLEFT", 0, Layout.GAP)
+    -- Keep per-unit gaps minimal: empty party/nameplate containers still
+    -- occupy their native baseline height and would otherwise add up.
+    container:SetPoint("BOTTOMLEFT", previous, "TOPLEFT", 0, Layout.GROUP_GAP)
     container:SetFlowLayoutAxis(AnchorUtil.FlowLayoutAxis.Vertical)
     container:SetFlowLayoutAnchorPoint("BOTTOMLEFT")
     container:SetFlowLayoutGrowthDirection(
@@ -182,7 +184,7 @@ end
                 elementWidth = Layout.WIDTH,
                 elementHeight = Layout.HEIGHT,
                 elementSpacing = Layout.GAP,
-                groupSpacing = Layout.GAP,
+                groupSpacing = Layout.GROUP_GAP,
                 layoutIndex = order,
             },
         })
