@@ -14,6 +14,9 @@ end
 for index = 1, 8 do
     TRACKED_UNITS[#TRACKED_UNITS + 1] = "nameplate" .. index
 end
+for index = 1, 5 do
+    TRACKED_UNITS[#TRACKED_UNITS + 1] = "boss" .. index
+end
 
 local function Border(frame)
     for _, side in ipairs({ "TOP", "BOTTOM", "LEFT", "RIGHT" }) do
@@ -151,7 +154,7 @@ local function InitializeAuraButton(button, unitToken, color, labels)
     button:SetTooltipAnchorPoint("ANCHOR_RIGHT")
 end
 
-local function MakeAuraContainer(parent, unitToken, index, previous)
+local function MakeAuraContainer(parent, unitToken, previous)
     local container = CreateFrame(
         "AuraContainer", nil, parent,
         "CustomAuraContainerTemplate, DisableUntrustedLayoutScriptsTemplate"
@@ -209,6 +212,7 @@ local function MakeTotemRow(parent, slot)
     local cooldown = CreateFrame("Cooldown", nil, frame, "CooldownFrameTemplate")
     cooldown:SetPoint("RIGHT", frame, "RIGHT", -2, 0)
     cooldown:SetSize(Layout.TIME_WIDTH + 5, Layout.HEIGHT)
+    cooldown:SetFrameLevel(frame:GetFrameLevel() + 5)
     cooldown:SetDrawSwipe(false)
     cooldown:SetDrawEdge(false)
     cooldown:SetDrawBling(false)
@@ -236,15 +240,20 @@ local function ReadTotem(row)
 
     -- In 12.1 the duration object works without Lua reading secret
     -- timestamps. A native Cooldown supplies the countdown text.
-    if durationObject then
-        row.name:SetText(name)
+    if durationObject and row.cooldown.SetCooldownFromDurationObject
+        and row.bar.SetTimerDuration then
+        if UI:CanAccessValue(name)
+            and (type(name) ~= "string" or name == "") then
+            row.name:SetText("Totem")
+        else
+            -- Passing a secret name through to FontString is supported.
+            row.name:SetText(name)
+        end
         row.time:SetText("")
         row.cooldown:Show()
-        if row.bar.SetTimerDuration then
-            row.bar:SetTimerDuration(durationObject,
-                Enum.StatusBarInterpolation.Immediate,
-                Enum.StatusBarTimerDirection.RemainingTime)
-        end
+        row.bar:SetTimerDuration(durationObject,
+            Enum.StatusBarInterpolation.Immediate,
+            Enum.StatusBarTimerDirection.RemainingTime)
         row.cooldown:SetCooldownFromDurationObject(durationObject, true)
         row.manualEnd = nil
         return true
@@ -335,8 +344,8 @@ function Module:Initialize()
 
     self.units = {}
     local previous = self.totemAnchor
-    for index, unit in ipairs(TRACKED_UNITS) do
-        local entry = MakeAuraContainer(anchor, unit, index, previous)
+    for _, unit in ipairs(TRACKED_UNITS) do
+        local entry = MakeAuraContainer(anchor, unit, previous)
         self.units[#self.units + 1] = entry
         previous = entry.frame
     end
