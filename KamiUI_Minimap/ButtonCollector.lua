@@ -251,6 +251,11 @@ function Module:RefreshButtonCollector()
         end
     end
 
+    -- Flush the scroll child's new dimensions before applying the
+    -- bottom-aligned offset (especially after another addon loads).
+    if self.collectorPanel.UpdateScrollChildRect then
+        self.collectorPanel:UpdateScrollChildRect()
+    end
     self:ApplyButtonCollectorScroll()
 end
 
