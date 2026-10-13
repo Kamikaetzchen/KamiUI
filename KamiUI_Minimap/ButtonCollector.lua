@@ -2,9 +2,8 @@ local UI = KamiUI
 local Module = UI:GetModule("Minimap")
 local Layout = UI.Layout.Minimap.ButtonCollector
 
--- Keep the real third-party buttons: their OnClick/OnEnter scripts, tooltips
--- and LibDataBroker integrations continue to work without synthetic clicks.
--- Only reparent/reanchor unprotected buttons outside combat.
+-- Adopt the original addon buttons so their clicks and tooltips keep working.
+-- Frame ownership/size/anchors are only changed outside combat.
 local collected = {}
 local ordered = {}
 
@@ -20,6 +19,8 @@ local excluded = {
     MiniMapBattlefieldFrame = true,
     MiniMapInstanceDifficulty = true,
     MinimapCluster = true,
+    AddonCompartmentFrame = true,
+    AddOnCompartmentFrame = true,
     GarrisonLandingPageMinimapButton = true,
     ExpansionLandingPageMinimapButton = true,
     QueueStatusMinimapButton = true,
@@ -62,12 +63,11 @@ local function IsCandidate(button)
         return false
     end
 
-    -- LibDBIcon buttons are the common case. Only accept other buttons
-    -- directly attached to the minimap if they have an actual click script.
-    -- Anonymous Blizzard decorative frames are intentionally not collected.
     if name and name:match("^LibDBIcon10_") then
         return true
     end
+
+    -- Legacy addons often place a named, clickable button on Minimap.
     return name ~= nil
         and name ~= ""
         and button:GetParent() == Minimap
@@ -85,130 +85,69 @@ end
 
 local function SortButtons()
     wipe(ordered)
+
     for button in pairs(collected) do
-        -- The icon itself can be hidden by its owning addon; don't override
-        -- that choice or reserve a permanent blank slot for it.
+        -- Respect buttons an addon has intentionally hidden.
         if button:IsShown() then
             ordered[#ordered + 1] = button
         end
     end
+
     table.sort(ordered, function(left, right)
-        return string.lower(ReadableLabel(left))
-            < string.lower(ReadableLabel(right))
+        local a = string.lower(ReadableLabel(left))
+        local b = string.lower(ReadableLabel(right))
+        if a == b then
+            return ButtonName(left) < ButtonName(right)
+        end
+        return a < b
     end)
-end
-
-local function StyleBorder(frame)
-    local border = frame:CreateTexture(nil, "OVERLAY")
-    border:SetColorTexture(0.22, 0.22, 0.24, 1)
-    border:SetPoint("TOPLEFT")
-    border:SetPoint("TOPRIGHT")
-    border:SetHeight(1)
-
-    border = frame:CreateTexture(nil, "OVERLAY")
-    border:SetColorTexture(0.22, 0.22, 0.24, 1)
-    border:SetPoint("BOTTOMLEFT")
-    border:SetPoint("BOTTOMRIGHT")
-    border:SetHeight(1)
-
-    border = frame:CreateTexture(nil, "OVERLAY")
-    border:SetColorTexture(0.22, 0.22, 0.24, 1)
-    border:SetPoint("TOPLEFT")
-    border:SetPoint("BOTTOMLEFT")
-    border:SetWidth(1)
-
-    border = frame:CreateTexture(nil, "OVERLAY")
-    border:SetColorTexture(0.22, 0.22, 0.24, 1)
-    border:SetPoint("TOPRIGHT")
-    border:SetPoint("BOTTOMRIGHT")
-    border:SetWidth(1)
 end
 
 local function CreateDock()
-    local toggle = CreateFrame(
-        "Button", "KamiUIMinimapButtonCollectorToggle", UIParent
+    local width = Layout.COLUMNS * Layout.BUTTON_SIZE
+        + (Layout.COLUMNS - 1) * Layout.SPACING
+
+    -- A plain, permanently visible scroll viewport: no toggle and no panel
+    -- background. It is capped at six rows to fit alongside the minimap.
+    local dock = CreateFrame(
+        "ScrollFrame", "KamiUIMinimapButtonCollector", UIParent
     )
-    toggle:SetSize(Layout.TOGGLE_SIZE, Layout.TOGGLE_SIZE)
-    toggle:SetPoint("TOPLEFT", Minimap, "TOPRIGHT",
+    dock:SetFrameStrata("HIGH")
+    dock:SetSize(width, 1)
+    dock:SetPoint("BOTTOMLEFT", Minimap, "BOTTOMRIGHT",
         Layout.OFFSET_X, Layout.OFFSET_Y)
-    toggle:SetFrameStrata("HIGH")
+    dock:EnableMouseWheel(true)
 
-    local background = toggle:CreateTexture(nil, "BACKGROUND")
-    background:SetAllPoints()
-    background:SetColorTexture(0.02, 0.02, 0.025, 0.88)
-    StyleBorder(toggle)
+    local content = CreateFrame("Frame", nil, dock)
+    content:SetSize(width, 1)
+    dock:SetScrollChild(content)
 
-    local icon = toggle:CreateTexture(nil, "ARTWORK")
-    icon:SetSize(16, 16)
-    icon:SetPoint("CENTER", 0, 0)
-    icon:SetTexture("Interface\\Icons\\INV_Misc_Bag_10")
-    icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    dock:SetScript("OnMouseWheel", function(_, delta)
+        if Module.collectorOverflowRows <= 0 then return end
 
-    local count = toggle:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    count:SetPoint("BOTTOMRIGHT", toggle, "BOTTOMRIGHT", -2, 1)
-    count:SetJustifyH("RIGHT")
-    count:SetTextColor(1, 0.82, 0.25, 1)
-    toggle.count = count
-    toggle:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:SetText("KamiUI: Minimap buttons")
-        GameTooltip:AddLine("Click to show or hide addon buttons", 1, 1, 1)
-        GameTooltip:Show()
-    end)
-    toggle:SetScript("OnLeave", function() GameTooltip:Hide() end)
-    toggle:Hide()
-
-    local panel = CreateFrame(
-        "Frame", "KamiUIMinimapButtonCollector", UIParent
-    )
-    panel:SetFrameStrata("HIGH")
-    panel:SetPoint("TOPLEFT", toggle, "BOTTOMLEFT", 0, -Layout.PANEL_GAP)
-
-    local bg = panel:CreateTexture(nil, "BACKGROUND")
-    bg:SetAllPoints()
-    bg:SetColorTexture(0.015, 0.015, 0.02, 0.9)
-    StyleBorder(panel)
-    panel:Hide()
-
-    toggle:SetScript("OnClick", function()
-        Module:SetButtonCollectorExpanded(not Module.collectorExpanded)
-    end)
-
-    Module.collectorToggle = toggle
-    Module.collectorPanel = panel
-end
-
-local function IsDockProtected()
-    return Module.collectorPanel
-        and Module.collectorPanel.IsProtected
-        and Module.collectorPanel:IsProtected()
-end
-
-function Module:SetButtonCollectorExpanded(expanded)
-    if InCombat() and IsDockProtected() then
-        UI:RunOutOfCombat("minimap.collector.toggle", function()
-            Module:SetButtonCollectorExpanded(expanded)
-        end)
-        return
-    end
-
-    self.collectorExpanded = expanded == true
-    self.collectorDB.expanded = self.collectorExpanded
-    if self.collectorExpanded and #ordered > 0 then
-        self.collectorPanel:Show()
-        -- Showing the dock may trigger third-party OnShow positioning.
-        -- Restore the collector grid immediately when not in combat.
-        if not InCombat() then
-            self:RefreshButtonCollector()
+        local offset = Module.collectorScrollRows
+        if delta > 0 then
+            offset = math.min(offset + 1, Module.collectorOverflowRows)
+        elseif delta < 0 then
+            offset = math.max(offset - 1, 0)
         end
-    else
-        self.collectorPanel:Hide()
-    end
+
+        Module.collectorScrollRows = offset
+        Module:ApplyButtonCollectorScroll()
+    end)
+
+    Module.collectorPanel = dock
+    Module.collectorContent = content
+    Module.collectorScrollRows = 0
+    Module.collectorOverflowRows = 0
+    Module.collectorFullHeight = 1
 end
 
 local function FindCandidates()
     local found = {}
-    -- LibDBIcon and most legacy addon buttons are direct Minimap children.
+
+    -- LibDBIcon and many legacy addon buttons sit directly on the minimap
+    -- or its cluster. The Blizzard addon-compartment button stays untouched.
     for _, parent in ipairs({ Minimap, MinimapCluster }) do
         if parent then
             for _, frame in ipairs({ parent:GetChildren() }) do
@@ -218,23 +157,43 @@ local function FindCandidates()
             end
         end
     end
+
     return found
 end
 
 local function NeedsAnchor(button, x, y)
     if button:GetNumPoints() ~= 1 then return true end
+
     local point, relative, relativePoint, actualX, actualY =
         button:GetPoint(1)
-    return point ~= "TOPLEFT"
-        or relative ~= Module.collectorPanel
-        or relativePoint ~= "TOPLEFT"
-        or actualX ~= x or actualY ~= y
+
+    return point ~= "BOTTOMLEFT"
+        or relative ~= Module.collectorContent
+        or relativePoint ~= "BOTTOMLEFT"
+        or actualX ~= x
+        or actualY ~= y
+end
+
+function Module:ApplyButtonCollectorScroll()
+    if not self.collectorPanel then return end
+
+    local viewportHeight = self.collectorPanel:GetHeight()
+    local maxScroll = math.max(0, self.collectorFullHeight - viewportHeight)
+    local cell = Layout.BUTTON_SIZE + Layout.SPACING
+    local offset = math.min(
+        maxScroll, self.collectorScrollRows * cell
+    )
+
+    -- Bottom row is the default; scrolling up reveals older/top rows.
+    local scrollValue = maxScroll - offset
+    if self.collectorPanel:GetVerticalScroll() ~= scrollValue then
+        self.collectorPanel:SetVerticalScroll(scrollValue)
+    end
 end
 
 function Module:RefreshButtonCollector()
     if not self.collectorPanel then return end
 
-    -- Never reparent, resize or alter points of addon frames in combat.
     if InCombat() then
         UI:RunOutOfCombat("minimap.collector.refresh", function()
             Module:RefreshButtonCollector()
@@ -242,62 +201,60 @@ function Module:RefreshButtonCollector()
         return
     end
 
-    local additions = FindCandidates()
-    for _, button in ipairs(additions) do
+    for _, button in ipairs(FindCandidates()) do
         collected[button] = true
-        button:SetParent(self.collectorPanel)
-        -- LibDBIcon icons commonly request MEDIUM strata. Raise the real
-        -- button above our HIGH-strata dock background after reparenting.
+        button:SetParent(self.collectorContent)
         button:SetFrameStrata("HIGH")
-        button:SetFrameLevel(self.collectorPanel:GetFrameLevel() + 2)
+        button:SetFrameLevel(self.collectorContent:GetFrameLevel() + 2)
     end
 
     SortButtons()
-    local count = #ordered
-    local columns = math.min(Layout.COLUMNS, math.max(1, count))
-    local rows = math.ceil(count / Layout.COLUMNS)
+
+    local rows = math.ceil(#ordered / Layout.COLUMNS)
+    local visibleRows = math.max(1, math.min(rows, Layout.MAX_ROWS))
     local cell = Layout.BUTTON_SIZE + Layout.SPACING
-    self.collectorPanel:SetSize(
-        2 * Layout.PADDING + columns * Layout.BUTTON_SIZE
-            + (columns - 1) * Layout.SPACING,
-        2 * Layout.PADDING + math.max(1, rows) * Layout.BUTTON_SIZE
-            + math.max(0, rows - 1) * Layout.SPACING
+    local width = Layout.COLUMNS * Layout.BUTTON_SIZE
+        + (Layout.COLUMNS - 1) * Layout.SPACING
+    local fullHeight = math.max(1, rows * Layout.BUTTON_SIZE
+        + math.max(0, rows - 1) * Layout.SPACING)
+    local viewportHeight = visibleRows * Layout.BUTTON_SIZE
+        + (visibleRows - 1) * Layout.SPACING
+
+    self.collectorContent:SetSize(width, fullHeight)
+    self.collectorPanel:SetSize(width, viewportHeight)
+    self.collectorFullHeight = fullHeight
+    self.collectorOverflowRows = math.max(0, rows - Layout.MAX_ROWS)
+    self.collectorScrollRows = math.min(
+        self.collectorScrollRows, self.collectorOverflowRows
     )
 
     for index, button in ipairs(ordered) do
-        local col = (index - 1) % Layout.COLUMNS
+        local column = (index - 1) % Layout.COLUMNS
         local row = math.floor((index - 1) / Layout.COLUMNS)
-        local x = Layout.PADDING + col * cell
-        local y = -Layout.PADDING - row * cell
-        if button:GetParent() ~= self.collectorPanel then
-            button:SetParent(self.collectorPanel)
+        local x = column * cell
+        local y = row * cell
+
+        if button:GetParent() ~= self.collectorContent then
+            button:SetParent(self.collectorContent)
         end
+
+        if button:GetWidth() ~= Layout.BUTTON_SIZE
+            or button:GetHeight() ~= Layout.BUTTON_SIZE
+        then
+            button:SetSize(Layout.BUTTON_SIZE, Layout.BUTTON_SIZE)
+        end
+
         if NeedsAnchor(button, x, y) then
             button:ClearAllPoints()
-            button:SetPoint("TOPLEFT", self.collectorPanel,
-                "TOPLEFT", x, y)
+            button:SetPoint("BOTTOMLEFT", self.collectorContent,
+                "BOTTOMLEFT", x, y)
         end
     end
 
-    self.collectorToggle.count:SetText(count)
-    if count == 0 then
-        self.collectorPanel:Hide()
-        self.collectorToggle:Hide()
-    else
-        self.collectorToggle:Show()
-        if self.collectorExpanded then
-            self.collectorPanel:Show()
-        else
-            self.collectorPanel:Hide()
-        end
-    end
+    self:ApplyButtonCollectorScroll()
 end
 
 function Module:InitializeButtonCollector()
-    self.collectorDB = UI:GetDatabase("MinimapButtonCollector", {
-        expanded = false,
-    })
-    self.collectorExpanded = self.collectorDB.expanded == true
     CreateDock()
     self:RefreshButtonCollector()
 
@@ -311,8 +268,8 @@ function Module:InitializeButtonCollector()
         Module:RefreshButtonCollector()
     end)
 
-    -- Late-loading addons and LibDBIcon may reset their minimap anchors.
-    -- Check occasionally, not every frame; native button scripts remain intact.
+    -- Addons can create buttons late or reset their positions; do not
+    -- poll every frame or reanchor anything during combat.
     C_Timer.NewTicker(Layout.SCAN_INTERVAL, function()
         Module:RefreshButtonCollector()
     end)
