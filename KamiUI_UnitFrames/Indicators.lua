@@ -473,7 +473,7 @@ local function CreateHealPrediction(frame)
         0
     )
     incoming:SetWidth(frame.health:GetWidth())
-    incoming:SetStatusBarTexture(UF.flatTexture)
+    incoming:SetStatusBarTexture(UF.barTexture)
     incoming:SetStatusBarColor(0.35, 0.80, 1.00, 0.70)
 
     local absorb = CreateFrame("StatusBar", nil, frame.health)
