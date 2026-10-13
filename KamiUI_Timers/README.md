@@ -1,10 +1,20 @@
 # KamiUI_Timers
 
 Compact 200 × 15px timer bars styled after the swing timers. The stack is
-anchored above/left of `KamiUIPetFrame` and grows upwards. Layout settings are
-under `UI.Layout.Timers`. Each **unit block** has a small
-`Styles.Text.sectionTitle` heading above its native AuraContainer bars.
-Spell name and countdown occupy the bar, without repeating the target name.
+anchored above/left of `KamiUIPetFrame` and grows upwards. Layout settings
+are in `UI.Layout.Timers`.
+
+Each **visible** aura button carries its unit name in a **right-aligned,
+golden `sectionTitle` label immediately to the left** of the 200px bar.
+Inside the bar: aura icon, spell name and remaining time. Totem rows use
+the same external label, displaying "Totem".
+
+- Unit labels use `UNIT_WIDTH=90`, `UNIT_GAP=5`.
+- No separate section headers: a unit without matching auras does not show
+  a title, and there are no "first visible button" assumptions.
+- Blizzard owns native aura sorting and secure countdowns; the labels follow
+  the buttons when the aura order changes.
+- The per-unit `AuraContainer` frames are still chained to grow upwards.
 
 ## Sources and duplicate policy
 
@@ -26,14 +36,13 @@ comparisons or secret aura inspection are performed in combat.
 - Enemy nameplates must be enabled. Enemy effects without a nameplate (for
   example, an off-screen enemy or a boss without a nameplate) are not covered.
   The tracker does not persist vanished units by GUID.
-- Header visibility is based on **UnitExists**, not the number of visible
-  auras: 12.1 specifically prohibits addons from extracting aura counts via
-  `AuraContainer` frame sizes or show/hide hooks. A unit with no qualifying
-  auras may still have an empty section heading. Newly available unit
-  headings may be delayed until combat ends when they require layout changes.
+- Unit names are forwarded directly to FontStrings, without attempting to
+  inspect or compare potentially secret unit names.
+- The name is intentionally repeated alongside every visible aura row of a
+  unit; a group with no active auras has no displayed name, although the
+  1px native container baseline may leave a small residual gap.
 - Aura duration is capped at 180s by the native `maxDuration` candidate
   filter. Up to six helpful or harmful aura bars per unit are allocated.
-- Unit headers don't inspect or compare secret target names or GUIDs.
 - This implementation has not been tested inside the WoW Forever client.
-  Validate compact stacking, active nameplate sections, totem text, and
-  combat restrictions in game before treating it as stable.
+  Validate label placement, combat updates, native unit visibility, stacking,
+  and totem durations in game before considering it stable.
