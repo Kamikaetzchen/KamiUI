@@ -238,6 +238,16 @@ local function ReadTotem(row)
         end
     end
 
+    -- Some clients return an empty duration object for an inactive slot.
+    -- A readable empty name is the authoritative absence signal, not
+    -- GetTotemInfo's first result (which indicates totem-tool possession).
+    if UI:CanAccessValue(name)
+        and type(name) == "string" and name == "" then
+        row.manualEnd = nil
+        row.cooldown:Hide()
+        return false
+    end
+
     -- In 12.1 the duration object works without Lua reading secret
     -- timestamps. A native Cooldown supplies the countdown text.
     if durationObject and row.cooldown.SetCooldownFromDurationObject
