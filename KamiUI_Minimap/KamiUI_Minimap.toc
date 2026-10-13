@@ -7,3 +7,4 @@
 ## RequiredDeps: KamiUI
 
 Minimap.lua
+ButtonCollector.lua
