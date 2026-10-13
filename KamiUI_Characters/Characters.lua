@@ -646,6 +646,13 @@ local function UpdateEquipmentSlot(button)
         return
     end
 
+    if quality == nil and link and GetItemInfo then
+        local _, _, loadedQuality = UI:SafeCall(GetItemInfo, link)
+        if UI:CanAccessValue(loadedQuality) then
+            quality = loadedQuality
+        end
+    end
+
     button.cachedLink = link
     Components:SetItemSlotData(button, {
         icon = texture,
