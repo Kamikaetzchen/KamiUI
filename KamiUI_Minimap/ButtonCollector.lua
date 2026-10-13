@@ -196,6 +196,11 @@ function Module:SetButtonCollectorExpanded(expanded)
     self.collectorDB.expanded = self.collectorExpanded
     if self.collectorExpanded and #ordered > 0 then
         self.collectorPanel:Show()
+        -- Showing the dock may trigger third-party OnShow positioning.
+        -- Restore the collector grid immediately when not in combat.
+        if not InCombat() then
+            self:RefreshButtonCollector()
+        end
     else
         self.collectorPanel:Hide()
     end
