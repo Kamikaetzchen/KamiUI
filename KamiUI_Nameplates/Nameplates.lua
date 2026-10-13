@@ -11,8 +11,7 @@ local flatTexture = "Interface\\Buttons\\WHITE8X8"
 -- Restored from the original 5px nameplate design (256x8 RGBA).
 -- The baked alpha fades vertically from 100% through 60% to 20%,
 -- and horizontally toward fully transparent rounded ends.
-local healthFadeTexture =
-    "Interface\\AddOns\\KamiUI_Nameplates\\Textures\\HealthFade"
+local healthFadeTexture = UI.Media.HealthFade
 local fontPath, _, fontFlags = GameFontNormalSmall:GetFont()
 
 local styled = {}

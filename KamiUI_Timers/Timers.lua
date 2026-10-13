@@ -21,32 +21,10 @@ for index = 1, 8 do
     }
 end
 
-local function Border(frame)
-    for _, side in ipairs({ "TOP", "BOTTOM", "LEFT", "RIGHT" }) do
-        local texture = frame:CreateTexture(nil, "OVERLAY", nil, 7)
-        texture:SetColorTexture(0, 0, 0, 1)
-        if side == "TOP" then
-            texture:SetPoint("TOPLEFT")
-            texture:SetPoint("TOPRIGHT")
-            texture:SetHeight(1)
-        elseif side == "BOTTOM" then
-            texture:SetPoint("BOTTOMLEFT")
-            texture:SetPoint("BOTTOMRIGHT")
-            texture:SetHeight(1)
-        elseif side == "LEFT" then
-            texture:SetPoint("TOPLEFT")
-            texture:SetPoint("BOTTOMLEFT")
-            texture:SetWidth(1)
-        else
-            texture:SetPoint("TOPRIGHT")
-            texture:SetPoint("BOTTOMRIGHT")
-            texture:SetWidth(1)
-        end
-    end
-end
-
 local function Color(bar, color)
-    bar:SetStatusBarColor(color[1], color[2], color[3], 0.70)
+    bar:SetStatusBarColor(color[1], color[2], color[3])
+    -- SetAlpha() applies to the fill while overlay labels stay fully opaque.
+    bar:SetAlpha(Layout.BAR_ALPHA)
 end
 
 local function CreateTimerBar(parent, color)
@@ -55,12 +33,13 @@ local function CreateTimerBar(parent, color)
 
     local background = frame:CreateTexture(nil, "BACKGROUND")
     background:SetAllPoints()
-    background:SetColorTexture(0.015, 0.015, 0.02, 0.85)
+    background:SetTexture(UI.Media.HealthFade)
+    background:SetVertexColor(0.08, 0.08, 0.10)
+    background:SetAlpha(Layout.BACKGROUND_ALPHA)
 
     local bar = CreateFrame("StatusBar", nil, frame)
-    bar:SetPoint("TOPLEFT", 1, -1)
-    bar:SetPoint("BOTTOMRIGHT", -1, 1)
-    bar:SetStatusBarTexture("Interface\\Buttons\\WHITE8X8")
+    bar:SetAllPoints()
+    bar:SetStatusBarTexture(UI.Media.HealthFade)
     bar:SetMinMaxValues(0, 1)
     bar:SetValue(1)
     Color(bar, color)
@@ -97,26 +76,28 @@ local function CreateTimerBar(parent, color)
     time:SetPoint("RIGHT", frame, "RIGHT", -4, 0)
     time:SetWidth(Layout.TIME_WIDTH)
 
-    Border(frame)
     return frame, bar, unit, name, time
 end
 
 local function InitializeAuraButton(button, unitToken, color, labels)
     button:SetSize(Layout.WIDTH, Layout.HEIGHT)
     local icon = button:CreateTexture(nil, "ARTWORK")
-    icon:SetSize(Layout.HEIGHT - 2, Layout.HEIGHT - 2)
-    icon:SetPoint("LEFT", button, "LEFT", 1, 0)
+    icon:SetSize(Layout.HEIGHT, Layout.HEIGHT)
+    icon:SetPoint("LEFT", button, "LEFT", 0, 0)
     icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
 
     -- The aura-owned frame and visual regions must be constructed before
     -- SetIcon/SetDurationBar bind the native secure aura aspects.
     local background = button:CreateTexture(nil, "BACKGROUND")
-    background:SetAllPoints()
-    background:SetColorTexture(0.015, 0.015, 0.02, 0.85)
+    background:SetPoint("TOPLEFT", icon, "TOPRIGHT")
+    background:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT")
+    background:SetTexture(UI.Media.HealthFade)
+    background:SetVertexColor(0.08, 0.08, 0.10)
+    background:SetAlpha(Layout.BACKGROUND_ALPHA)
     local bar = CreateFrame("StatusBar", nil, button)
-    bar:SetPoint("TOPLEFT", icon, "TOPRIGHT", 1, 0)
-    bar:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", -1, 1)
-    bar:SetStatusBarTexture("Interface\\Buttons\\WHITE8X8")
+    bar:SetPoint("TOPLEFT", icon, "TOPRIGHT")
+    bar:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT")
+    bar:SetStatusBarTexture(UI.Media.HealthFade)
     Color(bar, color)
 
     local overlay = CreateFrame("Frame", nil, button)
@@ -151,7 +132,6 @@ local function InitializeAuraButton(button, unitToken, color, labels)
 
     local timeText = Label(Layout.TIME_WIDTH, "RIGHT")
     timeText:SetPoint("RIGHT", bar, "RIGHT", -3, 0)
-    Border(button)
 
     button:SetIcon(icon)
     button:SetDurationBar(bar, {

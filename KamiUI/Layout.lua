@@ -195,8 +195,10 @@ UI.Layout = {
 
     Timers = {
         WIDTH = 200,
-        HEIGHT = 15,
+        HEIGHT = 10,
         FONT_SIZE = 9,
+        BAR_ALPHA = 0.60,
+        BACKGROUND_ALPHA = 0.45,
         UNIT_WIDTH = 90,
         UNIT_GAP = 5,
         TIME_WIDTH = 38,
