@@ -75,6 +75,13 @@ local function HideBlizzardChrome()
 
     HideObject(MinimapZoomIn)
     HideObject(MinimapZoomOut)
+
+    -- Blizzard's AddOn Compartment (the small numbered "AddOns" button)
+    -- is redundant with KamiUI's permanently visible addon icon dock.
+    -- Cover the frame/button names exposed by different client versions.
+    HideObject(_G.AddonCompartmentFrame)
+    HideObject(_G.AddOnCompartmentFrame)
+    HideObject(_G.AddonCompartmentButton)
 end
 
 local function PositionHeaderIndicators()
@@ -189,6 +196,7 @@ function Module:Initialize()
     UI:RegisterEvent("ADDON_LOADED", function(_, addonName)
         if addonName == "Blizzard_Minimap"
             or addonName == "Blizzard_TimeManager"
+            or addonName == "Blizzard_AddonCompartment"
         then
             HideBlizzardChrome()
             HideRoundBlobRings()
