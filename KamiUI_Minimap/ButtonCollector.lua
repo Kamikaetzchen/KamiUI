@@ -241,6 +241,10 @@ function Module:RefreshButtonCollector()
     for _, button in ipairs(additions) do
         collected[button] = true
         button:SetParent(self.collectorPanel)
+        -- LibDBIcon icons commonly request MEDIUM strata. Raise the real
+        -- button above our HIGH-strata dock background after reparenting.
+        button:SetFrameStrata("HIGH")
+        button:SetFrameLevel(self.collectorPanel:GetFrameLevel() + 2)
     end
 
     SortButtons()
