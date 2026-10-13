@@ -200,8 +200,7 @@ UI.Layout = {
         UNIT_WIDTH = 90,
         UNIT_GAP = 5,
         TIME_WIDTH = 38,
-        GAP = 2,          -- Between individual bars
-        GROUP_GAP = 0,    -- Between native unit containers
+        GAP = 2,
         -- Duration filter for short buffs (including Battle Shout),
         -- DoTs and HoTs; totems are tracked separately.
         MAX_AURA_DURATION = 180,

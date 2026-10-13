@@ -158,9 +158,7 @@ end
         "CustomAuraContainerTemplate, DisableUntrustedLayoutScriptsTemplate"
     )
     container:SetSize(Layout.WIDTH, 1)
-    -- Keep per-unit gaps minimal: empty party/nameplate containers still
-    -- occupy their native baseline height and would otherwise add up.
-    container:SetPoint("BOTTOMLEFT", previous, "TOPLEFT", 0, Layout.GROUP_GAP)
+    container:SetPoint("BOTTOMLEFT", previous, "TOPLEFT", 0, Layout.GAP)
     container:SetFlowLayoutAxis(AnchorUtil.FlowLayoutAxis.Vertical)
     container:SetFlowLayoutAnchorPoint("BOTTOMLEFT")
     container:SetFlowLayoutGrowthDirection(
@@ -184,7 +182,7 @@ end
                 elementWidth = Layout.WIDTH,
                 elementHeight = Layout.HEIGHT,
                 elementSpacing = Layout.GAP,
-                groupSpacing = Layout.GROUP_GAP,
+                groupSpacing = Layout.GAP,
                 layoutIndex = order,
             },
         })
@@ -353,8 +351,9 @@ function Module:RefreshAuraUnits(token)
     end
 end
 
--- Unit names may themselves be secret. Native FontStrings can display
--- them directly without comparing, measuring, concatenating or caching them.
+-- Unit names may be secret, but SetText can render them directly only
+-- when the destination FontString is accessible. Blizzard can forbid aura
+-- button regions during combat, even if we originally created them.
 function Module:RefreshUnitLabels(token)
     if not self.units then return end
 
@@ -362,7 +361,9 @@ function Module:RefreshUnitLabels(token)
         if not token or token == entry.token then
             local name = UnitName(entry.token)
             for _, label in ipairs(entry.labels) do
-                label:SetText(name)
+                if not label:IsForbidden() then
+                    label:SetText(name)
+                end
             end
         end
     end
@@ -420,15 +421,15 @@ function Module:Initialize()
     end)
     -- The "target" and "focus" aliases are deliberately not displayed,
     -- because each could duplicate an existing nameplate/party group.
-    UI:RegisterEvent("UNIT_NAME_UPDATE", function()
-        Module:RefreshUnitLabels()
+    UI:RegisterEvent("UNIT_NAME_UPDATE", function(_, unit)
+        Module:RefreshUnitLabels(unit)
     end)
     UI:RegisterEvent("NAME_PLATE_UNIT_ADDED", function(_, unit)
-        Module:RefreshUnitLabels()
+        Module:RefreshUnitLabels(unit)
         Module:RefreshAuraUnits(unit)
     end)
     UI:RegisterEvent("NAME_PLATE_UNIT_REMOVED", function(_, unit)
-        Module:RefreshUnitLabels()
+        Module:RefreshUnitLabels(unit)
         Module:RefreshAuraUnits(unit)
     end)
     UI:RegisterEvent("GROUP_ROSTER_UPDATE", function()
