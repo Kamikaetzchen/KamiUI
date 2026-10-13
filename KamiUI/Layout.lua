@@ -95,6 +95,17 @@ UI.Layout = {
         RELATIVE_POINT = "BOTTOM",
         X = 0,
         Y = 0,
+        ButtonCollector = {
+            TOGGLE_SIZE = 25,
+            BUTTON_SIZE = 31,
+            COLUMNS = 5,
+            SPACING = 4,
+            PADDING = 5,
+            PANEL_GAP = 3,
+            OFFSET_X = 8,
+            OFFSET_Y = 0,
+            SCAN_INTERVAL = 2,
+        },
     },
 
     Nameplates = {
