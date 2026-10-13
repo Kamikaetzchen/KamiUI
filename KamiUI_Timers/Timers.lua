@@ -158,7 +158,7 @@ end
         "CustomAuraContainerTemplate, DisableUntrustedLayoutScriptsTemplate"
     )
     container:SetSize(Layout.WIDTH, 1)
-    container:SetPoint("BOTTOMLEFT", previous, "TOPLEFT", 0, Layout.GAP)
+    container:SetPoint("BOTTOMLEFT", previous, "TOPLEFT", 0, Layout.GROUP_GAP)
     container:SetFlowLayoutAxis(AnchorUtil.FlowLayoutAxis.Vertical)
     container:SetFlowLayoutAnchorPoint("BOTTOMLEFT")
     container:SetFlowLayoutGrowthDirection(
@@ -182,7 +182,7 @@ end
                 elementWidth = Layout.WIDTH,
                 elementHeight = Layout.HEIGHT,
                 elementSpacing = Layout.GAP,
-                groupSpacing = Layout.GAP,
+                groupSpacing = Layout.GROUP_GAP,
                 layoutIndex = order,
             },
         })
@@ -351,9 +351,10 @@ function Module:RefreshAuraUnits(token)
     end
 end
 
--- Unit names may be secret, but SetText can render them directly only
--- when the destination FontString is accessible. Blizzard can forbid aura
--- button regions during combat, even if we originally created them.
+-- AuraButtons (and their child FontStrings) can become forbidden as
+-- Blizzard assigns secret auras. IsForbidden() alone does not guarantee
+-- that SetText is permitted from addon code in every 12.1 context.
+-- Best-effort updates must never interrupt the native aura timers.
 function Module:RefreshUnitLabels(token)
     if not self.units then return end
 
@@ -361,9 +362,9 @@ function Module:RefreshUnitLabels(token)
         if not token or token == entry.token then
             local name = UnitName(entry.token)
             for _, label in ipairs(entry.labels) do
-                if not label:IsForbidden() then
-                    label:SetText(name)
-                end
+                -- pcall guards the setter itself: some inherited forbidden
+                -- aspects are not reliably exposed by label:IsForbidden().
+                pcall(label.SetText, label, name)
             end
         end
     end
