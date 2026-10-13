@@ -1,37 +1,39 @@
 # KamiUI_Timers
 
-Compact 15px timer bars styled like the swing timers. Anchored above and to
-the left of `KamiUIPetFrame`, growing upwards. Layout parameters are in
-`KamiUI/Layout.lua` under `Timers`.
+Compact 200 × 15px timer bars styled after the swing timers. The stack is
+anchored above/left of `KamiUIPetFrame` and grows upwards. Layout settings are
+under `UI.Layout.Timers`. Each **unit block** has a small
+`Styles.Text.sectionTitle` heading above its native AuraContainer bars.
+Spell name and countdown occupy the bar, without repeating the target name.
 
-## Data sources
+## Sources and duplicate policy
 
-- **Totems:** Four totem slots via `GetTotemDuration` (native secret-safe
-  DurationObject) where available, with readable `GetTotemInfo` fallback.
-  The native duration drives the bar and its cooldown text.
-- **Auras:** Blizzard 12.1 `AuraContainer` / `AuraButton` APIs. Each unit
-  has its own group with up to six `HARMFUL|PLAYER` and six
-  `HELPFUL|PLAYER` effects, filtered natively to 180 seconds or less.
-  This includes player-applied DoTs/HoTs and short self buffs such as
-  Battle Shout. The native client owns the bar progress and countdown text.
+The safe, deterministic way to avoid duplicate effects across unit tokens is
+to give each effect type **one unit family**:
 
-Affected unit name, effect name and remaining time appear on every aura bar.
-The unit blocks are adjacent and automatically grow upwards with the bars.
+- Player + party1–4: **HELPFUL|PLAYER** (self buffs such as Battle Shout,
+  HoTs cast by the player or pet).
+- nameplate1–8: **HARMFUL|PLAYER** (DoTs on separate visible nameplate units).
+- Totems: up to four independent totem slots using Blizzard DurationObject
+  where available, with readable `GetTotemInfo` fallback.
 
-Units monitored: player, target, focus, party1–4, nameplate1–8, boss1–5.
+Target, focus and boss tokens are **not** also scanned. A unit targeted and
+represented by a nameplate therefore does not appear a second time; no GUID
+comparisons or secret aura inspection are performed in combat.
 
-## Limitations
+## Important limitations
 
-- These are **live unit-token bindings**, not a historical per-GUID combat-log
-  tracker. Targets that leave all monitored unit tokens cannot retain an
-  independently verified countdown. A mob appearing as both target and
-  nameplate may be duplicated; GUID de-duplication under secret identity
-  restrictions needs an ingame-tested solution.
-- Only player/pet-applied auras with native filter-compatible durations are
-  displayed. There is no attempt to parse secret aura payloads in combat or
-  predict expiration from an assumed spell duration.
-- Auras longer than 180 seconds are deliberately excluded. The cap, bar
-  width and offset can be adjusted in `Layout.Timers`.
-- No WoW client is available in the repository environment. Test addon loading,
-  combat behavior and native duration text in WoW Forever before considering
-  this production-ready.
+- Enemy nameplates must be enabled. Enemy effects without a nameplate (for
+  example, an off-screen enemy or a boss without a nameplate) are not covered.
+  The tracker does not persist vanished units by GUID.
+- Header visibility is based on **UnitExists**, not the number of visible
+  auras: 12.1 specifically prohibits addons from extracting aura counts via
+  `AuraContainer` frame sizes or show/hide hooks. A unit with no qualifying
+  auras may still have an empty section heading. Newly available unit
+  headings may be delayed until combat ends when they require layout changes.
+- Aura duration is capped at 180s by the native `maxDuration` candidate
+  filter. Up to six helpful or harmful aura bars per unit are allocated.
+- Unit headers don't inspect or compare secret target names or GUIDs.
+- This implementation has not been tested inside the WoW Forever client.
+  Validate compact stacking, active nameplate sections, totem text, and
+  combat restrictions in game before treating it as stable.
