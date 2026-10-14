@@ -28,15 +28,12 @@ end
 -- Mirror KamiUI_Auras: a separate parent controls fill alpha while the
 -- background retains its own vertex alpha. This also survives secure aura
 -- callbacks that may override the StatusBar texture's alpha.
-local function CreateBarBackground(parent, barContainer)
+local function CreateBarBackground(parent, barContainer, width)
     local background = parent:CreateTexture(nil, "BACKGROUND")
     background:SetPoint("TOPLEFT", barContainer, "TOPLEFT")
     background:SetPoint("BOTTOMRIGHT", barContainer, "BOTTOMRIGHT")
-    background:SetTexture(UI.Media.KamiFacet)
-    background:SetVertexColor(
-        Palette.auras.background[1],
-        Palette.auras.background[2],
-        Palette.auras.background[3],
+    UI.Media:ApplyPebble(
+        background, width, Layout.HEIGHT,
         Styles.State.aurasBackgroundAlpha
     )
 end
@@ -47,7 +44,7 @@ local function CreateColoredBar(parent, color)
 
     local bar = CreateFrame("StatusBar", nil, barContainer)
     bar:SetAllPoints()
-    bar:SetStatusBarTexture(UI.Media.KamiFacet)
+    bar:SetStatusBarTexture(UI.Media.FlatBar)
     bar:SetStatusBarColor(color[1], color[2], color[3], 1)
 
     return barContainer, bar
@@ -64,7 +61,7 @@ local function CreateTimerBar(parent, color)
     barContainer:SetPoint(
         "BOTTOMRIGHT", frame, "BOTTOMRIGHT", 0, Layout.ROW_PADDING
     )
-    CreateBarBackground(frame, barContainer)
+    CreateBarBackground(frame, barContainer, Layout.WIDTH)
     bar:SetMinMaxValues(0, 1)
     bar:SetValue(1)
 
@@ -117,7 +114,7 @@ local function InitializeAuraButton(button, unitToken, color, labels)
     barContainer:SetPoint(
         "BOTTOMRIGHT", button, "BOTTOMRIGHT", 0, Layout.ROW_PADDING
     )
-    CreateBarBackground(button, barContainer)
+    CreateBarBackground(button, barContainer, Layout.WIDTH - Layout.HEIGHT)
 
     local overlay = CreateFrame("Frame", nil, button)
     overlay:SetAllPoints()

@@ -7,7 +7,7 @@ local UF = UI:NewModule("UnitFrames", "KamiUI_UnitFrames")
 
 
 -- Shared faceted artwork; native StatusBars preserve the existing class/power colors.
-UF.barTexture = UI.Media.KamiFacet
+UF.barTexture = UI.Media.FlatBar
 UF.colorMultiplier = 0.60
 UF.powerColorMultiplier = 0.85
 
@@ -442,11 +442,12 @@ function UF:CreateBar(parent, width, height)
     local bar = CreateFrame("StatusBar", nil, parent)
     bar:SetSize(width, height)
     bar:SetStatusBarTexture(self.barTexture)
+    -- Tint only the fill: labels remain fully opaque.
+    bar:GetStatusBarTexture():SetAlpha(0.76)
 
     local background = bar:CreateTexture(nil, "BACKGROUND")
     background:SetAllPoints()
-    background:SetTexture(self.barTexture)
-    background:SetVertexColor(0.08, 0.08, 0.08, 1)
+    UI.Media:ApplyPebble(background, width, height, 1)
 
     bar.background = background
 

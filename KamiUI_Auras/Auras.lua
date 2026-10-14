@@ -9,7 +9,7 @@ local Layout = UI.Layout.Auras
 -- Kami Facet: soft light facets in the top/bottom 25% of each bar,
 -- with a flat center from 25-75%. Its alpha stays completely uniform:
 -- only RGB brightness changes, so the bars remain full-height beside icons.
-local BAR_FACET_TEXTURE = UI.Media.KamiFacet
+local BAR_FILL_TEXTURE = UI.Media.FlatBar
 
 
 local container
@@ -201,11 +201,8 @@ local function CreateWeaponEnchantBar()
     local background = button:CreateTexture(nil, "BACKGROUND")
     background:SetPoint("TOPLEFT", icon, "TOPRIGHT")
     background:SetPoint("BOTTOMRIGHT")
-    background:SetTexture(BAR_FACET_TEXTURE)
-    background:SetVertexColor(
-        Palette.auras.background[1],
-        Palette.auras.background[2],
-        Palette.auras.background[3],
+    UI.Media:ApplyPebble(
+        background, Layout.WIDTH - Layout.ICON_SIZE, Layout.HEIGHT,
         Styles.State.aurasBackgroundAlpha
     )
 
@@ -216,7 +213,7 @@ local function CreateWeaponEnchantBar()
 
     local bar = CreateFrame("StatusBar", nil, barContainer)
     bar:SetAllPoints()
-    bar:SetStatusBarTexture(BAR_FACET_TEXTURE)
+    bar:SetStatusBarTexture(BAR_FILL_TEXTURE)
     local color = Palette.auras.weaponEnchant
     bar:SetStatusBarColor(color[1], color[2], color[3], 1)
     button.bar = bar
@@ -417,7 +414,7 @@ local function InitializeAuraButton(button, color, useDispelColor)
 
     local bar = CreateFrame("StatusBar", nil, barContainer)
     bar:SetAllPoints()
-    bar:SetStatusBarTexture(BAR_FACET_TEXTURE)
+    bar:SetStatusBarTexture(BAR_FILL_TEXTURE)
     bar:SetStatusBarColor(color[1], color[2], color[3], 1)
 
     local statusTexture = bar:GetStatusBarTexture()
@@ -427,11 +424,8 @@ local function InitializeAuraButton(button, color, useDispelColor)
     local background = button:CreateTexture(nil, "BACKGROUND")
     background:SetPoint("TOPLEFT", barContainer, "TOPLEFT")
     background:SetPoint("BOTTOMRIGHT", barContainer, "BOTTOMRIGHT")
-    background:SetTexture(BAR_FACET_TEXTURE)
-    background:SetVertexColor(
-        Palette.auras.background[1],
-        Palette.auras.background[2],
-        Palette.auras.background[3],
+    UI.Media:ApplyPebble(
+        background, Layout.WIDTH - Layout.ICON_SIZE, Layout.HEIGHT,
         Styles.State.aurasBackgroundAlpha
     )
 
