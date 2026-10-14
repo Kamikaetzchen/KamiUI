@@ -122,7 +122,8 @@ end
 local function CreateFrameBackground(parent)
     local background = parent:CreateTexture(nil, "BACKGROUND")
     background:SetAllPoints()
-    background:SetColorTexture(0, 0, 0, 1)
+    -- Keep unused bar areas translucent, as in the aura/timer bars.
+    background:SetColorTexture(0, 0, 0, 0.42)
     return background
 end
 
@@ -448,14 +449,14 @@ function UF:CreateBar(parent, width, height)
 
     local background = bar:CreateTexture(nil, "BACKGROUND")
     background:SetAllPoints()
-    background:SetColorTexture(0, 0, 0, 0.35)
+    background:SetColorTexture(0, 0, 0, 0.10)
 
     -- Draw the original dark seams on top of the fill instead. The OVERLAY
     -- sublevel keeps this material below the unit texts (OVERLAY 0), while
     -- its intrinsic TGA alpha keeps the stone faces understated.
     local pebbleOverlay = bar:CreateTexture(nil, "OVERLAY", nil, -1)
     pebbleOverlay:SetAllPoints()
-    UI.Media:ApplyPebble(pebbleOverlay, width, height, 0.65)
+    UI.Media:ApplyPebble(pebbleOverlay, width, height, 0.30)
 
     bar.background = background
     bar.pebbleOverlay = pebbleOverlay
