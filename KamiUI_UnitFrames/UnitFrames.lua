@@ -442,14 +442,23 @@ function UF:CreateBar(parent, width, height)
     local bar = CreateFrame("StatusBar", nil, parent)
     bar:SetSize(width, height)
     bar:SetStatusBarTexture(self.barTexture)
-    -- Tint only the fill: labels remain fully opaque.
-    bar:GetStatusBarTexture():SetAlpha(0.60)
+    -- Keep the class/resource color mostly opaque. Tinting the pebble
+    -- background through a translucent fill washes out its dark seams.
+    bar:GetStatusBarTexture():SetAlpha(0.90)
 
     local background = bar:CreateTexture(nil, "BACKGROUND")
     background:SetAllPoints()
-    UI.Media:ApplyPebble(background, width, height, 1)
+    background:SetColorTexture(0, 0, 0, 0.35)
+
+    -- Draw the original dark seams on top of the fill instead. The OVERLAY
+    -- sublevel keeps this material below the unit texts (OVERLAY 0), while
+    -- its intrinsic TGA alpha keeps the stone faces understated.
+    local pebbleOverlay = bar:CreateTexture(nil, "OVERLAY", nil, -1)
+    pebbleOverlay:SetAllPoints()
+    UI.Media:ApplyPebble(pebbleOverlay, width, height, 0.65)
 
     bar.background = background
+    bar.pebbleOverlay = pebbleOverlay
 
     return bar
 end
@@ -1036,9 +1045,9 @@ function UF:SetCastingLayout(frame, isCasting)
     -- Casts and shapeshifting resize these bars. Crop the fixed-density
     -- material to the new height instead of stretching the pebble pattern.
     UI.Media:SetPebbleCrop(
-        frame.health.background, frame.health:GetWidth(), healthHeight)
+        frame.health.pebbleOverlay, frame.health:GetWidth(), healthHeight)
     UI.Media:SetPebbleCrop(
-        frame.power.background, frame.power:GetWidth(), powerHeight)
+        frame.power.pebbleOverlay, frame.power:GetWidth(), powerHeight)
 
     frame.nameText:SetFont(
         layout.fontPath,
