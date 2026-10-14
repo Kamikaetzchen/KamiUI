@@ -12,7 +12,7 @@ UI.Media.FlatBar = "Interface\\Buttons\\WHITE8X8"
 
 local PEBBLE_WIDTH = 512
 local PEBBLE_HEIGHT = 64
-local SOURCE_PIXELS_PER_UI_PIXEL = 1
+local SOURCE_PIXELS_PER_UI_PIXEL = 2
 local PEBBLE_BRIGHTNESS = 0.75
 
 function UI.Media:SetPebbleCrop(texture, width, height)
