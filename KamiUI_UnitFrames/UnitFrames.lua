@@ -443,7 +443,7 @@ function UF:CreateBar(parent, width, height)
     bar:SetSize(width, height)
     bar:SetStatusBarTexture(self.barTexture)
     -- Tint only the fill: labels remain fully opaque.
-    bar:GetStatusBarTexture():SetAlpha(0.76)
+    bar:GetStatusBarTexture():SetAlpha(0.60)
 
     local background = bar:CreateTexture(nil, "BACKGROUND")
     background:SetAllPoints()
