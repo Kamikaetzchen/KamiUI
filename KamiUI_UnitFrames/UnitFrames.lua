@@ -1033,6 +1033,12 @@ function UF:SetCastingLayout(frame, isCasting)
 
     frame.health:SetHeight(healthHeight)
     frame.power:SetHeight(powerHeight)
+    -- Casts and shapeshifting resize these bars. Crop the fixed-density
+    -- material to the new height instead of stretching the pebble pattern.
+    UI.Media:SetPebbleCrop(
+        frame.health.background, frame.health:GetWidth(), healthHeight)
+    UI.Media:SetPebbleCrop(
+        frame.power.background, frame.power:GetWidth(), powerHeight)
 
     frame.nameText:SetFont(
         layout.fontPath,
