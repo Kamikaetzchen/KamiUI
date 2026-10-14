@@ -7,12 +7,12 @@ UI.Media.HealthFade = "Interface\\AddOns\\KamiUI\\Media\\HealthFade"
 
 -- Native StatusBars use a flat translucent fill over this cropped material.
 -- A constant source-pixel/UI-pixel ratio keeps pebble size consistent.
-UI.Media.KamiPebble = "Interface\\AddOns\\KamiUI\\Media\\KamiPebble_2048x512"
+UI.Media.KamiPebble = "Interface\\AddOns\\KamiUI\\Media\\KamiPebbleAlpha_512x64"
 UI.Media.FlatBar = "Interface\\Buttons\\WHITE8X8"
 
-local PEBBLE_WIDTH = 2048
-local PEBBLE_HEIGHT = 512
-local SOURCE_PIXELS_PER_UI_PIXEL = 6
+local PEBBLE_WIDTH = 512
+local PEBBLE_HEIGHT = 64
+local SOURCE_PIXELS_PER_UI_PIXEL = 1
 local PEBBLE_BRIGHTNESS = 0.75
 
 function UI.Media:SetPebbleCrop(texture, width, height)
