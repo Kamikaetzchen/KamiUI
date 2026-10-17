@@ -7,7 +7,7 @@ local UF = UI:NewModule("UnitFrames", "KamiUI_UnitFrames")
 
 
 -- Shared faceted artwork; native StatusBars preserve the existing class/power colors.
-UF.barTexture = UI.Media.FlatBar
+UF.barTexture = UI.Media.KamiFacet
 UF.colorMultiplier = 0.60
 UF.powerColorMultiplier = 0.85
 
@@ -443,23 +443,13 @@ function UF:CreateBar(parent, width, height)
     local bar = CreateFrame("StatusBar", nil, parent)
     bar:SetSize(width, height)
     bar:SetStatusBarTexture(self.barTexture)
-    -- Keep the class/resource color mostly opaque. Tinting the pebble
-    -- background through a translucent fill washes out its dark seams.
-    bar:GetStatusBarTexture():SetAlpha(0.90)
 
     local background = bar:CreateTexture(nil, "BACKGROUND")
     background:SetAllPoints()
-    background:SetColorTexture(0, 0, 0, 0.10)
-
-    -- Draw the original dark seams on top of the fill instead. The OVERLAY
-    -- sublevel keeps this material below the unit texts (OVERLAY 0), while
-    -- its intrinsic TGA alpha keeps the stone faces understated.
-    local pebbleOverlay = bar:CreateTexture(nil, "OVERLAY", nil, -1)
-    pebbleOverlay:SetAllPoints()
-    UI.Media:ApplyPebble(pebbleOverlay, width, height, 0.30)
+    background:SetTexture(self.barTexture)
+    background:SetVertexColor(0.08, 0.08, 0.08, 1)
 
     bar.background = background
-    bar.pebbleOverlay = pebbleOverlay
 
     return bar
 end
@@ -1043,13 +1033,6 @@ function UF:SetCastingLayout(frame, isCasting)
 
     frame.health:SetHeight(healthHeight)
     frame.power:SetHeight(powerHeight)
-    -- Casts and shapeshifting resize these bars. Crop the fixed-density
-    -- material to the new height instead of stretching the pebble pattern.
-    UI.Media:SetPebbleCrop(
-        frame.health.pebbleOverlay, frame.health:GetWidth(), healthHeight)
-    UI.Media:SetPebbleCrop(
-        frame.power.pebbleOverlay, frame.power:GetWidth(), powerHeight)
-
     frame.nameText:SetFont(
         layout.fontPath,
         self:GetBarFontSize(healthHeight),
