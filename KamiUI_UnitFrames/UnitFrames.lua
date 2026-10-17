@@ -481,16 +481,10 @@ end
 
 local function IsBossTarget()
     if not UnitExists("target") then return false end
-
+    -- A skull ("??") level alone does not identify a boss.
     local classification = UnitClassification("target")
-    if UI:CanAccessValue(classification)
-        and classification == "worldboss" then
-        return true
-    end
-
-    local level = UnitLevel("target")
-    return UI:CanAccessValue(level)
-        and type(level) == "number" and level < 0
+    return UI:CanAccessValue(classification)
+        and classification == "worldboss"
 end
 
 local function SetCombatGroupWidth(frame, width)
