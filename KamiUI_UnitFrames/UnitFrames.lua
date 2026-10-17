@@ -464,6 +464,26 @@ function UF:CreateBar(parent, width, height)
     return bar
 end
 
+-- Subtle brushed-metal sheen for the primary combat HUD; secondary
+-- UnitFrames retain their existing cropped pebble material.
+local function ApplyCombatBarSkin(bar)
+    bar.pebbleOverlay:Hide()
+    bar:GetStatusBarTexture():SetAlpha(0.96)
+    bar.background:SetColorTexture(0.02, 0.04, 0.06, 0.18)
+
+    local sheen = bar:CreateTexture(nil, "OVERLAY", nil, -1)
+    sheen:SetAllPoints(bar)
+    sheen:SetTexture(UI.Media.FlatBar)
+    if sheen.SetGradient and CreateColor then
+        sheen:SetGradient("VERTICAL",
+            CreateColor(0.01, 0.02, 0.04, 0.26),
+            CreateColor(0.95, 0.97, 1.00, 0.11))
+    else
+        sheen:SetColorTexture(0.70, 0.76, 0.83, 0.07)
+    end
+    bar.combatSurface = sheen
+end
+
 function UF:CreateText(parent, barHeight, justify, fontOffset)
     local text = parent:CreateFontString(nil, "OVERLAY")
     local fontPath, _, fontFlags = GameFontNormalSmall:GetFont()
@@ -596,6 +616,8 @@ function UF:CreatePrimaryFrame(options)
     end
 
     local power = self:CreateBar(content, barWidth - 18, powerHeight)
+    ApplyCombatBarSkin(health)
+    ApplyCombatBarSkin(power)
     power:SetPoint("TOPLEFT", health, "BOTTOMLEFT", 0, -separatorSize)
 
     local powerTriangle = power:CreateTexture(nil, "OVERLAY", nil, 2)
@@ -620,6 +642,7 @@ function UF:CreatePrimaryFrame(options)
 
                 for _, texture in ipairs({
                     fill, bar.background, bar.pebbleOverlay,
+                    bar.combatSurface,
                 }) do
                     if texture and texture.AddMaskTexture then
                         texture:AddMaskTexture(mask)
@@ -659,6 +682,7 @@ function UF:CreatePrimaryFrame(options)
     local druidMana
     if options.druidMana then
         druidMana = self:CreateBar(content, barWidth - 38, manaHeight)
+        ApplyCombatBarSkin(druidMana)
         AddBarEdge(druidMana, false)
         druidMana:SetPoint(
             "TOPLEFT", power, "BOTTOMLEFT", 0, -separatorSize)
@@ -669,6 +693,7 @@ function UF:CreatePrimaryFrame(options)
     end
 
     local cast = self:CreateBar(content, barWidth - 18, castHeight)
+    ApplyCombatBarSkin(cast)
     AddBarEdge(cast, false)
     -- Reanchor below mana only when Cat/Bear is active.
     cast:SetPoint("TOPLEFT", power, "BOTTOMLEFT", 0, -separatorSize)
@@ -715,6 +740,7 @@ function UF:CreatePrimaryFrame(options)
     castProgressText:SetJustifyH("RIGHT")
     castProgressText:SetTextColor(1, 1, 1)
 
+    frame.combatMaterial = true
     frame.content = content
     frame.health = health
     frame.power = power
@@ -1129,12 +1155,14 @@ function UF:SetCastingLayout(frame, isCasting)
 
     frame.health:SetHeight(healthHeight)
     frame.power:SetHeight(powerHeight)
-    -- Casts and shapeshifting resize these bars. Crop the fixed-density
-    -- material to the new height instead of stretching the pebble pattern.
-    UI.Media:SetPebbleCrop(
-        frame.health.pebbleOverlay, frame.health:GetWidth(), healthHeight)
-    UI.Media:SetPebbleCrop(
-        frame.power.pebbleOverlay, frame.power:GetWidth(), powerHeight)
+    -- Combat HUD material stretches with the bar; preserve fixed-density
+    -- crop on other unit frame styles.
+    if not frame.combatMaterial then
+        UI.Media:SetPebbleCrop(
+            frame.health.pebbleOverlay, frame.health:GetWidth(), healthHeight)
+        UI.Media:SetPebbleCrop(
+            frame.power.pebbleOverlay, frame.power:GetWidth(), powerHeight)
+    end
 
     frame.nameText:SetFont(
         layout.fontPath,
