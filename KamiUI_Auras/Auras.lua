@@ -9,7 +9,7 @@ local Layout = UI.Layout.Auras
 -- Kami Facet: soft light facets in the top/bottom 25% of each bar,
 -- with a flat center from 25-75%. Its alpha stays completely uniform:
 -- only RGB brightness changes, so the bars remain full-height beside icons.
-local BAR_FILL_TEXTURE = UI.Media.FlatBar
+local BAR_FILL_TEXTURE = UI.Media.KamiFacet
 
 
 local container
@@ -201,8 +201,11 @@ local function CreateWeaponEnchantBar()
     local background = button:CreateTexture(nil, "BACKGROUND")
     background:SetPoint("TOPLEFT", icon, "TOPRIGHT")
     background:SetPoint("BOTTOMRIGHT")
-    UI.Media:ApplyPebble(
-        background, Layout.WIDTH - Layout.ICON_SIZE, Layout.HEIGHT,
+    background:SetTexture(BAR_FILL_TEXTURE)
+    background:SetVertexColor(
+        Palette.auras.background[1],
+        Palette.auras.background[2],
+        Palette.auras.background[3],
         Styles.State.aurasBackgroundAlpha
     )
 
@@ -424,8 +427,11 @@ local function InitializeAuraButton(button, color, useDispelColor)
     local background = button:CreateTexture(nil, "BACKGROUND")
     background:SetPoint("TOPLEFT", barContainer, "TOPLEFT")
     background:SetPoint("BOTTOMRIGHT", barContainer, "BOTTOMRIGHT")
-    UI.Media:ApplyPebble(
-        background, Layout.WIDTH - Layout.ICON_SIZE, Layout.HEIGHT,
+    background:SetTexture(BAR_FILL_TEXTURE)
+    background:SetVertexColor(
+        Palette.auras.background[1],
+        Palette.auras.background[2],
+        Palette.auras.background[3],
         Styles.State.aurasBackgroundAlpha
     )
 
