@@ -226,19 +226,25 @@ UI.Layout = {
     UnitFrames = {
         Base = {
             PRIMARY_WIDTH = 380,
-            PRIMARY_HEIGHT = 56,
-            PRIMARY_HEALTH_HEIGHT = 31,
-            PRIMARY_POWER_HEIGHT = 22,
-            PRIMARY_HEALTH_CAST_HEIGHT = 24,
-            PRIMARY_POWER_CAST_HEIGHT = 19,
-            PRIMARY_CAST_HEIGHT = 9,
-            -- Every combination occupies the same 54px content area.
-            -- Cat/Bear mana and casts still share it without resizing.
-            PRIMARY_MANA_HEIGHT = 8,
-            PRIMARY_HEALTH_MANA_HEIGHT = 29,
-            PRIMARY_POWER_MANA_HEIGHT = 15,
-            PRIMARY_HEALTH_MANA_CAST_HEIGHT = 20,
-            PRIMARY_POWER_MANA_CAST_HEIGHT = 14,
+            PRIMARY_HEIGHT = 28,
+            PRIMARY_HEALTH_HEIGHT = 16,
+            PRIMARY_POWER_HEIGHT = 9,
+            PRIMARY_HEALTH_CAST_HEIGHT = 11,
+            PRIMARY_POWER_CAST_HEIGHT = 9,
+            PRIMARY_CAST_HEIGHT = 4,
+            -- Every combination occupies the same 26px content area.
+            PRIMARY_MANA_HEIGHT = 4,
+            PRIMARY_HEALTH_MANA_HEIGHT = 13,
+            PRIMARY_POWER_MANA_HEIGHT = 7,
+            PRIMARY_HEALTH_MANA_CAST_HEIGHT = 9,
+            PRIMARY_POWER_MANA_CAST_HEIGHT = 6,
+            -- Independent logarithmic widths for absolute HP / power maxima.
+            PRIMARY_BAR_MIN_WIDTH = 145,
+            PRIMARY_BAR_MAX_WIDTH = 320,
+            PRIMARY_HEALTH_MIN_VALUE = 100,
+            PRIMARY_HEALTH_MAX_VALUE = 10000,
+            PRIMARY_POWER_MIN_VALUE = 50,
+            PRIMARY_POWER_MAX_VALUE = 10000,
             PRIMARY_NAME_WIDTH = 165,
             PRIMARY_TEXT_INSET = 8,
             COMPACT_WIDTH = 150,
