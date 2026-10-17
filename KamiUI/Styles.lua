@@ -21,7 +21,10 @@ Styles.State = {
     disabledAlpha = 0.45,
     sectionAlpha = 0.055,
     aurasBarAlpha = 0.55,
-    aurasBackgroundAlpha = 0.94,
+    -- KamiFacet is opaque: unlike the Pebble texture it needs an explicit
+    -- translucent backing alpha to keep empty bars from looking solid black.
+    aurasBackgroundAlpha = 0.40,
+    unitFrameEmptyBarAlpha = 0.40,
     damageMeterBackgroundAlpha = 0.82,
     damageMeterRowAlpha = 0.32,
     damageMeterBarAlpha = 0.55,
