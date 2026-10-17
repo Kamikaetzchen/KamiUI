@@ -5,10 +5,6 @@ local Module = UI:NewModule(
     "KamiUI_SpellMetrics"
 )
 
-Module.defaults = {
-    refreshDelay = 0.08,
-}
-
 Module.analysisCache = {}
 -- Retain the last valid estimate when the client temporarily hides
 -- weapon values during combat. Ordinary invalidation still forces a
@@ -63,9 +59,3 @@ function Module:GetMetricLabels(analysis)
     return labels
 end
 
-function Module:GetButtonMetric(analysis)
-    return analysis
-        and analysis.metrics
-        and analysis.metrics.full
-        and analysis.metrics.full.execution
-end

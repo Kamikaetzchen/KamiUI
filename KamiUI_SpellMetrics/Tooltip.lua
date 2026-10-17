@@ -1,9 +1,11 @@
 local UI = KamiUI
 local Module = UI:GetModule("SpellMetrics")
 
+local Palette = UI.Palette
 local HEADING_COLOR = { 0.40, 0.80, 1.00 }
-local LABEL_COLOR = { 0.85, 0.85, 0.85 }
-local VALUE_COLOR = { 1.00, 1.00, 1.00 }
+local SECTION_COLOR = Palette.gold
+local LABEL_COLOR = Palette.text
+local VALUE_COLOR = Palette.highlight
 
 local function GetSpellID(tooltip, data)
     if data then
@@ -25,123 +27,41 @@ local function GetSpellID(tooltip, data)
     return nil
 end
 
-local function FormatMetricLine(label, value)
-    return string.format(
-        "%s  %s",
+-- Keep the label/value alignment within each section, but stack
+-- the Spam and Full duration comparisons vertically.
+local function AddMetricRow(tooltip, label, value)
+    if value == nil then
+        return
+    end
+
+    tooltip:AddDoubleLine(
         label,
-        Module:FormatMetric(value)
+        Module:FormatMetric(value),
+        LABEL_COLOR[1], LABEL_COLOR[2], LABEL_COLOR[3],
+        VALUE_COLOR[1], VALUE_COLOR[2], VALUE_COLOR[3]
     )
+end
+
+local function AddMetricSet(tooltip, metrics, labels)
+    AddMetricRow(tooltip, labels.throughput, metrics.throughput)
+
+    if labels.efficiency and metrics.efficiency then
+        AddMetricRow(tooltip, labels.efficiency, metrics.efficiency)
+    end
+
+    AddMetricRow(tooltip, labels.execution, metrics.execution)
 end
 
 local function AddSingleMetrics(tooltip, analysis, labels)
-    local full = analysis.metrics.full
-
-    tooltip:AddDoubleLine(
-        labels.throughput,
-        Module:FormatMetric(full.throughput),
-        LABEL_COLOR[1],
-        LABEL_COLOR[2],
-        LABEL_COLOR[3],
-        VALUE_COLOR[1],
-        VALUE_COLOR[2],
-        VALUE_COLOR[3]
-    )
-
-    if labels.efficiency and full.efficiency then
-        tooltip:AddDoubleLine(
-            labels.efficiency,
-            Module:FormatMetric(full.efficiency),
-            LABEL_COLOR[1],
-            LABEL_COLOR[2],
-            LABEL_COLOR[3],
-            VALUE_COLOR[1],
-            VALUE_COLOR[2],
-            VALUE_COLOR[3]
-        )
-    end
-
-    tooltip:AddDoubleLine(
-        labels.execution,
-        Module:FormatMetric(full.execution),
-        LABEL_COLOR[1],
-        LABEL_COLOR[2],
-        LABEL_COLOR[3],
-        VALUE_COLOR[1],
-        VALUE_COLOR[2],
-        VALUE_COLOR[3]
-    )
+    AddMetricSet(tooltip, analysis.metrics.full, labels)
 end
 
 local function AddMixedMetrics(tooltip, analysis, labels)
-    local spam = analysis.metrics.spam
-    local full = analysis.metrics.full
+    tooltip:AddLine("Spam", unpack(SECTION_COLOR))
+    AddMetricSet(tooltip, analysis.metrics.spam, labels)
 
-    tooltip:AddDoubleLine(
-        "Spam",
-        "Full duration",
-        HEADING_COLOR[1],
-        HEADING_COLOR[2],
-        HEADING_COLOR[3],
-        HEADING_COLOR[1],
-        HEADING_COLOR[2],
-        HEADING_COLOR[3]
-    )
-
-    tooltip:AddDoubleLine(
-        FormatMetricLine(
-            labels.throughput,
-            spam.throughput
-        ),
-        FormatMetricLine(
-            labels.throughput,
-            full.throughput
-        ),
-        LABEL_COLOR[1],
-        LABEL_COLOR[2],
-        LABEL_COLOR[3],
-        VALUE_COLOR[1],
-        VALUE_COLOR[2],
-        VALUE_COLOR[3]
-    )
-
-    if labels.efficiency
-        and spam.efficiency
-        and full.efficiency
-    then
-        tooltip:AddDoubleLine(
-            FormatMetricLine(
-                labels.efficiency,
-                spam.efficiency
-            ),
-            FormatMetricLine(
-                labels.efficiency,
-                full.efficiency
-            ),
-            LABEL_COLOR[1],
-            LABEL_COLOR[2],
-            LABEL_COLOR[3],
-            VALUE_COLOR[1],
-            VALUE_COLOR[2],
-            VALUE_COLOR[3]
-        )
-    end
-
-    tooltip:AddDoubleLine(
-        FormatMetricLine(
-            labels.execution,
-            spam.execution
-        ),
-        FormatMetricLine(
-            labels.execution,
-            full.execution
-        ),
-        LABEL_COLOR[1],
-        LABEL_COLOR[2],
-        LABEL_COLOR[3],
-        VALUE_COLOR[1],
-        VALUE_COLOR[2],
-        VALUE_COLOR[3]
-    )
+    tooltip:AddLine("Full duration", unpack(SECTION_COLOR))
+    AddMetricSet(tooltip, analysis.metrics.full, labels)
 end
 
 local function AddComboMetrics(tooltip, analysis)

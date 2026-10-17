@@ -11,4 +11,3 @@ Core.lua
 SpellData.lua
 Calculator.lua
 Tooltip.lua
-ActionButtons.lua
