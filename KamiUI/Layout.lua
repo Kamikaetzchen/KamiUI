@@ -238,13 +238,12 @@ UI.Layout = {
             PRIMARY_POWER_MANA_HEIGHT = 7,
             PRIMARY_HEALTH_MANA_CAST_HEIGHT = 9,
             PRIMARY_POWER_MANA_CAST_HEIGHT = 6,
-            -- Independent logarithmic widths for absolute HP / power maxima.
-            PRIMARY_BAR_MIN_WIDTH = 145,
-            PRIMARY_BAR_MAX_WIDTH = 320,
-            PRIMARY_HEALTH_MIN_VALUE = 100,
-            PRIMARY_HEALTH_MAX_VALUE = 10000,
-            PRIMARY_POWER_MIN_VALUE = 50,
-            PRIMARY_POWER_MAX_VALUE = 10000,
+            -- Paired Player/Target scaling: the larger max HP receives
+            -- the available bar width (352 at PRIMARY_WIDTH = 380).
+            -- A small floor prevents very weak targets becoming invisible.
+            PRIMARY_BAR_MIN_WIDTH = 80,
+            PRIMARY_POWER_END_INSET = 18,
+            PRIMARY_MANA_END_INSET = 38,
             PRIMARY_NAME_WIDTH = 165,
             PRIMARY_TEXT_INSET = 8,
             COMPACT_WIDTH = 150,
