@@ -47,6 +47,8 @@ end)
 
 UI:RegisterEvent("PLAYER_TARGET_CHANGED", function()
     UF:UpdateUnitFrame(frame)
+    -- Re-evaluate both rows, including when clearing the target.
+    UF:UpdateCombatPairWidths()
 end)
 
 UF.targetFrame = frame
