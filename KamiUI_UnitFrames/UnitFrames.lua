@@ -466,6 +466,49 @@ end
 
 -- Subtle brushed-metal sheen for the primary combat HUD; secondary
 -- UnitFrames retain their existing cropped pebble material.
+-- Widths depend on maximum values only, never on current HP / power.
+-- Avoid arithmetic on WoW secret values and postpone secure layout changes.
+local function ScaledCombatWidth(value, minValue, maxValue)
+    if type(value) ~= "number" or not UI:CanAccessValue(value)
+        or value <= 0 then return nil end
+    local low = Layout.PRIMARY_BAR_MIN_WIDTH
+    local high = Layout.PRIMARY_BAR_MAX_WIDTH
+    local fraction = (math.log(math.max(value, minValue)) - math.log(minValue))
+        / (math.log(maxValue) - math.log(minValue))
+    fraction = math.max(0, math.min(1, fraction))
+    return math.floor(low + (high - low) * fraction + 0.5)
+end
+
+function UF:UpdateCombatWidths(frame)
+    if not frame or not frame.combatMaterial then return end
+    if InCombatLockdown and InCombatLockdown() then
+        frame.pendingCombatWidths = true
+        return
+    end
+    if not UnitExists(frame.unit) then return end
+
+    local hp = ScaledCombatWidth(UnitHealthMax(frame.unit),
+        Layout.PRIMARY_HEALTH_MIN_VALUE, Layout.PRIMARY_HEALTH_MAX_VALUE)
+    local power = ScaledCombatWidth(UnitPowerMax(frame.unit),
+        Layout.PRIMARY_POWER_MIN_VALUE, Layout.PRIMARY_POWER_MAX_VALUE)
+    -- If either max is protected, retain the last valid width.
+    if hp and hp ~= frame.health:GetWidth() then
+        frame.health:SetWidth(hp)
+    end
+    if power and power ~= frame.power:GetWidth() then
+        frame.power:SetWidth(power)
+        if frame.cast then frame.cast:SetWidth(power) end
+    end
+    if frame.druidMana then
+        local manaType = (Enum and Enum.PowerType
+            and Enum.PowerType.Mana) or 0
+        local mana = ScaledCombatWidth(UnitPowerMax(frame.unit, manaType),
+            Layout.PRIMARY_POWER_MIN_VALUE, Layout.PRIMARY_POWER_MAX_VALUE)
+        if mana then frame.druidMana:SetWidth(mana) end
+    end
+    frame.pendingCombatWidths = nil
+end
+
 local function ApplyCombatBarSkin(bar)
     bar.pebbleOverlay:Hide()
     bar:GetStatusBarTexture():SetAlpha(0.96)
@@ -700,9 +743,14 @@ function UF:CreatePrimaryFrame(options)
     cast:SetStatusBarColor(0.65, 0.45, 0.10)
     cast:Hide()
 
+    local factionIcon = health:CreateTexture(nil, "OVERLAY", nil, 2)
+    factionIcon:SetSize(12, 12)
+    factionIcon:SetPoint("LEFT", health, "LEFT", Layout.PRIMARY_TEXT_INSET, 0)
+    factionIcon:Hide()
+
     local nameText = self:CreateText(health, healthHeight, "LEFT")
-    nameText:SetPoint("LEFT", Layout.PRIMARY_TEXT_INSET, 0)
-    nameText:SetWidth(Layout.PRIMARY_NAME_WIDTH)
+    nameText:SetPoint("LEFT", factionIcon, "RIGHT", 3, 0)
+    nameText:SetWidth(Layout.PRIMARY_NAME_WIDTH - 15)
     self:ConfigureNameText(nameText)
 
     local healthText = self:CreateText(health, healthHeight, "RIGHT")
@@ -741,6 +789,7 @@ function UF:CreatePrimaryFrame(options)
     castProgressText:SetTextColor(1, 1, 1)
 
     frame.combatMaterial = true
+    frame.factionIcon = factionIcon
     frame.content = content
     frame.health = health
     frame.power = power
@@ -981,6 +1030,7 @@ function UF:UpdateHealth(frame)
     end
 
     self:UpdateHealthColor(frame)
+    self:UpdateCombatWidths(frame)
 end
 
 function UF:UpdateHealthColor(frame)
@@ -1065,11 +1115,31 @@ function UF:UpdatePower(frame)
     if frame.druidMana then
         self:UpdateDruidMana(frame)
     end
+    self:UpdateCombatWidths(frame)
 end
 
 function UF:UpdateIdentity(frame)
     if not frame or not UnitExists(frame.unit) then
         return
+    end
+
+    if frame.factionIcon then
+        local faction
+        local player = UnitIsPlayer and UnitIsPlayer(frame.unit)
+        if UI:CanAccessValue(player) and player
+            and UnitFactionGroup then
+            local factionValue = UnitFactionGroup(frame.unit)
+            if UI:CanAccessValue(factionValue) then
+                faction = factionValue
+            end
+        end
+        if faction == "Horde" or faction == "Alliance" then
+            frame.factionIcon:SetTexture(
+                "Interface\\FriendsFrame\\PlusManz-" .. faction)
+            frame.factionIcon:Show()
+        else
+            frame.factionIcon:Hide()
+        end
     end
 
     if frame.nameText then
@@ -1287,6 +1357,13 @@ end
 
 UI:RegisterEvent("GROUP_ROSTER_UPDATE", RefreshUnitColors)
 UI:RegisterEvent("PLAYER_REGEN_ENABLED", RefreshUnitColors)
+UI:RegisterEvent("PLAYER_REGEN_ENABLED", function()
+    UF:ForEachFrame(function(frame)
+        if frame.pendingCombatWidths then
+            UF:UpdateCombatWidths(frame)
+        end
+    end)
+end)
 
 UI:RegisterEvent("PLAYER_ENTERING_WORLD", function()
     UF:RefreshGroupClassCache()
@@ -1296,6 +1373,7 @@ end)
 UI:RegisterEvent("UNIT_HEALTH", DispatchHealth)
 UI:RegisterEvent("UNIT_MAXHEALTH", DispatchHealth)
 UI:RegisterEvent("UNIT_FACTION", DispatchHealth)
+UI:RegisterEvent("UNIT_FACTION", DispatchIdentity)
 
 UI:RegisterEvent("UNIT_POWER_UPDATE", DispatchPower)
 UI:RegisterEvent("UNIT_POWER_FREQUENT", DispatchPower)
