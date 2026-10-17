@@ -464,49 +464,118 @@ function UF:CreateBar(parent, width, height)
     return bar
 end
 
--- Subtle brushed-metal sheen for the primary combat HUD; secondary
--- UnitFrames retain their existing cropped pebble material.
--- Widths depend on maximum values only, never on current HP / power.
--- Avoid arithmetic on WoW secret values and postpone secure layout changes.
-local function ScaledCombatWidth(value, minValue, maxValue)
-    if type(value) ~= "number" or not UI:CanAccessValue(value)
-        or value <= 0 then return nil end
-    local low = Layout.PRIMARY_BAR_MIN_WIDTH
-    local high = Layout.PRIMARY_BAR_MAX_WIDTH
-    local fraction = (math.log(math.max(value, minValue)) - math.log(minValue))
-        / (math.log(maxValue) - math.log(minValue))
-    fraction = math.max(0, math.min(1, fraction))
-    return math.floor(low + (high - low) * fraction + 0.5)
+-- Player and Target share one width scale based on their readable maximum
+-- health. The higher-HP unit receives the full width; the other gets its
+-- proportional share. A world boss is excluded until the separate boss HUD
+-- exists, so it does not shrink the player's normal frame.
+local function ReadMaxHealth(unit)
+    local exists = UnitExists(unit)
+    if not UI:CanAccessValue(exists) or not exists then return nil end
+    local maximum = UnitHealthMax(unit)
+    if not UI:CanAccessValue(maximum) or type(maximum) ~= "number"
+        or maximum <= 0 then
+        return nil
+    end
+    return maximum
 end
 
-function UF:UpdateCombatWidths(frame)
+local function IsBossTarget()
+    if not UnitExists("target") then return false end
+
+    local classification = UnitClassification("target")
+    if UI:CanAccessValue(classification)
+        and classification == "worldboss" then
+        return true
+    end
+
+    local level = UnitLevel("target")
+    return UI:CanAccessValue(level)
+        and type(level) == "number" and level < 0
+end
+
+local function SetCombatGroupWidth(frame, width)
     if not frame or not frame.combatMaterial then return end
+
+    -- Keep an 80px minimum for extremely low-level targets. At ordinary
+    -- ratios (e.g. 312/949 HP) the displayed lengths remain proportional.
+    width = math.floor(math.max(Layout.PRIMARY_BAR_MIN_WIDTH,
+        math.min(frame.combatMaxBarWidth, width)) + 0.5)
+    local powerWidth = math.max(1, width - Layout.PRIMARY_POWER_END_INSET)
+    local manaWidth = math.max(1, width - Layout.PRIMARY_MANA_END_INSET)
+
+    if frame.health:GetWidth() ~= width then frame.health:SetWidth(width) end
+    if frame.power:GetWidth() ~= powerWidth then
+        frame.power:SetWidth(powerWidth)
+    end
+    if frame.cast:GetWidth() ~= powerWidth then
+        frame.cast:SetWidth(powerWidth)
+    end
+    if frame.druidMana and frame.druidMana:GetWidth() ~= manaWidth then
+        frame.druidMana:SetWidth(manaWidth)
+    end
+
+    -- Center the *visible portrait + bars*, not the transparent secure
+    -- click-frame. This keeps both rows on the same visual centerline.
+    local groupWidth = frame.combatPortraitSize + width
+    local inset = math.floor((frame.combatContentWidth - groupWidth) / 2 + 0.5)
+    if frame.combatPortraitSide == "RIGHT" then
+        frame.health:ClearAllPoints()
+        frame.health:SetPoint(
+            "TOPLEFT", frame.content, "TOPLEFT", inset, 0)
+    else
+        frame.portrait:ClearAllPoints()
+        frame.portrait:SetPoint(
+            "TOPLEFT", frame.content, "TOPLEFT", inset, 0)
+    end
+
+    -- On narrow bars reserve space for the HP counter and truncate the
+    -- name rather than allowing the two labels to collide.
+    local hpTextWidth = frame.healthText:GetStringWidth()
+    if not UI:CanAccessValue(hpTextWidth)
+        or type(hpTextWidth) ~= "number" then
+        hpTextWidth = 52
+    end
+    local remaining = width - Layout.PRIMARY_TEXT_INSET - 15
+        - hpTextWidth - 16 - 4
+    frame.nameText:SetWidth(
+        math.max(1, math.min(Layout.PRIMARY_NAME_WIDTH - 15, remaining)))
+    if frame.nameMode == "first" then
+        UF:SetUnitFirstName(frame.nameText, frame.unit)
+    else
+        UF:SetUnitDisplayName(frame.nameText, frame.unit)
+    end
+end
+
+function UF:UpdateCombatPairWidths()
+    local playerFrame = self.playerFrame
+    if not playerFrame then return end
+
+    -- Secure unit-frame layouts must not be changed during combat.
+    -- Their existing health/power values continue updating normally.
     if InCombatLockdown and InCombatLockdown() then
-        frame.pendingCombatWidths = true
+        self.combatWidthPending = true
         return
     end
-    if not UnitExists(frame.unit) then return end
 
-    local hp = ScaledCombatWidth(UnitHealthMax(frame.unit),
-        Layout.PRIMARY_HEALTH_MIN_VALUE, Layout.PRIMARY_HEALTH_MAX_VALUE)
-    local power = ScaledCombatWidth(UnitPowerMax(frame.unit),
-        Layout.PRIMARY_POWER_MIN_VALUE, Layout.PRIMARY_POWER_MAX_VALUE)
-    -- If either max is protected, retain the last valid width.
-    if hp and hp ~= frame.health:GetWidth() then
-        frame.health:SetWidth(hp)
+    local playerMax = ReadMaxHealth("player")
+    if not playerMax then return end
+
+    local targetFrame = self.targetFrame
+    local targetMax = targetFrame and ReadMaxHealth("target")
+    local isBoss = targetMax and IsBossTarget()
+    local reference = playerMax
+    if targetMax and not isBoss then
+        reference = math.max(playerMax, targetMax)
     end
-    if power and power ~= frame.power:GetWidth() then
-        frame.power:SetWidth(power)
-        if frame.cast then frame.cast:SetWidth(power) end
+
+    SetCombatGroupWidth(playerFrame,
+        playerFrame.combatMaxBarWidth * playerMax / reference)
+    if targetMax then
+        SetCombatGroupWidth(targetFrame,
+            isBoss and targetFrame.combatMaxBarWidth
+                or targetFrame.combatMaxBarWidth * targetMax / reference)
     end
-    if frame.druidMana then
-        local manaType = (Enum and Enum.PowerType
-            and Enum.PowerType.Mana) or 0
-        local mana = ScaledCombatWidth(UnitPowerMax(frame.unit, manaType),
-            Layout.PRIMARY_POWER_MIN_VALUE, Layout.PRIMARY_POWER_MAX_VALUE)
-        if mana then frame.druidMana:SetWidth(mana) end
-    end
-    frame.pendingCombatWidths = nil
+    self.combatWidthPending = nil
 end
 
 local function ApplyCombatBarSkin(bar)
@@ -779,6 +848,10 @@ function UF:CreatePrimaryFrame(options)
     castProgressText:SetTextColor(1, 1, 1)
 
     frame.combatMaterial = true
+    frame.combatMaxBarWidth = barWidth
+    frame.combatContentWidth = contentWidth
+    frame.combatPortraitSize = portraitSize
+    frame.combatPortraitSide = portraitSide
     frame.factionIcon = factionIcon
     frame.content = content
     frame.health = health
@@ -1020,7 +1093,6 @@ function UF:UpdateHealth(frame)
     end
 
     self:UpdateHealthColor(frame)
-    self:UpdateCombatWidths(frame)
 end
 
 function UF:UpdateHealthColor(frame)
@@ -1105,7 +1177,6 @@ function UF:UpdatePower(frame)
     if frame.druidMana then
         self:UpdateDruidMana(frame)
     end
-    self:UpdateCombatWidths(frame)
 end
 
 function UF:UpdateIdentity(frame)
@@ -1348,20 +1419,22 @@ end
 UI:RegisterEvent("GROUP_ROSTER_UPDATE", RefreshUnitColors)
 UI:RegisterEvent("PLAYER_REGEN_ENABLED", RefreshUnitColors)
 UI:RegisterEvent("PLAYER_REGEN_ENABLED", function()
-    UF:ForEachFrame(function(frame)
-        if frame.pendingCombatWidths then
-            UF:UpdateCombatWidths(frame)
-        end
-    end)
+    UF:UpdateCombatPairWidths()
 end)
 
 UI:RegisterEvent("PLAYER_ENTERING_WORLD", function()
     UF:RefreshGroupClassCache()
     UF:UpdateAllFrames()
+    UF:UpdateCombatPairWidths()
 end)
 
 UI:RegisterEvent("UNIT_HEALTH", DispatchHealth)
-UI:RegisterEvent("UNIT_MAXHEALTH", DispatchHealth)
+UI:RegisterEvent("UNIT_MAXHEALTH", function(_, unit)
+    DispatchUnitUpdate(unit, UF.UpdateHealth)
+    if unit == "player" or unit == "target" then
+        UF:UpdateCombatPairWidths()
+    end
+end)
 UI:RegisterEvent("UNIT_FACTION", DispatchHealth)
 UI:RegisterEvent("UNIT_FACTION", DispatchIdentity)
 
