@@ -39,29 +39,30 @@ local function CreateRow(index)
 
     local name = overlay:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     name:SetPoint("LEFT", row, "LEFT", 5, 0)
-    name:SetPoint("RIGHT", row, "RIGHT", -48, 0)
+    name:SetPoint("RIGHT", row, "RIGHT", -112, 0)
     name:SetJustifyH("LEFT")
     name:SetWordWrap(false)
 
-    local percent = overlay:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    percent:SetPoint("RIGHT", row, "RIGHT", -5, 0)
-    percent:SetJustifyH("RIGHT")
+    local threatValue = overlay:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    threatValue:SetPoint("RIGHT", row, "RIGHT", -5, 0)
+    threatValue:SetJustifyH("RIGHT")
+    threatValue:SetWordWrap(false)
 
     local fontPath, _, fontFlags = GameFontNormal:GetFont()
 
     if fontPath then
         name:SetFont(fontPath, Styles.FontSize.ThreatMeter, fontFlags)
-        percent:SetFont(fontPath, Styles.FontSize.ThreatMeter, fontFlags)
+        threatValue:SetFont(fontPath, Styles.FontSize.ThreatMeter, fontFlags)
     end
 
     name:SetTextColor(1, 1, 1)
-    percent:SetTextColor(1, 1, 1)
+    threatValue:SetTextColor(1, 1, 1)
 
     Styles:CreateBorder(row, { color = { 0, 0, 0, 1 } })
 
     row.bar = bar
     row.name = name
-    row.percent = percent
+    row.threatValue = threatValue
     row:Hide()
 
     rows[index] = row
@@ -177,16 +178,13 @@ local function BuildUnitList()
 end
 
 local function GetThreatEntry(unit)
-    local isTanking, _, scaledPercentage, rawPercentage, rawThreat =
+    local _, _, _, _, rawThreat =
         UnitDetailedThreatSituation(unit, "target")
 
-    -- Forever can mark threat values secret in restricted contexts. Never
-    -- branch on or do arithmetic with them unless the client says we may.
-    if not UI:CanAccessValue(isTanking)
-        or not UI:CanAccessValue(scaledPercentage)
-        or not UI:CanAccessValue(rawPercentage)
-        or not UI:CanAccessValue(rawThreat)
-        or rawThreat == nil
+    -- Forever can mark threat values secret in restricted contexts. Only
+    -- compare and format raw threat after confirming that it is accessible.
+    if not UI:CanAccessValue(rawThreat)
+        or type(rawThreat) ~= "number"
         or rawThreat <= 0
     then
         return
@@ -216,9 +214,6 @@ local function GetThreatEntry(unit)
         unit = unit,
         name = name,
         threat = rawThreat,
-        isTanking = isTanking,
-        scaledPercentage = scaledPercentage,
-        rawPercentage = rawPercentage,
         r = r,
         g = g,
         b = b,
@@ -288,18 +283,9 @@ local function Update()
         return
     end
 
-    -- rawPercentage is relative to the mob's current primary target, not to
-    -- whoever happens to have the most raw threat. That distinction matters
-    -- because a unit can sit above 100% raw threat without pulling aggro.
-    local barMaximum = 130
-
-    for _, entry in ipairs(entries) do
-        local percentage = entry.isTanking and 100 or entry.rawPercentage
-
-        if percentage and percentage > barMaximum then
-            barMaximum = percentage
-        end
-    end
+    -- Bars show each unit's raw threat relative to the highest entry;
+    -- the right-hand values show the full absolute threat without K/M rounding.
+    local barMaximum = entries[1].threat
 
     local shown = math.min(#entries, Layout.MAX_ROWS)
 
@@ -308,13 +294,13 @@ local function Update()
         local entry = entries[index]
 
         if index <= shown and entry then
-            local percentage = entry.isTanking and 100 or entry.rawPercentage
-
             row.bar:SetMinMaxValues(0, barMaximum)
-            row.bar:SetValue(percentage)
+            row.bar:SetValue(entry.threat)
             row.bar:SetStatusBarColor(entry.r, entry.g, entry.b, 1)
             row.name:SetText(entry.name)
-            row.percent:SetFormattedText("%.0f%%", percentage)
+            row.threatValue:SetText(
+                UI:FormatNumber(math.floor(entry.threat + 0.5))
+            )
             row:Show()
         else
             row:Hide()
