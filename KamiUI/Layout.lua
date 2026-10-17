@@ -91,10 +91,10 @@ UI.Layout = {
 
     Minimap = {
         SIZE = 220,
-        POINT = "BOTTOM",
-        RELATIVE_POINT = "BOTTOM",
-        X = 0,
-        Y = 0,
+        POINT = "TOPRIGHT",
+        RELATIVE_POINT = "TOPRIGHT",
+        X = -10,
+        Y = -10,
         ButtonCollector = {
             BUTTON_SIZE = 31,
             COLUMNS = 2,
@@ -186,6 +186,7 @@ UI.Layout = {
     },
 
     ThreatMeter = {
+        GAP_ABOVE_DAMAGE = 8,
         WIDTH = 260,
         TITLE_HEIGHT = 20,
         ROW_HEIGHT = 20,

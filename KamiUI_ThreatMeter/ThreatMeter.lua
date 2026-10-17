@@ -68,6 +68,17 @@ local function CreateRow(index)
     rows[index] = row
 end
 
+local function PositionFrame()
+    if not frame then return end
+
+    frame:ClearAllPoints()
+    frame:SetPoint(
+        "BOTTOMRIGHT", UIParent, "BOTTOMRIGHT",
+        0, UI:GetBottomInset()
+            + UI.Layout.DamageMeter.HEIGHT + Layout.GAP_ABOVE_DAMAGE
+    )
+end
+
 local function EnsureFrame()
     if frame then
         return
@@ -78,7 +89,7 @@ local function EnsureFrame()
         Layout.WIDTH,
         Layout.TITLE_HEIGHT + Layout.ROW_HEIGHT * Layout.MAX_ROWS
     )
-    frame:SetPoint("TOPRIGHT", UIParent, "TOPRIGHT", 0, 0)
+    PositionFrame()
     frame:SetFrameStrata("LOW")
     frame:Hide()
 
@@ -328,6 +339,7 @@ end
 
 function Module:Initialize()
     EnsureFrame()
+    UI:RegisterBottomInsetCallback(PositionFrame)
 
     UI:RegisterEvent("PLAYER_ENTERING_WORLD", QueueUpdate)
     UI:RegisterEvent("PLAYER_TARGET_CHANGED", QueueUpdate)

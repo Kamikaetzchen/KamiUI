@@ -114,8 +114,10 @@ local function CreateDock()
     )
     dock:SetFrameStrata("HIGH")
     dock:SetSize(width, 1)
-    dock:SetPoint("BOTTOMLEFT", Minimap, "BOTTOMRIGHT",
-        Layout.OFFSET_X, Layout.OFFSET_Y)
+    -- The minimap is now in the upper-right corner. Keep the addon
+    -- icon dock on its left so the collector stays inside the viewport.
+    dock:SetPoint("BOTTOMRIGHT", Minimap, "BOTTOMLEFT",
+        -Layout.OFFSET_X, Layout.OFFSET_Y)
     dock:EnableMouseWheel(true)
 
     local content = CreateFrame("Frame", nil, dock)

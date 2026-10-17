@@ -830,7 +830,15 @@ local function LayoutPetBar()
 
     Module.petBar:ClearAllPoints()
 
-    if KamiUIPlayerFrame then
+    if KamiUIPetFrame then
+        Module.petBar:SetPoint(
+            "BOTTOMRIGHT",
+            KamiUIPetFrame,
+            "TOPRIGHT",
+            0,
+            6
+        )
+    elseif KamiUIPlayerFrame then
         Module.petBar:SetPoint(
             "BOTTOMRIGHT",
             KamiUIPlayerFrame,

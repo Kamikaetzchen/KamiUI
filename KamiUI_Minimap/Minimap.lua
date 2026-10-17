@@ -141,12 +141,16 @@ local function StyleMinimap()
     Minimap:SetSize(Layout.SIZE, Layout.SIZE)
 
     Minimap:ClearAllPoints()
+    local y = Layout.Y
+    if string.find(Layout.POINT, "BOTTOM", 1, true) then
+        y = y + UI:GetBottomInset()
+    end
     Minimap:SetPoint(
         Layout.POINT,
         UIParent,
         Layout.RELATIVE_POINT,
         Layout.X,
-        Layout.Y + UI:GetBottomInset()
+        y
     )
 
     -- Keep the map square. The Blizzard ring/chrome is hidden separately.
