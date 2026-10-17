@@ -2,6 +2,7 @@ local UI = KamiUI
 local UF = UI:GetModule("UnitFrames")
 
 local Layout = UI.Layout.UnitFrames.Player
+local ActionLayout = UI.Layout.ActionBars
 
 local _, playerClass = UnitClass("player")
 local isDruid = UI:CanAccessValue(playerClass)
@@ -31,12 +32,15 @@ local function PositionFrame()
 
     layoutPending = false
     frame:ClearAllPoints()
+    local actionHeight = ActionLayout.SECOND_ROW_BUTTON_SIZE
+        + ActionLayout.BAR_GAP + ActionLayout.BUTTON_SIZE
     frame:SetPoint(
-        "RIGHT",
+        "BOTTOM",
         UIParent,
-        "CENTER",
-        -1,
-        Layout.FRAME_Y + UI:GetBottomInset()
+        "BOTTOM",
+        0,
+        ActionLayout.OFFSET_Y + actionHeight
+            + ActionLayout.PLAYER_GAP + UI:GetBottomInset()
     )
 end
 

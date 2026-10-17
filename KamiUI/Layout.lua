@@ -134,13 +134,19 @@ UI.Layout = {
         SCREEN_Y = 0.58,
     },
 
+    -- Combat HUD prototype: two centered bars, one primary and one secondary.
     ActionBars = {
-        BUTTON_SIZE = 40,
-        SECONDARY_BUTTON_SIZE = 30,
+        BUTTON_SIZE = 30,
+        SECOND_ROW_BUTTON_SIZE = 28,
+        SECONDARY_BUTTON_SIZE = 26,
         BUTTON_SPACING = 0,
-        ICON_ZOOM = 0.08,
+        ICON_ZOOM = 0.06,
         OFFSET_X = -400,
-        OFFSET_Y = 0,
+        OFFSET_Y = 28,
+        BAR_GAP = 3,
+        PLAYER_GAP = 10,
+        TARGET_GAP = 12,
+        VISIBLE_PRIMARY_BARS = 2,
     },
 
     Auras = {
@@ -218,22 +224,22 @@ UI.Layout = {
 
     UnitFrames = {
         Base = {
-            PRIMARY_WIDTH = 200,
-            PRIMARY_HEIGHT = 40,
-            PRIMARY_HEALTH_HEIGHT = 22,
-            PRIMARY_POWER_HEIGHT = 15,
-            PRIMARY_HEALTH_CAST_HEIGHT = 17,
-            PRIMARY_POWER_CAST_HEIGHT = 11,
-            PRIMARY_CAST_HEIGHT = 8,
-            -- Druid Cat/Bear: secondary mana fits inside the same 38px
-            -- content area alongside the regular power and optional cast.
-            PRIMARY_MANA_HEIGHT = 6,
-            PRIMARY_HEALTH_MANA_HEIGHT = 18,
-            PRIMARY_POWER_MANA_HEIGHT = 12,
-            PRIMARY_HEALTH_MANA_CAST_HEIGHT = 12,
-            PRIMARY_POWER_MANA_CAST_HEIGHT = 9,
-            PRIMARY_NAME_WIDTH = 110,
-            PRIMARY_TEXT_INSET = 3,
+            PRIMARY_WIDTH = 380,
+            PRIMARY_HEIGHT = 56,
+            PRIMARY_HEALTH_HEIGHT = 31,
+            PRIMARY_POWER_HEIGHT = 22,
+            PRIMARY_HEALTH_CAST_HEIGHT = 24,
+            PRIMARY_POWER_CAST_HEIGHT = 19,
+            PRIMARY_CAST_HEIGHT = 9,
+            -- Every combination occupies the same 54px content area.
+            -- Cat/Bear mana and casts still share it without resizing.
+            PRIMARY_MANA_HEIGHT = 8,
+            PRIMARY_HEALTH_MANA_HEIGHT = 29,
+            PRIMARY_POWER_MANA_HEIGHT = 15,
+            PRIMARY_HEALTH_MANA_CAST_HEIGHT = 20,
+            PRIMARY_POWER_MANA_CAST_HEIGHT = 14,
+            PRIMARY_NAME_WIDTH = 165,
+            PRIMARY_TEXT_INSET = 8,
             COMPACT_WIDTH = 150,
             COMPACT_HEIGHT = 25,
             COMPACT_HEALTH_HEIGHT = 13,

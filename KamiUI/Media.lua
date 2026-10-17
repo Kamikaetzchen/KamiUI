@@ -10,6 +10,12 @@ UI.Media.HealthFade = "Interface\\AddOns\\KamiUI\\Media\\HealthFade"
 UI.Media.KamiPebble = "Interface\\AddOns\\KamiUI\\Media\\KamiPebbleAlpha_512x64_morealpha.tga"
 UI.Media.FlatBar = "Interface\\Buttons\\WHITE8X8"
 
+-- Separately scalable, non-glowing combat HUD parts.
+UI.Media.CombatPortraitMask = "Interface\\AddOns\\KamiUI\\Media\\CombatPortraitMask.tga"
+UI.Media.CombatPortraitFrame = "Interface\\AddOns\\KamiUI\\Media\\CombatPortraitFrame.tga"
+UI.Media.CombatPowerTriangle = "Interface\\AddOns\\KamiUI\\Media\\CombatPowerTriangle.tga"
+UI.Media.CombatButtonFrames = "Interface\\AddOns\\KamiUI\\Media\\CombatButtonFrames.tga"
+
 local PEBBLE_WIDTH = 512
 local PEBBLE_HEIGHT = 64
 local SOURCE_PIXELS_PER_UI_PIXEL = 2

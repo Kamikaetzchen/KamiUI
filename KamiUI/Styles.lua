@@ -33,7 +33,7 @@ Styles.State = {
 
 -- Module-specific font sizes; shared text roles remain in Styles.Text.
 Styles.FontSize = {
-    ActionBars = { cooldown = 17, cooldownSmall = 13 },
+    ActionBars = { cooldown = 12, cooldownSmall = 10 },
     Auras = 11,
     Chat = 14,
     ObjectiveTracker = 10,

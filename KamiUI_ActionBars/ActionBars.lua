@@ -18,13 +18,13 @@ local cooldownFontSmall = CreateFont("KamiUIActionBarCooldownFontSmall")
 local cooldownFontPath, _, cooldownFontFlags = GameFontNormalLarge:GetFont()
 
 cooldownFont:SetFont(cooldownFontPath, Styles.FontSize.ActionBars.cooldown, "THICKOUTLINE")
-cooldownFont:SetTextColor(1.00, 0.12, 0.12, 1)
-cooldownFont:SetShadowColor(1, 1, 1, 0.85)
+cooldownFont:SetTextColor(1, 1, 1, 1)
+cooldownFont:SetShadowColor(0, 0, 0, 1)
 cooldownFont:SetShadowOffset(1, -1)
 
 cooldownFontSmall:SetFont(cooldownFontPath, Styles.FontSize.ActionBars.cooldownSmall, "THICKOUTLINE")
-cooldownFontSmall:SetTextColor(1.00, 0.12, 0.12, 1)
-cooldownFontSmall:SetShadowColor(1, 1, 1, 0.85)
+cooldownFontSmall:SetTextColor(1, 1, 1, 1)
+cooldownFontSmall:SetShadowColor(0, 0, 0, 1)
 cooldownFontSmall:SetShadowOffset(1, -1)
 
 local BAR_DEFS = {
@@ -298,7 +298,59 @@ local function FitStateTexture(texture, button)
     texture:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", 2, -2)
 end
 
-local function StyleButton(button, size)
+-- Four atlas cells: left end, inner segment, right end, standalone.
+-- Only outer corners are chamfered; hotkey/charge corners remain square
+-- inside the strip and the strip has no additional surrounding frame.
+local function StyleCombatSegment(button, index, count)
+    local slot = index == 1 and 0
+        or index == count and 2
+        or 1
+
+    if button.KamiBorder then
+        for _, edge in ipairs(button.KamiBorder) do
+            edge:SetAlpha(0)
+        end
+    end
+    if button.KamiBackground then
+        button.KamiBackground:SetAlpha(0)
+    end
+
+    local icon = GetButtonIcon(button)
+    if icon then
+        icon:ClearAllPoints()
+        icon:SetPoint("TOPLEFT", button, "TOPLEFT", 2, -2)
+        icon:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", -2, 2)
+    end
+
+    local chrome = button:CreateTexture(nil, "OVERLAY", nil, 3)
+    chrome:SetAllPoints(button)
+    chrome:SetTexture(UI.Media.CombatButtonFrames)
+    chrome:SetTexCoord(slot / 4, (slot + 1) / 4, 0, 1)
+    button.KamiCombatChrome = chrome
+
+    local font = "Fonts\\FRIZQT__.TTF"
+    local hotkey = button.HotKey
+    if hotkey then
+        hotkey:ClearAllPoints()
+        hotkey:SetPoint("TOPRIGHT", button, "TOPRIGHT", -2, -2)
+        hotkey:SetJustifyH("RIGHT")
+        hotkey:SetFont(font, 8, "OUTLINE")
+        hotkey:SetShadowColor(0, 0, 0, 1)
+        hotkey:SetShadowOffset(1, -1)
+    end
+
+    local countText = button.Count
+    if countText then
+        countText:ClearAllPoints()
+        countText:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", -2, 2)
+        countText:SetJustifyH("RIGHT")
+        countText:SetFont(font, 9, "OUTLINE")
+        countText:SetShadowColor(0, 0, 0, 1)
+        countText:SetShadowOffset(1, -1)
+    end
+end
+
+local function StyleButton(button, size, segmentIndex, segmentCount)
     button:SetSize(size, size)
 
     CreateButtonChrome(button)
@@ -337,11 +389,15 @@ local function StyleButton(button, size)
     end
     StyleCooldown(button.lossOfControlCooldown, button)
     StyleCooldown(button.chargeCooldown, button)
+
+    if segmentIndex then
+        StyleCombatSegment(button, segmentIndex, segmentCount)
+    end
 end
 
-local function NewLABConfig(binding)
+local function NewLABConfig(binding, isVisible)
     return {
-        showGrid = false,
+        showGrid = isVisible,
         tooltip = "enabled",
         flyoutDirection = "UP",
         -- These buttons always represent real action slots, including
@@ -420,6 +476,12 @@ local function CreateActionBar(def)
     )
     header:SetSize(1, 1)
 
+    -- Parent alpha leaves secure buttons shown and keyboard-bound while
+    -- removing obsolete rows from the visible combat HUD.
+    if def.id > Layout.VISIBLE_PRIMARY_BARS then
+        header:SetAlpha(0)
+    end
+
     local bar = {
         def = def,
         frame = header,
@@ -432,7 +494,10 @@ local function CreateActionBar(def)
             def.id * 100 + index,
             name,
             header,
-            NewLABConfig(string.format(def.binding, index))
+            NewLABConfig(
+                string.format(def.binding, index),
+                def.id <= Layout.VISIBLE_PRIMARY_BARS
+            )
         )
 
         if def.paged then
@@ -456,12 +521,19 @@ local function CreateActionBar(def)
         button:SetAttribute("buttonlock", false)
         button:SetAttribute("unlockedpreventdrag", true)
 
+        local size = def.id == 1 and Layout.BUTTON_SIZE
+            or def.id == 2 and Layout.SECOND_ROW_BUTTON_SIZE
+            or def.layout == "primary" and Layout.BUTTON_SIZE
+            or Layout.SECONDARY_BUTTON_SIZE
         StyleButton(
             button,
-            def.layout == "primary"
-                and Layout.BUTTON_SIZE
-                or Layout.SECONDARY_BUTTON_SIZE
+            size,
+            def.id <= Layout.VISIBLE_PRIMARY_BARS and index or nil,
+            def.count
         )
+        if def.id > Layout.VISIBLE_PRIMARY_BARS then
+            button:EnableMouse(false)
+        end
         SetupGCDSwipe(button)
 
         -- StyleButton must not force empty LAB buttons visible.
@@ -480,9 +552,14 @@ end
 
 local function LayoutPrimaryBar(bar)
     local nextButton
-    local y = Layout.OFFSET_Y
-        + Module.bottomInset
-        + ((bar.def.row - 1) * Layout.BUTTON_SIZE)
+    local isMain = bar.def.id == 1
+    local isSecond = bar.def.id == 2
+    local y = Layout.OFFSET_Y + Module.bottomInset
+    if isMain then
+        y = y + Layout.SECOND_ROW_BUTTON_SIZE + Layout.BAR_GAP
+    elseif not isSecond then
+        y = y + ((bar.def.row - 1) * Layout.BUTTON_SIZE)
+    end
 
     for index = #bar.buttons, 1, -1 do
         local button = bar.buttons[index]
@@ -496,14 +573,14 @@ local function LayoutPrimaryBar(bar)
                 -Layout.BUTTON_SPACING,
                 0
             )
+        elseif isMain or isSecond then
+            local width = #bar.buttons * button:GetWidth()
+                + (#bar.buttons - 1) * Layout.BUTTON_SPACING
+            button:SetPoint("BOTTOMRIGHT", UIParent, "BOTTOM",
+                width / 2, y)
         else
-            button:SetPoint(
-                "BOTTOMRIGHT",
-                UIParent,
-                "BOTTOMRIGHT",
-                Layout.OFFSET_X,
-                y
-            )
+            button:SetPoint("BOTTOMRIGHT", UIParent, "BOTTOMRIGHT",
+                Layout.OFFSET_X, y)
         end
 
         nextButton = button
@@ -755,11 +832,11 @@ local function LayoutPetBar()
 
     if KamiUIPlayerFrame then
         Module.petBar:SetPoint(
-            "TOPLEFT",
+            "BOTTOMRIGHT",
             KamiUIPlayerFrame,
             "BOTTOMLEFT",
-            51,
-            -2
+            -6,
+            0
         )
     else
         Module.petBar:SetPoint(
@@ -835,7 +912,11 @@ local function LayoutTotemBar()
 
     native:ClearAllPoints()
     native:SetSize(size * 6, size)
-    native:SetPoint("BOTTOMLEFT", bar4.buttons[1], "TOPLEFT", 0, 0)
+    local main = Module.bars[1]
+    if main then
+        native:SetPoint("BOTTOMRIGHT", main.buttons[1],
+            "TOPLEFT", -8, 0)
+    end
 
     -- F1-F4: totems; F5: Recall; F6: Call (with Blizzard's set flyout).
     for index = 1, 4 do
@@ -963,17 +1044,17 @@ local function UpdateStanceBar()
         if index <= count then
             button:ClearAllPoints()
             if previous then
-                button:SetPoint("LEFT", previous, "RIGHT", 0, 0)
+                button:SetPoint("RIGHT", previous, "LEFT", 0, 0)
             else
                 local bar4 = Module.bars[4]
                 if bar4 then
-                    button:SetPoint(
-                        "BOTTOMLEFT",
-                        bar4.buttons[1],
-                        "TOPLEFT",
-                        0,
-                        0
-                    )
+                    local main = Module.bars[1]
+                    if main then
+                        button:SetPoint(
+                            "BOTTOMRIGHT", main.buttons[1],
+                            "TOPLEFT", -8, 0
+                        )
+                    end
                 end
             end
 

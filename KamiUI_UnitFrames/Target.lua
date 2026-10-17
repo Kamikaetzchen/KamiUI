@@ -2,11 +2,12 @@ local UI = KamiUI
 local UF = UI:GetModule("UnitFrames")
 
 local Layout = UI.Layout.UnitFrames.Target
+local ActionLayout = UI.Layout.ActionBars
 
 local frame = UF:CreatePrimaryFrame({
     name = "KamiUITargetFrame",
     unit = "target",
-    portraitSide = "RIGHT",
+    portraitSide = "LEFT",
     nameWidth = 110,
     features = {
         indicators = true,
@@ -26,11 +27,11 @@ local function PositionFrame()
     layoutPending = false
     frame:ClearAllPoints()
     frame:SetPoint(
-        "LEFT",
-        UIParent,
-        "CENTER",
-        1,
-        Layout.FRAME_Y + UI:GetBottomInset()
+        "BOTTOM",
+        UF.playerFrame,
+        "TOP",
+        0,
+        ActionLayout.TARGET_GAP
     )
 end
 

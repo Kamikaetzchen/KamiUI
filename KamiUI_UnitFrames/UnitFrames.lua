@@ -555,7 +555,26 @@ function UF:CreatePrimaryFrame(options)
     content:SetPoint("TOPLEFT", borderSize, -borderSize)
     content:SetPoint("BOTTOMRIGHT", -borderSize, borderSize)
 
-    local portrait = self:CreatePortrait(content, portraitSize)
+    -- Hexagon style: use a masked 2D portrait. PlayerModel itself cannot
+    -- use a MaskTexture, but the surrounding frame still supports indicators.
+    local portrait = CreateFrame("Frame", nil, content)
+    portrait:SetSize(portraitSize, portraitSize)
+    portrait:EnableMouse(false)
+
+    local portraitTexture = portrait:CreateTexture(nil, "ARTWORK")
+    portraitTexture:SetAllPoints(portrait)
+
+    if portrait.CreateMaskTexture and portraitTexture.AddMaskTexture then
+        local mask = portrait:CreateMaskTexture()
+        mask:SetTexture(UI.Media.CombatPortraitMask)
+        mask:SetAllPoints(portraitTexture)
+        portraitTexture:AddMaskTexture(mask)
+        portrait.portraitMask = mask
+    end
+
+    local portraitFrame = portrait:CreateTexture(nil, "OVERLAY", nil, 2)
+    portraitFrame:SetAllPoints(portrait)
+    portraitFrame:SetTexture(UI.Media.CombatPortraitFrame)
 
     if portraitSide == "RIGHT" then
         portrait:SetPoint("TOPRIGHT")
@@ -571,13 +590,44 @@ function UF:CreatePrimaryFrame(options)
         health:SetPoint("TOPLEFT", portrait, "TOPRIGHT")
     end
 
-    local power = self:CreateBar(content, barWidth, powerHeight)
+    local power = self:CreateBar(content, barWidth - 18, powerHeight)
     power:SetPoint("TOPLEFT", health, "BOTTOMLEFT", 0, -separatorSize)
+
+    local powerTriangle = power:CreateTexture(nil, "OVERLAY", nil, 2)
+    powerTriangle:SetTexture(UI.Media.CombatPowerTriangle)
+    powerTriangle:SetSize(13, 13)
+    powerTriangle:SetPoint("LEFT", power, "LEFT", 3, 0)
+
+    -- Distinct health/power/mana bars: muted metallic top and bottom edges,
+    -- plus a small end-cap, instead of one bulky enclosing rectangle.
+    local function AddBarEdge(bar)
+        local upper = bar:CreateTexture(nil, "OVERLAY", nil, 1)
+        upper:SetPoint("TOPLEFT")
+        upper:SetPoint("TOPRIGHT")
+        upper:SetHeight(1)
+        upper:SetColorTexture(0.62, 0.70, 0.74, 0.48)
+
+        local lower = bar:CreateTexture(nil, "OVERLAY", nil, 1)
+        lower:SetPoint("BOTTOMLEFT")
+        lower:SetPoint("BOTTOMRIGHT")
+        lower:SetHeight(1)
+        lower:SetColorTexture(0.10, 0.16, 0.21, 0.92)
+
+        local endCap = bar:CreateTexture(nil, "OVERLAY", nil, 1)
+        endCap:SetPoint("TOPRIGHT")
+        endCap:SetPoint("BOTTOMRIGHT")
+        endCap:SetWidth(2)
+        endCap:SetColorTexture(0.42, 0.52, 0.59, 0.72)
+    end
+
+    AddBarEdge(health)
+    AddBarEdge(power)
 
     -- Secondary mana occupies the same player frame, not an overlay.
     local druidMana
     if options.druidMana then
-        druidMana = self:CreateBar(content, barWidth, manaHeight)
+        druidMana = self:CreateBar(content, barWidth - 38, manaHeight)
+        AddBarEdge(druidMana)
         druidMana:SetPoint(
             "TOPLEFT", power, "BOTTOMLEFT", 0, -separatorSize)
         druidMana:SetStatusBarColor(
@@ -586,7 +636,8 @@ function UF:CreatePrimaryFrame(options)
         druidMana:Hide()
     end
 
-    local cast = self:CreateBar(content, barWidth, castHeight)
+    local cast = self:CreateBar(content, barWidth - 18, castHeight)
+    AddBarEdge(cast)
     -- Reanchor below mana only when Cat/Bear is active.
     cast:SetPoint("TOPLEFT", power, "BOTTOMLEFT", 0, -separatorSize)
     cast:SetStatusBarColor(0.65, 0.45, 0.10)
@@ -642,6 +693,8 @@ function UF:CreatePrimaryFrame(options)
     frame.castAnchorHasMana = false
     frame.cast = cast
     frame.portrait = portrait
+    frame.portraitTexture = portraitTexture
+    frame.powerTriangle = powerTriangle
     frame.nameText = nameText
     frame.healthText = healthText
     frame.powerText = powerText
@@ -970,7 +1023,9 @@ function UF:UpdateIdentity(frame)
         end
     end
 
-    if frame.portrait then
+    if frame.portraitTexture and SetPortraitTexture then
+        SetPortraitTexture(frame.portraitTexture, frame.unit)
+    elseif frame.portrait and frame.portrait.SetUnit then
         frame.portrait:SetUnit(frame.unit)
     end
 
