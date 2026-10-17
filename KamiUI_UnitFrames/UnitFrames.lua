@@ -514,7 +514,9 @@ function UF:CreateUnitFrameBase(options)
         RegisterUnitWatch(frame)
     end
 
-    CreateFrameBackground(frame)
+    if not options.transparentBackground then
+        CreateFrameBackground(frame)
+    end
 
     return frame
 end
@@ -545,6 +547,9 @@ function UF:CreatePrimaryFrame(options)
         width = width,
         height = height,
         watch = options.watch,
+        -- Transparent secure click area: resources draw only their own
+        -- backgrounds, not a full-width rectangle behind shorter bars.
+        transparentBackground = true,
     })
 
     local features = CopyFeatures(options.features)
@@ -598,36 +603,63 @@ function UF:CreatePrimaryFrame(options)
     powerTriangle:SetSize(13, 13)
     powerTriangle:SetPoint("LEFT", power, "LEFT", 3, 0)
 
-    -- Distinct health/power/mana bars: muted metallic top and bottom edges,
-    -- plus a small end-cap, instead of one bulky enclosing rectangle.
-    local function AddBarEdge(bar)
+    -- Mask the three bar textures at the resource's own right edge.
+    -- Native StatusBar setters continue to handle combat / secret values.
+    local function AddBarEdge(bar, isHealth)
+        local capWidth = 18
+        local maskPath = isHealth
+            and UI.Media.CombatHealthEndMask
+            or UI.Media.CombatPowerEndMask
+
+        if bar.CreateMaskTexture then
+            local fill = bar:GetStatusBarTexture()
+            if fill and fill.AddMaskTexture then
+                local mask = bar:CreateMaskTexture()
+                mask:SetTexture(maskPath)
+                mask:SetAllPoints(bar)
+
+                for _, texture in ipairs({
+                    fill, bar.background, bar.pebbleOverlay,
+                }) do
+                    if texture and texture.AddMaskTexture then
+                        texture:AddMaskTexture(mask)
+                    end
+                end
+                bar.combatEndMask = mask
+            end
+        end
+
         local upper = bar:CreateTexture(nil, "OVERLAY", nil, 1)
-        upper:SetPoint("TOPLEFT")
-        upper:SetPoint("TOPRIGHT")
+        upper:SetPoint("TOPLEFT", bar, "TOPLEFT")
+        upper:SetPoint("TOPRIGHT", bar, "TOPRIGHT", -capWidth, 0)
         upper:SetHeight(1)
         upper:SetColorTexture(0.62, 0.70, 0.74, 0.48)
 
         local lower = bar:CreateTexture(nil, "OVERLAY", nil, 1)
-        lower:SetPoint("BOTTOMLEFT")
-        lower:SetPoint("BOTTOMRIGHT")
+        lower:SetPoint("BOTTOMLEFT", bar, "BOTTOMLEFT")
+        lower:SetPoint("BOTTOMRIGHT", bar, "BOTTOMRIGHT", -capWidth, 0)
         lower:SetHeight(1)
         lower:SetColorTexture(0.10, 0.16, 0.21, 0.92)
 
-        local endCap = bar:CreateTexture(nil, "OVERLAY", nil, 1)
-        endCap:SetPoint("TOPRIGHT")
-        endCap:SetPoint("BOTTOMRIGHT")
-        endCap:SetWidth(2)
-        endCap:SetColorTexture(0.42, 0.52, 0.59, 0.72)
+        local endCap = bar:CreateTexture(nil, "OVERLAY", nil, 2)
+        endCap:SetTexture(
+            isHealth and UI.Media.CombatHealthEndCap
+                or UI.Media.CombatPowerEndCap
+        )
+        endCap:SetPoint("TOPRIGHT", bar, "TOPRIGHT")
+        endCap:SetPoint("BOTTOMRIGHT", bar, "BOTTOMRIGHT")
+        endCap:SetWidth(capWidth)
+        bar.combatEndCap = endCap
     end
 
-    AddBarEdge(health)
-    AddBarEdge(power)
+    AddBarEdge(health, true)
+    AddBarEdge(power, false)
 
     -- Secondary mana occupies the same player frame, not an overlay.
     local druidMana
     if options.druidMana then
         druidMana = self:CreateBar(content, barWidth - 38, manaHeight)
-        AddBarEdge(druidMana)
+        AddBarEdge(druidMana, false)
         druidMana:SetPoint(
             "TOPLEFT", power, "BOTTOMLEFT", 0, -separatorSize)
         druidMana:SetStatusBarColor(
@@ -637,7 +669,7 @@ function UF:CreatePrimaryFrame(options)
     end
 
     local cast = self:CreateBar(content, barWidth - 18, castHeight)
-    AddBarEdge(cast)
+    AddBarEdge(cast, false)
     -- Reanchor below mana only when Cat/Bear is active.
     cast:SetPoint("TOPLEFT", power, "BOTTOMLEFT", 0, -separatorSize)
     cast:SetStatusBarColor(0.65, 0.45, 0.10)
@@ -649,17 +681,16 @@ function UF:CreatePrimaryFrame(options)
     self:ConfigureNameText(nameText)
 
     local healthText = self:CreateText(health, healthHeight, "RIGHT")
-    healthText:SetPoint("RIGHT", -(Layout.PRIMARY_TEXT_INSET), 0)
+    healthText:SetPoint("RIGHT", -16, 0)
 
     local powerText = self:CreateText(power, powerHeight, "RIGHT")
-    powerText:SetPoint("RIGHT", -(Layout.PRIMARY_TEXT_INSET), 0)
+    powerText:SetPoint("RIGHT", -18, 0)
 
     local druidManaText
     if druidMana then
         druidManaText = self:CreateText(
             druidMana, manaHeight, "RIGHT")
-        druidManaText:SetPoint(
-            "RIGHT", -(Layout.PRIMARY_TEXT_INSET), 0)
+        druidManaText:SetPoint("RIGHT", -16, 0)
     end
 
     local fontPath, _, fontFlags = GameFontNormalSmall:GetFont()
@@ -680,7 +711,7 @@ function UF:CreatePrimaryFrame(options)
         self:GetBarFontSize(castHeight),
         "OUTLINE"
     )
-    castProgressText:SetPoint("RIGHT", -2, 0)
+    castProgressText:SetPoint("RIGHT", -16, 0)
     castProgressText:SetJustifyH("RIGHT")
     castProgressText:SetTextColor(1, 1, 1)
 

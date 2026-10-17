@@ -15,6 +15,10 @@ UI.Media.CombatPortraitMask = "Interface\\AddOns\\KamiUI\\Media\\CombatPortraitM
 UI.Media.CombatPortraitFrame = "Interface\\AddOns\\KamiUI\\Media\\CombatPortraitFrame.tga"
 UI.Media.CombatPowerTriangle = "Interface\\AddOns\\KamiUI\\Media\\CombatPowerTriangle.tga"
 UI.Media.CombatButtonFrames = "Interface\\AddOns\\KamiUI\\Media\\CombatButtonFrames.tga"
+UI.Media.CombatHealthEndMask = "Interface\\AddOns\\KamiUI\\Media\\CombatHealthEndMask.tga"
+UI.Media.CombatPowerEndMask = "Interface\\AddOns\\KamiUI\\Media\\CombatPowerEndMask.tga"
+UI.Media.CombatHealthEndCap = "Interface\\AddOns\\KamiUI\\Media\\CombatHealthEndCap.tga"
+UI.Media.CombatPowerEndCap = "Interface\\AddOns\\KamiUI\\Media\\CombatPowerEndCap.tga"
 
 local PEBBLE_WIDTH = 512
 local PEBBLE_HEIGHT = 64
