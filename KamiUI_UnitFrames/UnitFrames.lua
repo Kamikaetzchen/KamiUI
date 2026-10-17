@@ -510,21 +510,12 @@ function UF:UpdateCombatWidths(frame)
 end
 
 local function ApplyCombatBarSkin(bar)
+    -- Reuse the existing KamiFacet material on the native StatusBar,
+    -- preserving class/resource tint and the geometric right-end masks.
     bar.pebbleOverlay:Hide()
+    bar:SetStatusBarTexture(UI.Media.KamiFacet)
     bar:GetStatusBarTexture():SetAlpha(0.96)
     bar.background:SetColorTexture(0.02, 0.04, 0.06, 0.18)
-
-    local sheen = bar:CreateTexture(nil, "OVERLAY", nil, -1)
-    sheen:SetAllPoints(bar)
-    sheen:SetTexture(UI.Media.FlatBar)
-    if sheen.SetGradient and CreateColor then
-        sheen:SetGradient("VERTICAL",
-            CreateColor(0.01, 0.02, 0.04, 0.26),
-            CreateColor(0.95, 0.97, 1.00, 0.11))
-    else
-        sheen:SetColorTexture(0.70, 0.76, 0.83, 0.07)
-    end
-    bar.combatSurface = sheen
 end
 
 function UF:CreateText(parent, barHeight, justify, fontOffset)
@@ -685,7 +676,6 @@ function UF:CreatePrimaryFrame(options)
 
                 for _, texture in ipairs({
                     fill, bar.background, bar.pebbleOverlay,
-                    bar.combatSurface,
                 }) do
                     if texture and texture.AddMaskTexture then
                         texture:AddMaskTexture(mask)
