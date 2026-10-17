@@ -447,7 +447,9 @@ function UF:CreateBar(parent, width, height)
     local background = bar:CreateTexture(nil, "BACKGROUND")
     background:SetAllPoints()
     background:SetTexture(self.barTexture)
-    background:SetVertexColor(0.08, 0.08, 0.08, 1)
+    -- KamiFacet has no inherent empty-area transparency.
+    background:SetVertexColor(
+        0.08, 0.08, 0.08, Styles.State.unitFrameEmptyBarAlpha)
 
     bar.background = background
 
