@@ -469,6 +469,7 @@ local function UpdateQuestRow(row, item, y)
                 or "[?]"
         )
         Styles:SetTextColor(row.level, difficultyColor)
+        Styles:SetTextColor(row.title, difficultyColor)
         Components:SetToggleState(
             row.selectButton,
             item.questID == GetSuperTrackedQuestID(),
@@ -501,6 +502,7 @@ local function UpdateQuestRow(row, item, y)
         )
         row.selectButton:Hide()
         row.level:Hide()
+        Styles:SetTextColor(row.title, Palette.text)
 
         row.title:SetPoint(
             "TOPLEFT",
@@ -808,6 +810,9 @@ function Module:RefreshLive()
         local item = row.questID and items[row.questID]
         if row:IsShown() and item then
             row.questTitle = item.title or row.questTitle or "Unknown"
+            local level = tonumber(item.level) or 0
+            Styles:SetTextColor(
+                row.title, Palette:GetLevelDifficultyColor(level))
             row.timerDeadline = item.timerDeadline
             row.timerDisplaySeconds = nil
             if row.timerDeadline then
