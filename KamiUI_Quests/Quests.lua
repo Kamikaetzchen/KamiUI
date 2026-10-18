@@ -105,30 +105,64 @@ local function CompleteCurrentQuest()
     end
 end
 
+local rewardGeneration = 0
+
 local function ClaimCurrentQuestReward()
-    if ShouldBypass() or not GetQuestReward then
+    if ShouldBypass() or not GetQuestReward
+        or not GetNumQuestChoices
+    then
         return
     end
 
-    local choiceCount = GetNumQuestChoices
-        and GetNumQuestChoices()
-        or 0
-
-    -- Never guess when the player has to choose between rewards.
-    if choiceCount > 1 then
+    -- QUEST_COMPLETE can arrive before the reward choices are populated.
+    -- Never interpret an early zero as permission to claim the quest.
+    local initialChoices = GetNumQuestChoices()
+    if not UI:CanAccessValue(initialChoices)
+        or initialChoices == nil
+        or initialChoices > 1
+    then
         return
     end
 
-    -- Blizzard asks for confirmation before quests that cost money.
-    local moneyRequired = GetQuestMoneyToGet
-        and GetQuestMoneyToGet()
-        or 0
+    rewardGeneration = rewardGeneration + 1
+    local generation = rewardGeneration
 
-    if moneyRequired > 0 then
+    if not C_Timer or not C_Timer.After then
         return
     end
 
-    GetQuestReward(choiceCount == 1 and 1 or 0)
+    C_Timer.After(0.2, function()
+        if generation ~= rewardGeneration or ShouldBypass() then
+            return
+        end
+
+        if not QuestFrameRewardPanel
+            or not QuestFrameRewardPanel:IsShown()
+        then
+            return
+        end
+
+        local choices = GetNumQuestChoices()
+        if not UI:CanAccessValue(choices)
+            or choices == nil
+            or choices ~= initialChoices
+            or choices > 1
+        then
+            return
+        end
+
+        -- Blizzard asks for confirmation before quests that cost money.
+        local moneyRequired = GetQuestMoneyToGet
+            and GetQuestMoneyToGet()
+            or 0
+        if not UI:CanAccessValue(moneyRequired)
+            or moneyRequired > 0
+        then
+            return
+        end
+
+        GetQuestReward(choices == 1 and 1 or 0)
+    end)
 end
 
 function Module:Initialize()
