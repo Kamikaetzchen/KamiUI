@@ -239,6 +239,26 @@ local function GetViewedCharacter()
     )
 end
 
+-- Only expose live character-bank tabs while the current bank is open.
+-- Hidden tabs remain eligible; cached bank contents are never equippable.
+function Module:GetLiveBankBagIDs()
+    if not bankOpen or not self.frame or not self.frame:IsShown()
+        or not self.frame.liveBankAccess then
+        return nil
+    end
+
+    local _, _, isCurrent = GetViewedCharacter()
+    if not isCurrent then return nil end
+
+    local bags = {}
+    for _, tab in ipairs(GetBankTabs()) do
+        if tab.slotCount > 0 then
+            bags[#bags + 1] = tab.bagID
+        end
+    end
+    return bags
+end
+
 local function GetSortedCharacters()
     return UI:GetSortedCharacterData(GetDatabase().characters)
 end

@@ -103,42 +103,58 @@ local function ItemInfo(link, id)
     return name, quality, level, loc, icon
 end
 
+local function ScanContainer(found, accepted, bag, isBank)
+    for slot = 1, UI:GetContainerNumSlots(bag) do
+        local info = UI:GetContainerItemInfo(bag, slot)
+        local id = info and info.itemID
+        if not id and C_Container and C_Container.GetContainerItemID then
+            id = UI:SafeCall(C_Container.GetContainerItemID, bag, slot)
+        end
+        if UI:CanAccessValue(id) and id then
+            local link = ItemLink(bag, slot)
+            if UI:CanAccessValue(link) and link then
+                local name, quality, level, loc, icon =
+                    ItemInfo(link, id)
+                if UI:CanAccessValue(loc)
+                    and UI:CanAccessValue(name)
+                    and UI:CanAccessValue(level)
+                    and UI:CanAccessValue(quality)
+                    and accepted[loc] and name then
+                    found[#found + 1] = {
+                        bag = bag,
+                        slot = slot,
+                        isBank = isBank,
+                        id = id,
+                        link = link,
+                        name = name,
+                        icon = icon,
+                        quality = quality or 1,
+                        level = level or 0,
+                    }
+                end
+            end
+        end
+    end
+end
+
+local function GetLiveBankBagIDs()
+    local bank = UI:GetModule("Bank")
+    return bank and bank.GetLiveBankBagIDs
+        and bank:GetLiveBankBagIDs()
+end
+
 local function ScanSlot(slotKey)
     local accepted = EQUIP_LOCS[slotKey]
     local found = {}
     if not accepted then return found end
 
     for bag = 0, (NUM_BAG_SLOTS or 4) do
-        for slot = 1, UI:GetContainerNumSlots(bag) do
-            local info = UI:GetContainerItemInfo(bag, slot)
-            local id = info and info.itemID
-            if not id and C_Container and C_Container.GetContainerItemID then
-                id = UI:SafeCall(C_Container.GetContainerItemID, bag, slot)
-            end
-            if UI:CanAccessValue(id) and id then
-                local link = ItemLink(bag, slot)
-                if UI:CanAccessValue(link) and link then
-                    local name, quality, level, loc, icon =
-                        ItemInfo(link, id)
-                    if UI:CanAccessValue(loc)
-                        and UI:CanAccessValue(name)
-                        and UI:CanAccessValue(level)
-                        and UI:CanAccessValue(quality)
-                        and accepted[loc] and name then
-                        found[#found + 1] = {
-                            bag = bag,
-                            slot = slot,
-                            id = id,
-                            link = link,
-                            name = name,
-                            icon = icon,
-                            quality = quality or 1,
-                            level = level or 0,
-                        }
-                    end
-                end
-            end
-        end
+        ScanContainer(found, accepted, bag, false)
+    end
+
+    -- Bank tabs are valid sources only while the character bank is open.
+    for _, bag in ipairs(GetLiveBankBagIDs() or {}) do
+        ScanContainer(found, accepted, bag, true)
     end
 
     table.sort(found, function(a, b)
@@ -222,6 +238,47 @@ local function SelectItem(entry)
         return
     end
 
+    if entry.isBank then
+        local accessible = false
+        for _, bagID in ipairs(GetLiveBankBagIDs() or {}) do
+            if bagID == entry.bag then
+                accessible = true
+                break
+            end
+        end
+        if not accessible then
+            UI:Print("Open your bank to equip that item.")
+            Module:RefreshEquipmentFlyout()
+            return
+        end
+        -- The selected source matters: don't accidentally equip a matching
+        -- item from the bags while leaving the bank item untouched.
+        if ItemLink(entry.bag, entry.slot) ~= entry.link then
+            UI:Print("Bank item changed; select it again.")
+            Module:RefreshEquipmentFlyout()
+            return
+        end
+
+        local bag, bagSlot = GetEmptyBagSlot()
+        if not bag then
+            UI:Print("No empty bag slot to retrieve bank equipment.")
+            return
+        end
+
+        PlaceCursorInBag(entry.bag, entry.slot)
+        if not CursorHasItem() then
+            UI:Print("Could not pick up the bank item.")
+            return
+        end
+        PlaceCursorInBag(bag, bagSlot)
+        if CursorHasItem() then
+            -- Return the item to its bank slot if the transfer failed.
+            PlaceCursorInBag(entry.bag, entry.slot)
+            UI:Print("Could not move the bank item to your bags.")
+            return
+        end
+    end
+
     local equip = (C_Item and C_Item.EquipItemByName) or EquipItemByName
     if not equip then
         UI:Print("Equipment swapping is unavailable.")
@@ -297,6 +354,9 @@ local function EnsureRow(index)
         if self.itemEntry and self.itemEntry.link then
             GameTooltip:SetOwner(self, "ANCHOR_CURSOR_RIGHT")
             GameTooltip:SetHyperlink(self.itemEntry.link)
+            if self.itemEntry.isBank then
+                GameTooltip:AddLine("In bank", 0.45, 0.8, 1)
+            end
             GameTooltip:Show()
         end
     end)
@@ -316,7 +376,7 @@ local function RowItem(row, entry)
     else
         Styles:SetTextColor(row.text, Palette.text)
     end
-    row.itemLevel:SetText(tostring(entry.level))
+    row.itemLevel:SetText(entry.isBank and "Bank" or tostring(entry.level))
     row.itemEntry = entry
     row:SetScript("OnClick", function()
         SelectItem(entry)
@@ -430,7 +490,7 @@ function Module:RefreshEquipmentFlyout()
 end
 
 -- Gear flyouts must not outlive the character sheet or an instance combat
--- lockdown. Refresh only while visible, so bag changes stay inexpensive.
+-- lockdown. Refresh only while visible, including changes to an open bank.
 UI:RegisterEvent("PLAYER_REGEN_DISABLED", Close)
 UI:RegisterEvent("BAG_UPDATE_DELAYED", function()
     Module:RefreshEquipmentFlyout()
@@ -438,6 +498,16 @@ end)
 UI:RegisterEvent("GET_ITEM_INFO_RECEIVED", function()
     Module:RefreshEquipmentFlyout()
 end)
+for _, event in ipairs({
+    "BANKFRAME_OPENED",
+    "BANKFRAME_CLOSED",
+    "PLAYERBANKSLOTS_CHANGED",
+    "BANK_TABS_CHANGED",
+}) do
+    UI:RegisterEvent(event, function()
+        Module:RefreshEquipmentFlyout()
+    end)
+end
 if Module.frame then
     Module.frame:HookScript("OnHide", Close)
 end
