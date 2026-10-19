@@ -982,7 +982,7 @@ function UF:GetCastInfo(unit)
     end
 
     if name then
-        return name, startTime, endTime
+        return name, startTime, endTime, false
     end
 
     name, _, _, fourth, fifth, sixth = UnitChannelInfo(unit)
@@ -994,7 +994,7 @@ function UF:GetCastInfo(unit)
         endTime = sixth
     end
 
-    return name, startTime, endTime
+    return name, startTime, endTime, name ~= nil
 end
 
 function UF:SetCastingLayout(frame, isCasting)
@@ -1062,11 +1062,13 @@ function UF:UpdateCast(frame)
     if not UnitExists(frame.unit) then
         frame.castStart = nil
         frame.castEnd = nil
+        frame.castChanneled = nil
         self:SetCastingLayout(frame, false)
         return
     end
 
-    local spellName, startTime, endTime = self:GetCastInfo(frame.unit)
+    local spellName, startTime, endTime, isChannel =
+        self:GetCastInfo(frame.unit)
 
     if not spellName or not startTime or not endTime
         or not UI:CanAccessValue(spellName)
@@ -1075,16 +1077,20 @@ function UF:UpdateCast(frame)
     then
         frame.castStart = nil
         frame.castEnd = nil
+        frame.castChanneled = nil
         self:SetCastingLayout(frame, false)
         return
     end
 
     frame.castStart = startTime / 1000
     frame.castEnd = endTime / 1000
+    frame.castChanneled = isChannel
 
     local duration = math.max(frame.castEnd - frame.castStart, 0.001)
 
     frame.cast:SetMinMaxValues(0, duration)
+    -- Channels begin full and drain; regular casts fill from empty.
+    frame.cast:SetValue(isChannel and duration or 0)
     frame.castNameText:SetText(spellName)
     self:SetCastingLayout(frame, true)
 end
@@ -1102,8 +1108,10 @@ function UF:UpdateCastProgress(frame)
         return
     end
 
-    frame.cast:SetValue(elapsed)
-    frame.castProgressText:SetFormattedText("%.1fs", elapsed)
+    local progress = frame.castChanneled
+        and math.max(duration - elapsed, 0) or elapsed
+    frame.cast:SetValue(progress)
+    frame.castProgressText:SetFormattedText("%.1fs", progress)
 end
 
 function UF:UpdateUnitFrame(frame)
