@@ -1035,7 +1035,7 @@ local function AcquireReagentRow(frame, index)
     row:SetHeight(Layout.REAGENT_ROW_HEIGHT)
 
     local slot = Components:CreateItemDisplayButton(row, {
-        size = 34,
+        size = 36,
         count = true,
         countFontSize = 8,
         corners = true,
