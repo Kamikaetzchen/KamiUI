@@ -331,7 +331,7 @@ local function GetJunkTooltipColumns()
 
     for index = 1, 2 do
         local slot = Components:CreateItemDisplayButton(GameTooltip, {
-            size = 30,
+            size = 36,
             corners = true,
             count = true,
             countFontSize = 9,
@@ -361,13 +361,13 @@ local function GetJunkTooltipColumns()
 
         if index == 1 then
             name:SetPoint("TOPLEFT", slot, "TOPRIGHT", 6, 0)
-            current:SetPoint("TOPLEFT", name, "TOPLEFT", 0, -14)
-            full:SetPoint("TOPLEFT", name, "TOPLEFT", 0, -28)
+            current:SetPoint("TOPLEFT", name, "TOPLEFT", 0, -12)
+            full:SetPoint("TOPLEFT", name, "TOPLEFT", 0, -24)
         else
             -- Mirror the right preview: text first, item icon on the edge.
             name:SetPoint("TOPRIGHT", slot, "TOPLEFT", -6, 0)
-            current:SetPoint("TOPRIGHT", name, "TOPRIGHT", 0, -14)
-            full:SetPoint("TOPRIGHT", name, "TOPRIGHT", 0, -28)
+            current:SetPoint("TOPRIGHT", name, "TOPRIGHT", 0, -12)
+            full:SetPoint("TOPRIGHT", name, "TOPRIGHT", 0, -24)
         end
 
         junkTooltipColumns[index] = {
