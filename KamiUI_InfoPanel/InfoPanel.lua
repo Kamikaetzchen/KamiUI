@@ -173,10 +173,12 @@ local function GetCheapestJunkStacks()
     end
 
     local cheapestCurrent, cheapestFull
+    local totalJunkValue = 0
     for bag = 0, NUM_BAG_SLOTS or 4 do
         for slot = 1, UI:GetContainerNumSlots(bag) do
             local candidate = GetJunkStack(bag, slot)
             if candidate then
+                totalJunkValue = totalJunkValue + candidate.currentValue
                 if IsCheaperJunkStack(
                     candidate, cheapestCurrent, "currentValue") then
                     cheapestCurrent = candidate
@@ -189,7 +191,7 @@ local function GetCheapestJunkStacks()
         end
     end
 
-    return cheapestCurrent, cheapestFull
+    return cheapestCurrent, cheapestFull, totalJunkValue
 end
 
 local function GetDurabilityPercent()
@@ -456,11 +458,18 @@ local function HideTooltip(owner)
 end
 
 local function ShowBagsTooltip(owner)
-    PrepareTooltip(owner, "Bags")
+    -- The junk scan already reads every bag stack and its current vendor price.
+    -- Show the combined gray-item value beside the title, not full-stack prices.
+    local current, full, totalJunkValue = GetCheapestJunkStacks()
+    local title = "Bags"
+    if totalJunkValue then
+        title = title .. " (Trash: " ..
+            UI:FormatMoney(totalJunkValue, { iconSize = 11 }) .. ")"
+    end
+    PrepareTooltip(owner, title)
     AddBagsTooltipSpacer(6)
 
     -- Top section: left and right mouse actions occupy matching columns.
-    local current, full = GetCheapestJunkStacks()
     if InCombatLockdown and InCombatLockdown() then
         GameTooltip:AddLine("Junk deletion unavailable in combat",
             0.75, 0.75, 0.75)
