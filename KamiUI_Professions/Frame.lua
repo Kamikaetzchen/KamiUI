@@ -2971,21 +2971,52 @@ function Module:CloseFrame()
     end
 end
 
--- ProfessionsFrame contains protected Blizzard frames. Touching its
--- UIPanel attributes or recursively disabling its mouse input from an addon
--- (especially during Blizzard_Professions' ADDON_LOADED) causes
--- ADDON_ACTION_BLOCKED. Leave the native backend/panel management intact and
--- only suppress its visuals. Our custom window uses HIGH strata.
+-- The native profession UI must stay shown to provide its backend,
+-- but alpha 0 alone leaves its invisible buttons and tooltips interactive.
+-- Avoid protected descendants: modifying their mouse state taints Blizzard.
+local function DisableUnprotectedProfessionMouse(frame)
+    if not frame or (frame.IsProtected and frame:IsProtected()) then
+        return
+    end
+
+    if frame.EnableMouse and frame.IsMouseEnabled
+        and frame:IsMouseEnabled() then
+        frame:EnableMouse(false)
+    end
+    if frame.EnableMouseWheel and frame.IsMouseWheelEnabled
+        and frame:IsMouseWheelEnabled() then
+        frame:EnableMouseWheel(false)
+    end
+
+    if frame.GetChildren then
+        for _, child in ipairs({ frame:GetChildren() }) do
+            DisableUnprotectedProfessionMouse(child)
+        end
+    end
+end
+
 local function SuppressNativeProfessionVisuals(frame)
     if InCombatLockdown and InCombatLockdown() then
         Module.pendingNativeVisualSuppression = true
         return
     end
 
-    UI:SuppressFrame(frame, {
-        disableInput = false,
-    })
+    -- Keep UIPanel layout and protected Blizzard controls untouched.
+    UI:SuppressFrame(frame, { disableInput = false })
     Module.pendingNativeVisualSuppression = nil
+
+    if frame:IsShown() and not Module.nativeInputSuppressionPending then
+        -- Delay until Blizzard has finished constructing/showing its pages.
+        Module.nativeInputSuppressionPending = true
+        C_Timer.After(0, function()
+            Module.nativeInputSuppressionPending = nil
+            if InCombatLockdown and InCombatLockdown() then
+                Module.pendingNativeVisualSuppression = true
+            elseif frame:IsShown() then
+                DisableUnprotectedProfessionMouse(frame)
+            end
+        end)
+    end
 end
 
 function Module:SuppressNativeFrame()
@@ -3049,6 +3080,20 @@ function Module:InitializeFrame()
             end
         end)
     end)
+
+    -- Blizzard can rebuild its recipe rows after the initial show.
+    -- Reapply click-through to newly created, non-protected children.
+    for _, event in ipairs({
+        "TRADE_SKILL_LIST_UPDATE",
+        "TRADE_SKILL_DATA_SOURCE_CHANGED",
+    }) do
+        UI:RegisterEvent(event, function()
+            local native = _G.ProfessionsFrame
+            if native and native:IsShown() then
+                SuppressNativeProfessionVisuals(native)
+            end
+        end)
+    end
 
     UI:RegisterEvent("TRADE_SKILL_CLOSE", function()
         if Module.frame and Module.frame:IsShown() then
