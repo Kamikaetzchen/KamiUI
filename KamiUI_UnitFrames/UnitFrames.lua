@@ -338,7 +338,26 @@ function UF:SetUnitFirstName(fontString, unit)
     fontString:SetText(self:GetUnitFirstName(unit))
 end
 
+-- GameFontNormalSmall is missing glyphs for some character names.
+-- Like Nameplates, use GameTooltipText, which supports Cyrillic names.
+-- Preserve the size chosen by each unit frame's existing layout.
+function UF:SetNameFont(fontString, size)
+    if GameTooltipText and fontString.SetFontObject
+        and fontString.SetTextHeight then
+        fontString:SetFontObject(GameTooltipText)
+        fontString:SetTextHeight(size)
+    else
+        local fontPath, _, flags = GameFontNormalSmall:GetFont()
+        fontString:SetFont(fontPath, size, flags)
+    end
+end
+
 function UF:ConfigureNameText(fontString)
+    local _, size = fontString:GetFont()
+    if size then
+        self:SetNameFont(fontString, size)
+    end
+
     if fontString.SetWordWrap then
         fontString:SetWordWrap(false)
     end
@@ -379,13 +398,19 @@ function UF:SetUnitDisplayName(fontString, unit)
         name = display
     end
 
-    local length = #name
-
-    while length > 0 do
-        length = length - 1
-        fontString:SetText(
-            prefix .. string.sub(name, 1, length) .. "..."
-        )
+    -- Truncate on UTF-8 character boundaries. Removing one byte at a
+    -- time corrupts multibyte names such as Cyrillic.
+    while #name > 0 do
+        local length = #name - 1
+        while length > 0 do
+            local byte = string.byte(name, length + 1)
+            if byte < 0x80 or byte >= 0xC0 then
+                break
+            end
+            length = length - 1
+        end
+        name = string.sub(name, 1, length)
+        fontString:SetText(prefix .. name .. "...")
 
         stringWidth = fontString:GetStringWidth()
 
@@ -1035,10 +1060,10 @@ function UF:SetCastingLayout(frame, isCasting)
 
     frame.health:SetHeight(healthHeight)
     frame.power:SetHeight(powerHeight)
-    frame.nameText:SetFont(
-        layout.fontPath,
-        self:GetBarFontSize(healthHeight),
-        layout.fontFlags
+    -- Reapply the Unicode-capable font after cast/mana bar size changes.
+    self:SetNameFont(
+        frame.nameText,
+        self:GetBarFontSize(healthHeight)
     )
     frame.healthText:SetFont(
         layout.fontPath,
