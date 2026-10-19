@@ -1,6 +1,7 @@
 local UI = KamiUI
 local Styles = UI.Styles
 local Palette = UI.Palette
+local Components = UI.Components
 local RestedXP = UI.RestedXP
 
 local Module = UI:NewModule("InfoPanel", "KamiUI_InfoPanel")
@@ -119,7 +120,7 @@ local function GetJunkStack(bag, slot)
     if type(itemInfo) ~= "function" then return nil end
 
     local ok, name, link, quality, _, _, _, _, maxStack,
-        _, _, unitPrice = pcall(itemInfo, itemID)
+        _, icon, unitPrice = pcall(itemInfo, itemID)
     if not ok or type(name) ~= "string" or quality ~= 0
         or type(maxStack) ~= "number" or maxStack < count
         or type(unitPrice) ~= "number" or unitPrice < 0
@@ -144,6 +145,7 @@ local function GetJunkStack(bag, slot)
         itemID = itemID,
         name = name,
         link = link,
+        icon = icon,
         count = count,
         maxStack = maxStack,
         unitPrice = unitPrice,
@@ -309,8 +311,103 @@ local function HideRestedTooltipColumns()
 end
 GameTooltip:HookScript("OnHide", HideRestedTooltipColumns)
 
+-- Reuse the exact KamiUI item-slot artwork for the junk candidates.
+-- These slots are visuals only: the InfoPanel's bag counter owns the clicks.
+local junkTooltipColumns
+local function HideJunkTooltipColumns()
+    if not junkTooltipColumns then return end
+    for _, column in ipairs(junkTooltipColumns) do
+        column.slot:Hide()
+        column.name:Hide()
+        column.current:Hide()
+        column.full:Hide()
+    end
+end
+GameTooltip:HookScript("OnHide", HideJunkTooltipColumns)
+
+local function GetJunkTooltipColumns()
+    if junkTooltipColumns then return junkTooltipColumns end
+    junkTooltipColumns = {}
+
+    for index = 1, 2 do
+        local slot = Components:CreateItemDisplayButton(GameTooltip, {
+            size = 30,
+            corners = true,
+            count = true,
+            countFontSize = 9,
+            rarityGlow = false,
+            highlight = false,
+        })
+        slot:EnableMouse(false)
+        slot:SetFrameLevel(GameTooltip:GetFrameLevel() + 2)
+        slot:Hide()
+
+        local function NewLabel()
+            local label = GameTooltip:CreateFontString(
+                nil, "OVERLAY", "GameFontHighlightSmall")
+            label:SetWidth(170)
+            label:SetJustifyH("LEFT")
+            label:SetWordWrap(false)
+            label:Hide()
+            return label
+        end
+
+        local name = NewLabel()
+        local current = NewLabel()
+        local full = NewLabel()
+        name:SetTextColor(1, 1, 1)
+        current:SetTextColor(0.76, 0.76, 0.76)
+        full:SetTextColor(0.76, 0.76, 0.76)
+
+        name:SetPoint("TOPLEFT", slot, "TOPRIGHT", 6, 0)
+        current:SetPoint("TOPLEFT", name, "TOPLEFT", 0, -14)
+        full:SetPoint("TOPLEFT", name, "TOPLEFT", 0, -28)
+
+        junkTooltipColumns[index] = {
+            slot = slot,
+            name = name,
+            current = current,
+            full = full,
+        }
+    end
+
+    return junkTooltipColumns
+end
+
+local function ShowJunkTooltipColumn(index, anchor, candidate, fullMode)
+    local column = GetJunkTooltipColumns()[index]
+    local slot = column.slot
+    slot:ClearAllPoints()
+    slot:SetPoint("TOPLEFT", anchor, "TOPLEFT", 0, 0)
+
+    Components:SetItemSlotData(slot, {
+        itemID = candidate.itemID,
+        link = candidate.link,
+        icon = candidate.icon,
+        quality = 0,
+        count = candidate.count,
+        countText = tostring(candidate.count),
+    })
+    slot:Show()
+
+    column.name:SetText(candidate.name)
+    column.name:Show()
+    column.current:SetText("Now: " ..
+        UI:FormatMoney(candidate.currentValue, { iconSize = 10 }))
+    column.current:Show()
+
+    if fullMode then
+        column.full:SetText("Full x" .. candidate.maxStack .. ": " ..
+            UI:FormatMoney(candidate.fullValue, { iconSize = 10 }))
+        column.full:Show()
+    else
+        column.full:Hide()
+    end
+end
+
 local function PrepareTooltip(owner, title)
     HideRestedTooltipColumns()
+    HideJunkTooltipColumns()
     GameTooltip:SetOwner(owner, "ANCHOR_NONE")
     GameTooltip:ClearAllPoints()
     GameTooltip:SetPoint("TOP", owner, "BOTTOM", 0, -6)
@@ -327,36 +424,36 @@ end
 local function ShowBagsTooltip(owner)
     PrepareTooltip(owner, "Bags")
 
-    -- Always show deletion candidates before the normal bag listing.
+    -- Top section: left and right mouse actions occupy matching columns.
     local current, full = GetCheapestJunkStacks()
-    local function AddJunkOption(label, candidate, showFullValue)
-        if not candidate then
-            GameTooltip:AddDoubleLine(label, "No gray items",
-                1, 1, 1, 0.65, 0.65, 0.65)
-            return
-        end
-
-        GameTooltip:AddDoubleLine(
-            label,
-            string.format("%s x%d", candidate.name, candidate.count),
-            1, 1, 1, 1, 1, 1
-        )
-        local details = "  Delete: " .. UI:FormatMoney(
-            candidate.currentValue, { iconSize = 10 })
-        if showFullValue then
-            details = details .. "  |  Full x" .. candidate.maxStack
-                .. ": " .. UI:FormatMoney(
-                    candidate.fullValue, { iconSize = 10 })
-        end
-        GameTooltip:AddLine(details, 0.7, 0.7, 0.7)
-    end
-
     if InCombatLockdown and InCombatLockdown() then
         GameTooltip:AddLine("Junk deletion unavailable in combat",
             0.75, 0.75, 0.75)
+    elseif current and full then
+        GameTooltip:AddDoubleLine(
+            "Shift + Left Click", "Shift + Right Click",
+            1, 0.82, 0, 1, 0.82, 0
+        )
+
+        -- Invisible native text reserves both column widths and the row
+        -- height. Overlay real KamiUI item slots rather than inline icons.
+        local spacer = string.rep("W", 20)
+        GameTooltip:AddDoubleLine(spacer, spacer, 1, 1, 1, 1, 1, 1)
+        local index = GameTooltip:NumLines()
+        local left = _G["GameTooltipTextLeft" .. index]
+        local right = _G["GameTooltipTextRight" .. index]
+        GameTooltip:AddLine(" ")
+        GameTooltip:AddLine(" ")
+
+        if left and right then
+            left:SetTextColor(1, 1, 1, 0)
+            right:SetTextColor(1, 1, 1, 0)
+            ShowJunkTooltipColumn(1, left, current, false)
+            ShowJunkTooltipColumn(2, right, full, true)
+        end
     else
-        AddJunkOption("Shift + Left Click", current, false)
-        AddJunkOption("Shift + Right Click", full, true)
+        GameTooltip:AddLine("No gray items to delete",
+            0.75, 0.75, 0.75)
     end
 
     GameTooltip:AddLine(" ")
