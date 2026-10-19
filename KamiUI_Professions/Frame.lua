@@ -551,7 +551,7 @@ local function AcquireRecipeRow(frame, index)
     craftable:SetPoint("RIGHT", row, "RIGHT", -6, 0)
     craftable:SetJustifyH("RIGHT")
     craftable:SetWordWrap(false)
-    Styles:ApplyText(craftable, 9, Palette.muted)
+    Styles:ApplyText(craftable, 9, Palette.text)
     row.craftable = craftable
 
     local highlight = row:CreateTexture(nil, "HIGHLIGHT")
@@ -2280,17 +2280,15 @@ function Module:RefreshRecipeList()
             row.text:SetPoint("LEFT", row.icon, "RIGHT", 6, 0)
 
             local info = entry.info
-            if info then
-                local count = GetRecipeCraftableCount(
-                    entry.recipeID, info)
-                row.craftable:SetText(string.format("[%d]", count))
-                Styles:SetTextColor(row.craftable,
-                    count > 0 and Palette.success or Palette.muted)
+            local craftable = info
+                and GetRecipeCraftableCount(entry.recipeID, info) or 0
+            if craftable > 0 then
+                row.craftable:SetText(string.format("[%d]", craftable))
                 row.craftable:Show()
                 row.text:SetPoint(
                     "RIGHT", row.craftable, "LEFT", -4, 0)
             else
-                -- Cached/offline recipes have no trustworthy live count.
+                -- Hide zero counts and counts for cached/offline recipes.
                 row.craftable:Hide()
                 row.text:SetPoint("RIGHT", row, "RIGHT", -6, 0)
             end
