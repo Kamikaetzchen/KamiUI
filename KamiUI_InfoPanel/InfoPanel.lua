@@ -96,6 +96,100 @@ local function GetBagName(bag)
     return string.format("Bag %d", bag)
 end
 
+-- Read the current bag slot and the item database independently. Only
+-- poor-quality, unlocked items with known stack sizes/prices are candidates.
+-- The item database's stack count is the maximum, not the amount in the bag.
+local function GetJunkStack(bag, slot)
+    local info = UI:SafeCall(UI.GetContainerItemInfo, UI, bag, slot)
+    if not info or not UI:CanAccessValue(info)
+        or (issecrettable and issecrettable(info)) then
+        return nil
+    end
+
+    local itemID, count = info.itemID, info.stackCount
+    if type(itemID) ~= "number" or type(count) ~= "number"
+        or not UI:CanAccessValue(itemID)
+        or not UI:CanAccessValue(count)
+        or count < 1 or info.isLocked or info.hasLoot
+        or (info.quality ~= nil and info.quality ~= 0) then
+        return nil
+    end
+
+    local itemInfo = C_Item and C_Item.GetItemInfo or GetItemInfo
+    if type(itemInfo) ~= "function" then return nil end
+
+    local ok, name, link, quality, _, _, _, _, maxStack,
+        _, _, unitPrice = pcall(itemInfo, itemID)
+    if not ok or type(name) ~= "string" or quality ~= 0
+        or type(maxStack) ~= "number" or maxStack < count
+        or type(unitPrice) ~= "number" or unitPrice < 0
+        or not UI:CanAccessValue(maxStack)
+        or not UI:CanAccessValue(unitPrice) then
+        return nil
+    end
+
+    -- Exclude quest items and items that start quests, if the API supplies
+    -- this information. Never rely on an item's gray color alone for those.
+    if C_Container and C_Container.GetContainerItemQuestInfo then
+        local questInfo = UI:SafeCall(
+            C_Container.GetContainerItemQuestInfo, bag, slot)
+        if questInfo and (questInfo.isQuestItem or questInfo.questID) then
+            return nil
+        end
+    end
+
+    return {
+        bag = bag,
+        slot = slot,
+        itemID = itemID,
+        name = name,
+        link = link,
+        count = count,
+        maxStack = maxStack,
+        unitPrice = unitPrice,
+        currentValue = count * unitPrice,
+        fullValue = maxStack * unitPrice,
+    }
+end
+
+local function IsCheaperJunkStack(candidate, best, metric)
+    if not best then return true end
+    if candidate[metric] ~= best[metric] then
+        return candidate[metric] < best[metric]
+    end
+
+    -- On equal estimates, keep the cheaper current stack as a tiebreaker.
+    if candidate.currentValue ~= best.currentValue then
+        return candidate.currentValue < best.currentValue
+    end
+    return candidate.fullValue < best.fullValue
+end
+
+local function GetCheapestJunkStacks()
+    if InCombatLockdown and InCombatLockdown() then
+        return nil, nil
+    end
+
+    local cheapestCurrent, cheapestFull
+    for bag = 0, NUM_BAG_SLOTS or 4 do
+        for slot = 1, UI:GetContainerNumSlots(bag) do
+            local candidate = GetJunkStack(bag, slot)
+            if candidate then
+                if IsCheaperJunkStack(
+                    candidate, cheapestCurrent, "currentValue") then
+                    cheapestCurrent = candidate
+                end
+                if IsCheaperJunkStack(
+                    candidate, cheapestFull, "fullValue") then
+                    cheapestFull = candidate
+                end
+            end
+        end
+    end
+
+    return cheapestCurrent, cheapestFull
+end
+
 local function GetDurabilityPercent()
     local current = 0
     local maximum = 0
@@ -233,6 +327,39 @@ end
 local function ShowBagsTooltip(owner)
     PrepareTooltip(owner, "Bags")
 
+    -- Always show deletion candidates before the normal bag listing.
+    local current, full = GetCheapestJunkStacks()
+    local function AddJunkOption(label, candidate, showFullValue)
+        if not candidate then
+            GameTooltip:AddDoubleLine(label, "No gray items",
+                1, 1, 1, 0.65, 0.65, 0.65)
+            return
+        end
+
+        GameTooltip:AddDoubleLine(
+            label,
+            string.format("%s x%d", candidate.name, candidate.count),
+            1, 1, 1, 1, 1, 1
+        )
+        local details = "  Delete: " .. UI:FormatMoney(
+            candidate.currentValue, { iconSize = 10 })
+        if showFullValue then
+            details = details .. "  |  Full x" .. candidate.maxStack
+                .. ": " .. UI:FormatMoney(
+                    candidate.fullValue, { iconSize = 10 })
+        end
+        GameTooltip:AddLine(details, 0.7, 0.7, 0.7)
+    end
+
+    if InCombatLockdown and InCombatLockdown() then
+        GameTooltip:AddLine("Junk deletion unavailable in combat",
+            0.75, 0.75, 0.75)
+    else
+        AddJunkOption("Shift + Left Click", current, false)
+        AddJunkOption("Shift + Right Click", full, true)
+    end
+
+    GameTooltip:AddLine(" ")
     local totalUsed = 0
     local totalSlots = 0
 
@@ -260,6 +387,46 @@ local function ShowBagsTooltip(owner)
         1, 1, 1
     )
     GameTooltip:Show()
+end
+
+local function DeleteCheapestJunkStack(mode)
+    -- The actual deletion must happen within one deliberate hardware click.
+    if not IsShiftKeyDown or not IsShiftKeyDown()
+        or (InCombatLockdown and InCombatLockdown())
+        or type(DeleteCursorItem) ~= "function"
+        or type(GetCursorInfo) ~= "function" then
+        return
+    end
+
+    -- Never replace or delete anything already held on the cursor.
+    if GetCursorInfo() ~= nil then return end
+
+    local pickup = C_Container and C_Container.PickupContainerItem
+        or PickupContainerItem
+    if type(pickup) ~= "function" then return end
+
+    -- Rescan and revalidate immediately before picking up the stack.
+    local cheapestCurrent, cheapestFull = GetCheapestJunkStacks()
+    local candidate = mode == "full" and cheapestFull or cheapestCurrent
+    if not candidate then return end
+
+    local verified = GetJunkStack(candidate.bag, candidate.slot)
+    if not verified or verified.itemID ~= candidate.itemID
+        or verified.count ~= candidate.count
+        or verified.unitPrice ~= candidate.unitPrice
+        or verified.maxStack ~= candidate.maxStack then
+        return
+    end
+
+    pickup(candidate.bag, candidate.slot)
+
+    local cursorType, cursorItemID = GetCursorInfo()
+    if cursorType == "item" and cursorItemID == candidate.itemID then
+        DeleteCursorItem()
+    elseif cursorType == "item" and ClearCursor then
+        -- An unexpected cursor item should not be destroyed.
+        ClearCursor()
+    end
 end
 
 local function GetDurabilityColor(percent)
@@ -892,13 +1059,24 @@ local function CreatePanel()
     local hoverFrames = {}
 
     for key, showTooltip in pairs(tooltipHandlers) do
-        local hover = CreateFrame("Frame", nil, content)
+        local hover = CreateFrame(
+            key == "bags" and "Button" or "Frame", nil, content)
         hover:SetSize(Layout.SLOT_WIDTHS[key], Layout.HEIGHT)
         hover:SetPoint("CENTER", texts[key], "CENTER", 0, 0)
         hover:SetFrameLevel(content:GetFrameLevel() + 10)
         hover:EnableMouse(true)
         hover:SetScript("OnEnter", showTooltip)
         hover:SetScript("OnLeave", HideTooltip)
+        if key == "bags" then
+            hover:RegisterForClicks("AnyUp")
+            hover:SetScript("OnClick", function(_, mouseButton)
+                if mouseButton == "LeftButton" then
+                    DeleteCheapestJunkStack("current")
+                elseif mouseButton == "RightButton" then
+                    DeleteCheapestJunkStack("full")
+                end
+            end)
+        end
         hoverFrames[key] = hover
     end
 
@@ -1347,6 +1525,17 @@ function Module:Initialize()
 
     UI:RegisterEvent("BAG_UPDATE_DELAYED", function()
         Module:Refresh()
+        local bagHover = Module.hoverFrames and Module.hoverFrames.bags
+        if bagHover and GameTooltip:IsOwned(bagHover) then
+            ShowBagsTooltip(bagHover)
+        end
+    end)
+
+    UI:RegisterEvent("GET_ITEM_INFO_RECEIVED", function()
+        local bagHover = Module.hoverFrames and Module.hoverFrames.bags
+        if bagHover and GameTooltip:IsOwned(bagHover) then
+            ShowBagsTooltip(bagHover)
+        end
     end)
 
     UI:RegisterEvent("PLAYER_MONEY", function()
