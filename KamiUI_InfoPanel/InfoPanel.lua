@@ -464,7 +464,7 @@ local function ShowBagsTooltip(owner)
     local title = "Bags"
     if totalJunkValue then
         title = title .. " (Trash: " ..
-            UI:FormatMoney(totalJunkValue, { iconSize = 11 }) .. ")"
+            UI:FormatMoney(totalJunkValue, { iconSize = 11, compact = true }) .. ")"
     end
     PrepareTooltip(owner, title)
     AddBagsTooltipSpacer(6)
