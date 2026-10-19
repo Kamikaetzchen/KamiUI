@@ -1191,6 +1191,9 @@ UI:RegisterEvent("UNIT_NAME_UPDATE", DispatchIdentity)
 UI:RegisterEvent("UNIT_PORTRAIT_UPDATE", DispatchIdentity)
 UI:RegisterEvent("UNIT_MODEL_CHANGED", DispatchIdentity)
 UI:RegisterEvent("UNIT_FLAGS", DispatchIdentity)
+-- AFK/DND changes (including clearing AFK through movement) are reported
+-- by PLAYER_FLAGS_CHANGED and may not trigger a UNIT_FLAGS refresh.
+UI:RegisterEvent("PLAYER_FLAGS_CHANGED", DispatchIdentity)
 UI:RegisterEvent("UNIT_LEVEL", DispatchIdentity)
 
 UI:RegisterEvent("UNIT_SPELLCAST_START", DispatchCast)
