@@ -2975,17 +2975,21 @@ end
 -- but alpha 0 alone leaves its invisible buttons and tooltips interactive.
 -- Avoid protected descendants: modifying their mouse state taints Blizzard.
 local function DisableUnprotectedProfessionMouse(frame)
-    if not frame or (frame.IsProtected and frame:IsProtected()) then
-        return
-    end
+    if not frame then return end
 
-    if frame.EnableMouse and frame.IsMouseEnabled
-        and frame:IsMouseEnabled() then
-        frame:EnableMouse(false)
-    end
-    if frame.EnableMouseWheel and frame.IsMouseWheelEnabled
-        and frame:IsMouseWheelEnabled() then
-        frame:EnableMouseWheel(false)
+    -- Protection belongs to this frame, not necessarily its children.
+    -- Still traverse a protected parent: the recipe buttons below it
+    -- may be ordinary mouse-enabled widgets.
+    local protected = frame.IsProtected and frame:IsProtected()
+    if not protected then
+        if frame.EnableMouse and frame.IsMouseEnabled
+            and frame:IsMouseEnabled() then
+            frame:EnableMouse(false)
+        end
+        if frame.EnableMouseWheel and frame.IsMouseWheelEnabled
+            and frame:IsMouseWheelEnabled() then
+            frame:EnableMouseWheel(false)
+        end
     end
 
     if frame.GetChildren then
