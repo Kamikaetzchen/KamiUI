@@ -496,6 +496,21 @@ local function ConfigureMouseWheelScroll(scroll, content, step)
     end)
 end
 
+-- Share the same live craftable count between recipe rows and details.
+local function GetRecipeCraftableCount(recipeID, info)
+    local count = C_TradeSkillUI
+        and C_TradeSkillUI.GetCraftableCount
+        and UI:SafeCall(C_TradeSkillUI.GetCraftableCount, recipeID)
+        or 0
+    count = math.max(0, count or 0)
+
+    if info and info.canCreateMultiple == false then
+        return math.min(1, count)
+    end
+
+    return count
+end
+
 local function AcquireRecipeRow(frame, index)
     local row = frame.recipeRows[index]
 
@@ -527,6 +542,17 @@ local function AcquireRecipeRow(frame, index)
     text:SetWordWrap(false)
     Styles:ApplyText(text, 9, Palette.text)
     row.text = text
+
+    local craftable = row:CreateFontString(
+        nil,
+        "OVERLAY",
+        "GameFontNormalSmall"
+    )
+    craftable:SetPoint("RIGHT", row, "RIGHT", -6, 0)
+    craftable:SetJustifyH("RIGHT")
+    craftable:SetWordWrap(false)
+    Styles:ApplyText(craftable, 9, Palette.muted)
+    row.craftable = craftable
 
     local highlight = row:CreateTexture(nil, "HIGHLIGHT")
     highlight:SetAllPoints()
@@ -2225,6 +2251,7 @@ function Module:RefreshRecipeList()
         if entry.kind == "category" then
             row.categoryID = entry.categoryID
             row.icon:Hide()
+            row.craftable:Hide()
             row.text:ClearAllPoints()
             row.text:SetPoint("LEFT", row, "LEFT", 7, 0)
             row.text:SetPoint("RIGHT", row, "RIGHT", -6, 0)
@@ -2251,9 +2278,23 @@ function Module:RefreshRecipeList()
             row.icon:Show()
             row.text:ClearAllPoints()
             row.text:SetPoint("LEFT", row.icon, "RIGHT", 6, 0)
-            row.text:SetPoint("RIGHT", row, "RIGHT", -6, 0)
 
             local info = entry.info
+            if info then
+                local count = GetRecipeCraftableCount(
+                    entry.recipeID, info)
+                row.craftable:SetText(string.format("[%d]", count))
+                Styles:SetTextColor(row.craftable,
+                    count > 0 and Palette.success or Palette.muted)
+                row.craftable:Show()
+                row.text:SetPoint(
+                    "RIGHT", row.craftable, "LEFT", -4, 0)
+            else
+                -- Cached/offline recipes have no trustworthy live count.
+                row.craftable:Hide()
+                row.text:SetPoint("RIGHT", row, "RIGHT", -6, 0)
+            end
+
             local name = info
                 and info.name
                 or entry.cached
@@ -2456,16 +2497,7 @@ function Module:RefreshRecipeDetails()
         frame.trackRecipe:Show()
     end
 
-    local craftable = C_TradeSkillUI.GetCraftableCount
-        and UI:SafeCall(
-            C_TradeSkillUI.GetCraftableCount,
-            recipeID
-        )
-        or 0
-    craftable = math.max(0, craftable or 0)
-    self.maxCraftable = info.canCreateMultiple == false
-        and math.min(1, craftable)
-        or craftable
+    self.maxCraftable = GetRecipeCraftableCount(recipeID, info)
 
     frame.recipeSubTitle:SetText(
         string.format(
@@ -3066,6 +3098,10 @@ function Module:InitializeFrame()
     }) do
         UI:RegisterEvent(event, function()
             if Module.frame and Module.frame:IsShown() then
+                if event == "BAG_UPDATE_DELAYED"
+                    or event == "CURRENCY_DISPLAY_UPDATE" then
+                    Module:RefreshRecipeList()
+                end
                 Module:RefreshRecipeDetails()
             end
         end)
