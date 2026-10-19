@@ -412,7 +412,34 @@ local function ShowJunkTooltipColumn(index, anchor, candidate)
     column.full:Show()
 end
 
+-- Compact whitespace is specific to the bag tooltip. Restore native
+-- tooltip line fonts when it closes or another tooltip takes over.
+local bagsTooltipSpacers = {}
+local function RestoreBagsTooltipSpacers()
+    for _, entry in ipairs(bagsTooltipSpacers) do
+        entry.line:SetFont(entry.font, entry.size, entry.flags)
+    end
+    wipe(bagsTooltipSpacers)
+end
+GameTooltip:HookScript("OnHide", RestoreBagsTooltipSpacers)
+
+local function AddBagsTooltipSpacer(fontSize)
+    GameTooltip:AddLine(" ")
+    local line = _G["GameTooltipTextLeft" .. GameTooltip:NumLines()]
+    if not line then return end
+
+    local font, size, flags = line:GetFont()
+    if font and size then
+        bagsTooltipSpacers[#bagsTooltipSpacers + 1] = {
+            line = line, font = font, size = size, flags = flags,
+        }
+        -- Only resize invisible spacer lines; all visible text stays as-is.
+        line:SetFont(font, fontSize, flags)
+    end
+end
+
 local function PrepareTooltip(owner, title)
+    RestoreBagsTooltipSpacers()
     HideRestedTooltipColumns()
     HideJunkTooltipColumns()
     GameTooltip:SetOwner(owner, "ANCHOR_NONE")
@@ -430,6 +457,7 @@ end
 
 local function ShowBagsTooltip(owner)
     PrepareTooltip(owner, "Bags")
+    AddBagsTooltipSpacer(6)
 
     -- Top section: left and right mouse actions occupy matching columns.
     local current, full = GetCheapestJunkStacks()
@@ -449,8 +477,8 @@ local function ShowBagsTooltip(owner)
         local index = GameTooltip:NumLines()
         local left = _G["GameTooltipTextLeft" .. index]
         local right = _G["GameTooltipTextRight" .. index]
-        GameTooltip:AddLine(" ")
-        GameTooltip:AddLine(" ")
+        AddBagsTooltipSpacer(9)
+        AddBagsTooltipSpacer(9)
 
         if left and right then
             left:SetTextColor(1, 1, 1, 0)
@@ -463,7 +491,7 @@ local function ShowBagsTooltip(owner)
             0.75, 0.75, 0.75)
     end
 
-    GameTooltip:AddLine(" ")
+    AddBagsTooltipSpacer(9)
     local totalUsed = 0
     local totalSlots = 0
 
@@ -483,7 +511,7 @@ local function ShowBagsTooltip(owner)
         end
     end
 
-    GameTooltip:AddLine(" ")
+    AddBagsTooltipSpacer(9)
     GameTooltip:AddDoubleLine(
         "Total",
         string.format("%d / %d", totalUsed, totalSlots),
