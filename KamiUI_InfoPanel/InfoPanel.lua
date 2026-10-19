@@ -346,7 +346,7 @@ local function GetJunkTooltipColumns()
             local label = GameTooltip:CreateFontString(
                 nil, "OVERLAY", "GameFontHighlightSmall")
             label:SetWidth(170)
-            label:SetJustifyH("LEFT")
+            label:SetJustifyH(index == 2 and "RIGHT" or "LEFT")
             label:SetWordWrap(false)
             label:Hide()
             return label
@@ -359,9 +359,16 @@ local function GetJunkTooltipColumns()
         current:SetTextColor(0.76, 0.76, 0.76)
         full:SetTextColor(0.76, 0.76, 0.76)
 
-        name:SetPoint("TOPLEFT", slot, "TOPRIGHT", 6, 0)
-        current:SetPoint("TOPLEFT", name, "TOPLEFT", 0, -14)
-        full:SetPoint("TOPLEFT", name, "TOPLEFT", 0, -28)
+        if index == 1 then
+            name:SetPoint("TOPLEFT", slot, "TOPRIGHT", 6, 0)
+            current:SetPoint("TOPLEFT", name, "TOPLEFT", 0, -14)
+            full:SetPoint("TOPLEFT", name, "TOPLEFT", 0, -28)
+        else
+            -- Mirror the right preview: text first, item icon on the edge.
+            name:SetPoint("TOPRIGHT", slot, "TOPLEFT", -6, 0)
+            current:SetPoint("TOPRIGHT", name, "TOPRIGHT", 0, -14)
+            full:SetPoint("TOPRIGHT", name, "TOPRIGHT", 0, -28)
+        end
 
         junkTooltipColumns[index] = {
             slot = slot,
@@ -374,11 +381,15 @@ local function GetJunkTooltipColumns()
     return junkTooltipColumns
 end
 
-local function ShowJunkTooltipColumn(index, anchor, candidate, fullMode)
+local function ShowJunkTooltipColumn(index, anchor, candidate)
     local column = GetJunkTooltipColumns()[index]
     local slot = column.slot
     slot:ClearAllPoints()
-    slot:SetPoint("TOPLEFT", anchor, "TOPLEFT", 0, 0)
+    if index == 1 then
+        slot:SetPoint("TOPLEFT", anchor, "TOPLEFT", 0, 0)
+    else
+        slot:SetPoint("TOPRIGHT", anchor, "TOPRIGHT", 0, 0)
+    end
 
     Components:SetItemSlotData(slot, {
         itemID = candidate.itemID,
@@ -396,13 +407,9 @@ local function ShowJunkTooltipColumn(index, anchor, candidate, fullMode)
         UI:FormatMoney(candidate.currentValue, { iconSize = 10 }))
     column.current:Show()
 
-    if fullMode then
-        column.full:SetText("Full x" .. candidate.maxStack .. ": " ..
-            UI:FormatMoney(candidate.fullValue, { iconSize = 10 }))
-        column.full:Show()
-    else
-        column.full:Hide()
-    end
+    column.full:SetText("Full x" .. candidate.maxStack .. ": " ..
+        UI:FormatMoney(candidate.fullValue, { iconSize = 10 }))
+    column.full:Show()
 end
 
 local function PrepareTooltip(owner, title)
@@ -437,7 +444,7 @@ local function ShowBagsTooltip(owner)
 
         -- Invisible native text reserves both column widths and the row
         -- height. Overlay real KamiUI item slots rather than inline icons.
-        local spacer = string.rep("W", 20)
+        local spacer = string.rep("W", 10)
         GameTooltip:AddDoubleLine(spacer, spacer, 1, 1, 1, 1, 1, 1)
         local index = GameTooltip:NumLines()
         local left = _G["GameTooltipTextLeft" .. index]
@@ -448,8 +455,8 @@ local function ShowBagsTooltip(owner)
         if left and right then
             left:SetTextColor(1, 1, 1, 0)
             right:SetTextColor(1, 1, 1, 0)
-            ShowJunkTooltipColumn(1, left, current, false)
-            ShowJunkTooltipColumn(2, right, full, true)
+            ShowJunkTooltipColumn(1, left, current)
+            ShowJunkTooltipColumn(2, right, full)
         end
     else
         GameTooltip:AddLine("No gray items to delete",
