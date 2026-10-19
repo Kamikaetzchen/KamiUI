@@ -358,12 +358,14 @@ function UI:FormatMoney(copper, options)
     local iconSize = options.iconSize or 14
     local iconYOffset = options.iconYOffset or 0
     local showAll = options.showAll == true
+    local spacing = options.compact and "" or " "
     local parts = {}
 
     local function AddPart(value, icon)
         parts[#parts + 1] = string.format(
-            "%d |TInterface\\MoneyFrame\\%s:%d:%d:0:%d|t",
+            "%d%s|TInterface\\MoneyFrame\\%s:%d:%d:0:%d|t",
             value,
+            spacing,
             icon,
             iconSize,
             iconSize,
@@ -381,7 +383,7 @@ function UI:FormatMoney(copper, options)
 
     AddPart(bronze, "UI-CopperIcon")
 
-    return table.concat(parts, " ")
+    return table.concat(parts, spacing)
 end
 
 function UI:SaveFramePosition(
