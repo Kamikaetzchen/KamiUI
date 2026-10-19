@@ -946,37 +946,196 @@ local function CreatePanel()
     Module.hoverFrames = hoverFrames
 end
 
+-- XP statistics are character-specific. Unlike the visible session rate,
+-- level and overall totals persist across reloads and logouts.
+-- Existing characters start with the XP earned after tracking begins.
+local function GetXPValues()
+    if not UnitLevel or not UnitXP or not UnitXPMax then return nil end
+
+    local level = UnitLevel("player")
+    local xp = UnitXP("player")
+    local maxXP = UnitXPMax("player")
+
+    if type(level) ~= "number" or type(xp) ~= "number"
+        or type(maxXP) ~= "number"
+        or not UI:CanAccessValue(level)
+        or not UI:CanAccessValue(xp)
+        or not UI:CanAccessValue(maxXP)
+        or level < 1 then
+        return nil
+    end
+
+    return level, xp, maxXP
+end
+
+local function InitializeXPTracking()
+    if Module.xpRecord then return true end
+
+    local level, xp, maxXP = GetXPValues()
+    if not level then return false end
+
+    local characters = UI:GetDatabase("xpStats",
+        { characters = {} }).characters
+    local key = UI:GetCurrentCharacterKey()
+    local record = characters[key] or {}
+
+    record.totalXP = math.max(0, record.totalXP or 0)
+    record.totalSeconds = math.max(0, record.totalSeconds or 0)
+    record.levelXP = math.max(0, record.levelXP or 0)
+    record.levelSeconds = math.max(0, record.levelSeconds or 0)
+    record.fromLevel = record.fromLevel or level
+
+    -- If a character was leveled while this module was disabled, do not
+    -- attribute the missing level's time or XP to the current one.
+    if record.level and record.level ~= level then
+        record.levelXP = 0
+        record.levelSeconds = 0
+    end
+
+    record.level = level
+    characters[key] = record
+    Module.xpRecord = record
+    Module.trackStart = GetTime()
+    Module.lastLevel = level
+    Module.lastXP = xp
+    Module.lastMaxXP = maxXP
+    return true
+end
+
+local function CommitXPTime()
+    local record = Module.xpRecord
+    if not record then return end
+
+    local now = GetTime()
+    local elapsed = math.max(0, now - (Module.trackStart or now))
+    record.totalSeconds = record.totalSeconds + elapsed
+    record.levelSeconds = record.levelSeconds + elapsed
+    Module.trackStart = now
+end
+
+local function GetTrackedXPTimes()
+    local record = Module.xpRecord
+    if not record then return 0, 0 end
+
+    local now = GetTime()
+    local elapsed = math.max(0, now - (Module.trackStart or now))
+    return record.levelSeconds + elapsed, record.totalSeconds + elapsed
+end
+
 local function ResetSession()
     Module.sessionStart = GetTime()
     Module.sessionXP = 0
-    Module.levelStart = GetTime()
-    Module.levelXP = UnitXP("player") or 0
-    Module.lastXP = UnitXP("player") or 0
+    InitializeXPTracking()
 end
 
 local function UpdateXPTracking()
-    local currentXP = UnitXP("player") or 0
+    if Module.levelUpPending or not InitializeXPTracking() then return end
 
-    if not Module.lastXP then
-        Module.lastXP = currentXP
-        return
+    local level, xp, maxXP = GetXPValues()
+    if not level then return end
+
+    local oldLevel = Module.lastLevel
+    local oldXP = Module.lastXP
+    local gained = 0
+    local record = Module.xpRecord
+
+    if level > oldLevel then
+        -- XP rolls over to the next level. Count the XP that completed
+        -- the previous level as well as any overflow into the new level.
+        CommitXPTime()
+        record.levelSeconds = 0
+        record.levelXP = 0
+        gained = math.max(0, (Module.lastMaxXP or 0) - oldXP)
+            + math.max(0, xp)
+    elseif level == oldLevel then
+        -- Some clients briefly report 0 XP before the level event.
+        -- Wait for the new level rather than treating it as a reset.
+        if xp < oldXP then return end
+        gained = xp - oldXP
+    else
+        CommitXPTime()
+        record.levelSeconds = 0
+        record.levelXP = 0
     end
-
-    local gained = currentXP - Module.lastXP
 
     if gained > 0 then
-        Module.sessionXP = (Module.sessionXP or 0) + gained
+        Module.sessionXP = Module.sessionXP + gained
+        record.levelXP = record.levelXP + (
+            level > oldLevel and math.max(0, xp) or gained)
+        record.totalXP = record.totalXP + gained
     end
 
-    Module.lastXP = currentXP
+    Module.lastLevel = level
+    Module.lastXP = xp
+    Module.lastMaxXP = maxXP
+    record.level = level
+end
+
+local function CalculateXPPerHour(xp, elapsed)
+    if not elapsed or elapsed <= 0 then return 0 end
+    return math.floor((math.max(0, xp or 0) / elapsed) * 3600 + 0.5)
 end
 
 local function GetXPPerHour()
     local elapsed = math.max(1, GetTime() - (Module.sessionStart or GetTime()))
-    local xp = Module.sessionXP or 0
-
-    return math.floor((xp / elapsed) * 3600 + 0.5)
+    return CalculateXPPerHour(Module.sessionXP or 0, elapsed)
 end
+
+local function FormatXPDuration(seconds)
+    seconds = math.max(0, math.floor(seconds or 0))
+    local days = math.floor(seconds / 86400)
+    local hours = math.floor(seconds % 86400 / 3600)
+    local minutes = math.floor(seconds % 3600 / 60)
+
+    if days > 0 then
+        return string.format("%dd %dh", days, hours)
+    elseif hours > 0 then
+        return string.format("%dh %dm", hours, minutes)
+    elseif minutes > 0 then
+        return string.format("%dm %ds", minutes, seconds % 60)
+    end
+    return string.format("%ds", seconds)
+end
+
+local function ShowXPTooltip(owner)
+    PrepareTooltip(owner, "Experience per Hour")
+
+    local now = GetTime()
+    local sessionSeconds = math.max(0,
+        now - (Module.sessionStart or now))
+    local levelSeconds, totalSeconds = GetTrackedXPTimes()
+    local record = Module.xpRecord
+
+    local function AddXPRow(label, xp, seconds)
+        GameTooltip:AddDoubleLine(
+            label,
+            FormatXPPerHour(CalculateXPPerHour(xp, seconds)) .. " XP/h",
+            1, 1, 1, 1, 0.82, 0
+        )
+        GameTooltip:AddDoubleLine(
+            "  " .. UI:FormatNumber(xp) .. " XP",
+            FormatXPDuration(seconds),
+            0.65, 0.65, 0.65, 0.65, 0.65, 0.65
+        )
+    end
+
+    AddXPRow("Session", Module.sessionXP or 0, sessionSeconds)
+    AddXPRow("Current level", record and record.levelXP or 0,
+        levelSeconds)
+    AddXPRow("Overall (tracked)", record and record.totalXP or 0,
+        totalSeconds)
+
+    if record and record.fromLevel and record.fromLevel > 1 then
+        GameTooltip:AddLine(
+            string.format("Tracked since level %d", record.fromLevel),
+            0.65, 0.65, 0.65
+        )
+    end
+
+    GameTooltip:Show()
+end
+
+tooltipHandlers.xp = ShowXPTooltip
 
 local function GetTimeToLevel(xpPerHour)
     if not xpPerHour or xpPerHour <= 0 then
@@ -1089,6 +1248,7 @@ function Module:Initialize()
 
     UI:RegisterEvent("PLAYER_ENTERING_WORLD", function()
         C_Timer.After(0, function()
+            InitializeXPTracking()
             RestedXP:CaptureCurrent()
             Module:Refresh()
         end)
@@ -1101,6 +1261,7 @@ function Module:Initialize()
         RestedXP:CaptureCurrent()
     end)
     UI:RegisterEvent("PLAYER_LOGOUT", function()
+        CommitXPTime()
         RestedXP:CaptureCurrent()
     end)
 
@@ -1111,11 +1272,11 @@ function Module:Initialize()
     end)
 
     UI:RegisterEvent("PLAYER_LEVEL_UP", function()
-        Module.levelStart = GetTime()
-        Module.levelXP = 0
-        Module.lastXP = 0
+        Module.levelUpPending = true
 
         C_Timer.After(0, function()
+            Module.levelUpPending = false
+            UpdateXPTracking()
             RestedXP:CaptureCurrent()
             Module:Refresh()
         end)
