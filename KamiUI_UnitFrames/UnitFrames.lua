@@ -1089,8 +1089,14 @@ function UF:UpdateCast(frame)
     local duration = math.max(frame.castEnd - frame.castStart, 0.001)
 
     frame.cast:SetMinMaxValues(0, duration)
-    -- Channels begin full and drain; regular casts fill from empty.
-    frame.cast:SetValue(isChannel and duration or 0)
+    -- Channels drain from full; regular casts fill from empty.
+    -- Calculate the current progress here too, so a channel update does
+    -- not briefly reset the bar to full before the next OnUpdate.
+    local elapsed = math.max(0,
+        math.min(GetTime() - frame.castStart, duration))
+    local progress = isChannel and duration - elapsed or elapsed
+    frame.cast:SetValue(progress)
+    frame.castProgressText:SetFormattedText("%.1fs", progress)
     frame.castNameText:SetText(spellName)
     self:SetCastingLayout(frame, true)
 end
