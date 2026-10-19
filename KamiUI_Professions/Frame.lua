@@ -2999,6 +2999,18 @@ local function DisableUnprotectedProfessionMouse(frame)
     end
 end
 
+-- Root-level mouse hit testing can survive even after all recipe
+-- controls have been made non-interactive. Pass mouse input through the
+-- invisible Blizzard panel instead of modifying protected child widgets.
+local function MakeNativeProfessionRootClickThrough(frame)
+    if frame.SetPropagateMouseClicks then
+        frame:SetPropagateMouseClicks(true)
+    end
+    if frame.SetPropagateMouseMotion then
+        frame:SetPropagateMouseMotion(true)
+    end
+end
+
 local function SuppressNativeProfessionVisuals(frame)
     if InCombatLockdown and InCombatLockdown() then
         Module.pendingNativeVisualSuppression = true
@@ -3018,6 +3030,7 @@ local function SuppressNativeProfessionVisuals(frame)
                 Module.pendingNativeVisualSuppression = true
             elseif frame:IsShown() then
                 DisableUnprotectedProfessionMouse(frame)
+                MakeNativeProfessionRootClickThrough(frame)
             end
         end)
     end
