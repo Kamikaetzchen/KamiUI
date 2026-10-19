@@ -928,25 +928,30 @@ local function CreatePanel()
     Module.hoverFrames = hoverFrames
 end
 
--- Forever uses the original Classic XP requirements. The server does not
--- expose historical per-level XP via the addon API. Combining this curve
--- with UnitXP gives lifetime XP, including levels earned before KamiUI.
--- Each entry is the XP required to advance FROM that level.
-local XP_TO_NEXT_LEVEL = {
-    400, 900, 1400, 2100, 2800, 3600, 4500, 5400, 6500, 7600,
-    8800, 10100, 11400, 12900, 14400, 16000, 17700, 19400, 21300,
-    23200, 25200, 27300, 29400, 31700, 34000, 36400, 38900,
-    41400, 44300, 47400, 50800, 54500, 58600, 62800, 67100,
-    71600, 76100, 80800, 85700, 90700, 95800, 101000, 106300,
-    111800, 117500, 123200, 129100, 135100, 141200, 147500,
-    153900, 160400, 167100, 173900, 180800, 187900, 195000,
-    202300, 209800,
-}
+-- Forever currently uses the Classic XP curve. Historical XP is not
+-- exposed by the API, so calculate it from the level requirements.
+local function GetXPToNextLevel(level)
+    if level < 1 or level >= 60 then return nil end
+
+    local difficulty = 0
+    if level == 29 then
+        difficulty = 1
+    elseif level == 30 then
+        difficulty = 3
+    elseif level == 31 then
+        difficulty = 6
+    elseif level >= 32 then
+        difficulty = 5 * (level - 30)
+    end
+
+    local xp = (8 * level + difficulty) * (45 + 5 * level)
+    return math.floor((xp + 50) / 100) * 100
+end
 
 local CUMULATIVE_XP = { [1] = 0 }
 for level = 2, 60 do
-    CUMULATIVE_XP[level] =
-        CUMULATIVE_XP[level - 1] + XP_TO_NEXT_LEVEL[level - 1]
+    CUMULATIVE_XP[level] = CUMULATIVE_XP[level - 1]
+        + GetXPToNextLevel(level - 1)
 end
 
 local function GetXPValues()
@@ -973,7 +978,7 @@ local function GetLifetimeXP()
     -- Avoid claiming a precise lifetime result if a future Forever patch
     -- changes the leveling curve.
     if level > 60 or not CUMULATIVE_XP[level]
-        or (level < 60 and maxXP ~= XP_TO_NEXT_LEVEL[level]) then
+        or (level < 60 and maxXP ~= GetXPToNextLevel(level)) then
         return nil
     end
 
@@ -1097,36 +1102,60 @@ local function FormatXPDuration(seconds)
     return string.format("%ds", seconds)
 end
 
-local function ShowXPTooltip(owner)
-    PrepareTooltip(owner, "Experience per Hour")
-
+-- A common snapshot keeps XP/h and time-to-level tooltips in sync.
+local function GetXPRateSnapshots()
     local sessionSeconds = math.max(0,
         GetTime() - (Module.sessionStart or GetTime()))
     local levelSeconds, totalSeconds = GetPlayedTimes()
     local _, levelXP = GetXPValues()
     local totalXP = GetLifetimeXP()
 
-    local function AddXPRow(label, xp, seconds)
-        local rate = xp and CalculateXPPerHour(xp, seconds)
+    local snapshots = {
+        { label = "Session", xp = Module.sessionXP or 0,
+            seconds = sessionSeconds },
+        { label = "Current level", xp = levelXP,
+            seconds = levelSeconds },
+        { label = "Overall", xp = totalXP,
+            seconds = totalSeconds },
+    }
+
+    for _, snapshot in ipairs(snapshots) do
+        if snapshot.xp ~= nil then
+            snapshot.rate = CalculateXPPerHour(
+                snapshot.xp, snapshot.seconds)
+        end
+    end
+
+    return snapshots
+end
+
+local function EnsurePlayedTime(snapshots)
+    if not snapshots[2].seconds or not snapshots[3].seconds then
+        RequestPlayedTime()
+    end
+end
+
+local function ShowXPTooltip(owner)
+    PrepareTooltip(owner, "Experience per Hour")
+    local snapshots = GetXPRateSnapshots()
+
+    for _, snapshot in ipairs(snapshots) do
         GameTooltip:AddDoubleLine(
-            label, rate and (FormatXPPerHour(rate) .. " XP/h") or "--",
+            snapshot.label,
+            snapshot.rate
+                and (FormatXPPerHour(snapshot.rate) .. " XP/h") or "--",
             1, 1, 1, 1, 0.82, 0
         )
         GameTooltip:AddDoubleLine(
-            "  " .. (xp and (UI:FormatNumber(xp) .. " XP") or "--"),
-            FormatXPDuration(seconds),
+            "  " .. (snapshot.xp
+                and (UI:FormatNumber(snapshot.xp) .. " XP") or "--"),
+            FormatXPDuration(snapshot.seconds),
             0.65, 0.65, 0.65, 0.65, 0.65, 0.65
         )
     end
 
-    AddXPRow("Session", Module.sessionXP or 0, sessionSeconds)
-    AddXPRow("Current level", levelXP, levelSeconds)
-    AddXPRow("Overall", totalXP, totalSeconds)
     GameTooltip:Show()
-
-    if not totalSeconds or not levelSeconds then
-        RequestPlayedTime()
-    end
+    EnsurePlayedTime(snapshots)
 end
 
 tooltipHandlers.xp = ShowXPTooltip
@@ -1159,6 +1188,23 @@ local function GetTimeToLevel(xpPerHour)
 
     return string.format("%dm", minutes)
 end
+
+local function ShowTimeToLevelTooltip(owner)
+    PrepareTooltip(owner, "Time to Level")
+    local snapshots = GetXPRateSnapshots()
+
+    for _, snapshot in ipairs(snapshots) do
+        GameTooltip:AddDoubleLine(
+            snapshot.label, GetTimeToLevel(snapshot.rate),
+            1, 1, 1, 1, 0.82, 0
+        )
+    end
+
+    GameTooltip:Show()
+    EnsurePlayedTime(snapshots)
+end
+
+tooltipHandlers.levelup = ShowTimeToLevelTooltip
 
 function Module:Refresh()
     CreatePanel()
@@ -1259,9 +1305,12 @@ function Module:Initialize()
             Module.playedLevelNumber = UnitLevel("player")
             Module.playedSnapshotAt = GetTime()
 
-            if Module.hoverFrames and Module.hoverFrames.xp
-                and GameTooltip:IsOwned(Module.hoverFrames.xp) then
-                ShowXPTooltip(Module.hoverFrames.xp)
+            local hoverFrames = Module.hoverFrames or {}
+            if hoverFrames.xp and GameTooltip:IsOwned(hoverFrames.xp) then
+                ShowXPTooltip(hoverFrames.xp)
+            elseif hoverFrames.levelup
+                and GameTooltip:IsOwned(hoverFrames.levelup) then
+                ShowTimeToLevelTooltip(hoverFrames.levelup)
             end
         end
     end)
