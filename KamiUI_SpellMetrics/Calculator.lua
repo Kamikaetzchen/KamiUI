@@ -28,16 +28,6 @@ local function BuildMetricSet(
     }
 end
 
-local function GetPhysicalCritChance()
-    if not GetCritChance then return nil end
-    local chance = GetCritChance()
-    if not UI:CanAccessValue(chance)
-        or type(chance) ~= "number" then
-        return nil
-    end
-    return math.max(0, math.min(100, chance))
-end
-
 function Module:CalculateMetrics(data)
     if not data then
         return nil
@@ -45,18 +35,24 @@ function Module:CalculateMetrics(data)
 
     local direct = tonumber(data.direct) or 0
     local periodic = tonumber(data.periodic) or 0
-    -- Physical Feral attacks and bleeds use the player's melee crit chance.
-    -- A 200% crit adds one extra normal hit on average.
-    local critChance
-    if data.outputType == "damage"
-        and (data.resourceType == "Energy"
-            or data.resourceType == "Rage") then
-        critChance = GetPhysicalCritChance()
-    end
-    local critMultiplier = critChance and (1 + critChance / 100) or 1
-    data.critChance = critChance
-    direct = direct * critMultiplier
-    periodic = periodic * critMultiplier
+
+    -- Apply per-component expected crit with an explicit source/profile.
+    -- Physical feral calculations retain the original 2x behavior.
+    -- Unknown spell schools are intentionally not guessed.
+    local directFactor, directCrit =
+        self:GetExpectedCritFactor(data, "direct")
+    local periodicFactor, periodicCrit =
+        self:GetExpectedCritFactor(data, "periodic")
+
+    data.critComponents = {
+        direct = direct > 0 and directCrit or nil,
+        periodic = periodic > 0 and periodicCrit or nil,
+    }
+    data.critChance = directCrit and directCrit.chance
+        or periodicCrit and periodicCrit.chance
+
+    direct = direct * directFactor
+    periodic = periodic * periodicFactor
     local total = direct + periodic
 
     if total <= 0 then
@@ -71,7 +67,10 @@ function Module:CalculateMetrics(data)
         for points = 1, 5 do
             local variant = data.comboVariants[points]
             if variant then
-                local amount = variant.amount * critMultiplier
+                local comboFactor, comboCrit =
+                    self:GetExpectedCritFactor(data, "combo")
+                data.critComponents.combo = comboCrit
+                local amount = variant.amount * comboFactor
                 local duration = variant.duration
                 data.comboMetrics[points] = {
                     damage = amount,
