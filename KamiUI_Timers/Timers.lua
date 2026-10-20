@@ -228,6 +228,7 @@ local function MakeTotemRow(parent, slot)
         CreateTimerBar(parent, Palette.auras.weaponEnchant)
     unit:SetText("Totem")
     local cooldown = CreateFrame("Cooldown", nil, frame, "CooldownFrameTemplate")
+    cooldown:ClearAllPoints()
     cooldown:SetPoint("RIGHT", frame, "RIGHT", -2, 0)
     cooldown:SetSize(Layout.TIME_WIDTH + 5, Layout.HEIGHT)
     cooldown:SetFrameLevel(frame:GetFrameLevel() + 5)
@@ -235,6 +236,23 @@ local function MakeTotemRow(parent, slot)
     cooldown:SetDrawEdge(false)
     cooldown:SetDrawBling(false)
     cooldown:SetHideCountdownNumbers(false)
+
+    -- Native DurationObject countdowns otherwise use Blizzard's large,
+    -- centered cooldown font instead of our 9px right-aligned timer label.
+    if cooldown.GetCountdownFontString then
+        local countdown = cooldown:GetCountdownFontString()
+        if countdown then
+            local font, size, flags = time:GetFont()
+            countdown:SetFont(font, size, flags)
+            countdown:ClearAllPoints()
+            countdown:SetPoint("RIGHT", frame, "RIGHT", -4, 0)
+            countdown:SetSize(Layout.TIME_WIDTH, Layout.HEIGHT)
+            countdown:SetJustifyH("RIGHT")
+            countdown:SetShadowColor(0, 0, 0, 1)
+            countdown:SetShadowOffset(1, -1)
+        end
+    end
+
     cooldown:Hide()
     frame:Hide()
     return { frame = frame, bar = bar, name = name, time = time,
