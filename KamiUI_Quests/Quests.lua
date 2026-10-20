@@ -150,12 +150,19 @@ local function AcceptCurrentQuest(generation)
 
     local questID = CurrentQuestID()
     local attempts = 0
+    local checks = 0
     activeAccept = { questID = questID, accepted = false }
 
     local function TryAccept()
-        if generation ~= dialogGeneration or ShouldBypass()
-            or not QuestFrameDetailPanel
+        if generation ~= dialogGeneration or ShouldBypass() then return end
+        checks = checks + 1
+        if not QuestFrameDetailPanel
             or not QuestFrameDetailPanel:IsShown() then
+            if checks < 6 then
+                C_Timer.After(0.1, TryAccept)
+            else
+                DebugLog("TIMEOUT accept", "detail panel not shown")
+            end
             return
         end
 
@@ -164,11 +171,19 @@ local function AcceptCurrentQuest(generation)
             questID = currentID
             activeAccept.questID = questID
         end
-        if not questID or currentID ~= questID then
-            DebugLog("SKIP accept", "quest ID unavailable or changed")
+        if not questID then
+            if checks < 6 then
+                C_Timer.After(0.1, TryAccept)
+            else
+                DebugLog("TIMEOUT accept", "quest ID unavailable")
+            end
             return
         end
-        if activeAccept.accepted then return end
+        if currentID ~= questID then
+            DebugLog("SKIP accept", "quest ID changed")
+            return
+        end
+        if not activeAccept or activeAccept.accepted then return end
 
         -- PvP and auto-accept quests retain the native confirmation flow.
         if QuestFlagsPVP and QuestFlagsPVP() then
@@ -189,7 +204,8 @@ local function AcceptCurrentQuest(generation)
 
         -- Some first quest dialogs aren't ready on the first attempt.
         -- Never retry after confirmation, navigation, or dialog closure.
-        if attempts < 2 then
+        if attempts < 2 and not (QuestGetAutoAccept
+            and QuestGetAutoAccept()) then
             C_Timer.After(0.4, TryAccept)
         end
     end
@@ -207,10 +223,19 @@ local function CompleteCurrentQuest(generation)
 
     local attempts = 0
     local function TryComplete()
-        if not DialogMatches(generation, questID, QuestFrameProgressPanel)
-            then return end
+        if generation ~= dialogGeneration or ShouldBypass()
+            or CurrentQuestID() ~= questID then return end
 
         attempts = attempts + 1
+        if not QuestFrameProgressPanel
+            or not QuestFrameProgressPanel:IsShown() then
+            if attempts < 6 then
+                C_Timer.After(0.15, TryComplete)
+            else
+                DebugLog("TIMEOUT progress", "panel not shown")
+            end
+            return
+        end
         local completable = IsQuestCompletable and IsQuestCompletable()
         if UI:CanAccessValue(completable) and completable then
             if CompleteQuest then
@@ -248,8 +273,20 @@ local function ClaimCurrentQuestReward(generation)
     local attempts = 0
 
     local function CheckReward()
-        if not DialogMatches(generation, questID, QuestFrameRewardPanel)
-            then return end
+        if generation ~= dialogGeneration or ShouldBypass()
+            or CurrentQuestID() ~= questID then
+            DebugLog("CANCEL reward", "dialog changed")
+            return
+        end
+        if not QuestFrameRewardPanel
+            or not QuestFrameRewardPanel:IsShown() then
+            if GetTime() - startTime < 0.8 then
+                C_Timer.After(0.1, CheckReward)
+            else
+                DebugLog("CANCEL reward", "reward panel not shown")
+            end
+            return
+        end
 
         attempts = attempts + 1
         local choices = GetNumQuestChoices()
