@@ -78,6 +78,7 @@ local function SelectGossipQuest()
 
         for _, questInfo in ipairs(activeQuests) do
             if questInfo.isComplete and questInfo.questID then
+                TrackAction("SelectGossipActiveQuest", questInfo.questID)
                 C_GossipInfo.SelectActiveQuest(questInfo.questID)
                 return true
             end
@@ -91,6 +92,7 @@ local function SelectGossipQuest()
 
         for _, questInfo in ipairs(availableQuests) do
             if questInfo.questID and not questInfo.isIgnored then
+                TrackAction("SelectGossipAvailableQuest", questInfo.questID)
                 C_GossipInfo.SelectAvailableQuest(questInfo.questID)
                 return true
             end
@@ -113,6 +115,8 @@ local function SelectGreetingQuest()
             local _, isComplete = GetActiveTitle(index)
 
             if isComplete then
+                TrackAction("SelectGreetingActiveQuest #" .. index,
+                    CurrentQuestID())
                 SelectActiveQuest(index)
                 return true
             end
@@ -123,6 +127,8 @@ local function SelectGreetingQuest()
         local availableCount = GetNumAvailableQuests() or 0
 
         if availableCount > 0 then
+            TrackAction("SelectGreetingAvailableQuest #1",
+                CurrentQuestID())
             SelectAvailableQuest(1)
             return true
         end
