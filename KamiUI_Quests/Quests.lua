@@ -415,14 +415,24 @@ function Module:Initialize()
     end)
 
     UI:RegisterEvent("UI_ERROR_MESSAGE", function(_, _, message)
-        if not debugEnabled then return end
+        if not debugEnabled or type(message) ~= "string" then return end
+
+        -- UI_ERROR_MESSAGE also fires for every failed spell or action.
+        -- QuestDebug should only repeat quest-related errors in chat.
+        -- Prefer Blizzard's localized strings; the text fallback also
+        -- catches other errors explicitly mentioning a quest.
+        local questError =
+            (ERR_QUEST_NEED_PREREQS and message == ERR_QUEST_NEED_PREREQS)
+            or (ERR_QUEST_MUST_CHOOSE and message == ERR_QUEST_MUST_CHOOSE)
+            or message:lower():find("quest", 1, true) ~= nil
+        if not questError then return end
+
         local action = "none"
         if lastAction and GetTime() - lastAction.time < 3 then
             action = lastAction.action .. " quest="
                 .. tostring(lastAction.questID)
         end
-        DebugLog("UI_ERROR", tostring(message or "?"),
-            "lastAction=" .. action)
+        DebugLog("UI_ERROR", message, "lastAction=" .. action)
     end)
 end
 
