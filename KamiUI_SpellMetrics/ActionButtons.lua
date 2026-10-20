@@ -158,6 +158,10 @@ end
 function Module:RefreshActionButtons(invalidate)
     refreshPending = false
 
+    -- Even inside combat, try to acquire readable stats. Secret numbers
+    -- leave the last known snapshot intact for consistent estimates.
+    self:UpdateCritSnapshot()
+
     if invalidate or invalidatePending then
         self:InvalidateCache()
     end
