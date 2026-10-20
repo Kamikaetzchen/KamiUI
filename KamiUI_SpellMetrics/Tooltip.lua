@@ -237,12 +237,33 @@ local function AddSpellAnalysis(tooltip, data)
 
     AddComboMetrics(tooltip, analysis)
 
-    if analysis.critChance then
-        tooltip:AddLine(
-            string.format("Expected damage incl. %.1f%% melee crit (2x).",
-                analysis.critChance),
-            0.65, 0.65, 0.68
-        )
+    local crit = analysis.critComponents
+    if crit then
+        local first = crit.direct or crit.periodic or crit.combo
+        if first then
+            if first.chance then
+                tooltip:AddLine(
+                    string.format(
+                        "~ %.1f%% %s crit (%.2fx), expected output.",
+                        first.chance,
+                        first.source or "unknown",
+                        first.multiplier or 2
+                    ),
+                    0.65, 0.65, 0.68
+                )
+            end
+
+            local stale = (crit.direct and crit.direct.stale)
+                or (crit.periodic and crit.periodic.stale)
+                or (crit.combo and crit.combo.stale)
+
+            if stale then
+                tooltip:AddLine(
+                    "Crit estimate uses last readable stats; combat buffs may change it.",
+                    0.85, 0.65, 0.30, true
+                )
+            end
+        end
     end
 
     if analysis.weaponEstimate then
