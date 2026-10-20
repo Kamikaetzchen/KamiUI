@@ -51,11 +51,10 @@ end
 local function SetDebug(value)
     debugEnabled = value
     UI:Print("Quest debug " .. (debugEnabled and "enabled" or "disabled")
-        .. " (chat output, /kquestdebug to toggle)")
+        .. " (chat output, /kami quest debug to toggle)")
 end
 
-SLASH_KAMIQUESTDEBUG1 = "/kquestdebug"
-SlashCmdList["KAMIQUESTDEBUG"] = function(arg)
+UI:RegisterCommand("quest", "debug", function(arg)
     arg = (arg or ""):lower()
     if arg == "on" then
         SetDebug(true)
@@ -64,7 +63,7 @@ SlashCmdList["KAMIQUESTDEBUG"] = function(arg)
     else
         SetDebug(not debugEnabled)
     end
-end
+end, "Toggle quest chat debugging (optional: on/off)")
 
 local function SelectGossipQuest()
     if ShouldBypass() or not C_GossipInfo then
