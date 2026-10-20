@@ -9,6 +9,7 @@
 
 Core.lua
 SpellData.lua
+Crit.lua
 Calculator.lua
 Tooltip.lua
 ActionButtons.lua
