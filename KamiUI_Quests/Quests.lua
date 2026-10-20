@@ -296,13 +296,35 @@ local function ClaimCurrentQuestReward(generation)
 
         attempts = attempts + 1
         local choices = GetNumQuestChoices()
+        -- Quest-log reward data is independent of the active NPC dialog.
+        -- If it knows about multiple choices, never trust a smaller
+        -- transient count reported by GetNumQuestChoices().
+        local logChoices
+        if GetNumQuestLogChoices then
+            local ok, count = pcall(GetNumQuestLogChoices, questID, true)
+            if ok and UI:CanAccessValue(count)
+                and type(count) == "number" and count >= 0 then
+                logChoices = count
+            end
+        end
+
         if not UI:CanAccessValue(choices)
             or type(choices) ~= "number" or choices < 0 then
             DebugLog("REWARD pending", "unavailable choice count")
-        elseif choices > 1 then
+        elseif choices > 1 or (logChoices and logChoices > 1) then
             DebugLog("REWARD manual", "quest=" .. questID,
-                "choices=" .. choices)
+                "choices=" .. choices,
+                "logChoices=" .. tostring(logChoices or "?"))
             return
+        elseif choices == 0 then
+            -- Confirmed in Forever: some quests with TWO selectable items
+            -- report 0 for at least 0.6s, then GetQuestReward(0) fails
+            -- with ERR_QUEST_NEED_PREREQS. Zero is NOT evidence of no
+            -- choices, even when stable across multiple checks.
+            -- Wait for real data, then leave ambiguous quests to the user.
+            DebugLog("REWARD pending", "quest=" .. questID,
+                "choices=0", "logChoices=" .. tostring(logChoices or "?"),
+                string.format("elapsed=%.2fs", GetTime() - startTime))
         else
             if choices == lastChoices then
                 stableChecks = stableChecks + 1
@@ -313,14 +335,11 @@ local function ClaimCurrentQuestReward(generation)
             local elapsed = GetTime() - startTime
             DebugLog("REWARD check", "quest=" .. questID,
                 "choices=" .. choices, "stable=" .. stableChecks,
+                "logChoices=" .. tostring(logChoices or "?"),
                 string.format("elapsed=%.2fs", elapsed))
 
-            -- A zero can temporarily mean "choices have not arrived yet".
-            -- Wait longer for zero than for a single known choice.
-            local minimumWait = choices == 0 and 0.6 or 0.35
-            local ready = elapsed >= minimumWait and stableChecks >= 3
-
-            if ready and choices == 1 and GetQuestItemInfo then
+            local ready = elapsed >= 0.35 and stableChecks >= 3
+            if ready and GetQuestItemInfo then
                 local itemName = GetQuestItemInfo("choice", 1)
                 ready = UI:CanAccessValue(itemName) and itemName ~= nil
             end
@@ -334,9 +353,8 @@ local function ClaimCurrentQuestReward(generation)
                     return
                 end
 
-                TrackAction("GetQuestReward(" .. (choices == 1 and 1 or 0)
-                    .. ")", questID)
-                GetQuestReward(choices == 1 and 1 or 0)
+                TrackAction("GetQuestReward(1)", questID)
+                GetQuestReward(1)
                 return
             end
         end
@@ -345,7 +363,8 @@ local function ClaimCurrentQuestReward(generation)
             C_Timer.After(0.1, CheckReward)
         else
             DebugLog("TIMEOUT reward", "quest=" .. questID,
-                "left for manual completion")
+                "choices=" .. tostring(choices),
+                "left for manual completion (unconfirmed reward data)")
         end
     end
 
