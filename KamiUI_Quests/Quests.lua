@@ -10,7 +10,7 @@ end
 -- Quest events can precede the server/UI finishing a dialog transition.
 -- Keep every delayed action tied to its original quest and dialog stage.
 local dialogGeneration = 0
-local debugEnabled = false
+local debugEnabled = true
 local lastAction
 local activeAccept
 
@@ -275,6 +275,7 @@ local function ClaimCurrentQuestReward(generation)
 
     local startTime = GetTime()
     local lastChoices
+    local lastLogChoices
     local stableChecks = 0
     local attempts = 0
 
@@ -310,36 +311,41 @@ local function ClaimCurrentQuestReward(generation)
 
         if not UI:CanAccessValue(choices)
             or type(choices) ~= "number" or choices < 0 then
-            DebugLog("REWARD pending", "unavailable choice count")
+            if attempts == 1 then
+                DebugLog("REWARD pending", "unavailable choice count")
+            end
         elseif choices > 1 or (logChoices and logChoices > 1) then
+            -- Either source can positively prove that the user must choose.
             DebugLog("REWARD manual", "quest=" .. questID,
                 "choices=" .. choices,
                 "logChoices=" .. tostring(logChoices or "?"))
             return
-        elseif choices == 0 then
-            -- Confirmed in Forever: some quests with TWO selectable items
-            -- report 0 for at least 0.6s, then GetQuestReward(0) fails
-            -- with ERR_QUEST_NEED_PREREQS. Zero is NOT evidence of no
-            -- choices, even when stable across multiple checks.
-            -- Wait for real data, then leave ambiguous quests to the user.
-            DebugLog("REWARD pending", "quest=" .. questID,
-                "choices=0", "logChoices=" .. tostring(logChoices or "?"),
-                string.format("elapsed=%.2fs", GetTime() - startTime))
         else
+            -- A zero may mean either genuinely no choice or temporarily
+            -- missing choice data. For leveling speed, try the native
+            -- no-choice completion after a short, stable observation period.
+            -- A rare delayed-choice quest may fail; debug keeps the evidence.
             if choices == lastChoices then
                 stableChecks = stableChecks + 1
             else
                 stableChecks = 1
                 lastChoices = choices
             end
-            local elapsed = GetTime() - startTime
-            DebugLog("REWARD check", "quest=" .. questID,
-                "choices=" .. choices, "stable=" .. stableChecks,
-                "logChoices=" .. tostring(logChoices or "?"),
-                string.format("elapsed=%.2fs", elapsed))
 
-            local ready = elapsed >= 0.35 and stableChecks >= 3
-            if ready and GetQuestItemInfo then
+            if attempts == 1 or logChoices ~= lastLogChoices
+                or stableChecks == 1 then
+                DebugLog("REWARD check", "quest=" .. questID,
+                    "choices=" .. choices,
+                    "logChoices=" .. tostring(logChoices or "?"),
+                    "stable=" .. stableChecks)
+            end
+            lastLogChoices = logChoices
+
+            local elapsed = GetTime() - startTime
+            local minimumWait = choices == 0 and 0.7 or 0.35
+            local ready = elapsed >= minimumWait and stableChecks >= 3
+
+            if ready and choices == 1 and GetQuestItemInfo then
                 local itemName = GetQuestItemInfo("choice", 1)
                 ready = UI:CanAccessValue(itemName) and itemName ~= nil
             end
@@ -353,8 +359,13 @@ local function ClaimCurrentQuestReward(generation)
                     return
                 end
 
-                TrackAction("GetQuestReward(1)", questID)
-                GetQuestReward(1)
+                local rewardIndex = choices == 1 and 1 or 0
+                DebugLog("REWARD auto", "quest=" .. questID,
+                    "choices=" .. choices,
+                    "logChoices=" .. tostring(logChoices or "?"),
+                    string.format("elapsed=%.2fs", elapsed))
+                TrackAction("GetQuestReward(" .. rewardIndex .. ")", questID)
+                GetQuestReward(rewardIndex)
                 return
             end
         end
