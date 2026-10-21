@@ -125,7 +125,6 @@ local function AcceptCurrentQuest(generation)
             or not QuestFrameDetailPanel:IsShown() then
             if checks < 6 then
                 C_Timer.After(0.1, TryAccept)
-            else
             end
             return
         end
@@ -138,7 +137,6 @@ local function AcceptCurrentQuest(generation)
         if not questID then
             if checks < 6 then
                 C_Timer.After(0.1, TryAccept)
-            else
             end
             return
         end
@@ -189,7 +187,6 @@ local function CompleteCurrentQuest(generation)
             or not QuestFrameProgressPanel:IsShown() then
             if attempts < 6 then
                 C_Timer.After(0.15, TryComplete)
-            else
             end
             return
         end
@@ -224,8 +221,6 @@ local function ClaimCurrentQuestReward(generation)
     local startTime = GetTime()
     local lastChoices
     local stableChecks = 0
-    local attempts = 0
-
     local function CheckReward()
         if generation ~= dialogGeneration or ShouldBypass()
             or CurrentQuestID() ~= questID then
@@ -235,12 +230,10 @@ local function ClaimCurrentQuestReward(generation)
             or not QuestFrameRewardPanel:IsShown() then
             if GetTime() - startTime < 0.8 then
                 C_Timer.After(0.1, CheckReward)
-            else
             end
             return
         end
 
-        attempts = attempts + 1
         local choices = GetNumQuestChoices()
         -- Quest-log reward data is independent of the active NPC dialog.
         -- If it knows about multiple choices, never trust a smaller
@@ -256,6 +249,7 @@ local function ClaimCurrentQuestReward(generation)
 
         if not UI:CanAccessValue(choices)
             or type(choices) ~= "number" or choices < 0 then
+            -- The reward list is still loading; retry within the deadline.
         elseif choices > 1 or (logChoices and logChoices > 1) then
             -- Either source can positively prove that the user must choose.
             return
@@ -297,7 +291,6 @@ local function ClaimCurrentQuestReward(generation)
 
         if GetTime() - startTime < 1.6 then
             C_Timer.After(0.1, CheckReward)
-        else
         end
     end
 
