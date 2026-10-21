@@ -11,6 +11,7 @@ local bankOpen = false
 local bankInitialized = true
 local pendingRefresh = false
 local sortingBank = false
+local bankLoadRetries = 0
 
 local function HasInitializedBank()
     if not C_Bank
@@ -89,6 +90,16 @@ local function GetBankTabs()
     end
 
     local purchasedCount = #tabData
+    -- Forever may load the tab metadata one or more frames after the
+    -- bank opens. The count API can be ready before the tab-data API.
+    if C_Bank and C_Bank.FetchNumPurchasedBankTabs
+        and Enum and Enum.BankType then
+        local reported = UI:SafeCall(
+            C_Bank.FetchNumPurchasedBankTabs, Enum.BankType.Character)
+        if type(reported) == "number" then
+            purchasedCount = math.max(purchasedCount, reported)
+        end
+    end
     local bankBagSlots = Enum
         and Enum.BagIndex
         and Enum.BagIndex.Characterbanktab
@@ -149,16 +160,22 @@ local function SaveCurrentBank()
         characters:UpdateCurrentCharacter()
     end
 
-    local character = db.characters[key] or {}
+    local tabs = GetBankTabs()
+    -- Never replace a good saved bank with an empty/partially loaded
+    -- snapshot. CharacterBankTab_1 is the mandatory 48-slot base tab.
+    if #tabs == 0 or tabs[1].index ~= 1 or tabs[1].slotCount <= 0 then
+        return false
+    end
 
-    character.bankItems = {}
-    character.bank = {
+    local character = db.characters[key] or {}
+    local bankItems = {}
+    local snapshot = {
         tabs = {},
         equippedBags = {},
         updated = time and time() or 0,
     }
 
-    for _, tab in ipairs(GetBankTabs()) do
+    for _, tab in ipairs(tabs) do
         local savedTab = {
             bagID = tab.bagID,
             index = tab.index,
@@ -169,10 +186,12 @@ local function SaveCurrentBank()
             slots = {},
         }
 
+        local occupied = 0
         for slotID = 1, tab.slotCount do
             local info = UI:GetContainerItemInfo(tab.bagID, slotID)
 
             if info then
+                occupied = occupied + 1
                 local itemName
 
                 if info.hyperlink and GetItemInfo then
@@ -189,14 +208,26 @@ local function SaveCurrentBank()
                 }
 
                 if info.itemID then
-                    character.bankItems[info.itemID] =
-                        (character.bankItems[info.itemID] or 0)
+                    bankItems[info.itemID] =
+                        (bankItems[info.itemID] or 0)
                         + (info.stackCount or 1)
                 end
             end
         end
 
-        character.bank.tabs[#character.bank.tabs + 1] = savedTab
+        -- Free-slot metadata helps detect a container whose contents have
+        -- not arrived yet. Ignore zero-slot optional empty bank-bag tabs.
+        if tab.slotCount > 0 then
+            local free = UI:SafeCall(
+                UI.GetContainerNumFreeSlots, UI, tab.bagID)
+            if type(free) == "number" and free >= 0
+                and free <= tab.slotCount
+                and occupied < tab.slotCount - free then
+                return false
+            end
+        end
+
+        snapshot.tabs[#snapshot.tabs + 1] = savedTab
     end
 
     -- Bank bags live in the bank's bag slots, not inside their contents.
@@ -206,7 +237,7 @@ local function SaveCurrentBank()
         and Enum.BagIndex.Characterbanktab
 
     if bankBagSlots then
-        for _, tab in ipairs(character.bank.tabs) do
+        for _, tab in ipairs(snapshot.tabs) do
             if tab.index and tab.index > 1 then
                 local info = UI:GetContainerItemInfo(bankBagSlots, tab.index)
                 if info and info.itemID then
@@ -216,7 +247,7 @@ local function SaveCurrentBank()
                             info.hyperlink or info.itemID
                         )
                     end
-                    character.bank.equippedBags[#character.bank.equippedBags + 1] = {
+                    snapshot.equippedBags[#snapshot.equippedBags + 1] = {
                         itemID = info.itemID,
                         link = info.hyperlink,
                         name = name or info.itemName,
@@ -229,7 +260,11 @@ local function SaveCurrentBank()
         end
     end
 
+    -- Publish both indexes only once a coherent snapshot exists.
+    character.bank = snapshot
+    character.bankItems = bankItems
     db.characters[key] = character
+    return true
 end
 
 local function GetViewedCharacter()
@@ -1017,6 +1052,9 @@ function Module:Rebuild()
 
         frame.activeButtons = active
         frame.liveBankAccess = false
+        if frame.emptyMessage then
+            frame.emptyMessage:SetShown(#tabs == 0)
+        end
 
         if self.highlightedBagID then
             self:SetBagSlotHighlight(self.highlightedBagID, true)
@@ -1030,6 +1068,7 @@ function Module:Rebuild()
     end
 
     frame.liveBankAccess = true
+    if frame.emptyMessage then frame.emptyMessage:Hide() end
     local tabs = GetBankTabs()
 
     for _, tab in ipairs(tabs) do
@@ -1154,9 +1193,15 @@ local function ScheduleRefresh()
             return
         end
 
-        -- Bank slot changes only require new contents, not a new grid.
-        SaveCurrentBank()
+        -- Retry transient first-tab loading instead of erasing the cache.
+        local saved = SaveCurrentBank()
         Module:Refresh()
+        if saved then
+            bankLoadRetries = 0
+        elseif bankLoadRetries < 16 then
+            bankLoadRetries = bankLoadRetries + 1
+            C_Timer.After(0.25, ScheduleRefresh)
+        end
     end)
 end
 
@@ -1288,6 +1333,14 @@ local function CreateFrameUI()
     frame.cachedButtons = {}
     frame.activeButtons = {}
     frame.carriers = {}
+
+    local emptyMessage = content:CreateFontString(
+        nil, "OVERLAY", "GameFontNormal")
+    emptyMessage:SetPoint("CENTER", content, "CENTER", 0, 0)
+    emptyMessage:SetText("No cached bank data yet. Open the bank to sync.")
+    emptyMessage:SetTextColor(0.65, 0.75, 0.65)
+    emptyMessage:Hide()
+    frame.emptyMessage = emptyMessage
 
     local sort = CreateFrame("Button", nil, frame)
     sort:SetSize(34, 18)
@@ -1451,11 +1504,18 @@ eventFrame:SetScript("OnEvent", function(_, event, ...)
         -- OnHide path, so the bank always stays visually suppressed only.
         UI:SuppressFrame(BankFrame)
         ShowOpenBank()
+        bankLoadRetries = 0
+        ScheduleRefresh()
         return
     end
 
     if event == "BANKFRAME_CLOSED" then
+        -- Attempt a final snapshot while the bank is still flagged open.
+        -- The guarded save keeps the older cache if the client already
+        -- released its live containers.
+        SaveCurrentBank()
         bankOpen = false
+        bankLoadRetries = 0
         Module.viewCharacterKey = nil
 
         if Module.frame then
@@ -1479,6 +1539,8 @@ eventFrame:SetScript("OnEvent", function(_, event, ...)
             -- its effective visibility.
             if bankOpen then
                 ShowOpenBank()
+                bankLoadRetries = 0
+                ScheduleRefresh()
             end
 
             return
