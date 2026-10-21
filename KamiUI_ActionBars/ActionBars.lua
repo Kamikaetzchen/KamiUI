@@ -339,6 +339,97 @@ local function StyleButton(button, size)
     StyleCooldown(button.chargeCooldown, button)
 end
 
+-- Blizzard Quick Keybind Mode only listens to buttons exposing a binding
+-- commandName and a hover target. LAB provides neither integration.
+-- Use an input-only overlay while the editor is open, so mouse clicks
+-- cannot accidentally activate the underlying secure action button.
+local quickKeybindOverlays = {}
+
+local function QuickKeybindOpen()
+    return QuickKeybindFrame and QuickKeybindFrame:IsShown()
+end
+
+local function ShowQuickKeybindOverlays(show)
+    if InCombatLockdown and InCombatLockdown() then return end
+
+    for _, overlay in ipairs(quickKeybindOverlays) do
+        overlay:SetShown(show)
+    end
+end
+
+local function AttachQuickKeybindFrame()
+    local frame = QuickKeybindFrame
+
+    if not frame or Module.quickKeybindFrame == frame then return end
+
+    Module.quickKeybindFrame = frame
+    frame:HookScript("OnShow", function()
+        ShowQuickKeybindOverlays(true)
+    end)
+    frame:HookScript("OnHide", function()
+        ShowQuickKeybindOverlays(false)
+    end)
+
+    if frame:IsShown() then
+        ShowQuickKeybindOverlays(true)
+    end
+end
+
+local function CreateQuickKeybindOverlay(button, command)
+    local overlay = CreateFrame("Button", nil, button)
+    overlay:SetAllPoints(button)
+    overlay:SetFrameLevel(button:GetFrameLevel() + 20)
+    overlay:EnableMouse(true)
+    overlay:EnableMouseWheel(true)
+    overlay:RegisterForClicks("AnyUp")
+    overlay.commandName = command
+
+    local highlight = overlay:CreateTexture(nil, "OVERLAY")
+    highlight:SetAllPoints(overlay)
+    highlight:SetAtlas("UI-HUD-ActionBar-IconFrame-Mouseover")
+    highlight:SetBlendMode("ADD")
+    highlight:SetAlpha(0.65)
+
+    -- QuickKeybindFrame:OnKeyDown calls this on its selected button.
+    -- Reuse Blizzard's tooltip implementation without replacing any of
+    -- the secure LAB button's existing scripts or methods.
+    function overlay:QuickKeybindButtonSetTooltip(...)
+        local mixin = QuickKeybindButtonTemplateMixin
+        if mixin and mixin.QuickKeybindButtonSetTooltip then
+            mixin.QuickKeybindButtonSetTooltip(self, ...)
+        end
+    end
+
+    overlay:SetScript("OnEnter", function(self)
+        if not QuickKeybindOpen() then return end
+        GameTooltip:Hide()
+        QuickKeybindFrame:SetSelected(self.commandName, self)
+        self:QuickKeybindButtonSetTooltip()
+    end)
+    overlay:SetScript("OnLeave", function(self)
+        if QuickKeybindFrame
+            and QuickKeybindFrame.mouseOverButton == self then
+            QuickKeybindFrame:SetSelected(nil, nil)
+        end
+        if QuickKeybindTooltip then QuickKeybindTooltip:Hide() end
+    end)
+    overlay:SetScript("OnClick", function(_, mouseButton)
+        if QuickKeybindOpen()
+            and mouseButton ~= "LeftButton"
+            and mouseButton ~= "RightButton" then
+            QuickKeybindFrame:OnKeyDown(mouseButton)
+        end
+    end)
+    overlay:SetScript("OnMouseWheel", function(_, delta)
+        if QuickKeybindOpen() then
+            QuickKeybindFrame:OnMouseWheel(delta)
+        end
+    end)
+
+    overlay:Hide()
+    quickKeybindOverlays[#quickKeybindOverlays + 1] = overlay
+end
+
 local function NewLABConfig(binding)
     return {
         showGrid = false,
@@ -463,6 +554,8 @@ local function CreateActionBar(def)
                 or Layout.SECONDARY_BUTTON_SIZE
         )
         SetupGCDSwipe(button)
+        CreateQuickKeybindOverlay(
+            button, string.format(def.binding, index))
 
         -- StyleButton must not force empty LAB buttons visible.
         button:UpdateAction(true)
@@ -1262,6 +1355,7 @@ end
 
 function Module:Initialize()
     self:Apply()
+    AttachQuickKeybindFrame()
 
     UI:RegisterEvent("PLAYER_ENTERING_WORLD", function()
         C_Timer.After(0, function()
@@ -1371,7 +1465,9 @@ function Module:Initialize()
     end)
 
     UI:RegisterEvent("ADDON_LOADED", function(_, addonName)
-        if addonName == "Blizzard_ActionBar"
+        if addonName == "Blizzard_QuickKeybind" then
+            AttachQuickKeybindFrame()
+        elseif addonName == "Blizzard_ActionBar"
             or addonName == "Blizzard_EditMode"
             or addonName == "Blizzard_MicroMenu"
             or addonName == "Blizzard_MainMenuBarBagButtons"
