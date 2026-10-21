@@ -10,16 +10,7 @@ end
 -- Quest events can precede the server/UI finishing a dialog transition.
 -- Keep every delayed action tied to its original quest and dialog stage.
 local dialogGeneration = 0
-local debugEnabled = true
-local lastAction
 local activeAccept
-
-local function DebugLog(...)
-    if debugEnabled then
-        UI:Print(string.format("|cff99ccff[QuestDebug %.2f]|r",
-            GetTime()), ...)
-    end
-end
 
 local function CurrentQuestID()
     if not GetQuestID then return nil end
@@ -31,8 +22,6 @@ end
 
 local function NewDialog(event)
     dialogGeneration = dialogGeneration + 1
-    DebugLog(event, "quest=" .. tostring(CurrentQuestID() or "?"),
-        "generation=" .. dialogGeneration)
     return dialogGeneration
 end
 
@@ -42,28 +31,6 @@ local function DialogMatches(generation, questID, panel)
         and panel and panel:IsShown()
         and questID and CurrentQuestID() == questID
 end
-
-local function TrackAction(action, questID)
-    lastAction = { action = action, questID = questID, time = GetTime() }
-    DebugLog("CALL", action, "quest=" .. tostring(questID or "?"))
-end
-
-local function SetDebug(value)
-    debugEnabled = value
-    UI:Print("Quest debug " .. (debugEnabled and "enabled" or "disabled")
-        .. " (chat output, /kami quest debug to toggle)")
-end
-
-UI:RegisterCommand("quest", "debug", function(arg)
-    arg = (arg or ""):lower()
-    if arg == "on" then
-        SetDebug(true)
-    elseif arg == "off" then
-        SetDebug(false)
-    else
-        SetDebug(not debugEnabled)
-    end
-end, "Toggle quest chat debugging (optional: on/off)")
 
 local function SelectGossipQuest()
     if ShouldBypass() or not C_GossipInfo then
@@ -77,7 +44,6 @@ local function SelectGossipQuest()
 
         for _, questInfo in ipairs(activeQuests) do
             if questInfo.isComplete and questInfo.questID then
-                TrackAction("SelectGossipActiveQuest", questInfo.questID)
                 C_GossipInfo.SelectActiveQuest(questInfo.questID)
                 return true
             end
@@ -91,7 +57,6 @@ local function SelectGossipQuest()
 
         for _, questInfo in ipairs(availableQuests) do
             if questInfo.questID and not questInfo.isIgnored then
-                TrackAction("SelectGossipAvailableQuest", questInfo.questID)
                 C_GossipInfo.SelectAvailableQuest(questInfo.questID)
                 return true
             end
@@ -114,8 +79,6 @@ local function SelectGreetingQuest()
             local _, isComplete = GetActiveTitle(index)
 
             if isComplete then
-                TrackAction("SelectGreetingActiveQuest #" .. index,
-                    CurrentQuestID())
                 SelectActiveQuest(index)
                 return true
             end
@@ -126,8 +89,6 @@ local function SelectGreetingQuest()
         local availableCount = GetNumAvailableQuests() or 0
 
         if availableCount > 0 then
-            TrackAction("SelectGreetingAvailableQuest #1",
-                CurrentQuestID())
             SelectAvailableQuest(1)
             return true
         end
@@ -144,7 +105,6 @@ local function OpenGossipQuest(event, selector, panel)
                 or not panel or not panel:IsShown() then
                 return
             end
-            DebugLog("RETRY", event, "quest list was initially empty")
             selector()
         end)
     end
@@ -166,7 +126,6 @@ local function AcceptCurrentQuest(generation)
             if checks < 6 then
                 C_Timer.After(0.1, TryAccept)
             else
-                DebugLog("TIMEOUT accept", "detail panel not shown")
             end
             return
         end
@@ -180,30 +139,25 @@ local function AcceptCurrentQuest(generation)
             if checks < 6 then
                 C_Timer.After(0.1, TryAccept)
             else
-                DebugLog("TIMEOUT accept", "quest ID unavailable")
             end
             return
         end
         if currentID ~= questID then
-            DebugLog("SKIP accept", "quest ID changed")
             return
         end
         if not activeAccept or activeAccept.accepted then return end
 
         -- PvP and auto-accept quests retain the native confirmation flow.
         if QuestFlagsPVP and QuestFlagsPVP() then
-            DebugLog("SKIP accept", "PvP confirmation")
             return
         end
 
         attempts = attempts + 1
         if QuestGetAutoAccept and QuestGetAutoAccept() then
             if AcknowledgeAutoAcceptQuest then
-                TrackAction("AcknowledgeAutoAcceptQuest", questID)
                 AcknowledgeAutoAcceptQuest()
             end
         elseif AcceptQuest then
-            TrackAction("AcceptQuest #" .. attempts, questID)
             AcceptQuest()
         end
 
@@ -222,7 +176,6 @@ local function CompleteCurrentQuest(generation)
     if ShouldBypass() or not C_Timer or not C_Timer.After then return end
     local questID = CurrentQuestID()
     if not questID then
-        DebugLog("SKIP progress", "quest ID unavailable")
         return
     end
 
@@ -237,14 +190,12 @@ local function CompleteCurrentQuest(generation)
             if attempts < 6 then
                 C_Timer.After(0.15, TryComplete)
             else
-                DebugLog("TIMEOUT progress", "panel not shown")
             end
             return
         end
         local completable = IsQuestCompletable and IsQuestCompletable()
         if UI:CanAccessValue(completable) and completable then
             if CompleteQuest then
-                TrackAction("CompleteQuest", questID)
                 CompleteQuest()
             end
             return
@@ -253,7 +204,6 @@ local function CompleteCurrentQuest(generation)
         if attempts < 6 then
             C_Timer.After(0.15, TryComplete)
         else
-            DebugLog("TIMEOUT progress", "quest=" .. questID)
         end
     end
 
@@ -268,20 +218,17 @@ local function ClaimCurrentQuestReward(generation)
 
     local questID = CurrentQuestID()
     if not questID then
-        DebugLog("SKIP reward", "quest ID unavailable")
         return
     end
 
     local startTime = GetTime()
     local lastChoices
-    local lastLogChoices
     local stableChecks = 0
     local attempts = 0
 
     local function CheckReward()
         if generation ~= dialogGeneration or ShouldBypass()
             or CurrentQuestID() ~= questID then
-            DebugLog("CANCEL reward", "dialog changed")
             return
         end
         if not QuestFrameRewardPanel
@@ -289,7 +236,6 @@ local function ClaimCurrentQuestReward(generation)
             if GetTime() - startTime < 0.8 then
                 C_Timer.After(0.1, CheckReward)
             else
-                DebugLog("CANCEL reward", "reward panel not shown")
             end
             return
         end
@@ -310,20 +256,14 @@ local function ClaimCurrentQuestReward(generation)
 
         if not UI:CanAccessValue(choices)
             or type(choices) ~= "number" or choices < 0 then
-            if attempts == 1 then
-                DebugLog("REWARD pending", "unavailable choice count")
-            end
         elseif choices > 1 or (logChoices and logChoices > 1) then
             -- Either source can positively prove that the user must choose.
-            DebugLog("REWARD manual", "quest=" .. questID,
-                "choices=" .. choices,
-                "logChoices=" .. tostring(logChoices or "?"))
             return
         else
             -- A zero may mean either genuinely no choice or temporarily
             -- missing choice data. For leveling speed, try the native
             -- no-choice completion after a short, stable observation period.
-            -- A rare delayed-choice quest may fail; debug keeps the evidence.
+
             if choices == lastChoices then
                 stableChecks = stableChecks + 1
             else
@@ -331,14 +271,6 @@ local function ClaimCurrentQuestReward(generation)
                 lastChoices = choices
             end
 
-            if attempts == 1 or logChoices ~= lastLogChoices
-                or stableChecks == 1 then
-                DebugLog("REWARD check", "quest=" .. questID,
-                    "choices=" .. choices,
-                    "logChoices=" .. tostring(logChoices or "?"),
-                    "stable=" .. stableChecks)
-            end
-            lastLogChoices = logChoices
 
             local elapsed = GetTime() - startTime
             local minimumWait = choices == 0 and 0.7 or 0.35
@@ -354,16 +286,10 @@ local function ClaimCurrentQuestReward(generation)
                     and GetQuestMoneyToGet() or 0
                 if not UI:CanAccessValue(money) or type(money) ~= "number"
                     or money > 0 then
-                    DebugLog("REWARD manual", "money confirmation")
                     return
                 end
 
                 local rewardIndex = choices == 1 and 1 or 0
-                DebugLog("REWARD auto", "quest=" .. questID,
-                    "choices=" .. choices,
-                    "logChoices=" .. tostring(logChoices or "?"),
-                    string.format("elapsed=%.2fs", elapsed))
-                TrackAction("GetQuestReward(" .. rewardIndex .. ")", questID)
                 GetQuestReward(rewardIndex)
                 return
             end
@@ -372,9 +298,6 @@ local function ClaimCurrentQuestReward(generation)
         if GetTime() - startTime < 1.6 then
             C_Timer.After(0.1, CheckReward)
         else
-            DebugLog("TIMEOUT reward", "quest=" .. questID,
-                "choices=" .. tostring(choices),
-                "left for manual completion (unconfirmed reward data)")
         end
     end
 
@@ -412,38 +335,12 @@ function Module:Initialize()
     end)
 
     UI:RegisterEvent("QUEST_ACCEPTED", function(_, id, alternateID)
-        DebugLog("QUEST_ACCEPTED", "id=" .. tostring(id or "?"),
-            "alternate=" .. tostring(alternateID or "?"))
         if activeAccept and (id == activeAccept.questID
             or alternateID == activeAccept.questID) then
             activeAccept.accepted = true
         end
     end)
 
-    UI:RegisterEvent("QUEST_TURNED_IN", function(_, questID)
-        DebugLog("QUEST_TURNED_IN", "quest=" .. tostring(questID or "?"))
-    end)
-
-    UI:RegisterEvent("UI_ERROR_MESSAGE", function(_, _, message)
-        if not debugEnabled or type(message) ~= "string" then return end
-
-        -- UI_ERROR_MESSAGE also fires for every failed spell or action.
-        -- QuestDebug should only repeat quest-related errors in chat.
-        -- Prefer Blizzard's localized strings; the text fallback also
-        -- catches other errors explicitly mentioning a quest.
-        local questError =
-            (ERR_QUEST_NEED_PREREQS and message == ERR_QUEST_NEED_PREREQS)
-            or (ERR_QUEST_MUST_CHOOSE and message == ERR_QUEST_MUST_CHOOSE)
-            or message:lower():find("quest", 1, true) ~= nil
-        if not questError then return end
-
-        local action = "none"
-        if lastAction and GetTime() - lastAction.time < 3 then
-            action = lastAction.action .. " quest="
-                .. tostring(lastAction.questID)
-        end
-        DebugLog("UI_ERROR", message, "lastAction=" .. action)
-    end)
 end
 
 Module:Initialize()
