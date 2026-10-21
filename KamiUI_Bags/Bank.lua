@@ -90,16 +90,6 @@ local function GetBankTabs()
     end
 
     local purchasedCount = #tabData
-    -- Forever may load the tab metadata one or more frames after the
-    -- bank opens. The count API can be ready before the tab-data API.
-    if C_Bank and C_Bank.FetchNumPurchasedBankTabs
-        and Enum and Enum.BankType then
-        local reported = UI:SafeCall(
-            C_Bank.FetchNumPurchasedBankTabs, Enum.BankType.Character)
-        if type(reported) == "number" then
-            purchasedCount = math.max(purchasedCount, reported)
-        end
-    end
     local bankBagSlots = Enum
         and Enum.BagIndex
         and Enum.BagIndex.Characterbanktab
@@ -186,12 +176,10 @@ local function SaveCurrentBank()
             slots = {},
         }
 
-        local occupied = 0
         for slotID = 1, tab.slotCount do
             local info = UI:GetContainerItemInfo(tab.bagID, slotID)
 
             if info then
-                occupied = occupied + 1
                 local itemName
 
                 if info.hyperlink and GetItemInfo then
@@ -215,18 +203,9 @@ local function SaveCurrentBank()
             end
         end
 
-        -- Free-slot metadata helps detect a container whose contents have
-        -- not arrived yet. Ignore zero-slot optional empty bank-bag tabs.
-        if tab.slotCount > 0 then
-            local free = UI:SafeCall(
-                UI.GetContainerNumFreeSlots, UI, tab.bagID)
-            if type(free) == "number" and free >= 0
-                and free <= tab.slotCount
-                and occupied < tab.slotCount - free then
-                return false
-            end
-        end
-
+        -- Slot contents are authoritative. The free-slot API can return
+        -- zero for bank containers on some clients even when empty slots
+        -- exist, so don't reject a valid snapshot using that metadata.
         snapshot.tabs[#snapshot.tabs + 1] = savedTab
     end
 
@@ -1476,6 +1455,7 @@ eventFrame:RegisterEvent("PLAYER_LOGIN")
 eventFrame:RegisterEvent("BANKFRAME_OPENED")
 eventFrame:RegisterEvent("BANKFRAME_CLOSED")
 eventFrame:RegisterEvent("BAG_UPDATE")
+eventFrame:RegisterEvent("BAG_UPDATE_DELAYED")
 eventFrame:RegisterEvent("PLAYERBANKSLOTS_CHANGED")
 eventFrame:RegisterEvent("BANK_TABS_CHANGED")
 eventFrame:RegisterEvent("BANK_TAB_SETTINGS_UPDATED")
