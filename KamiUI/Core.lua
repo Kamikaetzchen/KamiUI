@@ -446,4 +446,72 @@ function UI:GetBottomInset()
     return self.currentBottomInset
 end
 
+-- Keep the preferred client settings consistent across fresh characters,
+-- UI reloads and separate Forever/Beta installations.
+-- Avoid changing unknown CVars: client variants expose different ones.
+local PREFERRED_CVARS = {
+    { "cameraDistanceMaxZoomFactor", "4" }, -- Maximum Classic zoom
+    { "cameraSmoothStyle", "0" },           -- Never adjust camera
+    { "deselectOnClick", "1" },             -- Sticky Targeting off
+    { "interactOnLeftClick", "0" },         -- Left click never interacts
+    { "autoLootDefault", "1" },             -- QuickLoot reads this setting
+    { "enableFloatingCombatText", "1" },   -- Incoming player combat text
+    { "floatingCombatTextCombatDamage", "1" },    -- Older clients
+    { "floatingCombatTextCombatDamage_v2", "1" }, -- Newer clients
+}
+
+local function ApplyPreferredCVars()
+    local get = (C_CVar and C_CVar.GetCVar) or GetCVar
+    local set = (C_CVar and C_CVar.SetCVar) or SetCVar
+    if not get or not set then return end
+
+    for _, entry in ipairs(PREFERRED_CVARS) do
+        local name, desired = entry[1], entry[2]
+        local ok, current = pcall(get, name)
+        if ok and current ~= nil and current ~= ""
+            and tostring(current) ~= desired then
+            pcall(set, name, desired)
+        end
+    end
+
+    -- Setting the CVar alone does not always load Blizzard's incoming
+    -- scrolling combat text UI; use its standard on-demand loader.
+    if CombatText_LoadUI then
+        pcall(CombatText_LoadUI)
+    end
+end
+
+local settingsFrame = CreateFrame("Frame")
+settingsFrame:RegisterEvent("PLAYER_LOGIN")
+settingsFrame:SetScript("OnEvent", function(self)
+    self:UnregisterEvent("PLAYER_LOGIN")
+    ApplyPreferredCVars()
+end)
+
+-- Shortcut for Blizzard's native Quick Keybind Mode. KamiUI_ActionBars
+-- already handles hover bindings on our custom action buttons.
+SLASH_KAMIQUICKKEYBIND1 = "/kb"
+SlashCmdList["KAMIQUICKKEYBIND"] = function()
+    if InCombatLockdown and InCombatLockdown() then
+        UI:Print("Quick Keybind Mode is unavailable during combat.")
+        return
+    end
+
+    if not QuickKeybindFrame then
+        if C_AddOns and C_AddOns.LoadAddOn then
+            pcall(C_AddOns.LoadAddOn, "Blizzard_QuickKeybind")
+        elseif LoadAddOn then
+            pcall(LoadAddOn, "Blizzard_QuickKeybind")
+        end
+    end
+
+    if QuickKeybindFrame then
+        if not QuickKeybindFrame:IsShown() then
+            QuickKeybindFrame:Show()
+        end
+    else
+        UI:Print("Blizzard Quick Keybind Mode is unavailable.")
+    end
+end
+
 UI:Print("Core loaded")
