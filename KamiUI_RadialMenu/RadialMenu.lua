@@ -6,6 +6,18 @@ local L = UI.Layout.RadialMenu
 -- 16 visible items to prevent hundreds of mounts covering the screen.
 local MAX_VISIBLE = 16
 
+-- Stable Classic item IDs are a fallback if the client exposes incomplete
+-- tooltip text (common just after login on fresh Forever clients).
+-- Other / custom drinks are still detected by their mana tooltip.
+local KNOWN_DRINK_IDS = {
+    [159] = true,  -- Refreshing Spring Water
+    [1179] = true, -- Ice Cold Milk
+    [1205] = true, -- Melon Juice
+    [1708] = true, -- Sweet Nectar
+    [1645] = true, -- Moonberry Juice
+    [8766] = true, -- Morning Glory Dew
+}
+
 local CONFIG = {
     Q = {
         {"food", "Food", "INV_Misc_Food_15"},
@@ -72,24 +84,53 @@ local function GetDB()
 end
 
 local scanner
+
 local function TooltipText(bag, slot)
+    local text = {}
+
+    -- In newer clients C_TooltipInfo is more reliable than a hidden
+    -- GameTooltip; include both left/right columns where available.
+    if C_TooltipInfo and C_TooltipInfo.GetBagItem then
+        local ok, data = pcall(C_TooltipInfo.GetBagItem, bag, slot)
+        if ok and type(data) == "table" and UI:CanAccessValue(data)
+            and type(data.lines) == "table"
+            and UI:CanAccessValue(data.lines) then
+            for i = 2, #data.lines do
+                local line = data.lines[i]
+                if type(line) == "table" and UI:CanAccessValue(line) then
+                    for _, field in ipairs({"leftText", "rightText"}) do
+                        local value = line[field]
+                        if type(value) == "string"
+                            and UI:CanAccessValue(value) then
+                            text[#text + 1] = string.lower(value)
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    -- Keep the original scanner as a second source for Classic and
+    -- incomplete structured tooltips.
     if not scanner then
         scanner = CreateFrame("GameTooltip", "KamiUIRadialScanner",
             UIParent, "GameTooltipTemplate")
         scanner:SetOwner(UIParent, "ANCHOR_NONE")
     end
     scanner:ClearLines()
-    if not pcall(scanner.SetBagItem, scanner, bag, slot) then
-        return ""
-    end
-    local text = {}
-    for i = 2, scanner:NumLines() do
-        local font = _G["KamiUIRadialScannerTextLeft" .. i]
-        local value = font and font:GetText()
-        if type(value) == "string" and UI:CanAccessValue(value) then
-            text[#text + 1] = string.lower(value)
+    if pcall(scanner.SetBagItem, scanner, bag, slot) then
+        for i = 2, scanner:NumLines() do
+            for _, side in ipairs({"Left", "Right"}) do
+                local font = _G["KamiUIRadialScannerText" .. side .. i]
+                local value = font and font:GetText()
+                if type(value) == "string"
+                    and UI:CanAccessValue(value) then
+                    text[#text + 1] = string.lower(value)
+                end
+            end
         end
     end
+
     return table.concat(text, " ")
 end
 
@@ -198,6 +239,13 @@ local function ScanItem(catalog, bag, slot, id, count)
             return
         end
     end
+    -- Common drinks must not vanish if a fresh client has not yet
+    -- populated item subclass or item-use tooltip data.
+    if KNOWN_DRINK_IDS[id] then
+        Add(catalog, "drink", id, name, icon, score, count)
+        return
+    end
+
     if classID ~= 0 then return end
 
     local food = subclassID == 5 or Has(sub, "food", "drink", "nahrung")
@@ -245,7 +293,9 @@ local function ScanMounts(catalog)
         for _, id in ipairs(C_MountJournal.GetMountIDs() or {}) do
             local name, spell, icon, _, usable, _, favorite,
                 _, _, _, collected = C_MountJournal.GetMountInfoByID(id)
-            if name and spell and collected ~= false then
+            -- nil is not proof of ownership. Forever can return an
+            -- absent collection flag for entries not learned yet.
+            if name and spell and collected == true then
                 Add(catalog, "mount", spell, name, icon,
                     (usable and 100000 or 0) + (favorite and 20000 or 0),
                     1, "spell")
