@@ -1216,6 +1216,19 @@ local function CreateFrameUI()
     local _, scrollThumb = Components:StyleScrollBar(scrollbar)
 
     scrollbar:SetScript("OnValueChanged", function(_, value)
+        -- The scroll child contains secure quest-item buttons. Moving it
+        -- in combat is protected, so apply drag changes afterward.
+        if InCombatLockdown and InCombatLockdown() then
+            UI:RunOutOfCombat("objectiveTracker.scroll", function()
+                if not GetDatabase().minimized then
+                    scrollFrame:SetVerticalScroll(
+                        scrollbar:GetValue() or 0
+                    )
+                end
+            end)
+            return
+        end
+
         scrollFrame:SetVerticalScroll(value or 0)
     end)
     scrollbar:Hide()
@@ -1224,6 +1237,11 @@ local function CreateFrameUI()
     frame.scrollThumb = scrollThumb
 
     scrollFrame:SetScript("OnMouseWheel", function(_, delta)
+        -- Scrolling protected quest-item descendants in combat is blocked.
+        if InCombatLockdown and InCombatLockdown() then
+            return
+        end
+
         local _, maxScroll = scrollbar:GetMinMaxValues()
 
         if not maxScroll or maxScroll <= 0 then
