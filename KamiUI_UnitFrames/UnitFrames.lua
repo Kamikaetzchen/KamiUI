@@ -370,6 +370,12 @@ end
 -- Latin names retain the regular font. Cyrillic names get an explicit
 -- glyph-capable face rather than relying on the client's locale mapping.
 function UF:UpdateNameFontForText(fontString, text)
+    -- Unit names can be secret during protected actions. Never inspect them
+    -- with Lua string functions; keep the current font in that case.
+    if not UI:CanAccessValue(text) then
+        return
+    end
+
     local hasCyrillic = type(text) == "string"
         and text:find("[\208-\211][\128-\191]") ~= nil
 
