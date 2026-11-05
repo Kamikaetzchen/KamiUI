@@ -543,6 +543,41 @@ local function StyleNativeChatFrame(frame, parent, topInset)
     HideFrameChrome(frame)
 end
 
+-- Edit Mode can restore ChatFrame1's saved Blizzard position *after*
+-- our layout runs. Keep its original chat backend, but correct the visual
+-- anchors whenever that layout system moves it away from the KamiUI panel.
+local generalAnchorElapsed = 0
+
+local function KeepGeneralChatAnchored(_, elapsed)
+    generalAnchorElapsed = generalAnchorElapsed + elapsed
+    if generalAnchorElapsed < 0.5 then return end
+    generalAnchorElapsed = 0
+
+    if not Module.started or not Module.leftPanel then return end
+    if InCombatLockdown and InCombatLockdown() then return end
+
+    local frame = Module.backends.general
+    local panel = Module.leftPanel
+    if not frame then return end
+
+    local left, panelLeft = frame:GetLeft(), panel:GetLeft()
+    if not left or not panelLeft then return end
+
+    if math.abs(left - panelLeft - Layout.PADDING) <= 1 then
+        return
+    end
+
+    frame:ClearAllPoints()
+    frame:SetPoint(
+        "TOPLEFT", panel, "TOPLEFT",
+        Layout.PADDING, -Layout.PADDING
+    )
+    frame:SetPoint(
+        "BOTTOMRIGHT", panel, "BOTTOMRIGHT",
+        -Layout.PADDING, Layout.PADDING
+    )
+end
+
 local function HideStockFrame(frame)
     if not frame then
         return
@@ -728,6 +763,8 @@ function Module:ApplyLayout()
     EnsureTabs()
     PositionPanels()
     PositionTabs()
+    -- Guard against Edit Mode restoring the stock chat position later.
+    Module.leftPanel:SetScript("OnUpdate", KeepGeneralChatAnchored)
     HideStockChatUI()
     PositionManagedChatFrames()
     StyleInputEditBox()
