@@ -389,26 +389,19 @@ local function StyleInputEditBox()
 
     Module.inputEditBox = editBox
 
-    if editBox.SetParent then
-        editBox:SetParent(UIParent)
-    end
-
-    if not editBox.KamiUIInsetHooked
-        and hooksecurefunc
-        and editBox.UpdateHeader
+    -- Keep Blizzard's native parent. SendMessage() reads GetParent() and
+    -- expects the owning chat frame; reparenting taints/breaks sending,
+    -- particularly under combat lockdown.
+    -- Our tab switch changes ChatFrame1 alpha, so let the edit box ignore it.
+    if editBox.SetIgnoreParentAlpha
+        and not editBox.KamiUIIgnoreParentAlpha
     then
-        editBox.KamiUIInsetHooked = true
-
-        hooksecurefunc(
-            editBox,
-            "UpdateHeader",
-            function(self)
-                HideEditBoxDecorations(self)
-                ApplyEditBoxInsets(self)
-            end
-        )
+        editBox:SetIgnoreParentAlpha(true)
+        editBox.KamiUIIgnoreParentAlpha = true
     end
 
+    -- Do not hook UpdateHeader: ParseText can call it from SendText(),
+    -- and addon code on that path can taint the protected chat send.
     HideEditBoxDecorations(editBox)
     ApplyEditBoxInsets(editBox)
 
@@ -490,7 +483,11 @@ local function StyleNativeChatFrame(frame, parent, topInset)
 
     FCF_SetLocked(frame, true)
 
-    frame:SetParent(parent)
+    -- Preserve ChatFrame1's native parent, just as for its edit box.
+    -- Reparenting the default chat frame can taint secure chat handling.
+    if frame ~= ChatFrame1 then
+        frame:SetParent(parent)
+    end
     frame:ClearAllPoints()
     frame:SetPoint(
         "TOPLEFT",
