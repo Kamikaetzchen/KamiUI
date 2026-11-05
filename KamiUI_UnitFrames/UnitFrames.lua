@@ -335,13 +335,28 @@ function UF:SetUnitFirstName(fontString, unit)
         return
     end
 
-    fontString:SetText(self:GetUnitFirstName(unit))
+    local name = self:GetUnitFirstName(unit)
+    self:UpdateNameFontForText(fontString, name)
+    fontString:SetText(name)
 end
 
 -- GameFontNormalSmall is missing glyphs for some character names.
 -- Like Nameplates, use GameTooltipText, which supports Cyrillic names.
 -- Preserve the size chosen by each unit frame's existing layout.
 function UF:SetNameFont(fontString, size)
+    if fontString.kamiCyrillicName then
+        -- Forever's locale font mapping can differ between client builds.
+        -- Use the dedicated Cyrillic font for names needing those glyphs.
+        if fontString:SetFont(
+            "Fonts\\FRIZQT___CYR.TTF", size, "OUTLINE"
+        ) then
+            return
+        end
+        if fontString:SetFont("Fonts\\ARIALN.TTF", size, "OUTLINE") then
+            return
+        end
+    end
+
     if GameTooltipText and fontString.SetFontObject
         and fontString.SetTextHeight then
         fontString:SetFontObject(GameTooltipText)
@@ -349,6 +364,19 @@ function UF:SetNameFont(fontString, size)
     else
         local fontPath, _, flags = GameFontNormalSmall:GetFont()
         fontString:SetFont(fontPath, size, flags)
+    end
+end
+
+-- Latin names retain the regular font. Cyrillic names get an explicit
+-- glyph-capable face rather than relying on the client's locale mapping.
+function UF:UpdateNameFontForText(fontString, text)
+    local hasCyrillic = type(text) == "string"
+        and text:find("[\208-\211][\128-\191]") ~= nil
+
+    if fontString.kamiCyrillicName ~= hasCyrillic then
+        fontString.kamiCyrillicName = hasCyrillic
+        local _, size = fontString:GetFont()
+        self:SetNameFont(fontString, size or 10)
     end
 end
 
@@ -373,6 +401,7 @@ function UF:SetUnitDisplayName(fontString, unit)
     end
 
     local display = self:GetUnitDisplayName(unit)
+    self:UpdateNameFontForText(fontString, display)
     fontString:SetText(display)
 
     if not UI:CanAccessValue(display) then
