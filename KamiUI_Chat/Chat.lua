@@ -307,6 +307,43 @@ local function AddChannel(frame, channel)
     end
 end
 
+-- Blizzard may join zone channels after our custom General window is built.
+-- Copy live subscriptions too, not just ChatFrame1's login-time snapshot.
+local function SyncGeneralChannels()
+    local frame = Module.backends and Module.backends.general
+    if not frame then return end
+
+    local subscribed = {}
+    for _, channel in ipairs(frame.channelList or {}) do
+        subscribed[channel] = true
+    end
+
+    local function EnsureChannel(channel)
+        if type(channel) ~= "string" or channel == ""
+            or subscribed[channel] then
+            return
+        end
+
+        AddChannel(frame, channel)
+        subscribed[channel] = true
+    end
+
+    for _, channel in ipairs(ChatFrame1 and ChatFrame1.channelList or {}) do
+        EnsureChannel(channel)
+    end
+
+    if GetChannelList then
+        local joined = { GetChannelList() }
+        for index = 1, #joined, 3 do
+            local name = joined[index + 1]
+            local disabled = joined[index + 2]
+            if not disabled then
+                EnsureChannel(name)
+            end
+        end
+    end
+end
+
 local function ConfigureWindow(frame, config)
     RemoveAllMessageGroups(frame)
     RemoveAllChannels(frame)
@@ -745,6 +782,7 @@ end
 
 function Module:SetupBackends()
     self.backends.general = EnsureWindow(managedWindows.general)
+    SyncGeneralChannels()
 
     -- Blizzard's print() and many add-ons write to DEFAULT_CHAT_FRAME,
     -- which normally points at ChatFrame1. KamiUI hides ChatFrame1 and
@@ -910,6 +948,23 @@ function Module:Initialize()
 
     UI:RegisterEvent("UPDATE_CHAT_WINDOWS", RefreshChatWindows)
     UI:RegisterEvent("UPDATE_FLOATING_CHAT_WINDOWS", RefreshChatWindows)
+
+    -- Joining a zone channel can happen after PLAYER_ENTERING_WORLD.
+    -- Recheck once the client has updated its channel subscriptions.
+    local channelSyncQueued = false
+    local function QueueChannelSync()
+        if channelSyncQueued then return end
+        channelSyncQueued = true
+
+        C_Timer.After(0, function()
+            channelSyncQueued = false
+            SyncGeneralChannels()
+        end)
+    end
+
+    UI:RegisterEvent("CHANNEL_UI_UPDATE", QueueChannelSync)
+    UI:RegisterEvent("CHAT_MSG_CHANNEL_NOTICE", QueueChannelSync)
+    UI:RegisterEvent("PLAYER_ENTERING_WORLD", QueueChannelSync)
 
     UI:RegisterEvent("ADDON_LOADED", function(_, addonName)
         if addonName == "Blizzard_CombatLog" and Module.started then
