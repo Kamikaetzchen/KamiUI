@@ -600,7 +600,9 @@ local function UpdateRows()
             end
 
             local iconID = source.specIconID
-            if iconID and iconID ~= 0 then
+            -- Secret file IDs can be displayed but not compared.
+            if iconID and (not UI:CanAccessValue(iconID)
+                or iconID ~= 0) then
                 row.icon:SetTexture(iconID)
                 row.icon:Show()
             else
