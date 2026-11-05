@@ -6,7 +6,7 @@ local Components = UI.Components
 local Module = UI:NewModule("Chat", "KamiUI_Chat")
 
 
-local SETUP_VERSION = 5
+local SETUP_VERSION = 6
 
 local Layout = UI.Layout.Chat
 
@@ -352,32 +352,17 @@ local function HideEditBoxDecorations(editBox)
             "FocusLeft",
             "FocusRight",
             "FocusMid",
-            "Header",
-            "HeaderSuffix",
             "NewcomerHint",
             "Prompt",
-            "Language",
         }) do
             HideChromeObject(_G[name .. suffix])
         end
     end
 
-    HideChromeObject(editBox.header)
-    HideChromeObject(editBox.headerSuffix)
-    HideChromeObject(editBox.languageHeader)
+    -- The native header displays "To <name>:", the active channel, etc.
+    -- Blizzard also adjusts the text insets to leave room for that header.
     HideChromeObject(editBox.NewcomerHint)
     HideChromeObject(editBox.prompt)
-end
-
-local function ApplyEditBoxInsets(editBox)
-    if editBox and editBox.SetTextInsets then
-        editBox:SetTextInsets(
-            Layout.PADDING,
-            Layout.PADDING,
-            0,
-            0
-        )
-    end
 end
 
 local function StyleInputEditBox()
@@ -402,8 +387,8 @@ local function StyleInputEditBox()
 
     -- Do not hook UpdateHeader: ParseText can call it from SendText(),
     -- and addon code on that path can taint the protected chat send.
+    -- Keep Blizzard's header/insets intact for whispers and channels.
     HideEditBoxDecorations(editBox)
-    ApplyEditBoxInsets(editBox)
 
     editBox:ClearAllPoints()
     editBox:SetPoint(
@@ -483,11 +468,10 @@ local function StyleNativeChatFrame(frame, parent, topInset)
 
     FCF_SetLocked(frame, true)
 
-    -- Preserve ChatFrame1's native parent, just as for its edit box.
-    -- Reparenting the default chat frame can taint secure chat handling.
-    if frame ~= ChatFrame1 then
-        frame:SetParent(parent)
-    end
+    -- Anchor the chat to our panel rather than Blizzard's Edit Mode
+    -- position. The edit box remains a child of ChatFrame1, as required
+    -- by Blizzard's SendMessage() implementation.
+    frame:SetParent(parent)
     frame:ClearAllPoints()
     frame:SetPoint(
         "TOPLEFT",
@@ -774,6 +758,25 @@ UI:RegisterCommand(
     "Reset chat configuration"
 )
 
+-- Set Blizzard's native 24-hour chat timestamps once. Players can
+-- subsequently change the format in the standard Chat settings.
+local function EnsureChatTimestamps()
+    if KamiUIDB.chat.timestampsConfigured then return end
+
+    local format = TIMESTAMP_FORMAT_HHMM_24HR
+    if not format then return end
+
+    if GetCVar and GetCVar("showTimestamps") == "none" then
+        if C_CVar and C_CVar.SetCVar then
+            C_CVar.SetCVar("showTimestamps", format)
+        elseif SetCVar then
+            SetCVar("showTimestamps", format)
+        end
+    end
+
+    KamiUIDB.chat.timestampsConfigured = true
+end
+
 local function StartChatUI()
     if Module.starting or Module.started then
         return
@@ -813,7 +816,6 @@ function Module:Initialize()
                 end
 
                 HideEditBoxDecorations(editBox)
-                ApplyEditBoxInsets(editBox)
                 UpdateInputPanelVisibility()
             end,
             Module
@@ -840,6 +842,8 @@ function Module:Initialize()
     end
 
     UI:RegisterEvent("PLAYER_ENTERING_WORLD", function()
+        EnsureChatTimestamps()
+
         if Module.started then
             Module:ApplyLayout()
         else
