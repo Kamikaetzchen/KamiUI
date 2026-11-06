@@ -103,6 +103,18 @@ local function CreateTimerBar(parent, color)
     return frame, bar, unit, name, time
 end
 
+-- GetUnitName includes the full player display name; UnitName may omit
+-- parts of it on Forever. Keep secret values untouched for FontString:SetText.
+local function GetDisplayUnitName(unit)
+    local name = GetUnitName and GetUnitName(unit)
+
+    if UI:CanAccessValue(name) and not name and UnitName then
+        name = UnitName(unit)
+    end
+
+    return name
+end
+
 local function InitializeAuraButton(button, unitToken, color, labels)
     button:SetSize(Layout.WIDTH, ROW_HEIGHT)
     local icon = button:CreateTexture(nil, "ARTWORK")
@@ -142,7 +154,7 @@ local function InitializeAuraButton(button, unitToken, color, labels)
     local unitName = Label(Layout.UNIT_WIDTH, "RIGHT")
     unitName:SetPoint("RIGHT", button, "LEFT", -Layout.UNIT_GAP, 0)
     Styles:ApplyText(unitName, "sectionTitle")
-    unitName:SetText(UnitName(unitToken))
+    unitName:SetText(GetDisplayUnitName(unitToken))
     labels[#labels + 1] = unitName
 
     local spellName = Label(nil, "LEFT")
@@ -394,7 +406,7 @@ function Module:RefreshUnitLabels(token)
 
     for _, entry in ipairs(self.units) do
         if not token or token == entry.token then
-            local name = UnitName(entry.token)
+            local name = GetDisplayUnitName(entry.token)
             for _, label in ipairs(entry.labels) do
                 -- pcall guards the setter itself: some inherited forbidden
                 -- aspects are not reliably exposed by label:IsForbidden().
