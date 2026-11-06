@@ -151,6 +151,26 @@ function UI:ParseCharacterKey(key)
     return realm or "", name or "Unknown"
 end
 
+-- Bank characters share a surname, regardless of their first name.
+-- Fall back to the full name/key for older snapshots without a surname.
+function UI:IsBankCharacter(character, key)
+    local surname = character and character.surname
+
+    if type(surname) == "string" and self:CanAccessValue(surname)
+        and surname ~= "" then
+        return string.lower(surname) == "kami"
+    end
+
+    local name = character and character.name
+    if type(name) ~= "string" or not self:CanAccessValue(name)
+        or name == "" then
+        name = select(2, self:ParseCharacterKey(key))
+    end
+
+    return type(name) == "string" and self:CanAccessValue(name)
+        and string.match(string.lower(name), "%s+kami$") ~= nil
+end
+
 function UI:GetCharactersModule()
     if not self.GetModule then
         return nil
@@ -209,15 +229,22 @@ function UI:SortCharacterEntries(entries, getCharacter)
     end
 
     table.sort(entries, function(left, right)
+        local leftCharacter = getCharacter(left) or {}
+        local rightCharacter = getCharacter(right) or {}
+        local leftBank = self:IsBankCharacter(leftCharacter, left.key)
+        local rightBank = self:IsBankCharacter(rightCharacter, right.key)
+
+        -- Bank alts always follow regular characters, including the current one.
+        if leftBank ~= rightBank then
+            return not leftBank
+        end
+
         local leftCurrent = left.key == currentKey
         local rightCurrent = right.key == currentKey
 
         if leftCurrent ~= rightCurrent then
             return leftCurrent
         end
-
-        local leftCharacter = getCharacter(left) or {}
-        local rightCharacter = getCharacter(right) or {}
         local leftRealm = leftCharacter.realm or ""
         local rightRealm = rightCharacter.realm or ""
 
