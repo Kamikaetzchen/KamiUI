@@ -669,26 +669,29 @@ end
 local ACCOUNT_CLICK_ACTION = "CLICK KamiUIAccountHotkeyButton:LeftButton"
 local LEGACY_BINDING_ACTION = "KAMIUIACCOUNTTOGGLE"
 
-local function BindDefaultKeyOnce()
-    local db = GetDatabase()
-    if db.accountClickBindingInitialized then return end
-    if not GetBindingAction or not SetBinding then return end
+-- The saved initialization flag is not reliable: key bindings may be
+-- reset independently of SavedVariables. Check the actual binding on every
+-- login/reload and only restore it when the desired key is available.
+local function EnsureAccountHotkey()
+    if not GetBindingKey or not GetBindingAction or not SetBinding then
+        return
+    end
 
-    if GetBindingKey and GetBindingKey(ACCOUNT_CLICK_ACTION) then
-        db.accountClickBindingInitialized = true
+    -- Preserve an existing custom binding instead of forcing backslash.
+    if GetBindingKey(ACCOUNT_CLICK_ACTION) then
         return
     end
 
     -- Preserve keys previously assigned to the old XML binding, when any.
-    local oldKey = GetBindingKey and GetBindingKey(LEGACY_BINDING_ACTION)
+    local oldKey = GetBindingKey(LEGACY_BINDING_ACTION)
     local key = oldKey or "\\"
     local action = GetBindingAction(key)
+
     if action ~= nil and action ~= ""
         and action ~= LEGACY_BINDING_ACTION
         and action ~= ACCOUNT_CLICK_ACTION
     then
-        -- Never replace the player's existing key assignment.
-        db.accountClickBindingInitialized = true
+        -- Never replace another action assigned to the key.
         return
     end
 
@@ -701,11 +704,8 @@ local function BindDefaultKeyOnce()
         success = SetBinding(key, ACCOUNT_CLICK_ACTION)
     end
 
-    if success then
-        db.accountClickBindingInitialized = true
-        if SaveBindings and GetCurrentBindingSet then
-            SaveBindings(GetCurrentBindingSet())
-        end
+    if success and SaveBindings and GetCurrentBindingSet then
+        SaveBindings(GetCurrentBindingSet())
     end
 end
 
@@ -724,7 +724,7 @@ function Module:Initialize()
     end)
     self.hotkeyButton = hotkeyButton
 
-    UI:RegisterEvent("PLAYER_ENTERING_WORLD", BindDefaultKeyOnce)
+    UI:RegisterEvent("PLAYER_ENTERING_WORLD", EnsureAccountHotkey)
 
     UI:RegisterEvent("BAG_UPDATE_DELAYED", QueueRefresh)
     UI:RegisterEvent("PLAYER_EQUIPMENT_CHANGED", QueueRefresh)
