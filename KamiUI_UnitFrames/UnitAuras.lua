@@ -324,6 +324,31 @@ local function CreatePartyDebuffContainer(parent, unit)
     return container
 end
 
+local function UpdatePartyDebuffAnchor(index)
+    local group = UF.partyFrames and UF.partyFrames[index]
+
+    if not group or not group.debuffs then
+        return
+    end
+
+    -- Secure party/pet frames must not be reanchored during combat.
+    if InCombatLockdown and InCombatLockdown() then
+        return
+    end
+
+    local petExists = UnitExists("partypet" .. index)
+    local anchor = (UI:CanAccessValue(petExists) and petExists)
+        and group.pet or group.main
+
+    if group.debuffAnchor == anchor then
+        return
+    end
+
+    group.debuffs:ClearAllPoints()
+    group.debuffs:SetPoint("LEFT", anchor, "RIGHT", 2, 0)
+    group.debuffAnchor = anchor
+end
+
 local function AttachAuras()
     if UF.targetFrame then
         UF.targetFrame.auras = CreateAuraContainer(
@@ -368,10 +393,12 @@ local function AttachAuras()
             group.main,
             unit
         )
+        -- Parent to the party member so debuffs remain visible without a pet.
         group.debuffs = CreatePartyDebuffContainer(
-            group.pet,
+            group.main,
             unit
         )
+        UpdatePartyDebuffAnchor(index)
     end
 end
 
@@ -390,6 +417,11 @@ UI:RegisterEvent("PLAYER_REGEN_ENABLED", function()
         container:Hide()
         container:Show()
         container:UpdateAllAuras()
+    end
+
+    -- Apply any pet changes deferred while in combat.
+    for index = 1, 4 do
+        UpdatePartyDebuffAnchor(index)
     end
 end)
 
@@ -428,6 +460,7 @@ UI:RegisterEvent("UNIT_PET", function(_, unit)
     elseif unit and string.match(unit, "^party%d$") then
         C_Timer.After(0, function()
             RefreshAuras(unit)
+            UpdatePartyDebuffAnchor(tonumber(string.match(unit, "%d")))
         end)
     end
 end)
@@ -436,6 +469,7 @@ UI:RegisterEvent("GROUP_ROSTER_UPDATE", function()
     C_Timer.After(0, function()
         for index = 1, 4 do
             RefreshAuras("party" .. index)
+            UpdatePartyDebuffAnchor(index)
         end
     end)
 end)
