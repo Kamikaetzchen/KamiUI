@@ -308,7 +308,8 @@ function RestedXP:GetCharacterEntries()
 
     if characters and characters.GetSortedCharacters then
         for _, entry in ipairs(characters:GetSortedCharacters()) do
-            if not seen[entry.key] then
+            if not seen[entry.key]
+                and not UI:IsBankCharacter(entry.character, entry.key) then
                 records[#records + 1] = {
                     key = entry.key,
                     character = entry.character,
@@ -320,20 +321,28 @@ function RestedXP:GetCharacterEntries()
 
     for key, snapshot in pairs(snapshots) do
         if not seen[key] then
-            records[#records + 1] = {
-                key = key,
-                character = UI:GetCharacterProfile(key, snapshot),
-            }
-            seen[key] = true
+            local character = UI:GetCharacterProfile(key, snapshot)
+
+            if not UI:IsBankCharacter(character, key) then
+                records[#records + 1] = {
+                    key = key,
+                    character = character,
+                }
+                seen[key] = true
+            end
         end
     end
 
     local currentKey = UI:GetCurrentCharacterKey()
     if not seen[currentKey] then
-        records[#records + 1] = {
-            key = currentKey,
-            character = UI:GetCharacterProfile(currentKey),
-        }
+        local character = UI:GetCharacterProfile(currentKey)
+
+        if not UI:IsBankCharacter(character, currentKey) then
+            records[#records + 1] = {
+                key = currentKey,
+                character = character,
+            }
+        end
     end
     UI:SortCharacterEntries(records)
 
