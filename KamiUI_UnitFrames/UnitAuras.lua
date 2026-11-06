@@ -313,7 +313,7 @@ local function CreatePartyDebuffContainer(parent, unit)
         true
     )
 
-    container:SetPoint("LEFT", parent, "RIGHT", 2, 0)
+    container:SetPoint("BOTTOMLEFT", parent, "BOTTOMRIGHT", 2, 0)
     container:SetEnabled(true)
     container:SetUnit(unit)
     container:UpdateAllAuras()
@@ -345,7 +345,7 @@ local function UpdatePartyDebuffAnchor(index)
     end
 
     group.debuffs:ClearAllPoints()
-    group.debuffs:SetPoint("LEFT", anchor, "RIGHT", 2, 0)
+    group.debuffs:SetPoint("BOTTOMLEFT", anchor, "BOTTOMRIGHT", 2, 0)
     group.debuffAnchor = anchor
 end
 
