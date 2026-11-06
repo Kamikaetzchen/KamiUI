@@ -220,6 +220,14 @@ local function SortCharacterEntries(entries, pane)
     table.sort(entries, function(left, right)
         local a = left.character or {}
         local b = right.character or {}
+        local aBank = UI:IsBankCharacter(a, left.key)
+        local bBank = UI:IsBankCharacter(b, right.key)
+
+        -- Keep bank alts below regular characters for every sort column.
+        if aBank ~= bBank then
+            return not aBank
+        end
+
         local av, bv
 
         if key == "name" then
