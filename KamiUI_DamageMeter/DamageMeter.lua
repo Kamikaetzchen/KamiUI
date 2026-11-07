@@ -27,18 +27,18 @@ local VIEWS = {
     damage = {
         label = "Damage / DPS",
         primaryType = DamageMeterType.DamageDone,
-        nameWidth = 238,
+        nameWidth = 230,
         columns = {
             {
                 label = "Damage",
                 tooltip = DAMAGE_METER_TYPE_DAMAGE_DONE or "Damage Done",
-                width = 80,
+                width = 70,
                 kind = "total",
             },
             {
                 label = "DPS",
                 tooltip = DAMAGE_METER_TYPE_DPS or "DPS",
-                width = 80,
+                width = 46,
                 kind = "rate",
             },
         },
@@ -46,18 +46,18 @@ local VIEWS = {
     healing = {
         label = "Healing / HPS",
         primaryType = DamageMeterType.HealingDone,
-        nameWidth = 238,
+        nameWidth = 230,
         columns = {
             {
                 label = "Healing",
                 tooltip = DAMAGE_METER_TYPE_HEALING_DONE or "Healing Done",
-                width = 80,
+                width = 70,
                 kind = "total",
             },
             {
                 label = "HPS",
                 tooltip = DAMAGE_METER_TYPE_HPS or "HPS",
-                width = 80,
+                width = 46,
                 kind = "rate",
             },
         },
@@ -65,12 +65,12 @@ local VIEWS = {
     absorbs = {
         label = DAMAGE_METER_TYPE_ABSORBS or "Absorbs",
         primaryType = DamageMeterType.Absorbs,
-        nameWidth = 318,
+        nameWidth = 274,
         columns = {
             {
                 label = "Absorb",
                 tooltip = DAMAGE_METER_TYPE_ABSORBS or "Absorbs",
-                width = 80,
+                width = 72,
                 kind = "total",
             },
         },
@@ -78,12 +78,12 @@ local VIEWS = {
     taken = {
         label = DAMAGE_METER_TYPE_DAMAGE_TAKEN or "Damage Taken",
         primaryType = DamageMeterType.DamageTaken,
-        nameWidth = 318,
+        nameWidth = 274,
         columns = {
             {
                 label = "Taken",
                 tooltip = DAMAGE_METER_TYPE_DAMAGE_TAKEN or "Damage Taken",
-                width = 80,
+                width = 72,
                 kind = "total",
             },
         },
@@ -92,13 +92,13 @@ local VIEWS = {
         label = DAMAGE_METER_TYPE_AVOIDABLE_DAMAGE_TAKEN
             or "Avoidable Damage Taken",
         primaryType = DamageMeterType.AvoidableDamageTaken,
-        nameWidth = 318,
+        nameWidth = 274,
         columns = {
             {
                 label = "Avoid",
                 tooltip = DAMAGE_METER_TYPE_AVOIDABLE_DAMAGE_TAKEN
                     or "Avoidable Damage Taken",
-                width = 80,
+                width = 72,
                 kind = "total",
             },
         },
@@ -107,13 +107,13 @@ local VIEWS = {
         label = DAMAGE_METER_TYPE_ENEMY_DAMAGE_TAKEN
             or "Enemy Damage Taken",
         primaryType = DamageMeterType.EnemyDamageTaken,
-        nameWidth = 318,
+        nameWidth = 274,
         columns = {
             {
                 label = "Enemy",
                 tooltip = DAMAGE_METER_TYPE_ENEMY_DAMAGE_TAKEN
                     or "Enemy Damage Taken",
-                width = 80,
+                width = 72,
                 kind = "total",
             },
         },
@@ -121,12 +121,12 @@ local VIEWS = {
     interrupts = {
         label = DAMAGE_METER_TYPE_INTERRUPTS or "Interrupts",
         primaryType = DamageMeterType.Interrupts,
-        nameWidth = 318,
+        nameWidth = 274,
         columns = {
             {
                 label = "Interrupt",
                 tooltip = DAMAGE_METER_TYPE_INTERRUPTS or "Interrupts",
-                width = 80,
+                width = 72,
                 kind = "total",
             },
         },
@@ -134,12 +134,12 @@ local VIEWS = {
     dispels = {
         label = DAMAGE_METER_TYPE_DISPELS or "Dispels",
         primaryType = DamageMeterType.Dispels,
-        nameWidth = 318,
+        nameWidth = 274,
         columns = {
             {
                 label = "Dispel",
                 tooltip = DAMAGE_METER_TYPE_DISPELS or "Dispels",
-                width = 80,
+                width = 72,
                 kind = "total",
             },
         },
@@ -147,12 +147,12 @@ local VIEWS = {
     deaths = {
         label = DAMAGE_METER_TYPE_DEATHS or "Deaths",
         primaryType = DamageMeterType.Deaths,
-        nameWidth = 318,
+        nameWidth = 274,
         columns = {
             {
                 label = "Deaths",
                 tooltip = DAMAGE_METER_TYPE_DEATHS or "Deaths",
-                width = 80,
+                width = 72,
                 kind = "total",
             },
         },
@@ -165,7 +165,7 @@ for _, view in pairs(VIEWS) do
     view.columns[#view.columns + 1] = {
         label = "%",
         tooltip = "Share of total (refreshed after combat)",
-        width = 56,
+        width = 52,
         kind = "percent",
     }
 end
