@@ -153,7 +153,7 @@ UI.Layout = {
     },
 
     DamageMeter = {
-        WIDTH = 456,
+        WIDTH = 400,
         HEIGHT = 240,
         HEADER_HEIGHT = 20,
         COLUMN_HEADER_HEIGHT = 17,
