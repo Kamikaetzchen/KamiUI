@@ -159,8 +159,21 @@ local VIEWS = {
     },
 }
 
+-- The final column is shared by all meter modes. Values are calculated
+-- from all session sources, never relative to the highest-ranked source.
+for _, view in pairs(VIEWS) do
+    view.columns[#view.columns + 1] = {
+        label = "%",
+        tooltip = "Share of total (refreshed after combat)",
+        width = 56,
+        kind = "percent",
+    }
+end
+
 local frame
 local rows = {}
+local percentageSnapshots = {}
+local QueueUpdate
 local viewDropdown
 local sessionDropdown
 local updateQueued = false
@@ -571,10 +584,62 @@ local function SetSourceColumnValue(row, columnIndex, source, column)
     end
 end
 
+local function GetPercentageSnapshotKey()
+    if state.sessionID then
+        return state.view .. ":id:" .. tostring(state.sessionID)
+    end
+
+    return state.view .. ":type:" .. tostring(state.sessionType)
+end
+
+local function RefreshPercentageSnapshot(sources, key)
+    -- Blizzard's per-source amounts may be secret in combat. Check each
+    -- value before any numeric operations and retain the old snapshot if
+    -- one source is still protected.
+    local amounts = {}
+    local total = 0
+
+    for index, source in ipairs(sources) do
+        local amount = source.totalAmount
+
+        if not UI:CanAccessValue(amount)
+            or type(amount) ~= "number" then
+            return
+        end
+
+        amounts[index] = amount
+        total = total + amount
+    end
+
+    local percentages = {}
+    if total > 0 then
+        for index, amount in ipairs(amounts) do
+            percentages[index] = string.format(
+                "%.1f%%", amount / total * 100
+            )
+        end
+    end
+
+    percentageSnapshots[key] = percentages
+end
+
 local function UpdateRows()
     local view = GetView()
     local session = GetCombatSession(view.primaryType)
     local sources = session.combatSources
+    local snapshotKey = GetPercentageSnapshotKey()
+    local inCombat = InCombatLockdown and InCombatLockdown()
+
+    if inCombat then
+        -- Recalculate once combat ends, using the existing keyed scheduler.
+        UI:RunOutOfCombat("damageMeter.percentages", function()
+            QueueUpdate()
+        end)
+    else
+        RefreshPercentageSnapshot(sources, snapshotKey)
+    end
+
+    local percentages = percentageSnapshots[snapshotKey] or {}
 
     for index = 1, Layout.MAX_ROWS do
         local row = rows[index]
@@ -591,12 +656,20 @@ local function UpdateRows()
             row.name:SetText(source.name)
 
             for columnIndex, column in ipairs(view.columns) do
-                SetSourceColumnValue(
-                    row,
-                    columnIndex,
-                    source,
-                    column
-                )
+                if column.kind == "percent" then
+                    local value = row.values[columnIndex]
+                    value:SetText(percentages[index] or "--")
+                    -- Frozen values are a snapshot by row position. The
+                    -- live ranking may change until combat has ended.
+                    value:SetAlpha(inCombat and 0.65 or 1)
+                else
+                    SetSourceColumnValue(
+                        row,
+                        columnIndex,
+                        source,
+                        column
+                    )
+                end
             end
 
             local iconID = source.specIconID
@@ -647,7 +720,7 @@ local function Update()
     frame:Show()
 end
 
-local function QueueUpdate()
+QueueUpdate = function()
     if updateQueued then
         return
     end
@@ -715,6 +788,8 @@ local function ResetData()
     HidePopups()
     if Module.CloseSourceDetails then Module:CloseSourceDetails() end
 
+    percentageSnapshots = {}
+    UI:CancelOutOfCombat("damageMeter.percentages")
     state.sessionID = nil
     state.sessionType = DamageMeterSessionType.Overall
 
@@ -1028,6 +1103,8 @@ function Module:Initialize()
 
     UI:RegisterEvent("DAMAGE_METER_RESET", function()
         if Module.CloseSourceDetails then Module:CloseSourceDetails() end
+        percentageSnapshots = {}
+        UI:CancelOutOfCombat("damageMeter.percentages")
         state.sessionID = nil
         state.sessionType = DamageMeterSessionType.Overall
         QueueUpdate()
