@@ -154,7 +154,7 @@ end
 
 local EXPANDED_WIDTH = 205
 local EXPANDED_HEIGHT = 146
-local COLLAPSED_WIDTH = 136
+local COLLAPSED_WIDTH = EXPANDED_WIDTH
 local COLLAPSED_HEIGHT = 23
 
 local function CreateWideButton(parent, label, y, onClick)
