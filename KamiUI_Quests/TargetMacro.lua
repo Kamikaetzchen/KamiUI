@@ -49,6 +49,10 @@ local function GetSettings()
         end
     end
 
+    if type(settings.faerieFire) ~= "boolean" then
+        settings.faerieFire = false
+    end
+
     return settings
 end
 
@@ -80,6 +84,11 @@ local function BuildMacro()
     -- search finds nothing. Keep the last successful marked target.
     if #lines > 0 then
         lines[#lines + 1] = "/targetlasttarget [noexists]"
+    end
+
+    -- Optionally cast after the targeting commands.
+    if settings.faerieFire then
+        lines[#lines + 1] = "/cast Faerie Fire"
     end
 
     -- Preserve the action-bar macro when every field is cleared.
@@ -217,10 +226,11 @@ local COLLAPSED_WIDTH = EXPANDED_WIDTH
 local COLLAPSED_HEIGHT = 30
 
 local function CreateWideButton(parent, label, y, onClick,
-    rightInset)
+    rightInset, leftInset)
     local button = CreateFrame("Button", nil, parent)
     button:SetHeight(20)
-    button:SetPoint("TOPLEFT", parent, "TOPLEFT", 8, y)
+    button:SetPoint("TOPLEFT", parent, "TOPLEFT",
+        leftInset or 8, y)
     button:SetPoint("TOPRIGHT", parent, "TOPRIGHT",
         -(rightInset or 8), y)
     Components:StyleButton(button, { text = label })
@@ -413,6 +423,7 @@ local function ApplyCollapsed()
     local collapsed = GetSettings().collapsed == true
     window.content:SetShown(not collapsed)
     window.targetButton:SetShown(not collapsed)
+    window.faerieFireCheckbox:SetShown(not collapsed)
     window.collapsedLabel:SetShown(collapsed)
     window.limitWarning:SetShown(
         not collapsed and window.limitWarning:GetText() ~= ""
@@ -463,8 +474,35 @@ local function CreateWindow()
     content:SetHeight(EXPANDED_HEIGHT)
     window.content = content
 
+    -- Reuse the same checkbox styling as Track Recipe.
+    local faerieFire = Components:CreateCheckbox(window, {
+        size = 14,
+        width = 20,
+        height = 20,
+    })
+    faerieFire:SetPoint("TOPLEFT", window, "TOPLEFT", 8, -5)
+    Components:SetToggleState(faerieFire, settings.faerieFire)
+    faerieFire:SetScript("OnClick", function(self)
+        settings.faerieFire = self:GetChecked() == true
+        self:RefreshKamiToggleStyle()
+        RefreshLayout()
+        UpdateMacro()
+    end)
+    faerieFire:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText("Cast Faerie Fire")
+        GameTooltip:AddLine(
+            "Append /cast Faerie Fire to KamiTargets.", 1, 1, 1
+        )
+        GameTooltip:Show()
+    end)
+    faerieFire:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
+    window.faerieFireCheckbox = faerieFire
+
     window.targetButton = CreateWideButton(
-        window, "Current Target", -5, AddCurrentTarget, 32
+        window, "Current Target", -5, AddCurrentTarget, 32, 30
     )
 
     local collapseButton = CreateFrame("Button", nil, window)
