@@ -157,13 +157,32 @@ local function AddCurrentTarget()
     SetStatus("All three slots are filled.", Palette.gold)
 end
 
-local function CreateButton(parent, label, width, x, y, onClick)
+local function CreateWideButton(parent, label, y, onClick)
     local button = CreateFrame("Button", nil, parent)
-    button:SetSize(width, 25)
-    button:SetPoint("TOP", parent, "TOP", x, y)
+    button:SetHeight(24)
+    button:SetPoint("TOPLEFT", parent, "TOPLEFT", 10, y)
+    button:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -10, y)
     Components:StyleButton(button, { text = label })
     button:SetScript("OnClick", onClick)
     return button
+end
+
+local function CreateMarkerIcon(parent, marker, y)
+    local icon = parent:CreateTexture(nil, "ARTWORK")
+    icon:SetSize(20, 20)
+    icon:SetPoint("TOPLEFT", parent, "TOPLEFT", 10, y - 2)
+    icon:SetTexture("Interface\\TargetingFrame\\UI-RaidTargetingIcons")
+
+    if SetRaidTargetIconTexture then
+        SetRaidTargetIconTexture(icon, marker)
+    else
+        local index = marker - 1
+        local left = (index % 4) * 0.25
+        local top = math.floor(index / 4) * 0.25
+        icon:SetTexCoord(left, left + 0.25, top, top + 0.25)
+    end
+
+    return icon
 end
 
 local function CreateWindow()
@@ -171,8 +190,8 @@ local function CreateWindow()
 
     local settings = GetSettings()
     window = Components:CreateWindow("KamiUITargetMacroWindow", {
-        width = 350,
-        height = 274,
+        width = 236,
+        height = 208,
         header = { title = "Target Macro" },
         onDragStop = function(frame)
             UI:SaveFramePosition(frame, settings)
@@ -185,29 +204,19 @@ local function CreateWindow()
         onClick = function() window:Hide() end,
     })
 
-    CreateButton(window, "Current Target", 150, 0, -42,
-        AddCurrentTarget)
+    CreateWideButton(window, "Current Target", -39, AddCurrentTarget)
 
-    local descriptions = {
-        "4 - Triangle",
-        "5 - Moon",
-        "6 - Square",
-    }
-
-    for index = 1, #MARKERS do
-        local y = -86 - (index - 1) * 37
-        local label = window:CreateFontString(nil, "OVERLAY")
-        Styles:ApplyText(label, "normal", Palette.text)
-        label:SetPoint("TOPLEFT", window, "TOPLEFT", 16, y - 4)
-        label:SetWidth(100)
-        label:SetJustifyH("LEFT")
-        label:SetText(descriptions[index])
+    for index, marker in ipairs(MARKERS) do
+        -- 24px tall inputs with just 2px between rows.
+        local y = -72 - (index - 1) * 26
+        CreateMarkerIcon(window, marker, y)
 
         local field = CreateFrame("EditBox", nil, window,
             "InputBoxTemplate")
         field:SetAutoFocus(false)
-        field:SetSize(208, 24)
-        field:SetPoint("TOPRIGHT", window, "TOPRIGHT", -16, y)
+        field:SetHeight(24)
+        field:SetPoint("TOPLEFT", window, "TOPLEFT", 36, y)
+        field:SetPoint("TOPRIGHT", window, "TOPRIGHT", -36, y)
         field:SetTextInsets(7, 7, 0, 0)
         field:SetMaxLetters(80)
         Components:StyleInput(field)
@@ -220,19 +229,30 @@ local function CreateWindow()
         end)
         field:SetScript("OnTextChanged", function(self)
             settings.names[index] = self:GetText() or ""
-            SetStatus("Click Generate / Update Macro to apply.")
+            SetStatus("Click Update Macro to apply.")
         end)
         field:SetText(settings.names[index])
         fields[index] = field
+
+        local clear = CreateFrame("Button", nil, window)
+        clear:SetSize(22, 22)
+        clear:SetPoint("TOPRIGHT", window, "TOPRIGHT", -9, y - 1)
+        Components:StyleCloseButton(clear, {
+            artSize = 16,
+            crossSize = 8,
+        })
+        clear:SetScript("OnClick", function()
+            field:SetText("")
+            field:ClearFocus()
+        end)
     end
 
-    CreateButton(window, "Generate / Update Macro", 225, 0, -208,
-        UpdateMacro)
+    CreateWideButton(window, "Update Macro", -158, UpdateMacro)
 
     statusText = window:CreateFontString(nil, "OVERLAY")
     Styles:ApplyText(statusText, "small", Palette.muted)
-    statusText:SetPoint("BOTTOMLEFT", window, "BOTTOMLEFT", 12, 12)
-    statusText:SetPoint("BOTTOMRIGHT", window, "BOTTOMRIGHT", -12, 12)
+    statusText:SetPoint("BOTTOMLEFT", window, "BOTTOMLEFT", 8, 7)
+    statusText:SetPoint("BOTTOMRIGHT", window, "BOTTOMRIGHT", -8, 7)
     statusText:SetJustifyH("CENTER")
     statusText:SetText("Macro: " .. MACRO_NAME)
 end
