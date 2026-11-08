@@ -11,6 +11,9 @@ local MACRO_ICON = "Ability_eyeoftheowl"
 local MAX_MACRO_BYTES = 255
 local MARKERS = { 4, 5, 6 }
 local AUTO_UPDATE_DELAY = 0.7
+-- Desaturated gold shades for the two swap directions.
+local SWAP_DOWN_COLOR = { 185 / 255, 167 / 255, 130 / 255, 1 } -- #B9A782
+local SWAP_UP_COLOR = { 118 / 255, 106 / 255, 86 / 255, 1 } -- #766A56
 
 local window
 local fields = {}
@@ -248,13 +251,13 @@ local function CreateSwapButton(parent, firstIndex)
         end
     end
 
-    -- Down: bright yellow; up: darker gold.
-    DrawArrow(Palette.highlight, {
+    -- Down: muted light gold; up: noticeably darker gray-gold.
+    DrawArrow(SWAP_DOWN_COLOR, {
         { 11, 4, 8, 4 }, { 8, 4, 5, 7 },
         { 5, 7, 5, 20 }, { 2, 17, 5, 20 },
         { 8, 17, 5, 20 },
     })
-    DrawArrow(Palette.gold, {
+    DrawArrow(SWAP_UP_COLOR, {
         { 5, 24, 8, 24 }, { 8, 24, 11, 21 },
         { 11, 21, 11, 8 }, { 8, 11, 11, 8 },
         { 14, 11, 11, 8 },
