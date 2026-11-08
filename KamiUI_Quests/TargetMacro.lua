@@ -200,15 +200,17 @@ local function SwapTargets(firstIndex)
 end
 
 local EXPANDED_WIDTH = 205
-local EXPANDED_HEIGHT = 116
+local EXPANDED_HEIGHT = 93
 local COLLAPSED_WIDTH = EXPANDED_WIDTH
-local COLLAPSED_HEIGHT = 23
+local COLLAPSED_HEIGHT = 30
 
-local function CreateWideButton(parent, label, y, onClick)
+local function CreateWideButton(parent, label, y, onClick,
+    rightInset)
     local button = CreateFrame("Button", nil, parent)
     button:SetHeight(20)
     button:SetPoint("TOPLEFT", parent, "TOPLEFT", 8, y)
-    button:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -8, y)
+    button:SetPoint("TOPRIGHT", parent, "TOPRIGHT",
+        -(rightInset or 8), y)
     Components:StyleButton(button, { text = label })
     button:SetScript("OnClick", onClick)
     return button
@@ -226,30 +228,11 @@ local function CreateSwapButton(parent, firstIndex)
         hoverAlpha = 0.16,
     })
 
-    -- Pixel textures are more reliable than Line regions on Forever.
-    -- Two opposing hooked arrows, pointing down-left and up-right.
-    local function DrawPixels(color, pixels)
-        local r, g, b, a = Styles:GetColorChannels(color)
-        for _, pixel in ipairs(pixels) do
-            local texture = button:CreateTexture(nil, "ARTWORK")
-            texture:SetPoint("TOPLEFT", button, "TOPLEFT",
-                pixel[1], -pixel[2])
-            texture:SetSize(pixel[3], pixel[4])
-            texture:SetColorTexture(r, g, b, a)
-        end
-    end
-
-    DrawPixels(Palette.text, {
-        { 7, 4, 5, 2 }, { 6, 6, 3, 2 }, { 5, 8, 2, 11 },
-        { 2, 15, 8, 2 }, { 3, 17, 6, 2 },
-        { 4, 19, 4, 2 }, { 5, 21, 2, 1 },
-    })
-    DrawPixels(Palette.muted, {
-        { 4, 24, 4, 2 }, { 8, 22, 3, 2 },
-        { 10, 20, 3, 2 }, { 11, 9, 2, 11 },
-        { 8, 12, 8, 2 }, { 9, 10, 6, 2 },
-        { 10, 8, 4, 2 }, { 11, 7, 2, 1 },
-    })
+    -- Try the single Unicode swap glyph instead of custom arrow art.
+    local icon = button:CreateFontString(nil, "OVERLAY")
+    Styles:ApplyText(icon, 16, Palette.text)
+    icon:SetPoint("CENTER", button, "CENTER", 0, 0)
+    icon:SetText("⇅")
 
     button:SetScript("OnClick", function()
         SwapTargets(firstIndex)
@@ -305,12 +288,13 @@ local function ApplyCollapsed()
 
     local collapsed = GetSettings().collapsed == true
     window.content:SetShown(not collapsed)
+    window.targetButton:SetShown(not collapsed)
+    window.collapsedLabel:SetShown(collapsed)
+    Components:SetButtonText(window.collapseButton,
+        collapsed and "+" or "-")
     window:SetSize(
         collapsed and COLLAPSED_WIDTH or EXPANDED_WIDTH,
         collapsed and COLLAPSED_HEIGHT or EXPANDED_HEIGHT
-    )
-    window.header.title:SetText(
-        collapsed and "+ Target Macro" or "- Target Macro"
     )
 end
 
@@ -343,51 +327,35 @@ local function CreateWindow()
         window:SetPoint("TOPRIGHT", UIParent, "TOPRIGHT", -20, -160)
     end
 
-    -- The same click-to-collapse and drag-to-move interaction as the
-    -- objective tracker, without a close button or Escape registration.
-    local header = CreateFrame("Button", nil, window)
-    header:SetPoint("TOPLEFT", window, "TOPLEFT", 1, -1)
-    header:SetPoint("TOPRIGHT", window, "TOPRIGHT", -1, -1)
-    header:SetHeight(21)
-    header:RegisterForClicks("LeftButtonUp")
-    header:RegisterForDrag("LeftButton")
+    -- The window itself is the drag surface. There is no title bar.
+    -- The raid-marker textures and free spaces keep their normal
+    -- drag behavior; only the top-right button toggles collapse.
+    local content = CreateFrame("Frame", nil, window)
+    content:SetPoint("TOPLEFT", window, "TOPLEFT", 0, 0)
+    content:SetPoint("TOPRIGHT", window, "TOPRIGHT", 0, 0)
+    content:SetHeight(EXPANDED_HEIGHT)
+    window.content = content
 
-    local title = header:CreateFontString(nil, "OVERLAY")
-    Styles:ApplyText(title, "panelTitle", Palette.gold)
-    title:SetPoint("CENTER", header, "CENTER", 0, 0)
-    header.title = title
+    window.targetButton = CreateWideButton(
+        window, "Current Target", -5, AddCurrentTarget, 32
+    )
 
-    header:SetScript("OnDragStart", function(self)
-        self.dragging = true
-        if InCombatLockdown and InCombatLockdown() then return end
-        window:StartMoving()
-        self.moving = true
-    end)
-    header:SetScript("OnDragStop", function(self)
-        if self.moving then
-            window:StopMovingOrSizing()
-            AnchorTopLeft(window, settings)
-            self.moving = nil
-        end
-
-        C_Timer.After(0, function()
-            self.dragging = false
-        end)
-    end)
-    header:SetScript("OnClick", function(self)
-        if self.dragging then return end
+    local collapseButton = CreateFrame("Button", nil, window)
+    collapseButton:SetSize(22, 20)
+    collapseButton:SetPoint("TOPRIGHT", window, "TOPRIGHT", -8, -5)
+    Components:StyleButton(collapseButton, { text = "-" })
+    collapseButton:SetScript("OnClick", function()
         settings.collapsed = not settings.collapsed
         ApplyCollapsed()
     end)
-    window.header = header
+    window.collapseButton = collapseButton
 
-    local content = CreateFrame("Frame", nil, window)
-    content:SetPoint("TOPLEFT", window, "TOPLEFT", 0, -23)
-    content:SetPoint("TOPRIGHT", window, "TOPRIGHT", 0, -23)
-    content:SetHeight(EXPANDED_HEIGHT - COLLAPSED_HEIGHT)
-    window.content = content
-
-    CreateWideButton(content, "Current Target", -5, AddCurrentTarget)
+    local collapsedLabel = window:CreateFontString(nil, "OVERLAY")
+    Styles:ApplyText(collapsedLabel, "panelTitle", Palette.gold)
+    collapsedLabel:SetPoint("CENTER", window.targetButton,
+        "CENTER", 0, 0)
+    collapsedLabel:SetText("Targets")
+    window.collapsedLabel = collapsedLabel
 
     for index, marker in ipairs(MARKERS) do
         -- 18px high controls; only 2px between rows.
