@@ -185,6 +185,22 @@ local function CreateMarkerIcon(parent, marker, y)
     return icon
 end
 
+-- Anchor the panel by its top-left corner so changing its height
+-- never moves the title. Keep the legacy center position as a one-time
+-- fallback for existing saved layouts.
+local function AnchorTopLeft(frame, settings)
+    local left, top = frame:GetLeft(), frame:GetTop()
+    local parentLeft, parentTop = UIParent:GetLeft(), UIParent:GetTop()
+    if not left or not top or not parentLeft or not parentTop then
+        return
+    end
+
+    local x, y = left - parentLeft, top - parentTop
+    frame:ClearAllPoints()
+    frame:SetPoint("TOPLEFT", UIParent, "TOPLEFT", x, y)
+    settings.topLeft = { x = x, y = y }
+end
+
 local function ApplyCollapsed()
     if not window then return end
 
@@ -211,11 +227,18 @@ local function CreateWindow()
         backgroundColor = { 0, 0, 0, 0.28 },
         borderColor = { 0.18, 0.18, 0.20, 0.45 },
         onDragStop = function(frame)
-            UI:SaveFramePosition(frame, settings)
+            AnchorTopLeft(frame, settings)
         end,
     })
 
-    if not UI:ApplyFramePosition(
+    local topLeft = settings.topLeft
+    if type(topLeft) == "table"
+        and type(topLeft.x) == "number"
+        and type(topLeft.y) == "number" then
+        window:SetPoint(
+            "TOPLEFT", UIParent, "TOPLEFT", topLeft.x, topLeft.y
+        )
+    elseif not UI:ApplyFramePosition(
         window, settings, "position", 0, 0, UIParent, true
     ) then
         window:SetPoint("TOPRIGHT", UIParent, "TOPRIGHT", -20, -160)
@@ -244,7 +267,7 @@ local function CreateWindow()
     header:SetScript("OnDragStop", function(self)
         if self.moving then
             window:StopMovingOrSizing()
-            UI:SaveFramePosition(window, settings)
+            AnchorTopLeft(window, settings)
             self.moving = nil
         end
 
@@ -309,8 +332,13 @@ local function CreateWindow()
 
     CreateWideButton(content, "Update Macro", -96, UpdateMacro)
 
-    ApplyCollapsed()
+    -- Show at full size once to migrate any existing center position.
+    -- Future resizing uses the saved top-left anchor.
     window:Show()
+    if not settings.topLeft then
+        AnchorTopLeft(window, settings)
+    end
+    ApplyCollapsed()
 end
 
 local function ExpandWindow()
