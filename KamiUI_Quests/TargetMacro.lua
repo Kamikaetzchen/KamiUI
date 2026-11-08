@@ -228,29 +228,33 @@ local function CreateSwapButton(parent, firstIndex)
         hoverAlpha = 0.16,
     })
 
-    -- Draw two opposing hooked arrows without relying on font glyphs.
-    -- Line API takes (point, relativeFrame, x, y); our first attempt
-    -- accidentally passed an extra relative-point string.
+    -- Scale the arrows to 80%, keeping them centered in the button.
     local function DrawArrow(color, segments)
         local r, g, b, a = Styles:GetColorChannels(color)
+        local scale = 0.8
+        local function Position(x, y)
+            return 8 + (x - 8) * scale,
+                14 + (y - 14) * scale
+        end
+
         for _, segment in ipairs(segments) do
+            local x1, y1 = Position(segment[1], segment[2])
+            local x2, y2 = Position(segment[3], segment[4])
             local line = button:CreateLine(nil, "OVERLAY")
-            line:SetStartPoint("TOPLEFT", button,
-                segment[1], -segment[2])
-            line:SetEndPoint("TOPLEFT", button,
-                segment[3], -segment[4])
-            line:SetThickness(1.8)
+            line:SetStartPoint("TOPLEFT", button, x1, -y1)
+            line:SetEndPoint("TOPLEFT", button, x2, -y2)
+            line:SetThickness(1.5)
             line:SetColorTexture(r, g, b, a)
         end
     end
 
-    -- Down on the left, up on the right.
-    DrawArrow(Palette.text, {
+    -- Down: warm gold; up: muted blue.
+    DrawArrow(Palette.gold, {
         { 11, 4, 8, 4 }, { 8, 4, 5, 7 },
         { 5, 7, 5, 20 }, { 2, 17, 5, 20 },
         { 8, 17, 5, 20 },
     })
-    DrawArrow(Palette.muted, {
+    DrawArrow({ 0.42, 0.68, 0.85, 1 }, {
         { 5, 24, 8, 24 }, { 8, 24, 11, 21 },
         { 11, 21, 11, 8 }, { 8, 11, 11, 8 },
         { 14, 11, 11, 8 },
