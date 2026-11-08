@@ -169,3 +169,63 @@ function Provider:GetSection()
 end
 
 Module:RegisterProvider("quests", Provider)
+
+-- Blizzard collapses out-of-zone headers when the quest log is reopened.
+-- Expand them after the map has finished showing, without replacing or
+-- modifying any Blizzard quest-map handlers.
+local questLogHooked = false
+local expandQueued = false
+
+local function QueueExpandQuestLog()
+    if expandQueued then return end
+    expandQueued = true
+
+    C_Timer.After(0, function()
+        expandQueued = false
+
+        if not QuestMapFrame or not QuestMapFrame:IsShown()
+            or not ExpandQuestHeader then
+            return
+        end
+
+        -- Expanding quests can trigger a map refresh. Avoid doing that
+        -- through an insecure addon callback while protected in combat.
+        if InCombatLockdown and InCombatLockdown() then
+            UI:RunOutOfCombat("questlog.expand", QueueExpandQuestLog)
+            return
+        end
+
+        -- An update is unnecessary if all headers are already open.
+        if C_QuestLog and C_QuestLog.GetNumQuestLogEntries
+            and C_QuestLog.GetInfo then
+            local count = C_QuestLog.GetNumQuestLogEntries()
+            local collapsed = false
+
+            for index = 1, count do
+                local info = C_QuestLog.GetInfo(index)
+                if info and info.isHeader and info.isCollapsed then
+                    collapsed = true
+                    break
+                end
+            end
+
+            if not collapsed then return end
+        end
+
+        ExpandQuestHeader(0)
+    end)
+end
+
+local function HookQuestLog()
+    if questLogHooked or not QuestMapFrame then return end
+    questLogHooked = true
+    QuestMapFrame:HookScript("OnShow", QueueExpandQuestLog)
+
+    if QuestMapFrame:IsShown() then
+        QueueExpandQuestLog()
+    end
+end
+
+-- The world map may not have loaded when this module initializes.
+HookQuestLog()
+UI:RegisterEvent("ADDON_LOADED", HookQuestLog)
