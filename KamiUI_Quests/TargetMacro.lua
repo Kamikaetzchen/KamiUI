@@ -224,31 +224,48 @@ local function CreateWideButton(parent, label, y, onClick)
     return button
 end
 
--- Two vertically stacked buttons bridge rows 1/2 and 2/3.
--- Draw the up/down arrows with lines to avoid font glyph dependencies.
+-- Swap buttons bridge adjacent rows, with a 2px vertical gap.
+-- Their opposing hooked arrows are drawn in-game, no texture needed.
 local function CreateSwapButton(parent, firstIndex)
     local button = CreateFrame("Button", nil, parent)
-    button:SetSize(16, 29)
-    button:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -28,
-        -31 - (firstIndex - 1) * 29)
+    button:SetSize(16, 28)
+    button:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -27,
+        -31 - (firstIndex - 1) * 30)
     Components:StyleButton(button, {
         backgroundColor = { 0, 0, 0, 0.35 },
         hoverAlpha = 0.16,
     })
 
-    local segments = {
-        { 5, 21, 5, 8 }, { 2, 11, 5, 8 }, { 8, 11, 5, 8 },
-        { 11, 8, 11, 21 }, { 8, 18, 11, 21 },
-        { 14, 18, 11, 21 },
+    -- Left arrow hooks downward, right arrow hooks upward.
+    -- Coordinates are relative to the 16x28 button.
+    local arrows = {
+        {
+            color = Palette.text,
+            segments = {
+                { 11, 4, 8, 4 }, { 8, 4, 6, 6 },
+                { 6, 6, 5, 8 }, { 5, 8, 5, 16 },
+                { 2, 13, 5, 17 }, { 8, 13, 5, 17 },
+            },
+        },
+        {
+            color = Palette.muted,
+            segments = {
+                { 5, 24, 8, 24 }, { 8, 24, 10, 22 },
+                { 10, 22, 11, 20 }, { 11, 20, 11, 12 },
+                { 8, 15, 11, 11 }, { 14, 15, 11, 11 },
+            },
+        },
     }
-    for _, segment in ipairs(segments) do
-        local line = button:CreateLine(nil, "ARTWORK")
-        line:SetStartPoint("TOPLEFT", button, "TOPLEFT",
-            segment[1], -segment[2])
-        line:SetEndPoint("TOPLEFT", button, "TOPLEFT",
-            segment[3], -segment[4])
-        line:SetThickness(1.5)
-        Styles:SetColor(line, Palette.text)
+    for _, arrow in ipairs(arrows) do
+        for _, segment in ipairs(arrow.segments) do
+            local line = button:CreateLine(nil, "ARTWORK")
+            line:SetStartPoint("TOPLEFT", button, "TOPLEFT",
+                segment[1], -segment[2])
+            line:SetEndPoint("TOPLEFT", button, "TOPLEFT",
+                segment[3], -segment[4])
+            line:SetThickness(1.5)
+            Styles:SetColor(line, arrow.color)
+        end
     end
 
     button:SetScript("OnClick", function()
@@ -399,7 +416,7 @@ local function CreateWindow()
         field:SetAutoFocus(false)
         field:SetHeight(18)
         field:SetPoint("TOPLEFT", content, "TOPLEFT", 28, y)
-        field:SetPoint("TOPRIGHT", content, "TOPRIGHT", -49, y)
+        field:SetPoint("TOPRIGHT", content, "TOPRIGHT", -45, y)
         field:SetTextInsets(5, 5, 0, 0)
         field:SetMaxLetters(80)
         Components:StyleInput(field)
