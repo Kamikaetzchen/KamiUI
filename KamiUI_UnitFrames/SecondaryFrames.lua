@@ -42,6 +42,35 @@ local focusTarget = CreateUnitFrame(
 )
 focusTarget:SetPoint("LEFT", focus, "RIGHT", 2, 0)
 
+-- Chained unit tokens don't reliably receive UNIT_HEALTH/UNIT_POWER
+-- events of their own. Poll only ToToT's displayed bars while its secure
+-- unit frame is visible. These native setters can consume combat-secret
+-- health/power values; no protected frame attributes are modified.
+local pollElapsed = 0
+local identityElapsed = 0
+local pollFrame = CreateFrame("Frame", nil, targetTargetTarget)
+
+pollFrame:SetScript("OnUpdate", function(_, elapsed)
+    pollElapsed = pollElapsed + elapsed
+    identityElapsed = identityElapsed + elapsed
+
+    if pollElapsed < 0.20 then return end
+    pollElapsed = 0
+
+    UF:UpdateHealth(targetTargetTarget)
+    UF:UpdatePower(targetTargetTarget)
+
+    -- UNIT_TARGET may also skip chained tokens; refresh the displayed
+    -- name/level periodically when unrestricted. In combat, identity
+    -- remains event-driven to avoid inspecting secret strings/numbers.
+    if identityElapsed >= 1
+        and not (InCombatLockdown and InCombatLockdown())
+    then
+        identityElapsed = 0
+        UF:UpdateIdentity(targetTargetTarget)
+    end
+end)
+
 local function UpdateTargetChain()
     UF:UpdateUnitFrame(targetTarget)
     UF:UpdateUnitFrame(targetTargetTarget)
