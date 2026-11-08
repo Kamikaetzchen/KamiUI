@@ -230,7 +230,10 @@ local function CreateSwapButton(parent, firstIndex)
 
     -- Try the single Unicode swap glyph instead of custom arrow art.
     local icon = button:CreateFontString(nil, "OVERLAY")
-    Styles:ApplyText(icon, 16, Palette.text)
+    -- Friz Quadrata lacks this Unicode glyph. ARKai_T supports
+    -- a broader symbol set without bundling an external font.
+    icon:SetFont("Fonts\\ARKai_T.TTF", 17, "OUTLINE")
+    Styles:SetTextColor(icon, Palette.text)
     icon:SetPoint("CENTER", button, "CENTER", 0, 0)
     icon:SetText("⇅")
 
