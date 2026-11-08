@@ -64,6 +64,12 @@ local function BuildMacro()
         end
     end
 
+    -- Restore the most recently selected target when the final
+    -- search finds nothing. Keep the last successful marked target.
+    if #lines > 0 then
+        lines[#lines + 1] = "/targetlasttarget [noexists]"
+    end
+
     -- Preserve the action-bar macro when every field is cleared.
     local body = #lines > 0 and table.concat(lines, "\n")
         or "/stopmacro"
