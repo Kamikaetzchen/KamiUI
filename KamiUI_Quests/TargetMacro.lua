@@ -16,7 +16,6 @@ local window
 local fields = {}
 local updateTimer
 local pendingUpdate = false
-local pendingSilent = true
 
 local function GetSettings()
     local root = UI:GetDatabase("quests", {
@@ -94,7 +93,8 @@ local function CancelScheduledUpdate()
     end
 end
 
-local function UpdateMacro(silent)
+-- All changes, including combat-deferred updates, report from here.
+local function UpdateMacro()
     CancelScheduledUpdate()
 
     local body, errorMessage = BuildMacro()
@@ -105,14 +105,9 @@ local function UpdateMacro(silent)
 
     if InCombatLockdown and InCombatLockdown() then
         if not pendingUpdate then
-            pendingSilent = silent == true
-        else
-            pendingSilent = pendingSilent and silent == true
+            SetStatus("Macro update queued until combat ends.")
         end
         pendingUpdate = true
-        if not silent then
-            SetStatus("Update queued until combat ends.")
-        end
         return
     end
 
@@ -124,11 +119,9 @@ local function UpdateMacro(silent)
     local macroName, _, currentBody = GetMacroInfo(MACRO_NAME)
     local exists = macroName ~= nil
 
-    -- No API call or chat spam if the generated macro is unchanged.
+    -- Only announce a successful change if the macro actually changed.
     if exists and currentBody == body then
         pendingUpdate = false
-        pendingSilent = true
-        if not silent then SetStatus("Macro already up to date.") end
         return
     end
 
@@ -148,13 +141,11 @@ local function UpdateMacro(silent)
     end
 
     pendingUpdate = false
-    pendingSilent = true
-
-    if not exists then
+    if exists then
+        SetStatus("Macro updated: " .. MACRO_NAME)
+    else
         SetStatus("Macro created: " .. MACRO_NAME
             .. " - drag it to an action bar once")
-    elseif not silent then
-        SetStatus("Macro updated: " .. MACRO_NAME)
     end
 end
 
@@ -162,7 +153,7 @@ local function ScheduleUpdate()
     CancelScheduledUpdate()
     updateTimer = C_Timer.NewTimer(AUTO_UPDATE_DELAY, function()
         updateTimer = nil
-        UpdateMacro(true)
+        UpdateMacro()
     end)
 end
 
@@ -187,8 +178,7 @@ local function AddCurrentTarget()
         if NormalizeName(settings.names[index]) == "" then
             settings.names[index] = name
             fields[index]:SetText(name)
-            SetStatus("Added " .. name .. " to slot " .. index .. ".")
-            UpdateMacro(true)
+            UpdateMacro()
             return
         end
     end
@@ -206,11 +196,11 @@ local function SwapTargets(firstIndex)
 
     fields[firstIndex]:SetText(settings.names[firstIndex])
     fields[secondIndex]:SetText(settings.names[secondIndex])
-    UpdateMacro(true)
+    UpdateMacro()
 end
 
 local EXPANDED_WIDTH = 205
-local EXPANDED_HEIGHT = 146
+local EXPANDED_HEIGHT = 116
 local COLLAPSED_WIDTH = EXPANDED_WIDTH
 local COLLAPSED_HEIGHT = 23
 
@@ -236,37 +226,30 @@ local function CreateSwapButton(parent, firstIndex)
         hoverAlpha = 0.16,
     })
 
-    -- Left arrow hooks downward, right arrow hooks upward.
-    -- Coordinates are relative to the 16x28 button.
-    local arrows = {
-        {
-            color = Palette.text,
-            segments = {
-                { 11, 4, 8, 4 }, { 8, 4, 6, 6 },
-                { 6, 6, 5, 8 }, { 5, 8, 5, 16 },
-                { 2, 13, 5, 17 }, { 8, 13, 5, 17 },
-            },
-        },
-        {
-            color = Palette.muted,
-            segments = {
-                { 5, 24, 8, 24 }, { 8, 24, 10, 22 },
-                { 10, 22, 11, 20 }, { 11, 20, 11, 12 },
-                { 8, 15, 11, 11 }, { 14, 15, 11, 11 },
-            },
-        },
-    }
-    for _, arrow in ipairs(arrows) do
-        for _, segment in ipairs(arrow.segments) do
-            local line = button:CreateLine(nil, "ARTWORK")
-            line:SetStartPoint("TOPLEFT", button, "TOPLEFT",
-                segment[1], -segment[2])
-            line:SetEndPoint("TOPLEFT", button, "TOPLEFT",
-                segment[3], -segment[4])
-            line:SetThickness(1.5)
-            Styles:SetColor(line, arrow.color)
+    -- Pixel textures are more reliable than Line regions on Forever.
+    -- Two opposing hooked arrows, pointing down-left and up-right.
+    local function DrawPixels(color, pixels)
+        local r, g, b, a = Styles:GetColorChannels(color)
+        for _, pixel in ipairs(pixels) do
+            local texture = button:CreateTexture(nil, "ARTWORK")
+            texture:SetPoint("TOPLEFT", button, "TOPLEFT",
+                pixel[1], -pixel[2])
+            texture:SetSize(pixel[3], pixel[4])
+            texture:SetColorTexture(r, g, b, a)
         end
     end
+
+    DrawPixels(Palette.text, {
+        { 7, 4, 5, 2 }, { 6, 6, 3, 2 }, { 5, 8, 2, 11 },
+        { 2, 15, 8, 2 }, { 3, 17, 6, 2 },
+        { 4, 19, 4, 2 }, { 5, 21, 2, 1 },
+    })
+    DrawPixels(Palette.muted, {
+        { 4, 24, 4, 2 }, { 8, 22, 3, 2 },
+        { 10, 20, 3, 2 }, { 11, 9, 2, 11 },
+        { 8, 12, 8, 2 }, { 9, 10, 6, 2 },
+        { 10, 8, 4, 2 }, { 11, 7, 2, 1 },
+    })
 
     button:SetScript("OnClick", function()
         SwapTargets(firstIndex)
@@ -432,7 +415,7 @@ local function CreateWindow()
             if userInput then ScheduleUpdate() end
         end)
         field:SetScript("OnEditFocusLost", function()
-            if updateTimer then UpdateMacro(true) end
+            if updateTimer then UpdateMacro() end
         end)
         field:SetText(settings.names[index])
         fields[index] = field
@@ -447,16 +430,12 @@ local function CreateWindow()
         clear:SetScript("OnClick", function()
             field:SetText("")
             field:ClearFocus()
-            UpdateMacro(true)
+            UpdateMacro()
         end)
     end
 
     CreateSwapButton(content, 1)
     CreateSwapButton(content, 2)
-
-    CreateWideButton(content, "Update Macro", -96, function()
-        UpdateMacro(false)
-    end)
 
     -- Show at full size once to migrate any existing center position.
     -- Future resizing uses the saved top-left anchor.
@@ -477,7 +456,7 @@ local function ExpandWindow()
 end
 
 UI:RegisterEvent("PLAYER_REGEN_ENABLED", function()
-    if pendingUpdate then UpdateMacro(pendingSilent) end
+    if pendingUpdate then UpdateMacro() end
 end)
 
 -- Keep the panel present after login and across reloads.
