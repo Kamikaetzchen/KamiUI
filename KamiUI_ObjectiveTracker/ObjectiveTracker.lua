@@ -465,7 +465,9 @@ local function UpdateQuestRow(row, item, y)
         row.level:Show()
         row.level:SetText(
             level > 0
-                and string.format("[%d]", level)
+                and string.format(
+                    "[%d%s]", level, item.isElite and "+" or ""
+                )
                 or "[?]"
         )
         Styles:SetTextColor(row.level, difficultyColor)
