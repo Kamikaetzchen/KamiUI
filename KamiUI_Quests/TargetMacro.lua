@@ -228,14 +228,33 @@ local function CreateSwapButton(parent, firstIndex)
         hoverAlpha = 0.16,
     })
 
-    -- Try the single Unicode swap glyph instead of custom arrow art.
-    local icon = button:CreateFontString(nil, "OVERLAY")
-    -- Friz Quadrata lacks this Unicode glyph. ARKai_T supports
-    -- a broader symbol set without bundling an external font.
-    icon:SetFont("Fonts\\ARKai_T.TTF", 17, "OUTLINE")
-    Styles:SetTextColor(icon, Palette.text)
-    icon:SetPoint("CENTER", button, "CENTER", 0, 0)
-    icon:SetText("⇅")
+    -- Draw two opposing hooked arrows without relying on font glyphs.
+    -- Line API takes (point, relativeFrame, x, y); our first attempt
+    -- accidentally passed an extra relative-point string.
+    local function DrawArrow(color, segments)
+        local r, g, b, a = Styles:GetColorChannels(color)
+        for _, segment in ipairs(segments) do
+            local line = button:CreateLine(nil, "OVERLAY")
+            line:SetStartPoint("TOPLEFT", button,
+                segment[1], -segment[2])
+            line:SetEndPoint("TOPLEFT", button,
+                segment[3], -segment[4])
+            line:SetThickness(1.8)
+            line:SetColorTexture(r, g, b, a)
+        end
+    end
+
+    -- Down on the left, up on the right.
+    DrawArrow(Palette.text, {
+        { 11, 4, 8, 4 }, { 8, 4, 5, 7 },
+        { 5, 7, 5, 20 }, { 2, 17, 5, 20 },
+        { 8, 17, 5, 20 },
+    })
+    DrawArrow(Palette.muted, {
+        { 5, 24, 8, 24 }, { 8, 24, 11, 21 },
+        { 11, 21, 11, 8 }, { 8, 11, 11, 8 },
+        { 14, 11, 11, 8 },
+    })
 
     button:SetScript("OnClick", function()
         SwapTargets(firstIndex)
