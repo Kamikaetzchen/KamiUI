@@ -196,6 +196,19 @@ local function AddCurrentTarget()
     SetStatus("All three slots are filled.", Palette.gold)
 end
 
+-- Keep raid markers in their fixed slots; only reorder target names.
+local function SwapTargets(firstIndex)
+    local settings = GetSettings()
+    local secondIndex = firstIndex + 1
+
+    settings.names[firstIndex], settings.names[secondIndex] =
+        settings.names[secondIndex], settings.names[firstIndex]
+
+    fields[firstIndex]:SetText(settings.names[firstIndex])
+    fields[secondIndex]:SetText(settings.names[secondIndex])
+    UpdateMacro(true)
+end
+
 local EXPANDED_WIDTH = 205
 local EXPANDED_HEIGHT = 146
 local COLLAPSED_WIDTH = EXPANDED_WIDTH
@@ -208,6 +221,48 @@ local function CreateWideButton(parent, label, y, onClick)
     button:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -8, y)
     Components:StyleButton(button, { text = label })
     button:SetScript("OnClick", onClick)
+    return button
+end
+
+-- Two vertically stacked buttons bridge rows 1/2 and 2/3.
+-- Draw the up/down arrows with lines to avoid font glyph dependencies.
+local function CreateSwapButton(parent, firstIndex)
+    local button = CreateFrame("Button", nil, parent)
+    button:SetSize(16, 29)
+    button:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -28,
+        -31 - (firstIndex - 1) * 29)
+    Components:StyleButton(button, {
+        backgroundColor = { 0, 0, 0, 0.35 },
+        hoverAlpha = 0.16,
+    })
+
+    local segments = {
+        { 5, 21, 5, 8 }, { 2, 11, 5, 8 }, { 8, 11, 5, 8 },
+        { 11, 8, 11, 21 }, { 8, 18, 11, 21 },
+        { 14, 18, 11, 21 },
+    }
+    for _, segment in ipairs(segments) do
+        local line = button:CreateLine(nil, "ARTWORK")
+        line:SetStartPoint("TOPLEFT", button, "TOPLEFT",
+            segment[1], -segment[2])
+        line:SetEndPoint("TOPLEFT", button, "TOPLEFT",
+            segment[3], -segment[4])
+        line:SetThickness(1.5)
+        Styles:SetColor(line, Palette.text)
+    end
+
+    button:SetScript("OnClick", function()
+        SwapTargets(firstIndex)
+    end)
+    button:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText("Swap targets " .. firstIndex
+            .. " and " .. (firstIndex + 1))
+        GameTooltip:Show()
+    end)
+    button:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
     return button
 end
 
@@ -344,7 +399,7 @@ local function CreateWindow()
         field:SetAutoFocus(false)
         field:SetHeight(18)
         field:SetPoint("TOPLEFT", content, "TOPLEFT", 28, y)
-        field:SetPoint("TOPRIGHT", content, "TOPRIGHT", -30, y)
+        field:SetPoint("TOPRIGHT", content, "TOPRIGHT", -49, y)
         field:SetTextInsets(5, 5, 0, 0)
         field:SetMaxLetters(80)
         Components:StyleInput(field)
@@ -378,6 +433,9 @@ local function CreateWindow()
             UpdateMacro(true)
         end)
     end
+
+    CreateSwapButton(content, 1)
+    CreateSwapButton(content, 2)
 
     CreateWideButton(content, "Update Macro", -96, function()
         UpdateMacro(false)
