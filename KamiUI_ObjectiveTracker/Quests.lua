@@ -71,6 +71,12 @@ local function GetQuestData(questID)
     end
 
     local level = info and info.level or 0
+    -- Match Forever's native [level+] marker for elite quests.
+    local isElite = false
+    if C_QuestLog and C_QuestLog.IsEliteQuest then
+        local ok, result = pcall(C_QuestLog.IsEliteQuest, questID)
+        isElite = ok and UI:CanAccessValue(result) and result == true
+    end
     local objectives = {}
 
     if C_QuestLog and C_QuestLog.GetQuestObjectives then
@@ -124,6 +130,7 @@ local function GetQuestData(questID)
         title = title or ("Quest " .. tostring(questID)),
         timerDeadline = GetQuestTimerDeadline(questID),
         level = level,
+        isElite = isElite,
         objectives = objectives,
         questItem = questItem,
     }
