@@ -161,8 +161,6 @@ local function GetBandageStrength(bag, slot, id)
     local amount = description:match("heals?%s+([%d,]+)%s+damage")
         or description:match("heals?.-([%d,]+)%s+damage")
         or description:match("restores?%s+([%d,]+)%s+health")
-        -- German tooltip: "Heilt 7 Sek. lang 301 Punkt(e) Schaden."
-        or description:match("heilt.-([%d%.]+)%s+punkt")
 
     if amount then
         local value = tonumber((amount:gsub("[,.]", "")))
@@ -225,13 +223,13 @@ local function ScanItem(catalog, bag, slot, id, count)
         or (C_Item and C_Item.GetItemIconByID and C_Item.GetItemIconByID(id))
         or (GetItemIcon and GetItemIcon(id))
 
-    if id == 6948 or Has(n, "hearthstone", "ruhestein") then
+    if id == 6948 or Has(n, "hearthstone") then
         Add(catalog, "hearthstone", id, name, icon, score, count)
         return
     end
     if (classID == 15 and subclassID == 5)
-        or Has(n, "reins of", "zügel", "zuegel", "mechanostrider",
-            "riding kodo", "riding ram", "raptor whistle", "horn of the")
+        or Has(n, "reins of", "mechanostrider", "riding kodo",
+            "riding ram", "raptor whistle", "horn of the")
     then
         local spell = (C_Item and C_Item.GetItemSpell) or GetItemSpell
         if spell and spell(id) then
@@ -248,11 +246,11 @@ local function ScanItem(catalog, bag, slot, id, count)
 
     if classID ~= 0 then return end
 
-    local food = subclassID == 5 or Has(sub, "food", "drink", "nahrung")
-    local potion = subclassID == 1 or Has(sub, "potion", "trank")
+    local food = subclassID == 5 or Has(sub, "food", "drink")
+    local potion = subclassID == 1 or Has(sub, "potion")
     local elixir = subclassID == 2 or subclassID == 3
-        or Has(n, "elixir", "elixier", "flask", "fläschchen")
-    local bandage = subclassID == 7 or Has(n, "bandage", "verband")
+        or Has(n, "elixir", "flask")
+    local bandage = subclassID == 7 or Has(n, "bandage")
     if bandage then
         -- Stronger healing always outranks stack size or alphabetical order.
         -- Preserve the generic score only for an unrecognized bandage.
@@ -262,14 +260,16 @@ local function ScanItem(catalog, bag, slot, id, count)
         Add(catalog, "elixir", id, name, icon, score, count)
     elseif food or potion then
         local t = TooltipText(bag, slot)
-        local health = Has(t, "health", "gesundheit", "hit points")
-            or Has(n, "healing", "heiltrank")
-        local mana = Has(t, "mana", "magiepunkte")
-            or Has(n, "mana", "manatrank")
-        local rage = Has(n, "rage", "wuttrank")
-            or Has(t, "rage", "wut erzeugt", "wut wieder")
+        local health = Has(t, "health", "hit points")
+            or Has(n, "healing")
+        local mana = Has(t, "mana")
+            or Has(n, "mana")
+        -- Check the item name, never arbitrary tooltip text: "storage"
+        -- contains "rage", which misclassified regular healing potions.
+        -- Covers Rage Potion, Great Rage Potion, and Mighty Rage Potion.
+        local rage = Has(n, "rage potion")
         if food then
-            if Has(t, "well fed", "well-fed", "satt", "gut genährt") then
+            if Has(t, "well fed", "well-fed") then
                 Add(catalog, "bufffood", id, name, icon, score, count)
             elseif mana and not health then
                 Add(catalog, "drink", id, name, icon, score, count)
