@@ -13,7 +13,6 @@ local MARKERS = { 4, 5, 6 }
 
 local window
 local fields = {}
-local statusText
 local pendingUpdate = false
 
 local function GetSettings()
@@ -41,10 +40,8 @@ local function GetSettings()
     return settings
 end
 
-local function SetStatus(message, color)
-    if not statusText then return end
-    statusText:SetText(message or "")
-    Styles:SetTextColor(statusText, color or Palette.muted)
+local function SetStatus(message)
+    if message and message ~= "" then UI:Print(message) end
 end
 
 local function NormalizeName(value)
@@ -85,7 +82,6 @@ local function UpdateMacro()
     local body, errorMessage = BuildMacro()
     if not body then
         SetStatus(errorMessage, Palette.difficulty.veryHard)
-        UI:Print(errorMessage)
         return
     end
 
@@ -115,7 +111,6 @@ local function UpdateMacro()
     if not ok or not result then
         SetStatus("Could not update macro (macro slots full?).",
             Palette.difficulty.veryHard)
-        UI:Print("Could not create/update " .. MACRO_NAME)
         return
     end
 
@@ -157,11 +152,16 @@ local function AddCurrentTarget()
     SetStatus("All three slots are filled.", Palette.gold)
 end
 
+local EXPANDED_WIDTH = 205
+local EXPANDED_HEIGHT = 146
+local COLLAPSED_WIDTH = 136
+local COLLAPSED_HEIGHT = 23
+
 local function CreateWideButton(parent, label, y, onClick)
     local button = CreateFrame("Button", nil, parent)
-    button:SetHeight(24)
-    button:SetPoint("TOPLEFT", parent, "TOPLEFT", 10, y)
-    button:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -10, y)
+    button:SetHeight(20)
+    button:SetPoint("TOPLEFT", parent, "TOPLEFT", 8, y)
+    button:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -8, y)
     Components:StyleButton(button, { text = label })
     button:SetScript("OnClick", onClick)
     return button
@@ -169,8 +169,8 @@ end
 
 local function CreateMarkerIcon(parent, marker, y)
     local icon = parent:CreateTexture(nil, "ARTWORK")
-    icon:SetSize(20, 20)
-    icon:SetPoint("TOPLEFT", parent, "TOPLEFT", 10, y - 2)
+    icon:SetSize(16, 16)
+    icon:SetPoint("TOPLEFT", parent, "TOPLEFT", 8, y - 1)
     icon:SetTexture("Interface\\TargetingFrame\\UI-RaidTargetingIcons")
 
     if SetRaidTargetIconTexture then
@@ -185,39 +185,100 @@ local function CreateMarkerIcon(parent, marker, y)
     return icon
 end
 
+local function ApplyCollapsed()
+    if not window then return end
+
+    local collapsed = GetSettings().collapsed == true
+    window.content:SetShown(not collapsed)
+    window:SetSize(
+        collapsed and COLLAPSED_WIDTH or EXPANDED_WIDTH,
+        collapsed and COLLAPSED_HEIGHT or EXPANDED_HEIGHT
+    )
+    window.header.title:SetText(
+        collapsed and "+ Target Macro" or "- Target Macro"
+    )
+end
+
 local function CreateWindow()
     if window then return end
 
     local settings = GetSettings()
     window = Components:CreateWindow("KamiUITargetMacroWindow", {
-        width = 236,
-        height = 208,
-        header = { title = "Target Macro" },
+        width = EXPANDED_WIDTH,
+        height = EXPANDED_HEIGHT,
+        header = false,
+        strata = "MEDIUM",
+        backgroundColor = { 0, 0, 0, 0.28 },
+        borderColor = { 0.18, 0.18, 0.20, 0.45 },
         onDragStop = function(frame)
             UI:SaveFramePosition(frame, settings)
         end,
     })
 
-    UI:ApplyFramePosition(window, settings, "position", 0, 0)
-    Components:RegisterEscapeClose(window)
-    Components:CreateWindowCloseButton(window.header, {
-        onClick = function() window:Hide() end,
-    })
+    if not UI:ApplyFramePosition(
+        window, settings, "position", 0, 0, UIParent, true
+    ) then
+        window:SetPoint("TOPRIGHT", UIParent, "TOPRIGHT", -20, -160)
+    end
 
-    CreateWideButton(window, "Current Target", -39, AddCurrentTarget)
+    -- The same click-to-collapse and drag-to-move interaction as the
+    -- objective tracker, without a close button or Escape registration.
+    local header = CreateFrame("Button", nil, window)
+    header:SetPoint("TOPLEFT", window, "TOPLEFT", 1, -1)
+    header:SetPoint("TOPRIGHT", window, "TOPRIGHT", -1, -1)
+    header:SetHeight(21)
+    header:RegisterForClicks("LeftButtonUp")
+    header:RegisterForDrag("LeftButton")
+
+    local title = header:CreateFontString(nil, "OVERLAY")
+    Styles:ApplyText(title, "panelTitle", Palette.gold)
+    title:SetPoint("CENTER", header, "CENTER", 0, 0)
+    header.title = title
+
+    header:SetScript("OnDragStart", function(self)
+        self.dragging = true
+        if InCombatLockdown and InCombatLockdown() then return end
+        window:StartMoving()
+        self.moving = true
+    end)
+    header:SetScript("OnDragStop", function(self)
+        if self.moving then
+            window:StopMovingOrSizing()
+            UI:SaveFramePosition(window, settings)
+            self.moving = nil
+        end
+
+        C_Timer.After(0, function()
+            self.dragging = false
+        end)
+    end)
+    header:SetScript("OnClick", function(self)
+        if self.dragging then return end
+        settings.collapsed = not settings.collapsed
+        ApplyCollapsed()
+    end)
+    window.header = header
+
+    local content = CreateFrame("Frame", nil, window)
+    content:SetPoint("TOPLEFT", window, "TOPLEFT", 0, -23)
+    content:SetPoint("TOPRIGHT", window, "TOPRIGHT", 0, -23)
+    content:SetHeight(EXPANDED_HEIGHT - COLLAPSED_HEIGHT)
+    window.content = content
+
+    CreateWideButton(content, "Current Target", -5, AddCurrentTarget)
 
     for index, marker in ipairs(MARKERS) do
-        -- 24px tall inputs with just 2px between rows.
-        local y = -72 - (index - 1) * 26
-        CreateMarkerIcon(window, marker, y)
+        -- 18px high controls; only 2px between rows.
+        local y = -31 - (index - 1) * 20
+        CreateMarkerIcon(content, marker, y)
 
-        local field = CreateFrame("EditBox", nil, window,
+        local field = CreateFrame("EditBox", nil, content,
             "InputBoxTemplate")
         field:SetAutoFocus(false)
-        field:SetHeight(24)
-        field:SetPoint("TOPLEFT", window, "TOPLEFT", 36, y)
-        field:SetPoint("TOPRIGHT", window, "TOPRIGHT", -36, y)
-        field:SetTextInsets(7, 7, 0, 0)
+        field:SetHeight(18)
+        field:SetPoint("TOPLEFT", content, "TOPLEFT", 28, y)
+        field:SetPoint("TOPRIGHT", content, "TOPRIGHT", -30, y)
+        field:SetTextInsets(5, 5, 0, 0)
         field:SetMaxLetters(80)
         Components:StyleInput(field)
 
@@ -229,17 +290,16 @@ local function CreateWindow()
         end)
         field:SetScript("OnTextChanged", function(self)
             settings.names[index] = self:GetText() or ""
-            SetStatus("Click Update Macro to apply.")
         end)
         field:SetText(settings.names[index])
         fields[index] = field
 
-        local clear = CreateFrame("Button", nil, window)
-        clear:SetSize(22, 22)
-        clear:SetPoint("TOPRIGHT", window, "TOPRIGHT", -9, y - 1)
+        local clear = CreateFrame("Button", nil, content)
+        clear:SetSize(18, 18)
+        clear:SetPoint("TOPRIGHT", content, "TOPRIGHT", -7, y)
         Components:StyleCloseButton(clear, {
-            artSize = 16,
-            crossSize = 8,
+            artSize = 15,
+            crossSize = 7,
         })
         clear:SetScript("OnClick", function()
             field:SetText("")
@@ -247,22 +307,18 @@ local function CreateWindow()
         end)
     end
 
-    CreateWideButton(window, "Update Macro", -158, UpdateMacro)
+    CreateWideButton(content, "Update Macro", -96, UpdateMacro)
 
-    statusText = window:CreateFontString(nil, "OVERLAY")
-    Styles:ApplyText(statusText, "small", Palette.muted)
-    statusText:SetPoint("BOTTOMLEFT", window, "BOTTOMLEFT", 8, 7)
-    statusText:SetPoint("BOTTOMRIGHT", window, "BOTTOMRIGHT", -8, 7)
-    statusText:SetJustifyH("CENTER")
-    statusText:SetText("Macro: " .. MACRO_NAME)
+    ApplyCollapsed()
+    window:Show()
 end
 
-local function ToggleWindow()
+local function ExpandWindow()
     if not window then CreateWindow() end
-    if window:IsShown() then
-        window:Hide()
-    else
-        window:Show()
+    local settings = GetSettings()
+    if settings.collapsed then
+        settings.collapsed = false
+        ApplyCollapsed()
     end
 end
 
@@ -270,8 +326,11 @@ UI:RegisterEvent("PLAYER_REGEN_ENABLED", function()
     if pendingUpdate then UpdateMacro() end
 end)
 
-UI:RegisterCommand("targets", "toggle", ToggleWindow,
-    "Open the three-slot target macro editor")
+-- Keep the panel present after login and across reloads.
+UI:RegisterEvent("PLAYER_LOGIN", CreateWindow)
+
+UI:RegisterCommand("targets", "show", ExpandWindow,
+    "Expand the always-visible target macro panel")
 
 SLASH_KAMIUITARGET1 = "/kuitarget"
-SlashCmdList.KAMIUITARGET = ToggleWindow
+SlashCmdList.KAMIUITARGET = ExpandWindow
