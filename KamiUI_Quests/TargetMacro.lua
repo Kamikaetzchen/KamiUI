@@ -10,10 +10,13 @@ local MACRO_NAME = "KamiTargets"
 local MACRO_ICON = "Ability_eyeoftheowl"
 local MAX_MACRO_BYTES = 255
 local MARKERS = { 4, 5, 6 }
+local AUTO_UPDATE_DELAY = 0.7
 
 local window
 local fields = {}
+local updateTimer
 local pendingUpdate = false
+local pendingSilent = true
 
 local function GetSettings()
     local root = UI:GetDatabase("quests", {
@@ -84,27 +87,52 @@ local function BuildMacro()
     return body
 end
 
-local function UpdateMacro()
+local function CancelScheduledUpdate()
+    if updateTimer then
+        updateTimer:Cancel()
+        updateTimer = nil
+    end
+end
+
+local function UpdateMacro(silent)
+    CancelScheduledUpdate()
+
     local body, errorMessage = BuildMacro()
     if not body then
-        SetStatus(errorMessage, Palette.difficulty.veryHard)
+        SetStatus(errorMessage)
         return
     end
 
     if InCombatLockdown and InCombatLockdown() then
+        if not pendingUpdate then
+            pendingSilent = silent == true
+        else
+            pendingSilent = pendingSilent and silent == true
+        end
         pendingUpdate = true
-        SetStatus("Update queued until combat ends.", Palette.gold)
+        if not silent then
+            SetStatus("Update queued until combat ends.")
+        end
         return
     end
 
     if not GetMacroInfo or not CreateMacro or not EditMacro then
-        SetStatus("Macro API unavailable.", Palette.difficulty.veryHard)
+        SetStatus("Macro API unavailable.")
         return
     end
 
-    local exists = GetMacroInfo(MACRO_NAME) ~= nil
-    local ok, result
+    local macroName, _, currentBody = GetMacroInfo(MACRO_NAME)
+    local exists = macroName ~= nil
 
+    -- No API call or chat spam if the generated macro is unchanged.
+    if exists and currentBody == body then
+        pendingUpdate = false
+        pendingSilent = true
+        if not silent then SetStatus("Macro already up to date.") end
+        return
+    end
+
+    local ok, result
     if exists then
         ok, result = pcall(EditMacro,
             MACRO_NAME, MACRO_NAME, nil, body)
@@ -115,18 +143,27 @@ local function UpdateMacro()
     end
 
     if not ok or not result then
-        SetStatus("Could not update macro (macro slots full?).",
-            Palette.difficulty.veryHard)
+        SetStatus("Could not update macro (macro slots full?).")
         return
     end
 
     pendingUpdate = false
-    SetStatus(exists and "Macro updated: " .. MACRO_NAME
-        or "Macro created: " .. MACRO_NAME, Palette.success)
+    pendingSilent = true
 
-    UI:Print(exists and "Updated " .. MACRO_NAME
-        or "Created " .. MACRO_NAME
+    if not exists then
+        SetStatus("Macro created: " .. MACRO_NAME
             .. " - drag it to an action bar once")
+    elseif not silent then
+        SetStatus("Macro updated: " .. MACRO_NAME)
+    end
+end
+
+local function ScheduleUpdate()
+    CancelScheduledUpdate()
+    updateTimer = C_Timer.NewTimer(AUTO_UPDATE_DELAY, function()
+        updateTimer = nil
+        UpdateMacro(true)
+    end)
 end
 
 local function AddCurrentTarget()
@@ -151,6 +188,7 @@ local function AddCurrentTarget()
             settings.names[index] = name
             fields[index]:SetText(name)
             SetStatus("Added " .. name .. " to slot " .. index .. ".")
+            UpdateMacro(true)
             return
         end
     end
@@ -317,8 +355,12 @@ local function CreateWindow()
         field:SetScript("OnEscapePressed", function(self)
             self:ClearFocus()
         end)
-        field:SetScript("OnTextChanged", function(self)
+        field:SetScript("OnTextChanged", function(self, userInput)
             settings.names[index] = self:GetText() or ""
+            if userInput then ScheduleUpdate() end
+        end)
+        field:SetScript("OnEditFocusLost", function()
+            if updateTimer then UpdateMacro(true) end
         end)
         field:SetText(settings.names[index])
         fields[index] = field
@@ -333,10 +375,13 @@ local function CreateWindow()
         clear:SetScript("OnClick", function()
             field:SetText("")
             field:ClearFocus()
+            UpdateMacro(true)
         end)
     end
 
-    CreateWideButton(content, "Update Macro", -96, UpdateMacro)
+    CreateWideButton(content, "Update Macro", -96, function()
+        UpdateMacro(false)
+    end)
 
     -- Show at full size once to migrate any existing center position.
     -- Future resizing uses the saved top-left anchor.
@@ -357,7 +402,7 @@ local function ExpandWindow()
 end
 
 UI:RegisterEvent("PLAYER_REGEN_ENABLED", function()
-    if pendingUpdate then UpdateMacro() end
+    if pendingUpdate then UpdateMacro(pendingSilent) end
 end)
 
 -- Keep the panel present after login and across reloads.
