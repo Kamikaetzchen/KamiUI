@@ -9,7 +9,11 @@ local Styles = UI.Styles
 local MACRO_NAME = "KamiTargets"
 local MACRO_ICON = "Ability_eyeoftheowl"
 local MAX_MACRO_BYTES = 255
-local MARKERS = { 4, 5, 6 }
+-- Triangle, moon, square, star, circle. Skull, cross and diamond
+-- are intentionally reserved for normal group target markers.
+local MARKERS = { 4, 5, 6, 1, 2 }
+local MIN_VISIBLE_SLOTS = 3
+local ROW_STEP = 20
 local AUTO_UPDATE_DELAY = 0.7
 -- Desaturated gold shades for the two swap directions.
 local SWAP_DOWN_COLOR = { 200 / 255, 163 / 255, 77 / 255, 1 } -- #C8A34D
@@ -17,8 +21,11 @@ local SWAP_UP_COLOR = { 143 / 255, 108 / 255, 44 / 255, 1 } -- #8F6C2C
 
 local window
 local fields = {}
+local rows = {}
+local swapButtons = {}
 local updateTimer
 local pendingUpdate = false
+local RefreshLayout
 
 local function GetSettings()
     local root = UI:GetDatabase("quests", {
@@ -83,10 +90,10 @@ local function BuildMacro()
         return nil, string.format(
             "Macro too long (%d/%d bytes). Shorten a target name.",
             #body, MAX_MACRO_BYTES
-        )
+        ), #body
     end
 
-    return body
+    return body, nil, #body
 end
 
 local function CancelScheduledUpdate()
@@ -181,12 +188,13 @@ local function AddCurrentTarget()
         if NormalizeName(settings.names[index]) == "" then
             settings.names[index] = name
             fields[index]:SetText(name)
+            RefreshLayout()
             UpdateMacro()
             return
         end
     end
 
-    SetStatus("All three slots are filled.", Palette.gold)
+    SetStatus("All five slots are filled.")
 end
 
 -- Keep raid markers in their fixed slots; only reorder target names.
@@ -199,6 +207,7 @@ local function SwapTargets(firstIndex)
 
     fields[firstIndex]:SetText(settings.names[firstIndex])
     fields[secondIndex]:SetText(settings.names[secondIndex])
+    RefreshLayout()
     UpdateMacro()
 end
 
@@ -231,27 +240,22 @@ local function CreateSwapButton(parent, firstIndex)
         hoverAlpha = 0.16,
     })
 
-    -- Scale the arrows to 80%, keeping them centered in the button.
+    -- Reposition the arrow segments when extra rows make the
+    -- swap buttons shorter; 3-slot appearance stays identical.
+    local arrowLines = {}
     local function DrawArrow(color, segments)
         local r, g, b, a = Styles:GetColorChannels(color)
-        local scale = 0.8
-        local function Position(x, y)
-            return 8 + (x - 8) * scale,
-                14 + (y - 14) * scale
-        end
-
         for _, segment in ipairs(segments) do
-            local x1, y1 = Position(segment[1], segment[2])
-            local x2, y2 = Position(segment[3], segment[4])
             local line = button:CreateLine(nil, "OVERLAY")
-            line:SetStartPoint("TOPLEFT", button, x1, -y1)
-            line:SetEndPoint("TOPLEFT", button, x2, -y2)
             line:SetThickness(1.5)
             line:SetColorTexture(r, g, b, a)
+            arrowLines[#arrowLines + 1] = {
+                line = line, segment = segment,
+            }
         end
     end
 
-    -- Down: muted light gold; up: noticeably darker gray-gold.
+    -- Down: warm light gold; up: darker gold.
     DrawArrow(SWAP_DOWN_COLOR, {
         { 11, 4, 8, 4 }, { 8, 4, 5, 7 },
         { 5, 7, 5, 20 }, { 2, 17, 5, 20 },
@@ -262,6 +266,26 @@ local function CreateSwapButton(parent, firstIndex)
         { 11, 21, 11, 8 }, { 8, 11, 11, 8 },
         { 14, 11, 11, 8 },
     })
+
+    function button:RefreshArrows()
+        local height = self:GetHeight()
+        local scale = 0.8 * height / 28
+
+        local function Position(x, y)
+            return 8 + (x - 8) * scale,
+                height / 2 + (y - 14) * scale
+        end
+
+        for _, entry in ipairs(arrowLines) do
+            local segment = entry.segment
+            local x1, y1 = Position(segment[1], segment[2])
+            local x2, y2 = Position(segment[3], segment[4])
+            entry.line:SetStartPoint("TOPLEFT", self, x1, -y1)
+            entry.line:SetEndPoint("TOPLEFT", self, x2, -y2)
+        end
+    end
+
+    button:RefreshArrows()
 
     button:SetScript("OnClick", function()
         SwapTargets(firstIndex)
@@ -312,18 +336,92 @@ local function AnchorTopLeft(frame, settings)
     settings.topLeft = { x = x, y = y }
 end
 
+-- Always show at least three rows and one blank row after the
+-- last populated slot, up to the five available raid markers.
+local function GetVisibleSlotCount()
+    local count = MIN_VISIBLE_SLOTS
+    local names = GetSettings().names
+
+    for index = 1, #MARKERS do
+        if NormalizeName(names[index]) ~= "" then
+            count = math.max(count, math.min(#MARKERS, index + 1))
+        end
+    end
+
+    return count
+end
+
+RefreshLayout = function()
+    if not window or not window.rowsReady then return end
+
+    local count = GetVisibleSlotCount()
+    window.visibleSlots = count
+
+    for index, row in ipairs(rows) do
+        local visible = index <= count
+        row.icon:SetShown(visible)
+        row.field:SetShown(visible)
+        row.clear:SetShown(visible)
+    end
+
+    -- The swap buttons collectively span the target rows, with 2px
+    -- between buttons, regardless of whether 3, 4 or 5 are visible.
+    local buttonHeight = (
+        ROW_STEP * count - 2 - (count - 2) * 2
+    ) / (count - 1)
+    local top = 31
+    for index, button in ipairs(swapButtons) do
+        local visible = index < count
+        button:SetShown(visible)
+        if visible then
+            button:SetHeight(buttonHeight)
+            button:ClearAllPoints()
+            button:SetPoint("TOPRIGHT", window.content,
+                "TOPRIGHT", -27, -top)
+            button:RefreshArrows()
+            top = top + buttonHeight + 2
+        end
+    end
+
+    -- Show oversized macro errors inside the panel immediately, not
+    -- just in chat after the delayed update has already failed.
+    local _, errorMessage, bytes = BuildMacro()
+    local tooLong = errorMessage ~= nil
+    local rowHeight = EXPANDED_HEIGHT
+        + (count - MIN_VISIBLE_SLOTS) * ROW_STEP
+    window.limitWarning:ClearAllPoints()
+    window.limitWarning:SetPoint("TOPLEFT", window, "TOPLEFT",
+        8, -rowHeight)
+    window.limitWarning:SetText(tooLong and string.format(
+        "Macro too long: %d/%d bytes", bytes, MAX_MACRO_BYTES
+    ) or "")
+    window.limitWarning:SetShown(
+        tooLong and GetSettings().collapsed ~= true
+    )
+
+    window.expandedHeight = rowHeight + (tooLong and 16 or 0)
+    window.content:SetHeight(window.expandedHeight)
+    if GetSettings().collapsed ~= true then
+        window:SetSize(EXPANDED_WIDTH, window.expandedHeight)
+    end
+end
+
 local function ApplyCollapsed()
     if not window then return end
 
+    RefreshLayout()
     local collapsed = GetSettings().collapsed == true
     window.content:SetShown(not collapsed)
     window.targetButton:SetShown(not collapsed)
     window.collapsedLabel:SetShown(collapsed)
+    window.limitWarning:SetShown(
+        not collapsed and window.limitWarning:GetText() ~= ""
+    )
     Components:SetButtonText(window.collapseButton,
         collapsed and "+" or "-")
     window:SetSize(
         collapsed and COLLAPSED_WIDTH or EXPANDED_WIDTH,
-        collapsed and COLLAPSED_HEIGHT or EXPANDED_HEIGHT
+        collapsed and COLLAPSED_HEIGHT or window.expandedHeight
     )
 end
 
@@ -388,8 +486,8 @@ local function CreateWindow()
 
     for index, marker in ipairs(MARKERS) do
         -- 18px high controls; only 2px between rows.
-        local y = -31 - (index - 1) * 20
-        CreateMarkerIcon(content, marker, y)
+        local y = -31 - (index - 1) * ROW_STEP
+        local markerIcon = CreateMarkerIcon(content, marker, y)
 
         local field = CreateFrame("EditBox", nil, content,
             "InputBoxTemplate")
@@ -409,6 +507,7 @@ local function CreateWindow()
         end)
         field:SetScript("OnTextChanged", function(self, userInput)
             settings.names[index] = self:GetText() or ""
+            if window and window.rowsReady then RefreshLayout() end
             if userInput then ScheduleUpdate() end
         end)
         field:SetScript("OnEditFocusLost", function()
@@ -429,10 +528,22 @@ local function CreateWindow()
             field:ClearFocus()
             UpdateMacro()
         end)
+
+        rows[index] = {
+            icon = markerIcon, field = field, clear = clear,
+        }
     end
 
-    CreateSwapButton(content, 1)
-    CreateSwapButton(content, 2)
+    for index = 1, #MARKERS - 1 do
+        swapButtons[index] = CreateSwapButton(content, index)
+    end
+
+    local warning = window:CreateFontString(nil, "OVERLAY")
+    Styles:ApplyText(warning, 9, Palette.difficulty.veryHard)
+    warning:SetJustifyH("LEFT")
+    warning:SetHeight(14)
+    window.limitWarning = warning
+    window.rowsReady = true
 
     -- Show at full size once to migrate any existing center position.
     -- Future resizing uses the saved top-left anchor.
