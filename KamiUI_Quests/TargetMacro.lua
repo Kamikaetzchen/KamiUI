@@ -12,8 +12,8 @@ local MAX_MACRO_BYTES = 255
 local MARKERS = { 4, 5, 6 }
 local AUTO_UPDATE_DELAY = 0.7
 -- Desaturated gold shades for the two swap directions.
-local SWAP_DOWN_COLOR = { 185 / 255, 167 / 255, 130 / 255, 1 } -- #B9A782
-local SWAP_UP_COLOR = { 118 / 255, 106 / 255, 86 / 255, 1 } -- #766A56
+local SWAP_DOWN_COLOR = { 200 / 255, 163 / 255, 77 / 255, 1 } -- #C8A34D
+local SWAP_UP_COLOR = { 143 / 255, 108 / 255, 44 / 255, 1 } -- #8F6C2C
 
 local window
 local fields = {}
