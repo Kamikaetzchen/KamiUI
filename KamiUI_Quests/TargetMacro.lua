@@ -248,13 +248,13 @@ local function CreateSwapButton(parent, firstIndex)
         end
     end
 
-    -- Down: warm gold; up: muted blue.
-    DrawArrow(Palette.gold, {
+    -- Down: bright yellow; up: darker gold.
+    DrawArrow(Palette.highlight, {
         { 11, 4, 8, 4 }, { 8, 4, 5, 7 },
         { 5, 7, 5, 20 }, { 2, 17, 5, 20 },
         { 8, 17, 5, 20 },
     })
-    DrawArrow({ 0.42, 0.68, 0.85, 1 }, {
+    DrawArrow(Palette.gold, {
         { 5, 24, 8, 24 }, { 8, 24, 11, 21 },
         { 11, 21, 11, 8 }, { 8, 11, 11, 8 },
         { 14, 11, 11, 8 },
