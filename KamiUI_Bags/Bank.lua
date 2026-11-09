@@ -661,9 +661,9 @@ local function CreateBankBagButton(parent)
         Module:SetBagSlotHighlight(self.bagID, true)
         GameTooltip:SetOwner(self, "ANCHOR_CURSOR_RIGHT")
 
-        -- Like the regular bag bar, show the actual equipped bag item
-        -- (name, size and type) before the interaction hints. Forever's
-        -- bank bag items are stored in Characterbanktab, not inventory slots.
+        -- Show the equipped bank bag's native item tooltip (name, size,
+        -- type) without extra interaction hints. Forever stores these items
+        -- in Characterbanktab rather than regular inventory slots.
         local bankBagSlots = Enum and Enum.BagIndex
             and Enum.BagIndex.Characterbanktab
         local bagInfo = not self.isCached
@@ -674,34 +674,8 @@ local function CreateBankBagButton(parent)
 
         if bagInfo and bagInfo.itemID then
             GameTooltip:SetBagItem(bankBagSlots, self.tabIndex)
-            GameTooltip:AddLine(" ")
         else
             GameTooltip:SetText(self.tabName or "Bank")
-        end
-
-        if self.emptyBagSlot then
-            GameTooltip:AddLine("Drag a bag here", 0.75, 0.75, 0.75)
-        else
-            GameTooltip:AddLine(
-                "Click: show/hide bank bag",
-                0.75,
-                0.75,
-                0.75
-            )
-            if not self.isCached and C_Bank
-                and C_Bank.UpdateBankTabSettings then
-                GameTooltip:AddLine(
-                    "Right-click: bank tab filters", 0.75, 0.75, 0.75)
-            end
-
-            if not self.isCached and self.tabIndex and self.tabIndex > 1 then
-                GameTooltip:AddLine(
-                    "Drag: equip/swap bank bag",
-                    0.75,
-                    0.75,
-                    0.75
-                )
-            end
         end
 
         GameTooltip:Show()
