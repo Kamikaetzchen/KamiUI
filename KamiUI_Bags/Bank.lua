@@ -660,7 +660,24 @@ local function CreateBankBagButton(parent)
     button:SetScript("OnEnter", function(self)
         Module:SetBagSlotHighlight(self.bagID, true)
         GameTooltip:SetOwner(self, "ANCHOR_CURSOR_RIGHT")
-        GameTooltip:SetText(self.tabName or "Bank")
+
+        -- Like the regular bag bar, show the actual equipped bag item
+        -- (name, size and type) before the interaction hints. Forever's
+        -- bank bag items are stored in Characterbanktab, not inventory slots.
+        local bankBagSlots = Enum and Enum.BagIndex
+            and Enum.BagIndex.Characterbanktab
+        local bagInfo = not self.isCached
+            and not self.emptyBagSlot
+            and self.tabIndex and self.tabIndex > 1
+            and bankBagSlots
+            and UI:GetContainerItemInfo(bankBagSlots, self.tabIndex)
+
+        if bagInfo and bagInfo.itemID then
+            GameTooltip:SetBagItem(bankBagSlots, self.tabIndex)
+            GameTooltip:AddLine(" ")
+        else
+            GameTooltip:SetText(self.tabName or "Bank")
+        end
 
         if self.emptyBagSlot then
             GameTooltip:AddLine("Drag a bag here", 0.75, 0.75, 0.75)
