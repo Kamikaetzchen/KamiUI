@@ -31,7 +31,66 @@ local AUTO_CAST_SPELLS = {
     ROGUE = "Throw",
 }
 
+-- Cache the spell choice outside combat; spellbook information can
+-- change when talents are learned or unlearned.
+local resolvedAutoCastSpell
+local pendingSpellRefresh = false
+
+local function PlayerHasSpellInBook(spellName)
+    local book = C_SpellBook
+    local bank = Enum and Enum.SpellBookSpellBank
+        and Enum.SpellBookSpellBank.Player
+    if not book or bank == nil
+        or not book.GetNumSpellBookSkillLines
+        or not book.GetSpellBookSkillLineInfo
+        or not book.GetSpellBookItemName
+    then
+        return false
+    end
+
+    local numLines = book.GetNumSpellBookSkillLines()
+    if not UI:CanAccessValue(numLines)
+        or type(numLines) ~= "number" then
+        return false
+    end
+
+    for lineIndex = 1, numLines do
+        local line = book.GetSpellBookSkillLineInfo(lineIndex)
+        if line and line.itemIndexOffset and line.numSpellBookItems then
+            local first = line.itemIndexOffset + 1
+            local last = line.itemIndexOffset + line.numSpellBookItems
+            for slot = first, last do
+                local name = book.GetSpellBookItemName(slot, bank)
+                if UI:CanAccessValue(name) and name == spellName then
+                    return true
+                end
+            end
+        end
+    end
+
+    return false
+end
+
+local function RefreshAutoCastSpell()
+    if InCombatLockdown and InCombatLockdown() then
+        pendingSpellRefresh = true
+        return
+    end
+
+    pendingSpellRefresh = false
+    if not UnitClass then return end
+    local _, class = UnitClass("player")
+    resolvedAutoCastSpell = AUTO_CAST_SPELLS[class]
+
+    -- Ice Lance is a Frost talent with several spell ranks. Check the
+    -- actual player spellbook rather than only the rank-1 spell ID.
+    if class == "MAGE" and PlayerHasSpellInBook("Ice Lance") then
+        resolvedAutoCastSpell = "Ice Lance"
+    end
+end
+
 local function GetAutoCastSpell()
+    if resolvedAutoCastSpell then return resolvedAutoCastSpell end
     if not UnitClass then return nil end
     local _, class = UnitClass("player")
     return AUTO_CAST_SPELLS[class]
@@ -637,11 +696,33 @@ local function ExpandWindow()
 end
 
 UI:RegisterEvent("PLAYER_REGEN_ENABLED", function()
-    if pendingUpdate then UpdateMacro() end
+    if pendingSpellRefresh then
+        RefreshAutoCastSpell()
+        UpdateMacro()
+    elseif pendingUpdate then
+        UpdateMacro()
+    end
+end)
+
+UI:RegisterEvent("SPELLS_CHANGED", function()
+    if InCombatLockdown and InCombatLockdown() then
+        pendingSpellRefresh = true
+        return
+    end
+
+    local previous = GetAutoCastSpell()
+    RefreshAutoCastSpell()
+    if previous ~= GetAutoCastSpell() then
+        UpdateMacro()
+    end
 end)
 
 -- Keep the panel present after login and across reloads.
-UI:RegisterEvent("PLAYER_LOGIN", CreateWindow)
+UI:RegisterEvent("PLAYER_LOGIN", function()
+    RefreshAutoCastSpell()
+    CreateWindow()
+    UpdateMacro()
+end)
 
 UI:RegisterCommand("targets", "show", ExpandWindow,
     "Expand the always-visible target macro panel")
