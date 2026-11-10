@@ -935,30 +935,35 @@ function UF:UpdateHealthColor(frame)
 end
 
 local function GetDruidManaVisibility()
-    -- Stable form IDs: Cat = 1, Bear = 5 (unlike the form-bar order).
-    if GetShapeshiftFormID then
-        local form = GetShapeshiftFormID()
-        if UI:CanAccessValue(form) then
-            return form == (CAT_FORM or 1)
-                or form == (BEAR_FORM or 5)
-        end
-    end
-
-    -- Fallback when a client doesn't expose form IDs.
+    -- Check the resource first: both Bear and Dire Bear use Rage, while
+    -- Cat uses Energy. Form IDs can differ (Dire Bear = 8, Bear = 5).
     if UnitPowerType then
         local id, token = UnitPowerType("player")
         if UI:CanAccessValue(token) and token then
             return token == "ENERGY" or token == "RAGE"
         end
-        if UI:CanAccessValue(id) then
+        if id ~= nil and UI:CanAccessValue(id) then
             return id == ((Enum and Enum.PowerType
                 and Enum.PowerType.Energy) or 3)
                 or id == ((Enum and Enum.PowerType
                     and Enum.PowerType.Rage) or 1)
         end
     end
-    -- If both APIs return secret values during combat, preserve the
-    -- previous bar layout until the next readable form/power update.
+
+    -- Fallback if the client cannot expose the active power type.
+    if GetShapeshiftFormID then
+        local form = GetShapeshiftFormID()
+        if form ~= nil and UI:CanAccessValue(form) then
+            return form == (CAT_FORM or 1)
+                or form == (BEAR_FORM or 5)
+                or form == 8 -- Dire Bear Form
+        end
+        if form == nil then
+            return false
+        end
+    end
+    -- Secret values during combat: keep the previous layout until a
+    -- readable resource or form update is available.
 end
 
 function UF:UpdateDruidMana(frame)
