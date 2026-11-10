@@ -1165,7 +1165,7 @@ local function PositionVehicleLeaveButton()
 
     button:ClearAllPoints()
     if KamiUITargetFrame then
-        button:SetPoint("LEFT", KamiUITargetFrame, "RIGHT", 16, 0)
+        button:SetPoint("LEFT", KamiUITargetFrame, "RIGHT", 16, 200)
     elseif KamiUIPlayerFrame then
         button:SetPoint("LEFT", KamiUIPlayerFrame, "RIGHT", 16, 0)
     else
