@@ -562,8 +562,13 @@ local function CreateWindow()
             crossSize = 7,
         })
         clear:SetScript("OnClick", function()
+            -- Programmatic SetText() does not count as user input. Update
+            -- the saved slot explicitly instead of relying on the edit
+            -- box's OnTextChanged event to synchronize it.
+            settings.names[index] = ""
             field:SetText("")
             field:ClearFocus()
+            RefreshLayout()
             UpdateMacro()
         end)
 
