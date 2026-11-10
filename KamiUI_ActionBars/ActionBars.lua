@@ -1145,12 +1145,59 @@ local function HideBlizzardFrame(frame, clearEvents)
     Module.blizzardHiddenFrames[frame] = true
 end
 
+-- Blizzard's Request Stop / Leave Vehicle button is parented to
+-- MainActionBar, which KamiUI hides. Keep the native button and its
+-- visibility/click handling, but move it outside that hidden parent.
+local function PositionVehicleLeaveButton()
+    local button = MainMenuBarVehicleLeaveButton
+    if not button then return end
+
+    if InCombatLockdown and InCombatLockdown() then
+        Module.vehicleButtonPending = true
+        return
+    end
+
+    Module.vehicleButtonPending = false
+
+    if button:GetParent() ~= UIParent then
+        button:SetParent(UIParent)
+    end
+
+    button:ClearAllPoints()
+    if KamiUITargetFrame then
+        button:SetPoint("LEFT", KamiUITargetFrame, "RIGHT", 16, 0)
+    elseif KamiUIPlayerFrame then
+        button:SetPoint("LEFT", KamiUIPlayerFrame, "RIGHT", 16, 0)
+    else
+        button:SetPoint("CENTER", UIParent, "CENTER", 250, -80)
+    end
+end
+
+local function SetupVehicleLeaveButton()
+    local button = MainMenuBarVehicleLeaveButton
+    if not button then return end
+
+    if not Module.vehicleButtonHooked then
+        Module.vehicleButtonHooked = true
+
+        -- Edit Mode can reposition this system button after login or
+        -- layout changes. Reassert our anchor without touching visibility.
+        if button.UpdatePosition then
+            hooksecurefunc(button, "UpdatePosition", PositionVehicleLeaveButton)
+        end
+        button:HookScript("OnShow", PositionVehicleLeaveButton)
+    end
+
+    PositionVehicleLeaveButton()
+end
+
 local function HideBlizzardBars()
     if InCombatLockdown and InCombatLockdown() then
         Module.layoutPending = true
         return
     end
 
+    SetupVehicleLeaveButton()
     HideBlizzardFrame(MainActionBar, false)
     HideBlizzardFrame(MultiBarBottomLeft, true)
     HideBlizzardFrame(MultiBarBottomRight, true)
@@ -1490,6 +1537,10 @@ function Module:Initialize()
     end)
 
     UI:RegisterEvent("PLAYER_REGEN_ENABLED", function()
+        if Module.vehicleButtonPending then
+            PositionVehicleLeaveButton()
+        end
+
         if Module.layoutPending then
             Module:Apply()
         elseif Module.bindingsPending then
