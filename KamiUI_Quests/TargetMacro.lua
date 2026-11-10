@@ -15,6 +15,28 @@ local MARKERS = { 4, 5, 6, 1, 2 }
 local MIN_VISIBLE_SLOTS = 3
 local ROW_STEP = 20
 local AUTO_UPDATE_DELAY = 0.7
+
+-- English client spell names. The optional cast runs after targeting.
+-- Ice Lance is a Frost talent in Forever, so Fire Blast works for all mages.
+-- The former Curse of Agony is named Bane of Agony in Forever.
+local AUTO_CAST_SPELLS = {
+    DRUID = "Faerie Fire",
+    PRIEST = "Shadow Word: Pain",
+    MAGE = "Fire Blast",
+    SHAMAN = "Earth Shock",
+    WARRIOR = "Charge",
+    WARLOCK = "Bane of Agony",
+    HUNTER = "Arcane Shot",
+    PALADIN = "Judgement",
+    ROGUE = "Throw",
+}
+
+local function GetAutoCastSpell()
+    if not UnitClass then return nil end
+    local _, class = UnitClass("player")
+    return AUTO_CAST_SPELLS[class]
+end
+
 -- Desaturated gold shades for the two swap directions.
 local SWAP_DOWN_COLOR = { 200 / 255, 163 / 255, 77 / 255, 1 } -- #C8A34D
 local SWAP_UP_COLOR = { 143 / 255, 108 / 255, 44 / 255, 1 } -- #8F6C2C
@@ -49,9 +71,11 @@ local function GetSettings()
         end
     end
 
-    if type(settings.faerieFire) ~= "boolean" then
-        settings.faerieFire = false
+    -- Migrate the original druid-only checkbox preference per character.
+    if type(settings.autoCast) ~= "boolean" then
+        settings.autoCast = settings.faerieFire == true
     end
+    settings.faerieFire = nil
 
     return settings
 end
@@ -86,9 +110,10 @@ local function BuildMacro()
         lines[#lines + 1] = "/targetlasttarget [noexists]"
     end
 
-    -- Optionally cast after the targeting commands.
-    if settings.faerieFire then
-        lines[#lines + 1] = "/cast Faerie Fire"
+    -- Optionally cast a class-specific opener after the targeting commands.
+    local autoCastSpell = GetAutoCastSpell()
+    if settings.autoCast and autoCastSpell then
+        lines[#lines + 1] = "/cast " .. autoCastSpell
     end
 
     -- Preserve the action-bar macro when every field is cleared.
@@ -423,7 +448,7 @@ local function ApplyCollapsed()
     local collapsed = GetSettings().collapsed == true
     window.content:SetShown(not collapsed)
     window.targetButton:SetShown(not collapsed)
-    window.faerieFireCheckbox:SetShown(not collapsed)
+    window.autoCastCheckbox:SetShown(not collapsed)
     window.collapsedLabel:SetShown(collapsed)
     window.limitWarning:SetShown(
         not collapsed and window.limitWarning:GetText() ~= ""
@@ -475,31 +500,36 @@ local function CreateWindow()
     window.content = content
 
     -- Reuse the same checkbox styling as Track Recipe.
-    local faerieFire = Components:CreateCheckbox(window, {
+    local autoCast = Components:CreateCheckbox(window, {
         size = 14,
         width = 20,
         height = 20,
     })
-    faerieFire:SetPoint("TOPLEFT", window, "TOPLEFT", 8, -5)
-    Components:SetToggleState(faerieFire, settings.faerieFire)
-    faerieFire:SetScript("OnClick", function(self)
-        settings.faerieFire = self:GetChecked() == true
+    autoCast:SetPoint("TOPLEFT", window, "TOPLEFT", 8, -5)
+    Components:SetToggleState(autoCast, settings.autoCast)
+    autoCast:SetScript("OnClick", function(self)
+        settings.autoCast = self:GetChecked() == true
         self:RefreshKamiToggleStyle()
         RefreshLayout()
         UpdateMacro()
     end)
-    faerieFire:SetScript("OnEnter", function(self)
+    autoCast:SetScript("OnEnter", function(self)
+        local spell = GetAutoCastSpell()
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:SetText("Cast Faerie Fire")
-        GameTooltip:AddLine(
-            "Append /cast Faerie Fire to KamiTargets.", 1, 1, 1
-        )
+        GameTooltip:SetText(spell and ("Auto-cast: " .. spell)
+            or "Auto-cast unavailable")
+        if spell then
+            GameTooltip:AddLine(
+                "Append /cast " .. spell .. " to KamiTargets.",
+                1, 1, 1
+            )
+        end
         GameTooltip:Show()
     end)
-    faerieFire:SetScript("OnLeave", function()
+    autoCast:SetScript("OnLeave", function()
         GameTooltip:Hide()
     end)
-    window.faerieFireCheckbox = faerieFire
+    window.autoCastCheckbox = autoCast
 
     window.targetButton = CreateWideButton(
         window, "Current Target", -5, AddCurrentTarget, 32, 30
