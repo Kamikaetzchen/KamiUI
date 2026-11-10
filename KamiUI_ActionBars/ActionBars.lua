@@ -1180,12 +1180,22 @@ local function SetupVehicleLeaveButton()
     if not Module.vehicleButtonHooked then
         Module.vehicleButtonHooked = true
 
-        -- Edit Mode can reposition this system button after login or
-        -- layout changes. Reassert our anchor without touching visibility.
+        -- Blizzard's flight/vehicle update explicitly clears and resets
+        -- this button's anchor (often to the hidden StanceBar beside chat).
+        -- Reposition after Blizzard has finished its own update.
+        if MainMenuBarVehicleLeaveButton_Update then
+            hooksecurefunc(
+                "MainMenuBarVehicleLeaveButton_Update",
+                PositionVehicleLeaveButton
+            )
+        end
         if button.UpdatePosition then
             hooksecurefunc(button, "UpdatePosition", PositionVehicleLeaveButton)
         end
-        button:HookScript("OnShow", PositionVehicleLeaveButton)
+        button:HookScript("OnShow", function()
+            PositionVehicleLeaveButton()
+            C_Timer.After(0, PositionVehicleLeaveButton)
+        end)
     end
 
     PositionVehicleLeaveButton()
