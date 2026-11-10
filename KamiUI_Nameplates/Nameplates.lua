@@ -321,8 +321,8 @@ local function CreateCustomPlate(namePlate)
     hitArea:EnableMouse(false)
 
     local raidMarker = root:CreateTexture(nil, "OVERLAY")
-    raidMarker:SetSize(14, 14)
-    raidMarker:SetPoint("RIGHT", health, "LEFT", -3, 0)
+    raidMarker:SetSize(28, 28)
+    raidMarker:SetPoint("RIGHT", health, "LEFT", -3, 8)
     raidMarker:SetTexture("Interface\\TargetingFrame\\UI-RaidTargetingIcons")
     raidMarker:Hide()
 
