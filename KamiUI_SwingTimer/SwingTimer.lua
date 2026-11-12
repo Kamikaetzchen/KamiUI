@@ -51,22 +51,24 @@ local function CreateBar(hand)
 
     local background = frame:CreateTexture(nil, "BACKGROUND")
     background:SetAllPoints(frame)
-    background:SetColorTexture(0.025, 0.025, 0.025, 0.82)
+    background:SetTexture(UI.Media.KamiFacet)
+    background:SetVertexColor(0.025, 0.025, 0.025, 0.82)
 
     local fill = frame:CreateTexture(nil, "ARTWORK")
+    fill:SetTexture(UI.Media.KamiFacet)
     fill:SetHeight(Layout.HEIGHT - 2)
     fill:SetWidth(0.01)
     if hand == "ranged" then
         -- YaHT's centered fill: white shrinks inward after a shot, then
         -- red grows outward while the stationary wind-up completes.
         fill:SetPoint("CENTER", frame, "CENTER", 0, 0)
-        fill:SetColorTexture(0.93, 0.93, 0.89, 1)
+        fill:SetVertexColor(0.93, 0.93, 0.89, 1)
     else
         fill:SetPoint("LEFT", frame, "LEFT", 1, 0)
         if hand == "mainhand" then
-            fill:SetColorTexture(0.90, 0.68, 0.24, 1)
+            fill:SetVertexColor(0.90, 0.68, 0.24, 1)
         else
-            fill:SetColorTexture(0.40, 0.75, 0.97, 1)
+            fill:SetVertexColor(0.40, 0.75, 0.97, 1)
         end
     end
 
@@ -120,9 +122,9 @@ local function SetPhase(bar, phase)
     if bar.phase == phase then return end
     bar.phase = phase
     if phase == "windup" then
-        bar.fill:SetColorTexture(1, 0.18, 0.18, 1)
+        bar.fill:SetVertexColor(1, 0.18, 0.18, 1)
     else
-        bar.fill:SetColorTexture(0.93, 0.93, 0.89, 1)
+        bar.fill:SetVertexColor(0.93, 0.93, 0.89, 1)
     end
 end
 
