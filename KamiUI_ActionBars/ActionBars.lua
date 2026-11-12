@@ -878,30 +878,37 @@ local function CreateTotemBar()
         return
     end
 
-    -- Blizzard's legacy MultiCast slide logic anchors relative to the
-    -- *parent* of this frame. Use a stable anchor at KamiUI's action bars,
-    -- so even a native relayout cannot send the bar back above the chat.
-    -- Keep native buttons, pages and secure cast handling unchanged.
-    local anchor = CreateFrame("Frame", "KamiUITotemBarAnchor", UIParent)
-    anchor:SetSize(Layout.SECONDARY_BUTTON_SIZE * 6,
+    -- Blizzard's root is Edit Mode-managed and may move during combat.
+    -- Move only its native secure buttons/pages to a stationary holder.
+    -- Leave the Blizzard backend alive to manage spells and page changes.
+    local visual = CreateFrame("Frame", "KamiUITotemBar", UIParent)
+    visual:SetSize(Layout.SECONDARY_BUTTON_SIZE * 6,
         Layout.SECONDARY_BUTTON_SIZE)
-    native:SetParent(anchor)
-    Module.totemAnchor = anchor
+    visual:Hide()
 
-    -- The legacy animation is unnecessary, and could otherwise reset
-    -- the frame's coordinates during Blizzard's combat bar updates.
-    native:SetScript("OnUpdate", nil)
-    -- Older clients use OnShow/OnHide only to reposition the default
-    -- action bar. Do not suppress different handlers from newer clients.
-    if UIParent_ManageFramePositions then
-        if native:GetScript("OnShow") == UIParent_ManageFramePositions then
-            native:SetScript("OnShow", nil)
-        end
-        if native:GetScript("OnHide") == UIParent_ManageFramePositions then
-            native:SetScript("OnHide", nil)
-        end
+    for page = 1, 3 do
+        local pageFrame = _G["MultiCastActionPage" .. page]
+        if pageFrame then pageFrame:SetParent(visual) end
     end
+    for index = 1, 4 do
+        local slot = _G["MultiCastSlotButton" .. index]
+        if slot then slot:SetParent(visual) end
+    end
+    MultiCastRecallSpellButton:SetParent(visual)
+    MultiCastSummonSpellButton:SetParent(visual)
+    if MultiCastFlyoutFrame then
+        MultiCastFlyoutFrame:SetParent(visual)
+    end
+    if MultiCastFlyoutFrameOpenButton then
+        MultiCastFlyoutFrameOpenButton:SetParent(visual)
+    end
+
+    -- Native frame stays visible for Blizzard's update logic, but its
+    -- own coordinates and animations no longer move the visible buttons.
+    native:SetAlpha(0)
+    native:EnableMouse(false)
     Module.totemBar = native
+    Module.totemVisual = visual
 
     local function StyleNative(button)
         if not button or button.KamiTotemStyled then return end
@@ -931,31 +938,22 @@ local function CreateTotemBar()
 end
 
 local function LayoutTotemBar()
-    local native = Module.totemBar
+    local visual = Module.totemVisual
     local bar4 = Module.bars[4]
-    if not native or not bar4 then return end
+    if not visual or not bar4 then return end
     local size = Layout.SECONDARY_BUTTON_SIZE
-    local anchor = Module.totemAnchor
 
-    if anchor then
-        -- The legacy Blizzard slide handler targets parent TOPLEFT + XPOS.
-        -- Position that fallback at the *same* spot as our normal layout.
-        local offset = MULTICASTACTIONBAR_XPOS or 30
-        anchor:ClearAllPoints()
-        anchor:SetPoint("TOPLEFT", bar4.buttons[1], "TOPLEFT",
-            -offset, 0)
-    end
-
-    native:ClearAllPoints()
-    native:SetSize(size * 6, size)
-    native:SetPoint("BOTTOMLEFT", bar4.buttons[1], "TOPLEFT", 0, 0)
+    -- Never position Blizzard's Edit Mode root here.
+    visual:ClearAllPoints()
+    visual:SetSize(size * 6, size)
+    visual:SetPoint("BOTTOMLEFT", bar4.buttons[1], "TOPLEFT", 0, 0)
 
     -- F1-F4: totems; F5: Recall; F6: Call (with Blizzard's set flyout).
     for index = 1, 4 do
         local slot = _G["MultiCastSlotButton" .. index]
         if slot then
             slot:ClearAllPoints()
-            slot:SetPoint("BOTTOMLEFT", native, "BOTTOMLEFT",
+            slot:SetPoint("BOTTOMLEFT", visual, "BOTTOMLEFT",
                 size * (index - 1), 0)
         end
     end
@@ -965,7 +963,7 @@ local function LayoutTotemBar()
         if pageFrame then
             pageFrame:ClearAllPoints()
             pageFrame:SetSize(size * 4, size)
-            pageFrame:SetPoint("BOTTOMLEFT", native, "BOTTOMLEFT",
+            pageFrame:SetPoint("BOTTOMLEFT", visual, "BOTTOMLEFT",
                 0, 0)
         end
         for slot = 1, 4 do
@@ -981,11 +979,11 @@ local function LayoutTotemBar()
 
     MultiCastRecallSpellButton:ClearAllPoints()
     MultiCastRecallSpellButton:SetPoint("BOTTOMLEFT",
-        native, "BOTTOMLEFT", size * 4, 0)
+        visual, "BOTTOMLEFT", size * 4, 0)
 
     MultiCastSummonSpellButton:ClearAllPoints()
     MultiCastSummonSpellButton:SetPoint("BOTTOMLEFT",
-        native, "BOTTOMLEFT", size * 5, 0)
+        visual, "BOTTOMLEFT", size * 5, 0)
 end
 
 local function TotemBarAvailable()
@@ -1105,8 +1103,8 @@ local function UpdateStanceBar()
     if bar6 then
         bar6.frame:SetShown(count == 0 and not totems)
     end
-    if Module.totemBar then
-        Module.totemBar:SetShown(totems)
+    if Module.totemVisual then
+        Module.totemVisual:SetShown(totems)
     end
     Module.secondaryMode = count > 0 and "stance"
         or totems and "totem" or "bar6"
