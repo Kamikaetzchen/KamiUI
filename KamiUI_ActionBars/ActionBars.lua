@@ -878,9 +878,18 @@ local function CreateTotemBar()
         return
     end
 
-    native:SetParent(UIParent)
-    -- The legacy slide script continuously restores the MainMenuBar anchor.
-    -- Leave its event handlers and native secure click scripts intact.
+    -- Blizzard's legacy MultiCast slide logic anchors relative to the
+    -- *parent* of this frame. Use a stable anchor at KamiUI's action bars,
+    -- so even a native relayout cannot send the bar back above the chat.
+    -- Keep native buttons, pages and secure cast handling unchanged.
+    local anchor = CreateFrame("Frame", "KamiUITotemBarAnchor", UIParent)
+    anchor:SetSize(Layout.SECONDARY_BUTTON_SIZE * 6,
+        Layout.SECONDARY_BUTTON_SIZE)
+    native:SetParent(anchor)
+    Module.totemAnchor = anchor
+
+    -- The legacy animation is unnecessary, and could otherwise reset
+    -- the frame's coordinates during Blizzard's combat bar updates.
     native:SetScript("OnUpdate", nil)
     -- Older clients use OnShow/OnHide only to reposition the default
     -- action bar. Do not suppress different handlers from newer clients.
@@ -926,6 +935,16 @@ local function LayoutTotemBar()
     local bar4 = Module.bars[4]
     if not native or not bar4 then return end
     local size = Layout.SECONDARY_BUTTON_SIZE
+    local anchor = Module.totemAnchor
+
+    if anchor then
+        -- The legacy Blizzard slide handler targets parent TOPLEFT + XPOS.
+        -- Position that fallback at the *same* spot as our normal layout.
+        local offset = MULTICASTACTIONBAR_XPOS or 30
+        anchor:ClearAllPoints()
+        anchor:SetPoint("TOPLEFT", bar4.buttons[1], "TOPLEFT",
+            -offset, 0)
+    end
 
     native:ClearAllPoints()
     native:SetSize(size * 6, size)
