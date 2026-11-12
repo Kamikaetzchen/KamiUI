@@ -116,12 +116,13 @@ local function AddAuraGroup(
     size,
     index,
     forceNewLine,
-    harmful
+    harmful,
+    sortDirection
 )
     container:AddAuraGroup(key, filter, {
         maxFrameCount = maxCount,
         sortMethod = AuraContainerSortMethod.Expiration,
-        sortDirection = AuraContainerSortDirection.Reverse,
+        sortDirection = sortDirection or AuraContainerSortDirection.Reverse,
         initializeFrame = function(button)
             InitializeAuraButton(button, size, harmful)
         end,
@@ -188,7 +189,10 @@ local function CreateAuraContainer(
         size,
         2,
         true,
-        true
+        true,
+        -- Expiration/Normal puts the player's auras first on Forever;
+        -- Reverse currently pushes them behind other players' debuffs.
+        unit == "target" and AuraContainerSortDirection.Normal or nil
     )
 
     if growUp then
