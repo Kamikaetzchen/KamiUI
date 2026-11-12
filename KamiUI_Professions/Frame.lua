@@ -1274,7 +1274,8 @@ local function AcquireReagentRow(frame, index)
     separator:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", 0, 0)
     -- A UI unit isn't always a physical screen pixel at non-native UI
     -- scales, which made some 1-unit separators render two pixels thick.
-    if separator.SetRoundLayoutToNearestPixel then
+    if separator.SetRoundLayoutToNearestPixel
+        and not (InCombatLockdown and InCombatLockdown()) then
         separator:SetRoundLayoutToNearestPixel(true)
     end
     if PixelUtil and PixelUtil.SetHeight then
