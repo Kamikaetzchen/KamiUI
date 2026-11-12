@@ -200,6 +200,7 @@ local function GetItemDisplayData(itemID, link, fallbackIcon)
     local itemLink = link
     local quality
     local icon = fallbackIcon
+    local vendorSellPrice
 
     if GetItemInfo and (itemID or link) then
         local infoName,
@@ -211,8 +212,10 @@ local function GetItemDisplayData(itemID, link, fallbackIcon)
             _subclassName,
             _stackCount,
             _equipLocation,
-            infoIcon = GetItemInfo(itemID or link)
+            infoIcon,
+            infoSellPrice = GetItemInfo(itemID or link)
 
+        vendorSellPrice = infoSellPrice
         name = infoName
         itemLink = itemLink or infoLink
         quality = infoQuality
@@ -235,6 +238,7 @@ local function GetItemDisplayData(itemID, link, fallbackIcon)
         link = itemLink,
         quality = quality,
         icon = icon,
+        vendorSellPrice = vendorSellPrice,
     }
 end
 
@@ -614,6 +618,34 @@ local function GetCraftReagentPrice(itemID, aux, itemDB)
     end
     if ahPrice then
         return math.ceil(ahPrice), "AH", ahAge
+    end
+    return nil
+end
+
+-- The finished item's vendor price is what a merchant PAYS the player.
+-- Do not use the vendor BUY price used for crafting reagents.
+local function GetCraftOutputVendorPrice(item, itemDB)
+    if not item or not item.itemID then return nil end
+
+    local price = item.vendorSellPrice
+    if IsValidPrice(price) then return math.floor(price) end
+
+    if itemDB and type(itemDB.GetVendorSellPrice) == "function" then
+        price = UI:SafeCall(
+            itemDB.GetVendorSellPrice, itemDB, item.itemID
+        )
+        if IsValidPrice(price) then return math.floor(price) end
+    end
+    return nil
+end
+
+local function GetCraftOutputAHPrice(item, aux)
+    if not aux or not item or not item.itemID then return nil end
+
+    local itemKey = item.link or item.itemID
+    local price, age = UI:SafeCall(aux.GetLatestPrice, itemKey)
+    if IsValidPrice(price) then
+        return math.ceil(price), age
     end
     return nil
 end
@@ -1240,7 +1272,16 @@ local function AcquireReagentRow(frame, index)
     local separator = row:CreateTexture(nil, "BACKGROUND")
     separator:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", 0, 0)
     separator:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", 0, 0)
-    separator:SetHeight(1)
+    -- A UI unit isn't always a physical screen pixel at non-native UI
+    -- scales, which made some 1-unit separators render two pixels thick.
+    if separator.SetRoundLayoutToNearestPixel then
+        separator:SetRoundLayoutToNearestPixel(true)
+    end
+    if PixelUtil and PixelUtil.SetHeight then
+        PixelUtil.SetHeight(separator, 1, 1)
+    else
+        separator:SetHeight(1)
+    end
     separator:SetColorTexture(
         Palette.muted[1], Palette.muted[2], Palette.muted[3], 0.24
     )
@@ -1684,6 +1725,38 @@ local function CreateCraftingPage(frame)
     outputName:SetJustifyH("LEFT")
     Styles:ApplyText(outputName, 11, Palette.text)
     frame.outputName = outputName
+
+    -- Two lines beside the crafted item's icon: sell-to-vendor and AH value.
+    -- These use the same coin formatting as reagent prices.
+    local outputVendorPrice = detailContent:CreateFontString(
+        nil, "OVERLAY", "GameFontNormalSmall"
+    )
+    outputVendorPrice:SetPoint(
+        "TOPLEFT", outputSlot, "TOPRIGHT", 9, -3
+    )
+    outputVendorPrice:SetPoint(
+        "RIGHT", detailContent, "RIGHT", -4, 0
+    )
+    outputVendorPrice:SetJustifyH("LEFT")
+    outputVendorPrice:SetWordWrap(false)
+    Styles:ApplyText(outputVendorPrice, 9, Palette.auras.helpful)
+    outputVendorPrice:Hide()
+    frame.outputVendorPrice = outputVendorPrice
+
+    local outputAHPrice = detailContent:CreateFontString(
+        nil, "OVERLAY", "GameFontNormalSmall"
+    )
+    outputAHPrice:SetPoint(
+        "TOPLEFT", outputSlot, "TOPRIGHT", 9, -20
+    )
+    outputAHPrice:SetPoint(
+        "RIGHT", detailContent, "RIGHT", -4, 0
+    )
+    outputAHPrice:SetJustifyH("LEFT")
+    outputAHPrice:SetWordWrap(false)
+    Styles:ApplyText(outputAHPrice, 9, Palette.text)
+    outputAHPrice:Hide()
+    frame.outputAHPrice = outputAHPrice
 
     local description = detailContent:CreateFontString(
         nil,
@@ -2584,6 +2657,8 @@ function Module:RefreshRecipeDetails()
     frame.priceTotalValue:Hide()
     frame.outputSlot:Hide()
     frame.outputName:SetText("")
+    frame.outputVendorPrice:Hide()
+    frame.outputAHPrice:Hide()
     frame.description:SetText("")
     frame.requirementsText:Hide()
     frame.requirementsText:SetText("")
@@ -2784,6 +2859,42 @@ function Module:RefreshRecipeDetails()
     frame.outputSlot:Show()
     frame.outputName:SetText("")
 
+    local aux, itemDB = GetCraftPriceProviders()
+    local vendorPrice = GetCraftOutputVendorPrice(outputData, itemDB)
+    local ahPrice, ahAge = GetCraftOutputAHPrice(outputData, aux)
+
+    if vendorPrice then
+        frame.outputVendorPrice:SetText(
+            "Vendor: " .. FormatCraftMoney(vendorPrice)
+        )
+        frame.outputVendorPrice:Show()
+    end
+    if ahPrice then
+        frame.outputAHPrice:ClearAllPoints()
+        frame.outputAHPrice:SetPoint(
+            "TOPLEFT", frame.outputSlot, "TOPRIGHT",
+            9, vendorPrice and -20 or -3
+        )
+        frame.outputAHPrice:SetPoint(
+            "RIGHT", frame.detailContent, "RIGHT", -4, 0
+        )
+        frame.outputAHPrice:SetText(
+            "AH: " .. FormatCraftMoney(ahPrice)
+        )
+        if UI:CanAccessValue(ahAge)
+            and type(ahAge) == "number" then
+            Styles:SetTextColor(
+                frame.outputAHPrice,
+                ahAge == 0 and Palette.success
+                    or ahAge == 1 and Palette.gold
+                    or Palette.difficulty.veryHard
+            )
+        else
+            Styles:SetTextColor(frame.outputAHPrice, Palette.muted)
+        end
+        frame.outputAHPrice:Show()
+    end
+
     local description = C_TradeSkillUI.GetRecipeDescription
         and UI:SafeCall(
             C_TradeSkillUI.GetRecipeDescription,
@@ -2871,7 +2982,6 @@ function Module:RefreshRecipeDetails()
     y = y + 22
 
     local hasUnsupportedSelection = false
-    local aux, itemDB = GetCraftPriceProviders()
     local showPrices = aux ~= nil or itemDB ~= nil
     local totalMaterialCost, pricedCount, missingPrices = 0, 0, 0
 
