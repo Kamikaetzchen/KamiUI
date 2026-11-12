@@ -1727,31 +1727,39 @@ local function CreateCraftingPage(frame)
     Styles:ApplyText(outputName, 11, Palette.text)
     frame.outputName = outputName
 
-    -- Keep source labels on the left and right-align the money in the
-    -- exact same column as the reagent prices below.
-    local function CreateOutputPriceLine(offset, sourceText, sourceColor)
-        local label = detailContent:CreateFontString(
-            nil, "OVERLAY", "GameFontNormalSmall"
-        )
-        label:SetPoint("TOPLEFT", outputSlot, "TOPRIGHT", 9, offset)
-        label:SetWidth(90)
-        label:SetJustifyH("LEFT")
-        label:SetWordWrap(false)
-        Styles:ApplyText(label, 9, sourceColor)
-        label:SetText(sourceText)
-        label:Hide()
+    -- Reserve a fixed-width money column (up to roughly 999g 99s 99c).
+    -- Labels align directly to its left, so they never shift when the
+    -- displayed amount changes.
+    local OUTPUT_PRICE_WIDTH = 112
+    local OUTPUT_LABEL_WIDTH = 58
+    local OUTPUT_LABEL_GAP = 6
 
+    local function CreateOutputPriceLine(offset, sourceText, sourceColor)
         local price = detailContent:CreateFontString(
             nil, "OVERLAY", "GameFontNormalSmall"
         )
         price:SetPoint(
             "TOPRIGHT", detailContent, "TOPRIGHT", -4, offset
         )
-        price:SetWidth(138)
+        price:SetWidth(OUTPUT_PRICE_WIDTH)
         price:SetJustifyH("RIGHT")
         price:SetWordWrap(false)
         Styles:ApplyText(price, 9, Palette.text)
         price:Hide()
+
+        local label = detailContent:CreateFontString(
+            nil, "OVERLAY", "GameFontNormalSmall"
+        )
+        label:SetPoint(
+            "TOPRIGHT", price, "TOPLEFT", -OUTPUT_LABEL_GAP, 0
+        )
+        label:SetWidth(OUTPUT_LABEL_WIDTH)
+        label:SetJustifyH("RIGHT")
+        label:SetWordWrap(false)
+        Styles:ApplyText(label, 9, sourceColor)
+        label:SetText(sourceText)
+        label:Hide()
+
         return label, price
     end
 
@@ -2898,10 +2906,8 @@ function Module:RefreshRecipeDetails()
         end
         -- Without vendor value, occupy the upper line.
         local offset = vendorValue and -20 or -3
-        frame.outputAHLabel:ClearAllPoints()
-        frame.outputAHLabel:SetPoint(
-            "TOPLEFT", frame.outputSlot, "TOPRIGHT", 9, offset
-        )
+        -- The label is anchored to the fixed-width price field and
+        -- follows it automatically when the AH line moves up.
         frame.outputAHPrice:ClearAllPoints()
         frame.outputAHPrice:SetPoint(
             "TOPRIGHT", frame.detailContent, "TOPRIGHT", -4, offset
