@@ -2540,7 +2540,7 @@ function Module:RefreshRecipeDetails()
         local secondsPerCraft = GetRecipeCraftDuration(recipeID)
         if secondsPerCraft then
             durationText = string.format(
-                "  (~%s)",
+                "  (%s)",
                 FormatCraftDuration(secondsPerCraft * self.maxCraftable)
             )
         end
