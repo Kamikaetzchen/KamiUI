@@ -1164,6 +1164,7 @@ local function AcquireReagentRow(frame, index)
     name:SetPoint("BOTTOMLEFT", slot, "RIGHT", 8, 2)
     name:SetPoint("BOTTOMRIGHT", row, "RIGHT", -4, 2)
     name:SetJustifyH("LEFT")
+    name:SetWordWrap(false)
     Styles:ApplyText(name, 9, Palette.text)
     row.name = name
 
@@ -1175,6 +1176,7 @@ local function AcquireReagentRow(frame, index)
     status:SetPoint("TOPLEFT", slot, "RIGHT", 8, -2)
     status:SetPoint("TOPRIGHT", row, "RIGHT", -4, -2)
     status:SetJustifyH("LEFT")
+    status:SetWordWrap(false)
     Styles:ApplyText(status, 8, Palette.muted)
     row.status = status
 
@@ -2893,7 +2895,9 @@ function Module:RefreshRecipeDetails()
             )
 
             -- Restore full-width names when neither pricing addon is ready.
-            local rightInset = showPrices and 146 or 4
+            local hasRowPrice = showPrices and not optional
+                and required > 0
+            local rightInset = hasRowPrice and 146 or 4
             row.name:ClearAllPoints()
             row.name:SetPoint("BOTTOMLEFT", row.slot, "RIGHT", 8, 2)
             row.name:SetPoint("BOTTOMRIGHT", row, "RIGHT", -rightInset, 2)
@@ -2903,7 +2907,7 @@ function Module:RefreshRecipeDetails()
 
             row.price:Hide()
             row.priceSource:Hide()
-            if showPrices and not optional and required > 0 then
+            if hasRowPrice then
                 -- Alternative reagents are not supported by our crafting form,
                 -- so a first-choice price would misrepresent the real cost.
                 local hasAlternatives = slot.reagents
@@ -2919,7 +2923,8 @@ function Module:RefreshRecipeDetails()
                     totalMaterialCost = totalMaterialCost + cost
                     pricedCount = pricedCount + 1
                     row.price:SetText(FormatCraftMoney(cost))
-                    if source == "AH" and type(age) == "number" then
+                    if source == "AH" and UI:CanAccessValue(age)
+                        and type(age) == "number" then
                         row.priceSource:SetText(
                             age == 0 and "AH · today"
                                 or string.format("AH · %dd ago", age)
@@ -2979,7 +2984,7 @@ function Module:RefreshRecipeDetails()
             "TOPLEFT", frame.detailContent, "TOPLEFT", 0, -y - 7
         )
         frame.priceTotalLabel:SetPoint(
-            "RIGHT", frame.priceTotalValue, "LEFT", -4, 0
+            "TOPRIGHT", frame.priceTotalValue, "TOPLEFT", -4, 0
         )
         frame.priceTotalLabel:SetText(totalLabel)
 
