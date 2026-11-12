@@ -511,6 +511,44 @@ local function GetRecipeCraftableCount(recipeID, info)
     return count
 end
 
+-- Recipe IDs are spell IDs. Use the actual recipe cast time rather than a
+-- fixed per-craft guess; Forever exposes it in milliseconds via C_Spell.
+-- Ignore missing/instant times instead of displaying a misleading ETA.
+local function GetRecipeCraftDuration(recipeID)
+    if not C_Spell or not C_Spell.GetSpellInfo then
+        return nil
+    end
+
+    local spellInfo = UI:SafeCall(C_Spell.GetSpellInfo, recipeID)
+    if not UI:CanAccessValue(spellInfo)
+        or type(spellInfo) ~= "table" then
+        return nil
+    end
+
+    local castTime = spellInfo.castTime
+    if not UI:CanAccessValue(castTime)
+        or type(castTime) ~= "number"
+        or castTime <= 0 then
+        return nil
+    end
+
+    return castTime / 1000
+end
+
+local function FormatCraftDuration(seconds)
+    local total = math.ceil(seconds)
+    if total >= 3600 then
+        return string.format("%dh %dm %ds",
+            math.floor(total / 3600),
+            math.floor(total % 3600 / 60),
+            total % 60)
+    elseif total >= 60 then
+        return string.format("%dm %ds",
+            math.floor(total / 60), total % 60)
+    end
+    return string.format("%ds", total)
+end
+
 local function AcquireRecipeRow(frame, index)
     local row = frame.recipeRows[index]
 
@@ -2497,10 +2535,22 @@ function Module:RefreshRecipeDetails()
 
     self.maxCraftable = GetRecipeCraftableCount(recipeID, info)
 
+    local durationText = ""
+    if self.maxCraftable > 0 then
+        local secondsPerCraft = GetRecipeCraftDuration(recipeID)
+        if secondsPerCraft then
+            durationText = string.format(
+                "  (~%s)",
+                FormatCraftDuration(secondsPerCraft * self.maxCraftable)
+            )
+        end
+    end
+
     frame.recipeSubTitle:SetText(
         string.format(
-            "Craftable: %d%s",
+            "Craftable: %d%s%s",
             self.maxCraftable,
+            durationText,
             info.disabledReason
                 and ("  -  " .. info.disabledReason)
                 or ""
