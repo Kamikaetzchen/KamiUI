@@ -1727,37 +1727,38 @@ local function CreateCraftingPage(frame)
     Styles:ApplyText(outputName, 11, Palette.text)
     frame.outputName = outputName
 
-    -- Two lines beside the crafted item's icon: sell-to-vendor and AH value.
-    -- These use the same coin formatting as reagent prices.
-    local outputVendorPrice = detailContent:CreateFontString(
-        nil, "OVERLAY", "GameFontNormalSmall"
-    )
-    outputVendorPrice:SetPoint(
-        "TOPLEFT", outputSlot, "TOPRIGHT", 9, -3
-    )
-    outputVendorPrice:SetPoint(
-        "RIGHT", detailContent, "RIGHT", -4, 0
-    )
-    outputVendorPrice:SetJustifyH("LEFT")
-    outputVendorPrice:SetWordWrap(false)
-    Styles:ApplyText(outputVendorPrice, 9, Palette.auras.helpful)
-    outputVendorPrice:Hide()
-    frame.outputVendorPrice = outputVendorPrice
+    -- Keep source labels on the left and right-align the money in the
+    -- exact same column as the reagent prices below.
+    local function CreateOutputPriceLine(offset, sourceText, sourceColor)
+        local label = detailContent:CreateFontString(
+            nil, "OVERLAY", "GameFontNormalSmall"
+        )
+        label:SetPoint("TOPLEFT", outputSlot, "TOPRIGHT", 9, offset)
+        label:SetWidth(90)
+        label:SetJustifyH("LEFT")
+        label:SetWordWrap(false)
+        Styles:ApplyText(label, 9, sourceColor)
+        label:SetText(sourceText)
+        label:Hide()
 
-    local outputAHPrice = detailContent:CreateFontString(
-        nil, "OVERLAY", "GameFontNormalSmall"
-    )
-    outputAHPrice:SetPoint(
-        "TOPLEFT", outputSlot, "TOPRIGHT", 9, -20
-    )
-    outputAHPrice:SetPoint(
-        "RIGHT", detailContent, "RIGHT", -4, 0
-    )
-    outputAHPrice:SetJustifyH("LEFT")
-    outputAHPrice:SetWordWrap(false)
-    Styles:ApplyText(outputAHPrice, 9, Palette.text)
-    outputAHPrice:Hide()
-    frame.outputAHPrice = outputAHPrice
+        local price = detailContent:CreateFontString(
+            nil, "OVERLAY", "GameFontNormalSmall"
+        )
+        price:SetPoint(
+            "TOPRIGHT", detailContent, "TOPRIGHT", -4, offset
+        )
+        price:SetWidth(138)
+        price:SetJustifyH("RIGHT")
+        price:SetWordWrap(false)
+        Styles:ApplyText(price, 9, Palette.text)
+        price:Hide()
+        return label, price
+    end
+
+    frame.outputVendorLabel, frame.outputVendorPrice =
+        CreateOutputPriceLine(-3, "Vendor:", Palette.auras.helpful)
+    frame.outputAHLabel, frame.outputAHPrice =
+        CreateOutputPriceLine(-20, "AH:", Palette.success)
 
     local description = detailContent:CreateFontString(
         nil,
@@ -2658,7 +2659,9 @@ function Module:RefreshRecipeDetails()
     frame.priceTotalValue:Hide()
     frame.outputSlot:Hide()
     frame.outputName:SetText("")
+    frame.outputVendorLabel:Hide()
     frame.outputVendorPrice:Hide()
+    frame.outputAHLabel:Hide()
     frame.outputAHPrice:Hide()
     frame.description:SetText("")
     frame.requirementsText:Hide()
@@ -2864,35 +2867,46 @@ function Module:RefreshRecipeDetails()
     local vendorPrice = GetCraftOutputVendorPrice(outputData, itemDB)
     local ahPrice, ahAge = GetCraftOutputAHPrice(outputData, aux)
 
-    if vendorPrice then
-        frame.outputVendorPrice:SetText(
-            "Vendor: " .. FormatCraftMoney(vendorPrice)
-        )
+    -- Compare proceeds from the whole craft with materials / craft. Most
+    -- recipes make one item; some produce a fixed batch instead.
+    local outputCount = schematic and schematic.quantityMin or 1
+    local maxOutputCount = schematic and schematic.quantityMax or outputCount
+    local fixedOutput = type(outputCount) == "number"
+        and type(maxOutputCount) == "number"
+        and outputCount >= 1 and outputCount == maxOutputCount
+    local vendorValue = vendorPrice and vendorPrice * outputCount
+    local ahValue = ahPrice and ahPrice * outputCount
+
+    if vendorValue then
+        frame.outputVendorPrice:SetText(FormatCraftMoney(vendorValue))
+        frame.outputVendorLabel:Show()
         frame.outputVendorPrice:Show()
     end
-    if ahPrice then
-        frame.outputAHPrice:ClearAllPoints()
-        frame.outputAHPrice:SetPoint(
-            "TOPLEFT", frame.outputSlot, "TOPRIGHT",
-            9, vendorPrice and -20 or -3
-        )
-        frame.outputAHPrice:SetPoint(
-            "RIGHT", frame.detailContent, "RIGHT", -4, 0
-        )
-        frame.outputAHPrice:SetText(
-            "AH: " .. FormatCraftMoney(ahPrice)
-        )
+
+    if ahValue then
+        frame.outputAHPrice:SetText(FormatCraftMoney(ahValue))
         if UI:CanAccessValue(ahAge)
             and type(ahAge) == "number" then
             Styles:SetTextColor(
-                frame.outputAHPrice,
+                frame.outputAHLabel,
                 ahAge == 0 and Palette.success
                     or ahAge == 1 and Palette.gold
                     or Palette.difficulty.veryHard
             )
         else
-            Styles:SetTextColor(frame.outputAHPrice, Palette.muted)
+            Styles:SetTextColor(frame.outputAHLabel, Palette.muted)
         end
+        -- Without vendor value, occupy the upper line.
+        local offset = vendorValue and -20 or -3
+        frame.outputAHLabel:ClearAllPoints()
+        frame.outputAHLabel:SetPoint(
+            "TOPLEFT", frame.outputSlot, "TOPRIGHT", 9, offset
+        )
+        frame.outputAHPrice:ClearAllPoints()
+        frame.outputAHPrice:SetPoint(
+            "TOPRIGHT", frame.detailContent, "TOPRIGHT", -4, offset
+        )
+        frame.outputAHLabel:Show()
         frame.outputAHPrice:Show()
     end
 
@@ -3144,6 +3158,28 @@ function Module:RefreshRecipeDetails()
             row:Show()
             y = y + Layout.REAGENT_ROW_HEIGHT
         end
+    end
+
+    -- Color only the sale amounts, not their source labels. A comparison
+    -- needs complete material prices and a guaranteed output quantity.
+    -- AH is compared at the displayed market price, before auction fees.
+    local canCompare = showPrices and pricedCount > 0
+        and missingPrices == 0 and fixedOutput
+    local function ProfitColor(saleValue)
+        if not canCompare or not saleValue then return Palette.text end
+        if saleValue > totalMaterialCost then return Palette.success end
+        if saleValue < totalMaterialCost then
+            return Palette.difficulty.veryHard
+        end
+        return Palette.gold
+    end
+    if vendorValue then
+        Styles:SetTextColor(
+            frame.outputVendorPrice, ProfitColor(vendorValue)
+        )
+    end
+    if ahValue then
+        Styles:SetTextColor(frame.outputAHPrice, ProfitColor(ahValue))
     end
 
     if showPrices and (pricedCount > 0 or missingPrices > 0) then
