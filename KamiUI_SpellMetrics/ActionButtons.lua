@@ -59,13 +59,11 @@ local function EnsureMetricOverlay(button)
         return button.KamiSpellMetricsText
     end
 
-    local overlay = CreateFrame("Frame", nil, button)
-    overlay:SetAllPoints(button)
-    overlay:SetFrameLevel(button:GetFrameLevel() + 20)
-    overlay:EnableMouse(false)
-
-    local text = overlay:CreateFontString(nil, "OVERLAY")
-    text:SetPoint("LEFT", overlay, "LEFT", 2, 0)
+    -- Render metrics directly on the action button, below its native
+    -- cooldown frame. A separate high-level overlay could cover the
+    -- cooldown countdown even if the cooldown frame level was raised.
+    local text = button:CreateFontString(nil, "OVERLAY")
+    text:SetPoint("LEFT", button, "LEFT", 2, 0)
     text:SetJustifyH("LEFT")
     text:SetJustifyV("MIDDLE")
     text:SetShadowColor(0, 0, 0, 1)
@@ -82,7 +80,6 @@ local function EnsureMetricOverlay(button)
     )
     text:SetTextColor(1, 1, 1, 1)
 
-    button.KamiSpellMetricsOverlay = overlay
     button.KamiSpellMetricsText = text
 
     return text
