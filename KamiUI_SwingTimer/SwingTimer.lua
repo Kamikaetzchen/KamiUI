@@ -3,6 +3,7 @@ local UI = KamiUI
 local Module = UI:NewModule("SwingTimer", "KamiUI_SwingTimer")
 local Layout = UI.Layout.SwingTimer
 local Styles = UI.Styles
+local Palette = UI.Palette
 
 local _, playerClass = UnitClass("player")
 
@@ -16,55 +17,55 @@ local HANDS = {
 }
 local ORDER = { "ranged", "offhand", "mainhand" }
 local RANGED_WINDUP = 0.5 -- Conservative stop-moving window at base haste.
-local nativeSuppressed = setmetatable({}, { __mode = "k" })
-
 Module.bars = {}
 Module.autoShooting = false
 
-local function SuppressNativeTimers()
+-- This CVar only controls the built-in bars, not the PLAYER_SWING event.
+-- Do not reparent or hook Blizzard's SwingTimer frames: Edit Mode and level-up
+-- updates can recreate them. Prefer the game's own visibility switch.
+local function DisableNativeSwingTimers()
     if InCombatLockdown and InCombatLockdown() then
-        Module.nativePending = true
         return
     end
 
-    Module.nativePending = false
-    for _, frame in ipairs({
-        SwingTimerMainHandFrame,
-        SwingTimerOffHandFrame,
-        SwingTimerRangedFrame,
-    }) do
-        if frame and not nativeSuppressed[frame] then
-            nativeSuppressed[frame] = true
-            frame:Hide()
-            -- Parent to KamiUI's permanently hidden sink, so Blizzard's
-            -- own visibility updates cannot resurrect its textured bars.
-            UI:KeepFrameHidden(frame)
-        end
+    if GetCVar and SetCVar and GetCVar("showSwingTimer") ~= "0" then
+        SetCVar("showSwingTimer", "0")
     end
 end
 
 local function CreateBar(hand)
     local frame = CreateFrame("Frame", "KamiUISwingTimer" .. hand, UIParent)
     frame:SetSize(Layout.WIDTH, Layout.HEIGHT)
-    frame:SetAlpha(0.80)
     frame:EnableMouse(false)
 
-    local background = frame:CreateTexture(nil, "BACKGROUND")
-    background:SetAllPoints(frame)
-    background:SetTexture(UI.Media.KamiFacet)
-    background:SetVertexColor(0.025, 0.025, 0.025, 0.82)
+    -- Match KamiUI_Timers: the opaque KamiFacet artwork gets independent
+    -- alpha on a dedicated fill parent, while its background stays separate.
+    local fillContainer = CreateFrame("Frame", nil, frame)
+    fillContainer:SetPoint("TOPLEFT", frame, "TOPLEFT", 1, -1)
+    fillContainer:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -1, 1)
+    fillContainer:SetAlpha(Styles.State.aurasBarAlpha)
 
-    local fill = frame:CreateTexture(nil, "ARTWORK")
+    local background = frame:CreateTexture(nil, "BACKGROUND")
+    background:SetAllPoints(fillContainer)
+    background:SetTexture(UI.Media.KamiFacet)
+    background:SetVertexColor(
+        Palette.auras.background[1],
+        Palette.auras.background[2],
+        Palette.auras.background[3],
+        Styles.State.aurasBackgroundAlpha
+    )
+
+    local fill = fillContainer:CreateTexture(nil, "ARTWORK")
     fill:SetTexture(UI.Media.KamiFacet)
     fill:SetHeight(Layout.HEIGHT - 2)
     fill:SetWidth(0.01)
     if hand == "ranged" then
         -- YaHT's centered fill: white shrinks inward after a shot, then
         -- red grows outward while the stationary wind-up completes.
-        fill:SetPoint("CENTER", frame, "CENTER", 0, 0)
+        fill:SetPoint("CENTER", fillContainer, "CENTER", 0, 0)
         fill:SetVertexColor(0.93, 0.93, 0.89, 1)
     else
-        fill:SetPoint("LEFT", frame, "LEFT", 1, 0)
+        fill:SetPoint("LEFT", fillContainer, "LEFT", 0, 0)
         if hand == "mainhand" then
             fill:SetVertexColor(0.90, 0.68, 0.24, 1)
         else
@@ -76,10 +77,14 @@ local function CreateBar(hand)
         color = { 0, 0, 0, 1 },
     })
 
-    -- Countdown stays centered above the animated fill on both melee and
-    -- ranged bars, including YaHT's red Auto Shot wind-up.
-    local timeText = frame:CreateFontString(nil, "OVERLAY")
-    timeText:SetPoint("CENTER", frame, "CENTER", 0, 0)
+    -- A separate overlay ensures the animated fill never covers the text.
+    local overlay = CreateFrame("Frame", nil, frame)
+    overlay:SetAllPoints(frame)
+    overlay:SetFrameLevel(fillContainer:GetFrameLevel() + 2)
+    overlay:EnableMouse(false)
+
+    local timeText = overlay:CreateFontString(nil, "OVERLAY")
+    timeText:SetPoint("CENTER", overlay, "CENTER", 0, 0)
     timeText:SetFont("Fonts\\FRIZQT__.TTF", 8, "OUTLINE")
     timeText:SetTextColor(1, 1, 1)
     timeText:SetShadowColor(0, 0, 0, 1)
@@ -299,7 +304,7 @@ function Module:Apply()
         self.driver:SetScript("OnUpdate", UpdateBars)
     end
 
-    SuppressNativeTimers()
+    DisableNativeSwingTimers()
     LayoutBars()
 end
 
@@ -333,7 +338,7 @@ function Module:Initialize()
     UI:RegisterEvent("PLAYER_REGEN_ENABLED", function()
         Module.autoShooting = false
         ResetBars()
-        if Module.nativePending then SuppressNativeTimers() end
+        DisableNativeSwingTimers()
     end)
 
     UI:RegisterEvent("PLAYER_DEAD", function()
@@ -345,11 +350,6 @@ function Module:Initialize()
         C_Timer.After(0, function() Module:Apply() end)
     end)
 
-    UI:RegisterEvent("ADDON_LOADED", function(_, addonName)
-        if addonName == "Blizzard_SwingTimer" then
-            C_Timer.After(0, SuppressNativeTimers)
-        end
-    end)
 end
 
 Module:Initialize()
