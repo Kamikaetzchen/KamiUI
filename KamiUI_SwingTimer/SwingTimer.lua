@@ -131,8 +131,16 @@ local function UpdateRanged(bar, now)
     local speed = bar.speed
     if not speed or not bar.lastSwing then
         if Module.autoShooting then
+            -- First shot has no preceding PLAYER_SWING anchor yet.
             SetPhase(bar, "windup")
-            SetFill(bar, 0)
+            if IsMoving() then
+                bar.windupStart = nil
+                SetFill(bar, 0)
+            else
+                bar.windupStart = bar.windupStart or now
+                SetFill(bar,
+                    (now - bar.windupStart) / RANGED_WINDUP)
+            end
         end
         return
     end
@@ -244,7 +252,7 @@ function Module:Apply()
                 self.bars[hand] = CreateBar(hand)
             end
         end
-        -- Only update while a bar is active. No combat-log dependency.
+        -- A lightweight visual update; timing comes from PLAYER_SWING.
         self.driver = CreateFrame("Frame")
         self.driver:SetScript("OnUpdate", UpdateBars)
     end
