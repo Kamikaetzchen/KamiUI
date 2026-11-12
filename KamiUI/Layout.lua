@@ -188,8 +188,8 @@ UI.Layout = {
 
     SwingTimer = {
         WIDTH = 200,
-        HEIGHT = 15,
-        OFFSET_Y = 4,
+        HEIGHT = 10,
+        OFFSET_Y = 2,
         SPACING = 0,
     },
 
