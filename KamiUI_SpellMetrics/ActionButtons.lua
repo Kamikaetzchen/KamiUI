@@ -65,7 +65,7 @@ local function EnsureMetricOverlay(button)
     -- The native cooldown countdown must remain readable above the
     -- metrics. Use ARTWORK (above the icon, below cooldown OVERLAY)
     -- instead of competing with the cooldown's text layer.
-    local text = button:CreateFontString(nil, "ARTWORK", 1)
+    local text = button:CreateFontString(nil, "ARTWORK", nil, 1)
     text:SetPoint("LEFT", button, "LEFT", 2, 0)
     text:SetJustifyH("LEFT")
     text:SetJustifyV("MIDDLE")
