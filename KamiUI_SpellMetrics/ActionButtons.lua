@@ -62,7 +62,10 @@ local function EnsureMetricOverlay(button)
     -- Render metrics directly on the action button, below its native
     -- cooldown frame. A separate high-level overlay could cover the
     -- cooldown countdown even if the cooldown frame level was raised.
-    local text = button:CreateFontString(nil, "OVERLAY")
+    -- The native cooldown countdown must remain readable above the
+    -- metrics. Use ARTWORK (above the icon, below cooldown OVERLAY)
+    -- instead of competing with the cooldown's text layer.
+    local text = button:CreateFontString(nil, "ARTWORK", 1)
     text:SetPoint("LEFT", button, "LEFT", 2, 0)
     text:SetJustifyH("LEFT")
     text:SetJustifyV("MIDDLE")
