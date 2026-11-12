@@ -549,6 +549,81 @@ local function FormatCraftDuration(seconds)
     return string.format("%ds", total)
 end
 
+-- AuxForever owns AH prices; ItemDB is used solely for vendor costs.
+-- Both providers are optional and may not have data for every material.
+local function GetCraftPriceProviders()
+    local aux = AuxForeverAPI
+    if not aux or type(aux.GetLatestPrice) ~= "function"
+        or not UI:SafeCall(aux.IsReady) then
+        aux = nil
+    end
+
+    local itemDB
+    if LibStub then
+        local ok, library = pcall(LibStub, "LibItemDB-1.0", true)
+        if ok and library
+            and (type(library.GetVendorBuyPrice) == "function"
+                or type(library.GetVendorBasePrice) == "function")
+            and (not library.IsReady
+                or UI:SafeCall(library.IsReady, library)) then
+            itemDB = library
+        end
+    end
+
+    return aux, itemDB
+end
+
+local function IsValidPrice(price)
+    return UI:CanAccessValue(price)
+        and type(price) == "number"
+        and price > 0 and price < math.huge
+end
+
+local function GetCraftReagentPrice(itemID, aux, itemDB)
+    if not itemID or not UI:CanAccessValue(itemID)
+        or type(itemID) ~= "number" then
+        return nil
+    end
+
+    local ahPrice, ahAge
+    if aux then
+        ahPrice, ahAge = UI:SafeCall(aux.GetLatestPrice, itemID)
+        if not IsValidPrice(ahPrice) then ahPrice = nil end
+    end
+
+    local vendorPrice
+    if itemDB then
+        if type(itemDB.GetVendorBuyPrice) == "function" then
+            vendorPrice = UI:SafeCall(
+                itemDB.GetVendorBuyPrice, itemDB, itemID
+            )
+        end
+        if not IsValidPrice(vendorPrice)
+            and type(itemDB.GetVendorBasePrice) == "function" then
+            vendorPrice = UI:SafeCall(
+                itemDB.GetVendorBasePrice, itemDB, itemID
+            )
+        end
+        if not IsValidPrice(vendorPrice) then vendorPrice = nil end
+    end
+
+    if vendorPrice and (not ahPrice or vendorPrice <= ahPrice) then
+        return math.ceil(vendorPrice), "Vendor"
+    end
+    if ahPrice then
+        return math.ceil(ahPrice), "AH", ahAge
+    end
+    return nil
+end
+
+local function FormatCraftMoney(copper)
+    copper = math.max(0, math.ceil(copper))
+    if GetCoinTextureString then
+        return GetCoinTextureString(copper)
+    end
+    return tostring(copper) .. "c"
+end
+
 local function AcquireRecipeRow(frame, index)
     local row = frame.recipeRows[index]
 
@@ -1103,6 +1178,28 @@ local function AcquireReagentRow(frame, index)
     Styles:ApplyText(status, 8, Palette.muted)
     row.status = status
 
+    -- Right-hand price column, sharing the two-line reagent row layout.
+    local price = row:CreateFontString(
+        nil, "OVERLAY", "GameFontNormalSmall"
+    )
+    price:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", -4, 2)
+    price:SetWidth(138)
+    price:SetJustifyH("RIGHT")
+    price:SetWordWrap(false)
+    Styles:ApplyText(price, 9, Palette.text)
+    price:Hide()
+    row.price = price
+
+    local priceSource = row:CreateFontString(
+        nil, "OVERLAY", "GameFontNormalSmall"
+    )
+    priceSource:SetPoint("TOPRIGHT", row, "TOPRIGHT", -4, -2)
+    priceSource:SetWidth(138)
+    priceSource:SetJustifyH("RIGHT")
+    Styles:ApplyText(priceSource, 8, Palette.muted)
+    priceSource:Hide()
+    row.priceSource = priceSource
+
     frame.reagentRows[index] = row
     return row
 end
@@ -1595,6 +1692,25 @@ local function CreateCraftingPage(frame)
     Styles:ApplyText(reagentsTitle, 10, Palette.gold)
     reagentsTitle:SetText("Reagents")
     frame.reagentsTitle = reagentsTitle
+
+    -- Total is placed after the last reagent inside the same scroll area.
+    local priceTotalLabel = detailContent:CreateFontString(
+        nil, "OVERLAY", "GameFontNormalSmall"
+    )
+    Styles:ApplyText(priceTotalLabel, 9, Palette.gold)
+    priceTotalLabel:SetJustifyH("LEFT")
+    priceTotalLabel:Hide()
+    frame.priceTotalLabel = priceTotalLabel
+
+    local priceTotalValue = detailContent:CreateFontString(
+        nil, "OVERLAY", "GameFontNormalSmall"
+    )
+    Styles:ApplyText(priceTotalValue, 9, Palette.text)
+    priceTotalValue:SetJustifyH("RIGHT")
+    priceTotalValue:SetWordWrap(false)
+    priceTotalValue:SetWidth(150)
+    priceTotalValue:Hide()
+    frame.priceTotalValue = priceTotalValue
 
     local craftAll = CreateFrame("Button", nil, right)
     craftAll:SetSize(64, 24)
@@ -2419,6 +2535,8 @@ function Module:RefreshRecipeDetails()
     local cachedProfession = self:GetDisplayedCachedProfession()
 
     ClearReagentRows(frame)
+    frame.priceTotalLabel:Hide()
+    frame.priceTotalValue:Hide()
     frame.outputSlot:Hide()
     frame.outputName:SetText("")
     frame.description:SetText("")
@@ -2708,6 +2826,9 @@ function Module:RefreshRecipeDetails()
     y = y + 22
 
     local hasUnsupportedSelection = false
+    local aux, itemDB = GetCraftPriceProviders()
+    local showPrices = aux ~= nil or itemDB ~= nil
+    local totalMaterialCost, pricedCount, missingPrices = 0, 0, 0
 
     for _, slot in ipairs(
         schematic and schematic.reagentSlotSchematics or {}
@@ -2770,6 +2891,53 @@ function Module:RefreshRecipeDetails()
                     or slotText
                     or "Reagent"
             )
+
+            -- Restore full-width names when neither pricing addon is ready.
+            local rightInset = showPrices and 146 or 4
+            row.name:ClearAllPoints()
+            row.name:SetPoint("BOTTOMLEFT", row.slot, "RIGHT", 8, 2)
+            row.name:SetPoint("BOTTOMRIGHT", row, "RIGHT", -rightInset, 2)
+            row.status:ClearAllPoints()
+            row.status:SetPoint("TOPLEFT", row.slot, "RIGHT", 8, -2)
+            row.status:SetPoint("TOPRIGHT", row, "RIGHT", -rightInset, -2)
+
+            row.price:Hide()
+            row.priceSource:Hide()
+            if showPrices and not optional and required > 0 then
+                -- Alternative reagents are not supported by our crafting form,
+                -- so a first-choice price would misrepresent the real cost.
+                local hasAlternatives = slot.reagents
+                    and #slot.reagents > 1
+                local unitPrice, source, age
+                if not hasAlternatives then
+                    unitPrice, source, age =
+                        GetCraftReagentPrice(itemID, aux, itemDB)
+                end
+
+                if unitPrice then
+                    local cost = unitPrice * required
+                    totalMaterialCost = totalMaterialCost + cost
+                    pricedCount = pricedCount + 1
+                    row.price:SetText(FormatCraftMoney(cost))
+                    if source == "AH" and type(age) == "number" then
+                        row.priceSource:SetText(
+                            age == 0 and "AH · today"
+                                or string.format("AH · %dd ago", age)
+                        )
+                    else
+                        row.priceSource:SetText(source)
+                    end
+                    Styles:SetTextColor(row.price, Palette.text)
+                else
+                    missingPrices = missingPrices + 1
+                    row.price:SetText("?")
+                    row.priceSource:SetText("No price")
+                    Styles:SetTextColor(row.price, Palette.muted)
+                end
+                row.price:Show()
+                row.priceSource:Show()
+            end
+
             row.status:SetText(
                 optional
                     and "Optional"
@@ -2794,6 +2962,35 @@ function Module:RefreshRecipeDetails()
             row:Show()
             y = y + Layout.REAGENT_ROW_HEIGHT
         end
+    end
+
+    if showPrices and (pricedCount > 0 or missingPrices > 0) then
+        local totalLabel = missingPrices > 0
+            and "Known materials / craft:"
+            or "Materials / craft:"
+        local totalValue = pricedCount > 0
+            and FormatCraftMoney(totalMaterialCost) or "?"
+        if missingPrices > 0 and pricedCount > 0 then
+            totalValue = totalValue .. " + ?"
+        end
+
+        frame.priceTotalLabel:ClearAllPoints()
+        frame.priceTotalLabel:SetPoint(
+            "TOPLEFT", frame.detailContent, "TOPLEFT", 0, -y - 7
+        )
+        frame.priceTotalLabel:SetPoint(
+            "RIGHT", frame.priceTotalValue, "LEFT", -4, 0
+        )
+        frame.priceTotalLabel:SetText(totalLabel)
+
+        frame.priceTotalValue:ClearAllPoints()
+        frame.priceTotalValue:SetPoint(
+            "TOPRIGHT", frame.detailContent, "TOPRIGHT", -4, -y - 7
+        )
+        frame.priceTotalValue:SetText(totalValue)
+        frame.priceTotalLabel:Show()
+        frame.priceTotalValue:Show()
+        y = y + 27
     end
 
     SetScrollHeight(
