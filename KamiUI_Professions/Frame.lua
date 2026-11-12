@@ -607,7 +607,9 @@ local function GetCraftReagentPrice(itemID, aux, itemDB)
         if not IsValidPrice(vendorPrice) then vendorPrice = nil end
     end
 
-    if vendorPrice and (not ahPrice or vendorPrice <= ahPrice) then
+    -- ItemDB only records unlimited-stock, gold-purchased vendor items.
+    -- Prefer that stable vendor source even if a one-off AH listing is cheaper.
+    if vendorPrice then
         return math.ceil(vendorPrice), "Vendor"
     end
     if ahPrice then
@@ -618,10 +620,40 @@ end
 
 local function FormatCraftMoney(copper)
     copper = math.max(0, math.ceil(copper))
-    if GetCoinTextureString then
-        return GetCoinTextureString(copper)
+
+    -- Forever has the namespaced API; the old global was removed in 12.1.5.
+    -- Request small coin icons to fit the 42px-high reagent rows.
+    local formatted
+    if C_CurrencyInfo and C_CurrencyInfo.GetCoinTextureString then
+        formatted = UI:SafeCall(
+            C_CurrencyInfo.GetCoinTextureString, copper, 10
+        )
+    elseif GetCoinTextureString then
+        formatted = UI:SafeCall(GetCoinTextureString, copper, 10)
     end
-    return tostring(copper) .. "c"
+    if type(formatted) == "string"
+        and (formatted:find("|T", 1, true)
+            or formatted:find("|A", 1, true)) then
+        return formatted
+    end
+
+    -- Fallback for clients without either helper: always show coin textures.
+    local function Coin(value, kind)
+        return string.format(
+            "%d|TInterface\\MoneyFrame\\UI-%sIcon:10:10:0:0|t",
+            value, kind
+        )
+    end
+    local gold = math.floor(copper / 10000)
+    local silver = math.floor(copper / 100) % 100
+    local bronze = copper % 100
+    local parts = {}
+    if gold > 0 then parts[#parts + 1] = Coin(gold, "Gold") end
+    if silver > 0 then parts[#parts + 1] = Coin(silver, "Silver") end
+    if bronze > 0 or #parts == 0 then
+        parts[#parts + 1] = Coin(bronze, "Copper")
+    end
+    return table.concat(parts, " ")
 end
 
 local function AcquireRecipeRow(frame, index)
@@ -1184,7 +1216,8 @@ local function AcquireReagentRow(frame, index)
     local price = row:CreateFontString(
         nil, "OVERLAY", "GameFontNormalSmall"
     )
-    price:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", -4, 2)
+    -- Same baseline as reagent name (upper line).
+    price:SetPoint("BOTTOMRIGHT", row, "RIGHT", -4, 2)
     price:SetWidth(138)
     price:SetJustifyH("RIGHT")
     price:SetWordWrap(false)
@@ -1195,12 +1228,22 @@ local function AcquireReagentRow(frame, index)
     local priceSource = row:CreateFontString(
         nil, "OVERLAY", "GameFontNormalSmall"
     )
-    priceSource:SetPoint("TOPRIGHT", row, "TOPRIGHT", -4, -2)
+    -- Same baseline as availability (lower line).
+    priceSource:SetPoint("TOPRIGHT", row, "RIGHT", -4, -2)
     priceSource:SetWidth(138)
     priceSource:SetJustifyH("RIGHT")
     Styles:ApplyText(priceSource, 8, Palette.muted)
     priceSource:Hide()
     row.priceSource = priceSource
+
+    -- A subtle divider groups each price/source pair with its own reagent.
+    local separator = row:CreateTexture(nil, "BACKGROUND")
+    separator:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", 0, 0)
+    separator:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", 0, 0)
+    separator:SetHeight(1)
+    separator:SetColorTexture(
+        Palette.muted[1], Palette.muted[2], Palette.muted[3], 0.24
+    )
 
     frame.reagentRows[index] = row
     return row
@@ -2923,14 +2966,36 @@ function Module:RefreshRecipeDetails()
                     totalMaterialCost = totalMaterialCost + cost
                     pricedCount = pricedCount + 1
                     row.price:SetText(FormatCraftMoney(cost))
-                    if source == "AH" and UI:CanAccessValue(age)
-                        and type(age) == "number" then
-                        row.priceSource:SetText(
-                            age == 0 and "AH · today"
-                                or string.format("AH · %dd ago", age)
+                    if source == "Vendor" then
+                        row.priceSource:SetText("Vendor")
+                        Styles:SetTextColor(
+                            row.priceSource, Palette.auras.helpful
                         )
+                    elseif source == "AH" and UI:CanAccessValue(age)
+                        and type(age) == "number" then
+                        if age == 0 then
+                            row.priceSource:SetText("AH · today")
+                            Styles:SetTextColor(
+                                row.priceSource, Palette.success
+                            )
+                        elseif age == 1 then
+                            row.priceSource:SetText("AH · yesterday")
+                            Styles:SetTextColor(
+                                row.priceSource, Palette.gold
+                            )
+                        else
+                            row.priceSource:SetText(
+                                string.format("AH · %dd ago", age)
+                            )
+                            Styles:SetTextColor(
+                                row.priceSource, Palette.difficulty.veryHard
+                            )
+                        end
                     else
-                        row.priceSource:SetText(source)
+                        row.priceSource:SetText("AH · age unknown")
+                        Styles:SetTextColor(
+                            row.priceSource, Palette.muted
+                        )
                     end
                     Styles:SetTextColor(row.price, Palette.text)
                 else
@@ -2938,6 +3003,7 @@ function Module:RefreshRecipeDetails()
                     row.price:SetText("?")
                     row.priceSource:SetText("No price")
                     Styles:SetTextColor(row.price, Palette.muted)
+                    Styles:SetTextColor(row.priceSource, Palette.muted)
                 end
                 row.price:Show()
                 row.priceSource:Show()
