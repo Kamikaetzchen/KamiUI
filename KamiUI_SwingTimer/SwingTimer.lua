@@ -73,6 +73,18 @@ local function CreateBar(hand)
         color = { 0, 0, 0, 1 },
     })
 
+    -- Countdown stays centered above the animated fill on both melee and
+    -- ranged bars, including YaHT's red Auto Shot wind-up.
+    local timeText = frame:CreateFontString(nil, "OVERLAY")
+    timeText:SetPoint("CENTER", frame, "CENTER", 0, 0)
+    timeText:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+    timeText:SetTextColor(1, 1, 1)
+    timeText:SetShadowColor(0, 0, 0, 1)
+    timeText:SetShadowOffset(1, -1)
+    timeText:SetText("")
+
+    frame.timeText = timeText
+    frame.shownTenth = nil
     frame.fill = fill
     frame.hand = hand
     frame.lastSwing = nil
@@ -127,6 +139,23 @@ local function IsMoving()
     return moving == true
 end
 
+local function SetRemaining(bar, seconds)
+    if not seconds then
+        if bar.shownTenth ~= nil then
+            bar.timeText:SetText("")
+            bar.shownTenth = nil
+        end
+        return
+    end
+
+    -- Round upward to avoid showing 0.0 while the swing is still pending.
+    local tenth = math.max(0, math.ceil(math.max(0, seconds) * 10))
+    if bar.shownTenth ~= tenth then
+        bar.timeText:SetText(string.format("%.1f", tenth / 10))
+        bar.shownTenth = tenth
+    end
+end
+
 local function UpdateRanged(bar, now)
     local speed = bar.speed
     if not speed or not bar.lastSwing then
@@ -136,13 +165,15 @@ local function UpdateRanged(bar, now)
             if IsMoving() then
                 bar.windupStart = nil
                 SetFill(bar, 0)
+                return RANGED_WINDUP
             else
                 bar.windupStart = bar.windupStart or now
-                SetFill(bar,
-                    (now - bar.windupStart) / RANGED_WINDUP)
+                local elapsed = now - bar.windupStart
+                SetFill(bar, elapsed / RANGED_WINDUP)
+                return math.max(0, RANGED_WINDUP - elapsed)
             end
         end
-        return
+        return nil
     end
 
     local windup = math.min(RANGED_WINDUP, speed)
@@ -157,7 +188,7 @@ local function UpdateRanged(bar, now)
         else
             SetFill(bar, 0)
         end
-        return
+        return math.max(0, speed - elapsed)
     end
 
     SetPhase(bar, "windup")
@@ -166,29 +197,35 @@ local function UpdateRanged(bar, now)
         -- A new shot event re-anchors the entire timeline precisely.
         bar.windupStart = nil
         SetFill(bar, 0)
+        return windup
     else
         if not bar.windupStart then
             bar.windupStart = math.max(bar.lastSwing + recovery, now - 0.02)
         end
-        SetFill(bar, (now - bar.windupStart) / math.max(0.01, windup))
+        local elapsedWindup = now - bar.windupStart
+        SetFill(bar, elapsedWindup / math.max(0.01, windup))
+        return math.max(0, windup - elapsedWindup)
     end
 end
 
 local function UpdateMelee(bar, now)
-    if not bar.speed or not bar.lastSwing then return end
+    if not bar.speed or not bar.lastSwing then return nil end
     local elapsed = math.max(0, now - bar.lastSwing)
     SetFill(bar, elapsed / bar.speed)
+    return math.max(0, bar.speed - elapsed)
 end
 
 local function UpdateBars()
     local now = GetTime()
     for hand, bar in pairs(Module.bars) do
         if bar:IsShown() then
+            local remaining
             if hand == "ranged" then
-                UpdateRanged(bar, now)
+                remaining = UpdateRanged(bar, now)
             else
-                UpdateMelee(bar, now)
+                remaining = UpdateMelee(bar, now)
             end
+            SetRemaining(bar, remaining)
             -- Do not leave a stale timer on screen after the attack stops.
             if bar.lastSwing and bar.speed
                 and now - bar.lastSwing > math.max(6, bar.speed * 3)
@@ -221,6 +258,7 @@ local function StartSwing(duration, swingType)
     bar.speed = duration
     bar.windupStart = nil
     bar.phase = nil
+    SetRemaining(bar, duration)
 
     if not bar:IsShown() then
         bar:Show()
@@ -241,6 +279,7 @@ local function ResetBars()
         bar.speed = nil
         bar.windupStart = nil
         bar.phase = nil
+        SetRemaining(bar, nil)
         bar:Hide()
     end
 end
