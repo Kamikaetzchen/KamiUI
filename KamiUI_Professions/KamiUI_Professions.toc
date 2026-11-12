@@ -5,6 +5,7 @@
 ## Version: 0.3.0
 ## IconTexture: Interface\Icons\Trade_BlackSmithing
 ## RequiredDeps: KamiUI
+## OptionalDeps: auxForever, ItemDB
 
 Professions.lua
 Frame.lua
