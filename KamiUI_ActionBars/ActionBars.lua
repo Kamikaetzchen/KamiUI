@@ -165,9 +165,10 @@ local function SetupGCDSwipe(button)
     swipe:Hide()
     button.KamiGCDSwipe = swipe
 
-    -- Spell Metrics draws only font strings at +20, so it remains readable.
+    -- Keep cooldown text above Spell Metrics (+20), which remains visible
+    -- beneath it. The separate GCD swipe stays behind both at +5.
     if button.cooldown then
-        button.cooldown:SetFrameLevel(button:GetFrameLevel() + 3)
+        button.cooldown:SetFrameLevel(button:GetFrameLevel() + 21)
     end
 end
 
