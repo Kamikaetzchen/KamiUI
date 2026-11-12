@@ -46,6 +46,7 @@ end
 local function CreateBar(hand)
     local frame = CreateFrame("Frame", "KamiUISwingTimer" .. hand, UIParent)
     frame:SetSize(Layout.WIDTH, Layout.HEIGHT)
+    frame:SetAlpha(0.80)
     frame:EnableMouse(false)
 
     local background = frame:CreateTexture(nil, "BACKGROUND")
@@ -77,7 +78,7 @@ local function CreateBar(hand)
     -- ranged bars, including YaHT's red Auto Shot wind-up.
     local timeText = frame:CreateFontString(nil, "OVERLAY")
     timeText:SetPoint("CENTER", frame, "CENTER", 0, 0)
-    timeText:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+    timeText:SetFont("Fonts\\FRIZQT__.TTF", 8, "OUTLINE")
     timeText:SetTextColor(1, 1, 1)
     timeText:SetShadowColor(0, 0, 0, 1)
     timeText:SetShadowOffset(1, -1)
