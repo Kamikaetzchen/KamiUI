@@ -337,6 +337,46 @@ local function Action(button, entry)
     button.actionKey = key
 end
 
+-- Keep the native cooldown widget responsible for its countdown. On modern
+-- clients item cooldown timestamps can be secret in combat, so never do
+-- arithmetic on them in Lua.
+local function UpdateButtonCooldown(button)
+    local cooldown = button.cooldown
+    if not cooldown then return end
+    local entry = button.entry
+    if not entry then
+        cooldown:Clear()
+        return
+    end
+
+    if entry.kind == "item" and C_Container
+        and C_Container.GetItemCooldown then
+        local start, duration = C_Container.GetItemCooldown(entry.id)
+        if C_DurationUtil and C_DurationUtil.CreateDuration
+            and cooldown.SetCooldownFromDurationObject then
+            local timer = C_DurationUtil.CreateDuration()
+            timer:SetTimeFromStart(start, duration, 1)
+            cooldown:SetCooldownFromDurationObject(timer, true)
+        elseif UI:CanAccessValue(start) and UI:CanAccessValue(duration)
+            and type(start) == "number"
+            and type(duration) == "number" then
+            -- Fallback for older clients without native duration objects.
+            cooldown:SetCooldown(start, duration)
+        end
+    elseif entry.kind == "spell" and C_Spell
+        and C_Spell.GetSpellCooldownDuration
+        and cooldown.SetCooldownFromDurationObject then
+        local timer = C_Spell.GetSpellCooldownDuration(entry.id)
+        if timer then
+            cooldown:SetCooldownFromDurationObject(timer, true)
+        else
+            cooldown:Clear()
+        end
+    else
+        cooldown:Clear()
+    end
+end
+
 local function IconButton(button, size, category)
     button:SetSize(size, size)
     button:RegisterForClicks("AnyUp", "AnyDown")
@@ -359,20 +399,52 @@ local function IconButton(button, size, category)
         image:AddMaskTexture(mask)
         button.iconMask = mask
     end
-    local border = button:CreateTexture(nil, "OVERLAY")
+    -- Cooldown swipes/countdowns sit on the item icon without capturing
+    -- mouse clicks. The border, quantity, and favorite star stay above them.
+    local cooldown = CreateFrame("Cooldown", nil, button,
+        "CooldownFrameTemplate")
+    cooldown:SetAllPoints(image)
+    cooldown:SetFrameLevel(button:GetFrameLevel() + 1)
+    cooldown:EnableMouse(false)
+    cooldown:SetDrawSwipe(true)
+    cooldown:SetDrawEdge(false)
+    cooldown:SetDrawBling(false)
+    cooldown:SetHideCountdownNumbers(false)
+    if cooldown.SetSwipeColor then
+        cooldown:SetSwipeColor(0, 0, 0, 0.65)
+    end
+    if cooldown.GetCountdownFontString then
+        local countdown = cooldown:GetCountdownFontString()
+        if countdown then
+            local font, _, flags = GameFontNormalSmall:GetFont()
+            if font then
+                countdown:SetFont(font,
+                    size == L.ICON_SIZE and 11 or 10, flags)
+            end
+        end
+    end
+
+    local overlay = CreateFrame("Frame", nil, button)
+    overlay:SetAllPoints(button)
+    overlay:SetFrameLevel(cooldown:GetFrameLevel() + 1)
+    overlay:EnableMouse(false)
+    local border = overlay:CreateTexture(nil, "OVERLAY")
     border:SetAllPoints()
     border:SetTexture(media .. "RadialOutline.tga")
     local color = BORDER_COLORS[category]
     if color then
         border:SetVertexColor(color[1], color[2], color[3])
     end
-    local count = button:CreateFontString(nil, "OVERLAY", "NumberFontNormalSmall")
+    local count = overlay:CreateFontString(nil, "OVERLAY",
+        "NumberFontNormalSmall")
     count:SetPoint("BOTTOMRIGHT", -2, 3)
-    local star = button:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    local star = overlay:CreateFontString(nil, "OVERLAY",
+        "GameFontNormalSmall")
     star:SetPoint("TOPRIGHT", -2, -2)
     star:SetText("*")
     star:Hide()
     button.icon, button.count, button.star = image, count, star
+    button.cooldown = cooldown
     button:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
         if self.entry then
@@ -404,6 +476,7 @@ local function Display(button, entry, placeholder, favorite)
         and entry.quantity > 1 and entry.quantity or "")
     button.star:SetShown(favorite == true)
     button.entry = entry
+    UpdateButtonCooldown(button)
 end
 
 local function CreateVariantButton(root, submenu, category)
@@ -472,6 +545,11 @@ local function CreateWheel(key, categories)
     root:SetPoint("CENTER", UIParent, "CENTER")
     root:SetFrameStrata("DIALOG")
     root:Hide()
+    root:HookScript("OnShow", function()
+        -- Re-read current item cooldowns when opened, even if a cooldown
+        -- event was missed while the wheel was closed.
+        Module:UpdateCooldowns()
+    end)
     root:SetFrameRef("root", root)
     root.buttons, root.submenus = {}, {}
     -- Protected cleanup works even if the menu is hidden during combat.
@@ -617,6 +695,19 @@ function Module:ApplySecureCatalog(catalog)
     end
 end
 
+function Module:UpdateCooldowns()
+    for _, wheel in pairs(self.wheels or {}) do
+        for _, button in ipairs(wheel.buttons) do
+            UpdateButtonCooldown(button)
+        end
+        for _, submenu in ipairs(wheel.submenus) do
+            for _, button in ipairs(submenu.buttons) do
+                UpdateButtonCooldown(button)
+            end
+        end
+    end
+end
+
 function Module:Refresh()
     -- The inventory can expose secret values during certain encounters.
     -- Keep existing secure assignments intact if the scan is restricted.
@@ -743,6 +834,17 @@ function Module:Initialize()
         BindKeys()
     end)
     UI:RegisterEvent("BAG_UPDATE_DELAYED", function() Module:Refresh() end)
+    -- Only redraw cooldowns on timer events; never rescan bags or rewrite
+    -- secure action attributes, including while in combat.
+    UI:RegisterEvent("BAG_UPDATE_COOLDOWN", function()
+        Module:UpdateCooldowns()
+    end)
+    UI:RegisterEvent("ACTIONBAR_UPDATE_COOLDOWN", function()
+        Module:UpdateCooldowns()
+    end)
+    UI:RegisterEvent("SPELL_UPDATE_COOLDOWN", function()
+        Module:UpdateCooldowns()
+    end)
     UI:RegisterEvent("GET_ITEM_INFO_RECEIVED", function()
         Module:Refresh()
     end)

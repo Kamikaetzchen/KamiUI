@@ -7,6 +7,12 @@ mount spell to a regular action-bar slot instead.
 
 **E:** Healing, mana, rage and utility potions, bandages.
 
+Every consumable icon (main wheel and variants) displays its actual
+item cooldown with a dark swipe and a remaining-time countdown, including
+shared potion cooldowns and the Hearthstone. Cooldowns update from native
+game events and whenever a wheel is opened, without changing secure item
+bindings in combat.
+
 ## Controls — identical in and out of combat
 
 - **Q or E once:** Open the corresponding radial menu.
