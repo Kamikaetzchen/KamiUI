@@ -208,24 +208,22 @@ function Palette:GetLevelDifficultyColor(level)
         return self.difficulty.veryHard
     end
 
-    if GetCreatureDifficultyColor then
-        local color = UI:SafeCall(GetCreatureDifficultyColor, level)
-        if color and UI:CanAccessValue(color) then
-            local r = color.r or color[1] or 1
-            local g = color.g or color[2] or 0.1
-            local b = color.b or color[3] or 0.1
-            if math.abs(r - g) < 0.04
-                and math.abs(g - b) < 0.04 and r < 0.72 then
-                return self.difficulty.trivial
-            end
-            return color
-        end
-    end
-
+    -- Forever's GetCreatureDifficultyColor(42) returned gray for a
+    -- level-49 player despite that mob granting XP. Prefer the classic
+    -- XP-gray thresholds over the client's inconsistent API.
     local playerLevel = UnitLevel and UI:SafeCall(UnitLevel, "player")
     if playerLevel and UI:CanAccessValue(playerLevel)
         and type(playerLevel) == "number" and playerLevel > 0 then
         return ClassicCreatureDifficultyColor(playerLevel, level)
+    end
+
+    -- If the player level is temporarily unavailable, return the
+    -- client's color rather than the unrelated quest difficulty.
+    if GetCreatureDifficultyColor then
+        local color = UI:SafeCall(GetCreatureDifficultyColor, level)
+        if color and UI:CanAccessValue(color) then
+            return color
+        end
     end
     return self.difficulty.veryHard
 end
