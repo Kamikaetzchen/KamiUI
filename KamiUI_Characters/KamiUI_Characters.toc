@@ -2,7 +2,7 @@
 ## Title: KamiUI - Characters
 ## Notes: Account-wide character data module for KamiUI
 ## Author: Kami Katze
-## Version: 0.3.0
+## Version: 0.3.1
 ## IconTexture: Interface\Icons\INV_Misc_Book_09
 ## RequiredDeps: KamiUI
 

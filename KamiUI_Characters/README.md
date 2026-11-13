@@ -40,3 +40,20 @@ a manual gear change.
 
 Classic +3%/+4%/+2% bonuses can stack. Riding Crop (TBC) is
 intentionally not included. No changes to ActionBars or RadialMenu.
+
+## Character equipment slot actions and cooldowns
+
+Equipment slots show their equipped item's cooldown as a native dark swipe
+with a visible countdown, including trinkets with on-use or on-equip
+cooldowns. Cooldowns refresh after equipment changes, cooldown events, and
+combat unlock. Restricted combat timestamps do not trigger arithmetic on
+secret values.
+
+Right-click invokes the current equipment slot's native item action through
+Blizzard's `InsecureActionButtonTemplate` **outside combat**, rather than
+calling the protected `UseInventoryItem()` from addon Lua. This deliberately
+keeps the character window unprotected and its navigation operational in
+combat. **Use combat trinkets via the action bar or a `/use 13` / `/use 14`
+macro**. Left-click pickup, modifier-link and middle-click equipment-set
+ignore controls are unchanged. Right-click is disabled when viewing an
+alt's cached gear.

@@ -311,6 +311,9 @@ local ApplyEquipmentIgnoreState
 local function CreateEquipmentSlot(parent, definition)
     local slotSize = definition.size or Layout.SLOT_SIZE
     local button = Components:CreateItemSlot(parent, {
+        -- Uses Blizzard's protected item action handler outside combat,
+        -- without making the entire movable character window protected.
+        template = "InsecureActionButtonTemplate",
         size = slotSize,
         borderColor = Palette.emptyBorder,
         label = definition.label,
@@ -325,6 +328,10 @@ local function CreateEquipmentSlot(parent, definition)
         "MiddleButtonUp"
     )
     button:RegisterForDrag("LeftButton")
+    -- The native action handler uses the equipment-slot number on right click.
+    -- The left/middle buttons remain our usual pickup/equipment-set controls.
+    button:SetAttribute("useOnKeyDown", false)
+    button:SetAttribute("item2", tostring(GetSlotID(definition.key) or 0))
 
     local ignoreOverlay = button:CreateTexture(nil, "OVERLAY", nil, 3)
     ignoreOverlay:SetPoint("CENTER")
@@ -340,6 +347,32 @@ local function CreateEquipmentSlot(parent, definition)
     button.slotKey = definition.key
     button.slotID = GetSlotID(definition.key)
     button.KamiEquipmentSide = definition.side
+    -- Keep the secure template's own OnClick handler intact. The PostClick
+    -- script manages only our custom left/middle interactions.
+    button:SetAttribute("type2", "item")
+
+    local cooldown = CreateFrame("Cooldown", nil, button,
+        "CooldownFrameTemplate")
+    cooldown:SetAllPoints(button.icon or button)
+    cooldown:SetFrameLevel(button:GetFrameLevel() + 1)
+    cooldown:EnableMouse(false)
+    cooldown:SetDrawSwipe(true)
+    cooldown:SetDrawEdge(false)
+    cooldown:SetDrawBling(false)
+    cooldown:SetHideCountdownNumbers(false)
+    if cooldown.SetSwipeColor then
+        cooldown:SetSwipeColor(0, 0, 0, 0.65)
+    end
+    if cooldown.GetCountdownFontString then
+        local countdown = cooldown:GetCountdownFontString()
+        if countdown then
+            local font, _, flags = GameFontNormalSmall:GetFont()
+            if font then
+                countdown:SetFont(font, 11, flags)
+            end
+        end
+    end
+    button.KamiCooldown = cooldown
 
     button:SetScript("OnEnter", function(self)
         if not self.slotID then
@@ -370,7 +403,7 @@ local function CreateEquipmentSlot(parent, definition)
         GameTooltip:Hide()
     end)
 
-    button:SetScript("OnClick", function(self, mouseButton)
+    button:HookScript("PostClick", function(self, mouseButton)
         local _, _, isCurrent = Module:GetViewedCharacter()
 
         if not isCurrent or not self.slotID then
@@ -405,8 +438,6 @@ local function CreateEquipmentSlot(parent, definition)
             if Module.ToggleEquipmentFlyout then
                 Module:ToggleEquipmentFlyout(self, hadItem)
             end
-        elseif mouseButton == "RightButton" then
-            UseInventoryItem(self.slotID)
         elseif mouseButton == "MiddleButton" then
             local frame = self:GetParent()
                 and self:GetParent():GetParent()
@@ -619,6 +650,44 @@ local function LayoutEquipmentSlot(button, definition, frame)
     end
 end
 
+local function UpdateEquipmentSlotCooldown(button)
+    local cooldown, slotID = button.KamiCooldown, button.slotID
+    if not cooldown then return end
+
+    local _, _, isCurrent = Module:GetViewedCharacter()
+    if not isCurrent or not slotID or not GetInventoryItemCooldown then
+        cooldown:Clear()
+        return
+    end
+
+    local start, duration, enabled =
+        GetInventoryItemCooldown("player", slotID)
+
+    -- On Forever, combat can protect the timing values. Leave the last
+    -- native countdown running until a readable update is available.
+    if not UI:CanAccessValue(start)
+        or not UI:CanAccessValue(duration)
+        or not UI:CanAccessValue(enabled) then
+        return
+    end
+
+    if type(start) ~= "number"
+        or type(duration) ~= "number"
+        or duration <= 0 or start <= 0 or enabled == 0 then
+        cooldown:Clear()
+        return
+    end
+
+    if C_DurationUtil and C_DurationUtil.CreateDuration
+        and cooldown.SetCooldownFromDurationObject then
+        local timer = C_DurationUtil.CreateDuration()
+        timer:SetTimeFromStart(start, duration, 1)
+        cooldown:SetCooldownFromDurationObject(timer, true)
+    else
+        cooldown:SetCooldown(start, duration)
+    end
+end
+
 local function UpdateEquipmentSlot(button)
     local slotID = button.slotID
 
@@ -627,10 +696,19 @@ local function UpdateEquipmentSlot(button)
         Components:SetItemSlotData(button, {
             borderColor = Palette.emptyBorder,
         })
+        UpdateEquipmentSlotCooldown(button)
         return
     end
 
     local _, character, isCurrent = Module:GetViewedCharacter()
+    -- Do not use this character's equipped item while browsing an alt.
+    -- Attribute changes are skipped under combat lockdown.
+    if not (InCombatLockdown and InCombatLockdown()) then
+        local action = isCurrent and "item" or nil
+        if button:GetAttribute("type2") ~= action then
+            button:SetAttribute("type2", action)
+        end
+    end
     local texture
     local link
     local quality
@@ -675,6 +753,23 @@ local function UpdateEquipmentSlot(button)
         quality = quality,
         borderColor = Palette.emptyBorder,
     })
+    UpdateEquipmentSlotCooldown(button)
+end
+
+function Module:UpdateEquipmentCooldowns()
+    if not self.frame then return end
+    for _, button in ipairs(self.frame.equipmentSlots or {}) do
+        UpdateEquipmentSlotCooldown(button)
+    end
+end
+
+function Module:QueueEquipmentCooldowns()
+    if self.cooldownRefreshQueued then return end
+    self.cooldownRefreshQueued = true
+    C_Timer.After(0, function()
+        self.cooldownRefreshQueued = false
+        self:UpdateEquipmentCooldowns()
+    end)
 end
 
 local SetSidebarMode
@@ -4522,6 +4617,17 @@ function Module:Initialize()
         Module:RefreshEquipment()
         Module:QueueStatsRefresh()
     end)
+    -- Item-use, equip-triggered, and shared trinket cooldowns can change
+    -- independently of the equipment texture/item link.
+    for _, event in ipairs({
+        "BAG_UPDATE_COOLDOWN",
+        "ACTIONBAR_UPDATE_COOLDOWN",
+        "SPELL_UPDATE_COOLDOWN",
+    }) do
+        UI:RegisterEvent(event, function()
+            Module:QueueEquipmentCooldowns()
+        end)
+    end
 
     UI:RegisterEvent("UNIT_MODEL_CHANGED", function(_, unit)
         if unit == "player" then
@@ -4545,6 +4651,7 @@ function Module:Initialize()
     UI:RegisterEvent("PLAYER_REGEN_DISABLED", RefreshMovementSpeedRow)
     UI:RegisterEvent("PLAYER_REGEN_ENABLED", function()
         RefreshMovementSpeedRow()
+        Module:QueueEquipmentCooldowns()
     end)
 
     UI:RegisterEvent("KNOWN_TITLES_UPDATE", function()
