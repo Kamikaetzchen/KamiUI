@@ -818,6 +818,28 @@ function Module:Toggle()
     end
 end
 
+-- Open a specific tab from its hotkey, or close the window if that
+-- tab is already active. Switching tabs keeps the window open.
+function Module:TogglePage(page)
+    if not self.frame then
+        return
+    end
+
+    if self.frame:IsShown() and self.frame.page == page then
+        self:Hide()
+        return
+    end
+
+    if not self.frame:IsShown() then
+        self:Show()
+    end
+
+    -- Reputation and PvP are live-character pages, even when the
+    -- roster was previously showing a cached/offline character.
+    self.viewCharacterKey = nil
+    SetOuterPage(self.frame, page)
+end
+
 local function GetFactionData(index)
     if not C_Reputation or not C_Reputation.GetFactionDataByIndex then
         return nil
@@ -4446,27 +4468,31 @@ function Module:Initialize()
     self.frame = CreateFrameUI()
     self:Refresh()
 
-    local hotkeyButton = CreateFrame(
-        "Button",
-        "KamiUICharactersHotkeyButton",
-        UIParent
-    )
+    local function RegisterHotkey(name, key, action)
+        local button = CreateFrame("Button", name, UIParent)
+        button:SetScript("OnClick", action)
 
-    hotkeyButton:SetScript("OnClick", function()
-        Module:Toggle()
-    end)
+        if SetOverrideBindingClick then
+            SetOverrideBindingClick(
+                button, true, key, name, "LeftButton"
+            )
+        end
 
-    self.hotkeyButton = hotkeyButton
-
-    if SetOverrideBindingClick then
-        SetOverrideBindingClick(
-            hotkeyButton,
-            true,
-            "C",
-            "KamiUICharactersHotkeyButton",
-            "LeftButton"
-        )
+        return button
     end
+
+    self.hotkeyButton = RegisterHotkey(
+        "KamiUICharactersHotkeyButton", "C",
+        function() Module:Toggle() end
+    )
+    self.reputationHotkeyButton = RegisterHotkey(
+        "KamiUICharactersReputationHotkeyButton", "U",
+        function() Module:TogglePage("reputation") end
+    )
+    self.pvpHotkeyButton = RegisterHotkey(
+        "KamiUICharactersPvPHotkeyButton", "H",
+        function() Module:TogglePage("pvp") end
+    )
 
     UI:RegisterEvent("PLAYER_ENTERING_WORLD", function()
         UpdateCurrentCharacter()
