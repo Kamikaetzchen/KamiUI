@@ -1007,18 +1007,10 @@ local function Colorize(text, color)
 end
 
 local function GetLevelColor(level)
-    if GetQuestDifficultyColor then
-        local color = UI:SafeCall(
-            GetQuestDifficultyColor,
-            level
-        )
-
-        if color then
-            return color
-        end
-    end
-
-    return Palette.difficulty.normal
+    -- Unit tooltip level colors must match mob difficulty, not
+    -- quest-log difficulty. Share the palette logic with nameplates
+    -- and unit frames.
+    return Palette:GetLevelDifficultyColor(level)
 end
 
 local function CaptureTooltipLines(tooltip)

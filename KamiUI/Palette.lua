@@ -172,11 +172,16 @@ function Palette:GetDifficultyColor(role)
     return self.difficulty[role] or self.difficulty.normal
 end
 
+-- Creature levels use the MOB difficulty/XP thresholds, not the
+-- QuestLog's separate gray/green thresholds. Forever exposes
+-- GetCreatureDifficultyColor; retain the old API as a fallback only.
 function Palette:GetLevelDifficultyColor(level)
-    if level and GetQuestDifficultyColor then
-        local color = GetQuestDifficultyColor(level)
+    local getColor = GetCreatureDifficultyColor
+        or GetQuestDifficultyColor
+    if level and UI:CanAccessValue(level) and getColor then
+        local color = UI:SafeCall(getColor, level)
 
-        if color then
+        if color and UI:CanAccessValue(color) then
             local r = color.r or color[1] or 1
             local g = color.g or color[2] or 0.1
             local b = color.b or color[3] or 0.1
