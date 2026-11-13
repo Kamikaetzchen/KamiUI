@@ -10,6 +10,7 @@ KamiUI is split into a small core and independent feature addons.
 | KamiUI_Minimap | Minimap styling, layout and minimap overlays |
 | KamiUI_WorldMap | World map styling and customization |
 | KamiUI_Chat | Chat frames, tabs and chat styling |
+| KamiUI_ItemRating | Feral Cat item scores and equipped-item comparisons (AP-equivalent, provisional) |
 | KamiUI_ThreatMeter | Threat display and threat meter |
 | KamiUI_DamageMeter | Blizzard damage meter styling and layout |
 | KamiUI_SwingTimer | Native Forever swing timer styling and layout |

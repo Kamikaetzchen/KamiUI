@@ -1,0 +1,12 @@
+## Interface: 16001
+## Title: KamiUI - Item Rating
+## Notes: Feral Cat item scores and equipped-item comparisons for WoW Forever
+## Author: Kami Katze
+## Version: 0.1.0
+## IconTexture: Interface\Icons\Ability_Druid_CatForm
+## RequiredDeps: KamiUI
+
+Core.lua
+Profiles\DruidCat.lua
+Rating.lua
+Tooltip.lua
