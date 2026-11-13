@@ -205,11 +205,12 @@ function Module:AttachCharacterButton()
         return
     end
 
-    -- Right column, directly below the second trinket. Its parent hides
-    -- on non-character pages. No changes to KamiUI_Characters are needed.
+    -- Anchor to the character pane's bottom-right corner, keeping equal
+    -- right/bottom margins. At 74px wide the button clears the ammo slot.
+    -- Its parent hides on non-character pages; Characters stays untouched.
     local button = CreateFrame("Button", nil, frame.characterPane)
-    button:SetSize(86, 22)
-    button:SetPoint("TOPRIGHT", trinket, "BOTTOMRIGHT", 0, -6)
+    button:SetSize(74, 20)
+    button:SetPoint("BOTTOMRIGHT", frame.characterPane, "BOTTOMRIGHT", -6, 6)
     button:SetFrameLevel(trinket:GetFrameLevel() + 2)
     Components:StyleButton(button, { text = "Item Rating" })
     button:SetScript("OnClick", function()

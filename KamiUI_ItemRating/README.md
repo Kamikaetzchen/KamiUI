@@ -35,7 +35,7 @@ Source: https://sixtysim.com/guides/druid/feral/stats/
 
 ## Editing weights
 
-Use the **Item Rating** button directly below the two trinket slots in
+Use the **Item Rating** button in the bottom-right below the trinket slots in
 KamiUI's Character screen, or type `/kami rating settings`.
 
 * Input fields are AP equivalents **per one stat/rating point** (not per
