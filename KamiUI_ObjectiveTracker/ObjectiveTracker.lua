@@ -723,7 +723,7 @@ local function UpdateHeightModeButton(frame)
 
     Components:SetButtonText(
         frame.heightModeButton,
-        limited and "35%" or "Max"
+        limited and "35%" or "75%"
     )
 end
 
@@ -976,18 +976,21 @@ function Module:Refresh()
     local contentHeight = y + Layout.CONTENT_PADDING
     local viewportHeight = contentHeight
 
-    if GetDatabase().heightLimited ~= false then
-        local parentHeight = UIParent:GetHeight() or 0
-        local maxFrameHeight = math.max(
-            Layout.HEADER_HEIGHT + 40,
-            math.floor(parentHeight * Layout.MAX_HEIGHT_RATIO)
-        )
+    -- Both height modes cap the tracker to avoid overlapping the chat.
+    -- Keep the stored boolean so existing 35%/expanded preferences survive.
+    local heightRatio = GetDatabase().heightLimited ~= false
+        and Layout.MAX_HEIGHT_RATIO
+        or Layout.EXPANDED_MAX_HEIGHT_RATIO
+    local parentHeight = UIParent:GetHeight() or 0
+    local maxFrameHeight = math.max(
+        Layout.HEADER_HEIGHT + 40,
+        math.floor(parentHeight * heightRatio)
+    )
 
-        viewportHeight = math.min(
-            contentHeight,
-            maxFrameHeight - Layout.HEADER_HEIGHT
-        )
-    end
+    viewportHeight = math.min(
+        contentHeight,
+        maxFrameHeight - Layout.HEADER_HEIGHT
+    )
 
     local maxScroll = math.max(
         0,
@@ -1141,13 +1144,13 @@ local function CreateFrameUI()
         if GetDatabase().heightLimited ~= false then
             GameTooltip:SetText("Tracker height: 35%")
             GameTooltip:AddLine(
-                "Click for unrestricted height.",
+                "Click to limit height to 75%.",
                 1,
                 1,
                 1
             )
         else
-            GameTooltip:SetText("Tracker height: unrestricted")
+            GameTooltip:SetText("Tracker height: 75%")
             GameTooltip:AddLine(
                 "Click to limit height to 35%.",
                 1,
