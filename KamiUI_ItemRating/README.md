@@ -33,4 +33,19 @@ WoW Forever: preliminary **Feral Cat** DPS-oriented item scoring in
 
 Source: https://sixtysim.com/guides/druid/feral/stats/
 
-This addon is entirely independent of KamiUI_Tooltips styling.
+## Editing weights
+
+Use the **Item Rating** button directly below the two trinket slots in
+KamiUI's Character screen, or type `/kami rating settings`.
+
+* Input fields are AP equivalents **per one stat/rating point** (not per
+  1% Crit/Hit). Press Enter or leave a field to save; decimal commas work.
+* Overrides live account-wide in `KamiUIDB.itemRating.profiles.DRUID.cat`.
+  Missing/cleared values use the built-in defaults. The Reset Defaults
+  button clears this profile's overrides.
+* Item scores use the effective weights immediately on the next tooltip
+  display. No caps are applied.
+* The Character button is optional: only Item Rating reads the Characters
+  frame's `equipmentByKey.Trinket1Slot`; neither Characters nor Tooltips
+  depends on Item Rating.
+
