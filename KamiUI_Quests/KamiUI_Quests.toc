@@ -2,7 +2,7 @@
 ## Title: KamiUI - Quests
 ## Notes: Automatic quest accept and turn-in for KamiUI
 ## Author: Kami Katze
-## Version: 0.1.0
+## Version: 0.1.1
 ## IconTexture: Interface\GossipFrame\AvailableQuestIcon
 ## RequiredDeps: KamiUI
 
