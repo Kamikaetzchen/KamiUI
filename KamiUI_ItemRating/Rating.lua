@@ -44,6 +44,52 @@ local function Number(value)
     return value
 end
 
+-- WoW Forever rings can have "Equip: +2 Weapon Damage", separate
+-- from a weapon's intrinsic DPS. First honor native stat keys; only
+-- fall back to the ORIGINAL item tooltip (never our augmented tooltip).
+local function GetFlatWeaponDamage(link, stats)
+    local native = Number(stats.ITEM_MOD_WEAPON_DAMAGE_SHORT)
+    if native then
+        return native
+    end
+
+
+    if not C_TooltipInfo or not C_TooltipInfo.GetHyperlink then
+        return nil
+    end
+
+    local data = UI:SafeCall(C_TooltipInfo.GetHyperlink, link)
+    if not data or not UI:CanAccessValue(data)
+        or not data.lines or not UI:CanAccessValue(data.lines) then
+        return nil
+    end
+
+    for _, line in ipairs(data.lines) do
+        if line and UI:CanAccessValue(line) then
+            local raw = line.leftText
+            if raw and UI:CanAccessValue(raw)
+                and type(raw) == "string" then
+                local text = raw:gsub("|c%x%x%x%x%x%x%x%x", "")
+                    :gsub("|r", ""):lower()
+                local amount = text:match(
+                    "^equip:%s*%+(%d+%.?%d*)%s+weapon%s+damage"
+                ) or text:match(
+                    "^equip:%s*increases%s+weapon%s+damage%s+by%s+(%d+%.?%d*)"
+                ) or text:match(
+                    "^anlegen:%s*%+(%d+%.?%d*)%s+waffenschaden"
+                ) or text:match(
+                    "^anlegen:%s*erh[oö]ht%s+den%s+waffenschaden%s+um%s+(%d+%.?%d*)"
+                )
+                if amount then
+                    return tonumber(amount)
+                end
+            end
+        end
+    end
+
+    return nil
+end
+
 local function GetEquipLoc(itemLink)
     if not C_Item or not C_Item.GetItemInfoInstant then
         return nil
@@ -81,6 +127,13 @@ function Module:RateItem(itemLink, profile)
     if not stats or not UI:CanAccessValue(stats)
         or type(stats) ~= "table" then
         return nil
+    end
+
+    -- The client may not report flat Weapon Damage as a numeric stat.
+    -- This is a custom Item Rating key so the editor can score it.
+    local flatDamage = GetFlatWeaponDamage(itemLink, stats)
+    if flatDamage then
+        stats.ITEM_MOD_WEAPON_DAMAGE_SHORT = flatDamage
     end
 
     local weights = self:GetEffectiveWeights(profile) or profile.weights

@@ -23,6 +23,7 @@ local FIELDS = {
     { "ITEM_MOD_EXPERTISE_RATING_SHORT", "Expertise Rating" },
     { "ITEM_MOD_ARMOR_PENETRATION_RATING_SHORT", "Armor Pen. Rating" },
     { "ITEM_MOD_DAMAGE_PER_SECOND_SHORT", "Weapon DPS" },
+    { "ITEM_MOD_WEAPON_DAMAGE_SHORT", "Weapon Damage" },
     { "ITEM_MOD_SPELL_POWER_SHORT", "Spell Power" },
     { "ITEM_MOD_SPELL_DAMAGE_DONE_SHORT", "Spell Damage" },
     { "ITEM_MOD_SPELL_HEALING_DONE_SHORT", "Spell Healing" },

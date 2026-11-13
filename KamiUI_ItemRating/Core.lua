@@ -153,7 +153,6 @@ local PRIMARY_STATS = {
 }
 
 local HEART_OF_THE_WILD_SPELL = 17003
-local HEART_REFERENCE_RANK = 5
 
 local function SafeNumeric(value)
     return UI:CanAccessValue(value) and type(value) == "number"
@@ -278,10 +277,9 @@ function Module:GetHeartOfTheWildRank()
     return self.heartOfTheWildRank
 end
 
--- Information for both the tooltip breakdown and the rating calculator.
--- Sim reference includes Heart of the Wild at 5/5. Divide by the
--- reference multiplier so a character with 5/5 does NOT get it twice.
--- Kings is opt-in and assumed absent from the reference weights.
+-- The editable Strength base is exactly 2 AP per Strength in Cat.
+-- Heart of the Wild and Kings are calculated on top of that base.
+-- The remaining simulation-derived secondary weights stay provisional.
 function Module:GetEffectiveWeightInfo(profile, key)
     local base = profile.weights[key] or 0
     local multiplier = 1
@@ -295,18 +293,16 @@ function Module:GetEffectiveWeightInfo(profile, key)
             effects[#effects + 1] = {
                 name = "Heart of the Wild",
                 factor = 1,
-                detail = "Rank unknown; assuming reference 5/5",
+                detail = "Rank unknown; no bonus applied",
             }
         else
-            local factor = (1 + 0.02 * rank)
-                / (1 + 0.02 * HEART_REFERENCE_RANK)
+            local factor = 1 + 0.02 * rank
             multiplier = multiplier * factor
             effects[#effects + 1] = {
                 name = "Heart of the Wild",
                 factor = factor,
                 detail = string.format(
-                    "%d/5 (%.0f%% Strength); base assumes 5/5",
-                    rank, rank * 2
+                    "%d/5 (+%d%% Strength)", rank, rank * 2
                 ),
             }
         end

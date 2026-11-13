@@ -18,12 +18,15 @@ WoW Forever: preliminary **Feral Cat** DPS-oriented item scoring in
 
 ## Deliberate limitations
 
-* **Level-60 reference weights** from SixtySim (2026-11-04): provisional,
-  not adjusted for level, gear, procs or complex talents. Base Strength is
-  assumed to include Heart of the Wild **5/5**. Actual Heart rank is
-  read from the player's C_Traits config and applied *relative to 5/5*,
-  avoiding double counting. If detection is unavailable, the reference
-  is retained and the stat tooltip explicitly says "Rank unknown".
+* Primary-stat bases use Cat mechanics: Strength **2 AP** and Agility
+  **1 AP + (27.89 / 20) crit AP equivalents = 2.3945** before any buffs.
+  The 27.89 AP value per 1% crit comes from the provisional SixtySim
+  benchmark (10.6 / 0.38), not a universal conversion.
+* Heart of the Wild is added at **+2% Strength per talent rank**.
+  The rank is read from the player's C_Traits config. If unavailable,
+  no bonus is applied and the hover tooltip explicitly says so.
+* Other weights (Crit, Hit, etc.) remain level-60 simulation estimates,
+  not adjusted for level, gear, procs or complex talents.
 * Blessing of Kings is an opt-in **saved checkbox**, not an automatic
   aura read. Kings adds +10% to Strength, Agility, Stamina, Intellect and
   Spirit; direct AP, Hit/Crit/Haste/etc. do not get that multiplier.
@@ -33,7 +36,12 @@ WoW Forever: preliminary **Feral Cat** DPS-oriented item scoring in
   depend on currently equipped equipment.
 * Procs, active effects and set bonuses are **not** valued; items with
   no scored stats show "Unscored effect".
-* Weapon DPS is approximated as 14 AP per 1 weapon DPS.
+* Weapon DPS is approximated as 14 AP per 1 weapon DPS. Flat **Weapon
+  Damage** (such as Knucklebone Ring's +2 Weapon Damage) is separately
+  included at a provisional 14 AP per +1 damage. Native item stats are
+  preferred; if necessary the original item's C_TooltipInfo text is
+  scanned for that effect. The fallback currently supports English and
+  German phrasing, and is unverified in the live Forever client.
 * Enchant/gem stat resolution depends on C_Item.GetItemStats and may not
   include every enchant/gem. Two-handed comparisons include the worn
   offhand; one-handed comparisons only compare the mainhand.
@@ -50,7 +58,7 @@ KamiUI's Character screen, or type `/kami rating settings`.
   1% Crit/Hit). Press Enter or leave a field to save; decimal commas work.
 * Effective values show the result of any applicable multiplicative
   modifiers; they are read-only and never overwrite the saved bases.
-* The compact window scrolls to expose all 22 stats, including healing,
+* The compact window scrolls to expose all 23 stats, including healing,
   spell damage, stamina, avoidance, defense, block and mana regen.
   For Cat DPS their new default weights are 0, but editable.
 * Overrides live account-wide in `KamiUIDB.itemRating.profiles.DRUID.cat`.

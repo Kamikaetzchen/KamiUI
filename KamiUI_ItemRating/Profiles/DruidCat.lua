@@ -4,18 +4,22 @@ local Module = KamiUI:GetModule("ItemRating")
 -- (2026-11-04): Agi 1.00, Str 0.93, AP 0.38, Crit% 10.6,
 -- Hit% 6.57, Haste% 4.24, Expertise rating 0.75, ArP rating 0.13.
 -- Dividing each by 0.38 makes one AP equal one score point.
+-- Primary-stat bases are NOT the sim's already-buffed marginal weights:
+-- 1 Strength = 2 AP; 1 Agility = 1 AP + 1/20 of 1% crit.
+-- Kings and Heart of the Wild apply as separate runtime multipliers.
+-- 1% crit = ~27.89 AP equivalents is still simulation-derived.
 --
 -- Forever item APIs return COMBAT RATINGS, not percentages:
 -- 14 Crit / 10 Hit / 10 Haste = 1% at level 60.
 -- The weighting is a provisional LEVEL-60 reference at all levels;
--- caps, talents, special effects and gear dependencies are NOT applied.
--- Weapon DPS: preliminary estimate of 14 AP-equivalent per DPS.
+-- caps, complex talents, procs and gear dependencies are NOT applied.
+-- Weapon DPS and flat Weapon Damage: provisional 14 AP equivalents.
 Module:RegisterProfile("DRUID", "cat", {
     label = "Feral Cat",
     source = "SixtySim 2026-11-04 (level 60)",
     weights = {
-        ITEM_MOD_STRENGTH_SHORT = 0.93 / 0.38,
-        ITEM_MOD_AGILITY_SHORT = 1 / 0.38,
+        ITEM_MOD_STRENGTH_SHORT = 2,
+        ITEM_MOD_AGILITY_SHORT = 1 + 27.89 / 20,
         ITEM_MOD_ATTACK_POWER_SHORT = 1,
         ITEM_MOD_FERAL_ATTACK_POWER_SHORT = 1,
         ITEM_MOD_CRIT_RATING_SHORT = (10.6 / 14) / 0.38,
@@ -24,6 +28,7 @@ Module:RegisterProfile("DRUID", "cat", {
         ITEM_MOD_EXPERTISE_RATING_SHORT = 0.75 / 0.38,
         ITEM_MOD_ARMOR_PENETRATION_RATING_SHORT = 0.13 / 0.38,
         ITEM_MOD_DAMAGE_PER_SECOND_SHORT = 14,
+        ITEM_MOD_WEAPON_DAMAGE_SHORT = 14, -- flat +1 Weapon Damage
 
         -- Future class/spec profiles can assign nonzero values. The Cat
         -- profile intentionally gives no Cat-DPS credit to these stats.
