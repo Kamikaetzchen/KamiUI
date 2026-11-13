@@ -152,18 +152,24 @@ local function CreateSpellRow(index)
 
     local name = CreateText(overlay, Styles.FontSize.DamageMeter)
     name:SetPoint("LEFT", icon, "RIGHT", 5, 0)
-    name:SetWidth(212)
+    name:SetWidth(166)
     name:SetJustifyH("LEFT")
+
+    local percent = CreateText(overlay, Styles.FontSize.DamageMeter,
+        Palette.muted)
+    percent:SetWidth(48)
+    percent:SetPoint("RIGHT", overlay, "RIGHT", -5, 0)
+    percent:SetJustifyH("RIGHT")
 
     local rate = CreateText(overlay, Styles.FontSize.DamageMeter,
         Palette.muted)
     rate:SetWidth(62)
-    rate:SetPoint("RIGHT", overlay, "RIGHT", -5, 0)
+    rate:SetPoint("RIGHT", percent, "LEFT", -4, 0)
     rate:SetJustifyH("RIGHT")
 
     local amount = CreateText(overlay, Styles.FontSize.DamageMeter,
         Palette.text)
-    amount:SetWidth(84)
+    amount:SetWidth(80)
     amount:SetPoint("RIGHT", rate, "LEFT", -4, 0)
     amount:SetJustifyH("RIGHT")
 
@@ -191,8 +197,36 @@ local function CreateSpellRow(index)
     row.name = name
     row.amount = amount
     row.rate = rate
+    row.percent = percent
     row:Hide()
     spellRows[index] = row
+end
+
+-- Blizzard exposes totalAmount per spell but no precomputed share.
+-- Calculate over ALL spells (not just the visible scroll page), only when
+-- combat restrictions permit ordinary arithmetic on the amounts.
+local function GetBreakdownTotal(spells)
+    if InCombatLockdown and InCombatLockdown() then
+        return nil
+    end
+
+    local total = 0
+    for _, spell in ipairs(spells) do
+        if not UI:CanAccessValue(spell) then
+            return nil
+        end
+        local amount = spell.totalAmount
+        if not UI:CanAccessValue(amount)
+            or type(amount) ~= "number"
+            or amount ~= amount
+            or amount < 0
+            or amount == math.huge then
+            return nil
+        end
+        total = total + amount
+    end
+
+    return total > 0 and total or nil
 end
 
 local function RenderDetails()
@@ -209,6 +243,7 @@ local function RenderDetails()
         restriction = "restricted"
     end
     displayedSpells = spells
+    local breakdownTotal = GetBreakdownTotal(spells)
 
     local maxOffset = math.max(0, #spells - MAX_ROWS)
     offset = math.min(offset, maxOffset)
@@ -238,6 +273,14 @@ local function RenderDetails()
             row.bar:SetStatusBarColor(r, g, b, 1)
             row.amount:SetText(spell.totalAmount)
             row.rate:SetFormattedText("%.1f", spell.amountPerSecond)
+            if breakdownTotal then
+                -- The total was validated across the entire spell list.
+                row.percent:SetFormattedText(
+                    "%.1f%%", spell.totalAmount / breakdownTotal * 100
+                )
+            else
+                row.percent:SetText("—")
+            end
             row:Show()
         else
             row.spellID = nil
@@ -322,14 +365,20 @@ local function CreateDetailsWindow()
     local spellLabel = CreateText(header, 9, Palette.gold)
     spellLabel:SetText("Spell")
     spellLabel:SetPoint("LEFT", header, "LEFT", 25, 0)
+    -- Right edge matches the rows, leaving room for the scrollbar.
+    local percent = CreateText(header, 9, Palette.gold)
+    percent:SetText("%")
+    percent:SetWidth(48)
+    percent:SetJustifyH("RIGHT")
+    percent:SetPoint("RIGHT", header, "RIGHT", -22, 0)
     local perSecond = CreateText(header, 9, Palette.gold)
     perSecond:SetText("Per sec")
     perSecond:SetWidth(62)
     perSecond:SetJustifyH("RIGHT")
-    perSecond:SetPoint("RIGHT", header, "RIGHT", -5, 0)
+    perSecond:SetPoint("RIGHT", percent, "LEFT", -4, 0)
     local total = CreateText(header, 9, Palette.gold)
     total:SetText("Total")
-    total:SetWidth(84)
+    total:SetWidth(80)
     total:SetJustifyH("RIGHT")
     total:SetPoint("RIGHT", perSecond, "LEFT", -4, 0)
 
