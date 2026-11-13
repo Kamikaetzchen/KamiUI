@@ -231,11 +231,10 @@ local function ScanItem(catalog, bag, slot, id, count)
         or Has(n, "reins of", "mechanostrider", "riding kodo",
             "riding ram", "raptor whistle", "horn of the")
     then
-        local spell = (C_Item and C_Item.GetItemSpell) or GetItemSpell
-        if spell and spell(id) then
-            Add(catalog, "mount", id, name, icon, score, count)
-            return
-        end
+        -- Inventory mount items teach the mount; clicking them does not
+        -- summon it. Only put collected mount spells from the journal
+        -- onto the wheel, never these learn-on-use items.
+        return
     end
     -- Common drinks must not vanish if a fresh client has not yet
     -- populated item subclass or item-use tooltip data.
@@ -769,6 +768,12 @@ function Module:Initialize()
     end)
     UI:RegisterEvent("BAG_UPDATE_DELAYED", function() Module:Refresh() end)
     UI:RegisterEvent("GET_ITEM_INFO_RECEIVED", function()
+        Module:Refresh()
+    end)
+    -- Update the spell actions as soon as a new mount is learned, or
+    -- when riding skill / zone restrictions change its usability.
+    UI:RegisterEvent("NEW_MOUNT_ADDED", function() Module:Refresh() end)
+    UI:RegisterEvent("MOUNT_JOURNAL_USABILITY_CHANGED", function()
         Module:Refresh()
     end)
     UI:RegisterEvent("UPDATE_BINDINGS", BindKeys)
