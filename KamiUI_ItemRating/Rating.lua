@@ -83,9 +83,10 @@ function Module:RateItem(itemLink, profile)
         return nil
     end
 
+    local weights = self:GetEffectiveWeights(profile) or profile.weights
     local score = 0
     local recognized = false
-    for key, weight in pairs(profile.weights) do
+    for key, weight in pairs(weights) do
         local amount = Number(stats[key])
         if amount then
             score = score + amount * weight

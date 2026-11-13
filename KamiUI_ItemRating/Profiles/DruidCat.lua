@@ -24,5 +24,20 @@ Module:RegisterProfile("DRUID", "cat", {
         ITEM_MOD_EXPERTISE_RATING_SHORT = 0.75 / 0.38,
         ITEM_MOD_ARMOR_PENETRATION_RATING_SHORT = 0.13 / 0.38,
         ITEM_MOD_DAMAGE_PER_SECOND_SHORT = 14,
+
+        -- Future class/spec profiles can assign nonzero values. The Cat
+        -- profile intentionally gives no Cat-DPS credit to these stats.
+        ITEM_MOD_STAMINA_SHORT = 0,
+        ITEM_MOD_INTELLECT_SHORT = 0,
+        ITEM_MOD_SPIRIT_SHORT = 0,
+        ITEM_MOD_SPELL_POWER_SHORT = 0,
+        ITEM_MOD_SPELL_DAMAGE_DONE_SHORT = 0,
+        ITEM_MOD_SPELL_HEALING_DONE_SHORT = 0,
+        ITEM_MOD_DODGE_RATING_SHORT = 0,
+        ITEM_MOD_PARRY_RATING_SHORT = 0,
+        ITEM_MOD_DEFENSE_SKILL_RATING_SHORT = 0,
+        ITEM_MOD_BLOCK_RATING_SHORT = 0,
+        ITEM_MOD_BLOCK_VALUE_SHORT = 0,
+        ITEM_MOD_MANA_REGENERATION_SHORT = 0,
     },
 })

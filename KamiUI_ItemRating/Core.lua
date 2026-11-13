@@ -60,6 +60,8 @@ function Module:RegisterProfile(classFile, spec, profile)
 
     self.profiles[classFile] = self.profiles[classFile] or {}
     self.profiles[classFile][spec] = profile
+    profile.classFile = classFile
+    profile.spec = spec
     self:ApplySavedWeights(classFile, spec)
 end
 
@@ -122,3 +124,236 @@ function Module:GetActiveProfile()
     -- Other classes/specs and talent-specific weighting come later.
     return self.profiles.DRUID and self.profiles.DRUID.cat
 end
+
+
+-- Buff choices are stored separately from base-weight overrides.
+-- This deliberately does not follow short-lived in-game auras.
+function Module:IsKingsEnabled(classFile, spec)
+    classFile, spec = classFile or "DRUID", spec or "cat"
+    local database = UI:GetDatabase("itemRating", { buffs = {} })
+    return database.buffs[classFile]
+        and database.buffs[classFile][spec]
+        and database.buffs[classFile][spec].kings == true or false
+end
+
+function Module:SetKingsEnabled(classFile, spec, enabled)
+    local database = UI:GetDatabase("itemRating", { buffs = {} })
+    database.buffs[classFile] = database.buffs[classFile] or {}
+    database.buffs[classFile][spec] =
+        database.buffs[classFile][spec] or {}
+    database.buffs[classFile][spec].kings = enabled == true
+end
+
+local PRIMARY_STATS = {
+    ITEM_MOD_STRENGTH_SHORT = true,
+    ITEM_MOD_AGILITY_SHORT = true,
+    ITEM_MOD_STAMINA_SHORT = true,
+    ITEM_MOD_INTELLECT_SHORT = true,
+    ITEM_MOD_SPIRIT_SHORT = true,
+}
+
+local HEART_OF_THE_WILD_SPELL = 17003
+local HEART_REFERENCE_RANK = 5
+
+local function SafeNumeric(value)
+    return UI:CanAccessValue(value) and type(value) == "number"
+        and value or nil
+end
+
+-- Forever uses Retail-style C_Traits, not the removed Classic talent UI.
+-- Read only the local player's committed/active configuration; never inspect.
+-- A failed lookup returns nil (unknown), NOT zero talent points.
+local function ReadHeartOfTheWildRank()
+    if not C_Traits or not C_Traits.GetConfigInfo
+        or not C_Traits.GetTreeNodes or not C_Traits.GetNodeInfo
+        or not C_Traits.GetEntryInfo
+        or not C_Traits.GetDefinitionInfo then
+        return nil
+    end
+
+    local configID
+    if C_ClassTalents and C_ClassTalents.GetActiveConfigID then
+        configID = SafeNumeric(
+            UI:SafeCall(C_ClassTalents.GetActiveConfigID)
+        )
+    end
+    if not configID or configID <= 0 then
+        local group
+        if C_SpecializationInfo
+            and C_SpecializationInfo.GetActiveSpecGroup then
+            group = SafeNumeric(UI:SafeCall(
+                C_SpecializationInfo.GetActiveSpecGroup
+            ))
+        end
+        if group and C_SpecializationInfo
+            and C_SpecializationInfo.GetCombatConfigIDForSpecGroup then
+            configID = SafeNumeric(UI:SafeCall(
+                C_SpecializationInfo.GetCombatConfigIDForSpecGroup, group
+            ))
+        end
+    end
+    if not configID or configID <= 0 then
+        return nil
+    end
+
+    local config = UI:SafeCall(C_Traits.GetConfigInfo, configID)
+    if not config or not UI:CanAccessValue(config)
+        or not config.treeIDs
+        or not UI:CanAccessValue(config.treeIDs) then
+        return nil
+    end
+
+    for _, treeID in ipairs(config.treeIDs) do
+        if UI:CanAccessValue(treeID) then
+            local nodes = UI:SafeCall(C_Traits.GetTreeNodes, treeID)
+            if nodes and UI:CanAccessValue(nodes) then
+                for _, nodeID in ipairs(nodes) do
+                    if UI:CanAccessValue(nodeID) then
+                        local node = UI:SafeCall(
+                            C_Traits.GetNodeInfo, configID, nodeID
+                        )
+                        if node and UI:CanAccessValue(node)
+                            and node.entryIDs
+                            and UI:CanAccessValue(node.entryIDs) then
+                            for _, entryID in ipairs(node.entryIDs) do
+                                if UI:CanAccessValue(entryID) then
+                                    local entry = UI:SafeCall(
+                                        C_Traits.GetEntryInfo,
+                                        configID, entryID
+                                    )
+                                    local definitionID = entry
+                                        and UI:CanAccessValue(entry)
+                                        and SafeNumeric(entry.definitionID)
+                                    local definition = definitionID
+                                        and UI:SafeCall(
+                                            C_Traits.GetDefinitionInfo,
+                                            definitionID
+                                        )
+                                    local spellID = definition
+                                        and UI:CanAccessValue(definition)
+                                        and SafeNumeric(definition.spellID)
+                                    if spellID == HEART_OF_THE_WILD_SPELL then
+                                        local rank = SafeNumeric(
+                                            node.activeRank
+                                        ) or SafeNumeric(node.currentRank)
+                                        if rank then
+                                            return math.max(
+                                                0, math.min(5, rank)
+                                            )
+                                        end
+                                        return nil
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return nil
+end
+
+function Module:InvalidateTalentCache()
+    self.heartOfTheWildChecked = false
+    self.heartOfTheWildRank = nil
+end
+
+function Module:GetHeartOfTheWildRank()
+    if self.heartOfTheWildChecked then
+        return self.heartOfTheWildRank
+    end
+
+    -- Some trait values become inaccessible in combat; keep the last
+    -- cached result and fall back to the reference if not yet available.
+    if InCombatLockdown and InCombatLockdown() then
+        return self.heartOfTheWildRank
+    end
+
+    local rank = ReadHeartOfTheWildRank()
+    if rank ~= nil then
+        self.heartOfTheWildRank = rank
+        self.heartOfTheWildChecked = true
+    end
+    return self.heartOfTheWildRank
+end
+
+-- Information for both the tooltip breakdown and the rating calculator.
+-- Sim reference includes Heart of the Wild at 5/5. Divide by the
+-- reference multiplier so a character with 5/5 does NOT get it twice.
+-- Kings is opt-in and assumed absent from the reference weights.
+function Module:GetEffectiveWeightInfo(profile, key)
+    local base = profile.weights[key] or 0
+    local multiplier = 1
+    local effects = {}
+    local classFile, spec = profile.classFile, profile.spec
+
+    if classFile == "DRUID" and spec == "cat"
+        and key == "ITEM_MOD_STRENGTH_SHORT" then
+        local rank = self:GetHeartOfTheWildRank()
+        if rank == nil then
+            effects[#effects + 1] = {
+                name = "Heart of the Wild",
+                factor = 1,
+                detail = "Rank unknown; assuming reference 5/5",
+            }
+        else
+            local factor = (1 + 0.02 * rank)
+                / (1 + 0.02 * HEART_REFERENCE_RANK)
+            multiplier = multiplier * factor
+            effects[#effects + 1] = {
+                name = "Heart of the Wild",
+                factor = factor,
+                detail = string.format(
+                    "%d/5 (%.0f%% Strength); base assumes 5/5",
+                    rank, rank * 2
+                ),
+            }
+        end
+    end
+
+    if PRIMARY_STATS[key] then
+        local kings = self:IsKingsEnabled(classFile, spec)
+        local factor = kings and 1.1 or 1
+        multiplier = multiplier * factor
+        effects[#effects + 1] = {
+            name = "Blessing of Kings",
+            factor = factor,
+            detail = kings and "Enabled (+10% primary attributes)"
+                or "Disabled (x1.00)",
+        }
+    end
+
+    if #effects == 0 then
+        effects[1] = {
+            name = "No direct multipliers",
+            factor = 1,
+            detail = "Talent/crit/rotation effects not modelled",
+        }
+    end
+
+    return base * multiplier, multiplier, effects
+end
+
+function Module:GetEffectiveWeights(profile)
+    profile = profile or self:GetActiveProfile()
+    if not profile then
+        return nil
+    end
+
+    local effective = {}
+    for key in pairs(profile.weights) do
+        effective[key] = self:GetEffectiveWeightInfo(profile, key)
+    end
+    return effective
+end
+
+UI:RegisterEvent("TRAIT_CONFIG_UPDATED", function()
+    Module:InvalidateTalentCache()
+    if Module.RefreshSettings then
+        Module:RefreshSettings()
+    end
+end)
+UI:RegisterEvent("PLAYER_ENTERING_WORLD", function()
+    Module:InvalidateTalentCache()
+end)
