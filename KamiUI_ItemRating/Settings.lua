@@ -192,7 +192,28 @@ local function ReadLiveCritEquivalent()
         return nil, "unavailable"
     end
 
+    -- Forever exposes the melee Crit contribution of one Agility at the
+    -- player's CURRENT level. A fixed 1 Agi = 0.05% applies only at 60.
+    -- Keep the live Crit estimate available if this API is unavailable.
+    local critPerAgility
+    if GetCritChanceFromStat then
+        local chance = UI:SafeCall(GetCritChanceFromStat, 2, 1)
+        if ValidNumber(chance) and chance > 0 then
+            critPerAgility = chance -- percentage points per 1 Agi
+        end
+    end
+
+    local level = UnitLevel
+        and UI:SafeCall(UnitLevel, "player")
+    if not ValidNumber(level) or level <= 0 then
+        level = nil
+    end
+
     return {
+        level = level,
+        critPerAgility = critPerAgility,
+        suggestedAgility = critPerAgility
+            and (1 + apEquivalent * critPerAgility) or nil,
         attackPower = attackPower,
         critPct = critPct,
         normalDPS = normalDPS,
@@ -282,6 +303,38 @@ local function ShowLiveCritTooltip(hitbox)
             "Editor Crit (%) weights are per +1 percentage point.",
             0.62, 0.66, 0.73, true
         )
+
+        if values.suggestedAgility then
+            GameTooltip:AddDoubleLine(
+                "Agility to Crit"
+                    .. (values.level and (" (Lv " .. values.level .. ")") or ""),
+                string.format("+%.4f%% per Agi", values.critPerAgility),
+                0.8, 0.8, 0.85, 1, 0.82, 0.31
+            )
+            GameTooltip:AddDoubleLine(
+                "Suggested Agility Base (Cat)",
+                string.format("%.4f", values.suggestedAgility),
+                0.72, 0.85, 0.75, 1, 0.82, 0.31
+            )
+            GameTooltip:AddLine(
+                "1 AP per Agility in Cat Form + Crit contribution:",
+                0.62, 0.66, 0.73, true
+            )
+            GameTooltip:AddLine(
+                string.format(
+                    "1 + %.4f%% x %.2f AP = %.4f",
+                    values.critPerAgility,
+                    values.apEquivalent,
+                    values.suggestedAgility
+                ),
+                0.62, 0.66, 0.73, true
+            )
+        else
+            GameTooltip:AddLine(
+                "Agility estimate unavailable (GetCritChanceFromStat).",
+                0.75, 0.72, 0.60, true
+            )
+        end
     end
 
     GameTooltip:AddLine(

@@ -102,3 +102,25 @@ from the saved Cat item weights.
 * Uses simplified 200% melee-crit damage and main-hand auto-attacks,
   ignoring other abilities, offhands, class talents, glancing blows,
   misses, armor and rotations.
+
+## Level-aware suggested Agility Base (v0.5.1)
+
+The live Crit/AP tooltip also suggests an **Agility Base** for the
+Cat DPS profile, without changing stored weights:
+
+* Uses `GetCritChanceFromStat(2, 1)` on WoW Forever to read **the
+  current level's Crit percentage points per 1 Agility**, without
+  assuming the level-60 20-Agility-per-1%-Crit conversion.
+* The **Cat** base formula is `1 AP + critPerAgility * liveCritApEquivalent`.
+  It always assumes Cat Form grants 1 AP per Agility, even when the
+  current Crit/AP reference is read in humanoid or Bear Form.
+* Hover details include the level, Crit % per Agility, and the exact
+  suggested four-decimal Base. This is read-only and can be manually
+  entered into the existing Agility Base input.
+* If Forever does not expose the Crit-from-stat API at runtime, only
+  the Agility suggestion shows unavailable; the live Crit/AP reference
+  continues working. No guessed level-60 fallback is applied.
+* The estimate is a simplified melee auto-attack reference using the
+  **current** combat state; it does not include skill rotations or
+  stat caps. Blessing of Kings remains an optional modifier on saved
+  item weights, not part of this unbuffed Cat base.
