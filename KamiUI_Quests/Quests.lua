@@ -11,6 +11,7 @@ end
 -- Keep every delayed action tied to its original quest and dialog stage.
 local dialogGeneration = 0
 local activeAccept
+local activeReward
 
 local function CurrentQuestID()
     if not GetQuestID then return nil end
@@ -221,105 +222,91 @@ local function CompleteCurrentQuest(generation)
     TryComplete()
 end
 
+-- The first reward claim must not wait for Forever's sometimes-late
+-- quest-choice metadata. An early GetQuestReward(0) for an actual choice
+-- quest is rejected by the game; if the panel survives, re-read the data
+-- and retry. Never guess an item index when multiple choices are known.
 local function ClaimCurrentQuestReward(generation)
     if ShouldBypass() or not C_Timer or not C_Timer.After
         or not GetQuestReward or not GetNumQuestChoices then
         return
     end
 
-    local questID = CurrentQuestID()
+    local state = { questID = CurrentQuestID(), claimed = false }
+    activeReward = state
     local startTime = GetTime()
-    local lastChoices
-    local stableChecks = 0
-    local rewardAttempts = 0
+    local attempts = 0
+    local nextDelay = { 0.12, 0.25, 0.45 }
+    local MAX_WAIT = 1.6
 
-    local function CheckReward()
-        if generation ~= dialogGeneration or ShouldBypass() then return end
+    local function TryReward()
+        if generation ~= dialogGeneration or ShouldBypass()
+            or activeReward ~= state or state.claimed then
+            return
+        end
 
         local currentID = CurrentQuestID()
-        if not questID then questID = currentID end
-        if not questID or currentID ~= questID then
-            -- Reward panel and quest ID can be late; never claim a
-            -- reward after the dialog changed to another quest.
-            if not questID and GetTime() - startTime < 0.6 then
-                C_Timer.After(0.05, CheckReward)
+        if not state.questID then state.questID = currentID end
+        if currentID and state.questID and currentID ~= state.questID then
+            return
+        end
+
+        if not state.questID or not QuestFrameRewardPanel
+            or not QuestFrameRewardPanel:IsShown() then
+            if GetTime() - startTime < MAX_WAIT then
+                C_Timer.After(0.05, TryReward)
             end
             return
         end
 
-        if QuestFrameRewardPanel and QuestFrameRewardPanel:IsShown() then
-            local choices = GetNumQuestChoices()
-            local logChoices
-            if GetNumQuestLogChoices then
-                local ok, count = pcall(GetNumQuestLogChoices, questID, true)
-                if ok and UI:CanAccessValue(count)
-                    and type(count) == "number" and count >= 0 then
-                    logChoices = count
-                end
+        local choices = GetNumQuestChoices()
+        if not UI:CanAccessValue(choices)
+            or type(choices) ~= "number" or choices < 0 then
+            if GetTime() - startTime < MAX_WAIT then
+                C_Timer.After(0.05, TryReward)
             end
+            return
+        end
 
-            if UI:CanAccessValue(choices)
-                and type(choices) == "number" and choices >= 0 then
-                if choices > 1 or (logChoices and logChoices > 1) then
-                    -- Preserve manual selection for multiple rewards.
-                    return
-                end
-
-                if choices == lastChoices then
-                    stableChecks = stableChecks + 1
-                else
-                    lastChoices = choices
-                    stableChecks = 1
-                end
-
-                local elapsed = GetTime() - startTime
-                local ready
-                if choices == 1 then
-                    -- One real choice item is positive evidence the
-                    -- reward list exists. Don't wait an arbitrary 350 ms.
-                    local itemName = GetQuestItemInfo
-                        and GetQuestItemInfo("choice", 1)
-                    ready = itemName ~= nil
-                        and UI:CanAccessValue(itemName)
-                else
-                    -- Forever can report zero while TWO choice items
-                    -- are still loading. Keep the proven 0.7s guard.
-                    ready = elapsed >= 0.7 and stableChecks >= 3
-                end
-
-                if ready then
-                    local money = GetQuestMoneyToGet
-                        and GetQuestMoneyToGet() or 0
-                    if UI:CanAccessValue(money)
-                        and type(money) == "number" and money <= 0 then
-                        rewardAttempts = rewardAttempts + 1
-                        GetQuestReward(choices == 1 and 1 or 0)
-
-                        -- If the server ignored an early claim, recheck
-                        -- only while this exact reward panel survives.
-                        if rewardAttempts < 3 then
-                            C_Timer.After(0.18, CheckReward)
-                        end
-                        return
-                    end
-                    -- Quests charging money keep native confirmation.
-                    if UI:CanAccessValue(money)
-                        and type(money) == "number" and money > 0 then
-                        return
-                    end
-                end
+        local logChoices
+        if GetNumQuestLogChoices then
+            local ok, count = pcall(GetNumQuestLogChoices,
+                state.questID, true)
+            if ok and UI:CanAccessValue(count)
+                and type(count) == "number" and count >= 0 then
+                logChoices = count
             end
         end
 
-        if GetTime() - startTime < 1.6 then
-            C_Timer.After(0.05, CheckReward)
+        if choices > 1 or (logChoices and logChoices > 1) then
+            -- Never auto-select among multiple reward items.
+            return
+        end
+
+        local money = GetQuestMoneyToGet and GetQuestMoneyToGet() or 0
+        if not UI:CanAccessValue(money) or type(money) ~= "number" then
+            if GetTime() - startTime < MAX_WAIT then
+                C_Timer.After(0.05, TryReward)
+            end
+            return
+        end
+        if money > 0 then return end
+
+        if attempts >= 4 then return end
+        attempts = attempts + 1
+        GetQuestReward(choices == 1 and 1 or 0)
+
+        -- An immediate claim can precede server-side reward readiness.
+        -- Retry only while this exact dialog and quest remain active.
+        local delay = nextDelay[attempts]
+        if delay then
+            C_Timer.After(delay, TryReward)
         end
     end
 
-    -- First check immediately; only defer when the server/UI is not ready.
-    CheckReward()
+    -- Fast path: attempt right in QUEST_COMPLETE, like QuickQuest.
+    TryReward()
 end
-
 function Module:Initialize()
     UI:RegisterEvent("GOSSIP_SHOW", function()
         OpenGossipQuest("GOSSIP_SHOW", SelectGossipQuest, GossipFrame)
@@ -348,6 +335,13 @@ function Module:Initialize()
     UI:RegisterEvent("QUEST_FINISHED", function()
         NewDialog("QUEST_FINISHED")
         activeAccept = nil
+        activeReward = nil
+    end)
+
+    UI:RegisterEvent("QUEST_TURNED_IN", function(_, id)
+        if activeReward and id == activeReward.questID then
+            activeReward.claimed = true
+        end
     end)
 
     UI:RegisterEvent("QUEST_ACCEPTED", function(_, id, alternateID)
