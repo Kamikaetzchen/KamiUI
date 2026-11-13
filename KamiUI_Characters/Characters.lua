@@ -378,6 +378,21 @@ local function CreateEquipmentSlot(parent, definition)
         end
 
         if mouseButton == "LeftButton" then
+            -- Let Blizzard/addons (e.g. ItemDB Alt+Click) handle modified
+            -- item clicks before the normal pickup/equipment flyout path.
+            -- A modifier must never pick the equipped item up.
+            local modified = (IsAltKeyDown and IsAltKeyDown())
+                or (IsShiftKeyDown and IsShiftKeyDown())
+                or (IsControlKeyDown and IsControlKeyDown())
+            if modified then
+                local link = GetInventoryItemLink("player", self.slotID)
+                if link and UI:CanAccessValue(link)
+                    and HandleModifiedItemClick then
+                    HandleModifiedItemClick(link)
+                end
+                return
+            end
+
             -- PickupInventoryItem is #nocombat, even though weapons can
             -- be swapped by Blizzard's secure actions during combat.
             if InCombatLockdown and InCombatLockdown() then return end
