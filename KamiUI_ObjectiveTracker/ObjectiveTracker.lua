@@ -794,6 +794,31 @@ end
 -- Never reparent or re-anchor quest rows containing protected buttons in
 -- combat. Repaint only already allocated text and counters, by quest ID.
 -- New/reordered quests and action attribute changes are replayed afterward.
+-- Only rebuild the tracker when monitored quest data actually changed.
+-- Exclude countdown deadlines: they continuously decrease independently.
+local function GetQuestSnapshot(items)
+    local parts = {}
+
+    for _, item in ipairs(items or {}) do
+        parts[#parts + 1] = tostring(item.questID or "")
+        parts[#parts + 1] = item.title or ""
+        parts[#parts + 1] = tostring(item.level or "")
+        parts[#parts + 1] = item.isElite and "1" or "0"
+        local questItem = item.questItem
+        parts[#parts + 1] = questItem and questItem.link or ""
+        parts[#parts + 1] = tostring(questItem and questItem.charges or "")
+
+        for _, objective in ipairs(item.objectives or {}) do
+            parts[#parts + 1] = objective.text or ""
+            parts[#parts + 1] = objective.finished and "1" or "0"
+            parts[#parts + 1] = objective.countText or ""
+        end
+        parts[#parts + 1] = "\30"
+    end
+
+    return table.concat(parts, "\31")
+end
+
 function Module:RefreshLive()
     local frame = self.frame
     if not frame or GetDatabase().minimized then return end
@@ -907,6 +932,9 @@ function Module:Refresh()
             and provider.GetSection
             and provider:GetSection()
         local section = frame.sections[id]
+        if id == "quests" then
+            self.questSnapshot = GetQuestSnapshot(data and data.items)
+        end
 
         if data and data.items and #data.items > 0 then
             if not section then
@@ -1046,6 +1074,20 @@ local function ScheduleRefresh()
     C_Timer.After(0, function()
         Module.refreshPending = false
         Module:Refresh()
+    end)
+end
+
+-- Some Forever objective updates arrive before the quest log is fully
+-- synchronized. A short second pass catches those without delaying the
+-- immediate refresh.
+local function ScheduleQuestProgressRefresh()
+    ScheduleRefresh()
+
+    if Module.progressRetryPending then return end
+    Module.progressRetryPending = true
+    C_Timer.After(0.15, function()
+        Module.progressRetryPending = false
+        ScheduleRefresh()
     end)
 end
 
@@ -1293,7 +1335,25 @@ function Module:Initialize()
     -- The full tracker refresh may resize secure quest-item buttons and
     -- therefore remains deferred until combat ends.
     local timerElapsed = 0
+    local questPollElapsed = 0
     self.frame:SetScript("OnUpdate", function(_, elapsed)
+        -- Reconcile missed events (escort completions, loot objectives)
+        -- without continuously rebuilding protected tracker rows.
+        questPollElapsed = questPollElapsed + elapsed
+        if questPollElapsed >= 0.75 then
+            questPollElapsed = 0
+            if not Module.refreshPending
+                and not GetDatabase().minimized
+                and not (InCombatLockdown and InCombatLockdown()) then
+                local provider = Module.providers.quests
+                local data = provider and provider:GetSection()
+                if data and GetQuestSnapshot(data.items)
+                    ~= Module.questSnapshot then
+                    ScheduleRefresh()
+                end
+            end
+        end
+
         if not Module.hasQuestTimers then return end
         timerElapsed = timerElapsed + elapsed
         if timerElapsed < 0.25 then return end
@@ -1333,6 +1393,16 @@ function Module:Initialize()
         "UI_SCALE_CHANGED",
     }) do
         UI:RegisterEvent(event, ScheduleRefresh)
+    end
+
+    -- These events can arrive before the quest data is readable.
+    -- The immediate refresh is retained, followed by one short retry.
+    for _, event in ipairs({
+        "QUEST_WATCH_UPDATE",
+        "UNIT_QUEST_LOG_CHANGED",
+        "QUEST_ITEM_UPDATE",
+    }) do
+        UI:RegisterEvent(event, ScheduleQuestProgressRefresh)
     end
 
     UI:RegisterEvent("PLAYER_LEVEL_UP", function()

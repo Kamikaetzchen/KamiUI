@@ -118,10 +118,12 @@ local function GetQuestData(questID)
         end
     end
 
-    if complete and #objectives == 0 then
-        objectives[#objectives + 1] = {
-            text = "Ready for turn-in",
-            finished = true,
+    -- Forever may retain the last objective text (especially for escorts)
+    -- after the quest is complete. The quest completion flag, not the
+    -- presence of objectives, determines the ready-for-turn-in state.
+    if complete == true then
+        objectives = {
+            { text = "Ready for turn-in", finished = true },
         }
     end
 
