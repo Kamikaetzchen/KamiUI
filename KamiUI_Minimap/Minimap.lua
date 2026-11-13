@@ -26,6 +26,67 @@ local function CreateBorder()
     return border
 end
 
+-- Center the player's position along the top edge, clear of the
+-- tracking and mail indicators at the upper corners.
+local function CreateCoordinatesLabel()
+    if Module.coordinates then return end
+
+    local label = CreateBorder():CreateFontString(nil,
+        "OVERLAY", "GameFontNormalSmall")
+    label:SetSize(110, 16)
+    label:SetPoint("TOP", Minimap, "TOP", 0, -5)
+    label:SetJustifyH("CENTER")
+    local font = label:GetFont()
+    if font then label:SetFont(font, 11, "OUTLINE") end
+    label:SetShadowColor(0, 0, 0, 1)
+    label:SetShadowOffset(1, -1)
+    label:SetTextColor(unpack(Palette.text))
+    label:SetText("--, --")
+
+    Module.coordinates = label
+end
+
+function Module:RefreshCoordinates()
+    local label = self.coordinates
+    if not label then return end
+
+    if C_Map and C_Map.GetBestMapForUnit
+        and C_Map.GetPlayerMapPosition then
+        local mapID = C_Map.GetBestMapForUnit("player")
+        if UI:CanAccessValue(mapID) and type(mapID) == "number" then
+            if self.coordinateMapID ~= mapID then
+                -- Never show coordinates from a different map.
+                self.coordinateMapID = mapID
+                self.lastCoordinates = nil
+            end
+
+            local position = C_Map.GetPlayerMapPosition(mapID, "player")
+            if position and UI:CanAccessValue(position) then
+                local ok, x, y = pcall(position.GetXY, position)
+                if ok and UI:CanAccessValue(x) and UI:CanAccessValue(y)
+                    and type(x) == "number" and type(y) == "number"
+                    and x >= 0 and x <= 1 and y >= 0 and y <= 1 then
+                    self.lastCoordinates = string.format(
+                        "%.1f, %.1f", x * 100, y * 100)
+                    label:SetText(self.lastCoordinates)
+                    label:SetTextColor(unpack(Palette.text))
+                    return
+                end
+            end
+        end
+    end
+
+    -- Forever can restrict live map values in combat. Keep a same-map
+    -- snapshot, visibly marked red, instead of showing stale data as live.
+    if self.lastCoordinates then
+        label:SetText(self.lastCoordinates)
+        label:SetTextColor(1, 0.35, 0.35)
+    else
+        label:SetText("--, --")
+        label:SetTextColor(unpack(Palette.muted))
+    end
+end
+
 local function HideObject(object)
     if not object then
         return
@@ -156,6 +217,7 @@ local function StyleMinimap()
     HideBlizzardChrome()
     PositionHeaderIndicators()
     CreateBorder()
+    CreateCoordinatesLabel()
 end
 
 function Module:Apply()
@@ -164,9 +226,17 @@ end
 
 function Module:Initialize()
     self:Apply()
+    self:RefreshCoordinates()
 
     UI:RegisterEvent("PLAYER_ENTERING_WORLD", function()
         Module:Apply()
+        Module:RefreshCoordinates()
+    end)
+
+    -- A native map read every half second is sufficient while running
+    -- through a zone; no frame-by-frame polling or map-frame dependency.
+    C_Timer.NewTicker(0.5, function()
+        Module:RefreshCoordinates()
     end)
 
     UI:RegisterBottomInsetCallback(function()
@@ -185,6 +255,9 @@ function Module:Initialize()
     UI:RegisterEvent("ZONE_CHANGED_NEW_AREA", function()
         HideBlizzardChrome()
         HideRoundBlobRings()
+        Module.coordinateMapID = nil
+        Module.lastCoordinates = nil
+        Module:RefreshCoordinates()
     end)
 
     -- Quest tracking can rebuild native map blobs after our initial style.
