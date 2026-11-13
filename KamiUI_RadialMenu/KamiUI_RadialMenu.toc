@@ -2,7 +2,7 @@
 ## Title: KamiUI - Radial Menu
 ## Notes: Q/E consumable wheels with item favorites
 ## Author: Kami Katze
-## Version: 0.2.0
+## Version: 0.2.1
 ## IconTexture: Interface\Icons\INV_Potion_54
 ## RequiredDeps: KamiUI
 

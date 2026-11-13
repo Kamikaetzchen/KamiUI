@@ -1,6 +1,9 @@
 # Radial Menu
 
-**Q:** Hearthstone, mounts, food, drinks, buff food, elixirs.
+**Q:** Hearthstone, food, drinks, buff food, elixirs.
+
+Mounts are intentionally excluded from the radial menu. Assign the
+mount spell to a regular action-bar slot instead.
 
 **E:** Healing, mana, rage and utility potions, bandages.
 

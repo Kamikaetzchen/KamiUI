@@ -2,8 +2,8 @@ local UI = KamiUI
 local Module = UI:NewModule("RadialMenu", "KamiUI_RadialMenu")
 local L = UI.Layout.RadialMenu
 
--- The number of icons is determined by inventory. A ring is limited to
--- 16 visible items to prevent hundreds of mounts covering the screen.
+-- The number of icons is determined by inventory. Limit variant rings
+-- to 16 entries to keep crowded consumable categories manageable.
 local MAX_VISIBLE = 16
 
 -- Stable Classic item IDs are a fallback if the client exposes incomplete
@@ -25,7 +25,6 @@ local CONFIG = {
         {"bufffood", "Buff Food", "INV_Misc_Food_64"},
         {"elixir", "Elixirs", "INV_Potion_20"},
         {"hearthstone", "Hearthstone", "INV_Misc_Rune_01"},
-        {"mount", "Mounts", "Ability_Mount_RidingHorse"},
     },
     E = {
         {"health", "Healing Potions", "INV_Potion_54"},
@@ -231,9 +230,8 @@ local function ScanItem(catalog, bag, slot, id, count)
         or Has(n, "reins of", "mechanostrider", "riding kodo",
             "riding ram", "raptor whistle", "horn of the")
     then
-        -- Inventory mount items teach the mount; clicking them does not
-        -- summon it. Only put collected mount spells from the journal
-        -- onto the wheel, never these learn-on-use items.
+        -- Mount learning items are not consumables. Mount summoning
+        -- is handled by the user's normal action bars, not this wheel.
         return
     end
     -- Common drinks must not vanish if a fresh client has not yet
@@ -286,40 +284,6 @@ local function ScanItem(catalog, bag, slot, id, count)
     end
 end
 
-local function ScanMounts(catalog)
-    if C_MountJournal and C_MountJournal.GetMountIDs
-        and C_MountJournal.GetMountInfoByID then
-        for _, id in ipairs(C_MountJournal.GetMountIDs() or {}) do
-            local name, spell, icon, _, usable, _, favorite,
-                _, _, _, collected = C_MountJournal.GetMountInfoByID(id)
-            -- nil is not proof of ownership. Forever can return an
-            -- absent collection flag for entries not learned yet.
-            if name and spell and collected == true then
-                -- Mount journal entries have a mount ID distinct from the
-                -- summoning spell ID. Forever mounts are summoned through
-                -- the journal API, not through a learned spell action.
-                local useJournal = C_MountJournal.SummonByID ~= nil
-                Add(catalog, "mount", useJournal and id or spell, name,
-                    icon,
-                    (usable and 100000 or 0) + (favorite and 20000 or 0),
-                    1, useJournal and "mount" or "spell")
-                local entry = catalog.mount[
-                    (useJournal and "mount:" or "spell:")
-                        .. tostring(useJournal and id or spell)
-                ]
-                if entry then entry.spellID = spell end
-            end
-        end
-    elseif GetNumCompanions and GetCompanionInfo then
-        for i = 1, (GetNumCompanions("MOUNT") or 0) do
-            local _, name, spell, icon = GetCompanionInfo("MOUNT", i)
-            if name and spell then
-                Add(catalog, "mount", spell, name, icon, 100000, 1, "spell")
-            end
-        end
-    end
-end
-
 local function ScanInventory()
     local catalog = {}
     for bag = 0, 4 do
@@ -336,7 +300,6 @@ local function ScanInventory()
             end
         end
     end
-    ScanMounts(catalog)
     local lists = {}
     for key, entries in pairs(catalog) do
         local list = {}
@@ -366,10 +329,7 @@ local function Action(button, entry)
     -- preserves item-ID actions as stacks move between bag slots.
     local key = entry and entry.key
     if button.actionKey == key then return end
-    -- Mounts use C_MountJournal.SummonByID on a real click. They are not
-    -- generic secure spell/item actions; keep the secure type unset.
-    button:SetAttribute("type1", entry and
-        entry.kind ~= "mount" and entry.kind or nil)
+    button:SetAttribute("type1", entry and entry.kind or nil)
     button:SetAttribute("item1", entry and entry.kind == "item"
         and ("item:" .. entry.id) or nil)
     button:SetAttribute("spell1", entry and entry.kind == "spell"
@@ -433,22 +393,6 @@ local function IconButton(button, size, category)
     end)
     button:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
-    -- The journal API is callable by addons on a hardware-driven click.
-    -- Do not attempt CastSpellByID here: mount spell IDs don't necessarily
-    -- behave like spells learned in the player's spellbook.
-    button:HookScript("PostClick", function(self, mouseButton, down)
-        if mouseButton ~= "LeftButton" or down
-            or not self.entry or self.entry.kind ~= "mount"
-        then
-            return
-        end
-
-        if C_MountJournal and C_MountJournal.SummonByID then
-            C_MountJournal.SummonByID(self.entry.id)
-        else
-            UI:Print("Mount journal summoning is unavailable.")
-        end
-    end)
 end
 
 local function Display(button, entry, placeholder, favorite)
@@ -800,12 +744,6 @@ function Module:Initialize()
     end)
     UI:RegisterEvent("BAG_UPDATE_DELAYED", function() Module:Refresh() end)
     UI:RegisterEvent("GET_ITEM_INFO_RECEIVED", function()
-        Module:Refresh()
-    end)
-    -- Update the spell actions as soon as a new mount is learned, or
-    -- when riding skill / zone restrictions change its usability.
-    UI:RegisterEvent("NEW_MOUNT_ADDED", function() Module:Refresh() end)
-    UI:RegisterEvent("MOUNT_JOURNAL_USABILITY_CHANGED", function()
         Module:Refresh()
     end)
     UI:RegisterEvent("UPDATE_BINDINGS", BindKeys)
