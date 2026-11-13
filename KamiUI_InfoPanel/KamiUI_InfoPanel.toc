@@ -2,7 +2,7 @@
 ## Title: KamiUI - InfoPanel
 ## Notes: Top information panel for KamiUI
 ## Author: Kami Katze
-## Version: 0.1.0
+## Version: 0.1.1
 ## IconTexture: Interface\Icons\INV_Misc_Note_01
 ## RequiredDeps: KamiUI
 ## OptionalDeps: KamiUI_Characters

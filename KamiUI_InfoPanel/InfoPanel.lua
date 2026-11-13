@@ -238,26 +238,20 @@ local function GetLocation()
     return zone ~= "" and zone or "Unknown"
 end
 
+-- Keep the last readable value only for this UI session. Forever may
+-- return a secret speed during combat, so never calculate on that value.
+-- The second return indicates that the displayed value is stale.
 local function GetMovementSpeed()
-    local speed = GetUnitSpeed and GetUnitSpeed("player") or 0
+    local speed = GetUnitSpeed and GetUnitSpeed("player")
 
-    if canaccessvalue and not canaccessvalue(speed) then
-        Module.speedSecretCount = (Module.speedSecretCount or 0) + 1
-
-        if Module.speedSecretCount >= 5 then
-            return nil, true
-        end
-
-        return nil, false
+    if not UI:CanAccessValue(speed) or type(speed) ~= "number" then
+        return Module.lastMovementSpeed, true
     end
 
-    Module.speedSecretCount = 0
-
-    if speed <= 0 then
-        return 0, false
-    end
-
-    return math.floor((speed / 7) * 100 + 0.5), false
+    local percent = speed > 0
+        and math.floor((speed / 7) * 100 + 0.5) or 0
+    Module.lastMovementSpeed = percent
+    return percent, false
 end
 
 local function GetLatencies()
@@ -1016,7 +1010,27 @@ local function ShowClockTooltip(owner)
     GameTooltip:Show()
 end
 
+local function ShowSpeedTooltip(owner)
+    PrepareTooltip(owner, "Movement Speed")
+    if Module.speedStale then
+        if Module.lastMovementSpeed ~= nil then
+            GameTooltip:AddLine(
+                "Last known value (live speed unavailable)",
+                1, 0.35, 0.35, true)
+        else
+            GameTooltip:AddLine(
+                "Current movement speed unavailable",
+                0.75, 0.75, 0.75)
+        end
+    else
+        GameTooltip:AddLine("Current movement speed",
+            0.75, 0.75, 0.75)
+    end
+    GameTooltip:Show()
+end
+
 local tooltipHandlers = {
+    speed = ShowSpeedTooltip,
     rested = ShowRestedTooltip,
     bags = ShowBagsTooltip,
     durability = ShowDurabilityTooltip,
@@ -1530,7 +1544,8 @@ function Module:Refresh()
 
     local used, total = GetBagUsage()
     local durability = GetDurabilityPercent()
-    local movement, movementUnavailable = GetMovementSpeed()
+    local movement, movementStale = GetMovementSpeed()
+    self.speedStale = movementStale
     local latency = GetLatency()
     local xpPerHour = GetXPPerHour()
     local timeToLevel = GetTimeToLevel(xpPerHour)
@@ -1539,15 +1554,18 @@ function Module:Refresh()
         "|TInterface\\Icons\\icon_treasuremap:13:13:0:2:64:64:4:60:4:60|t %s",
         GetLocation()
     ))
+    local speedIcon =
+        "|TInterface\\Icons\\Ability_Rogue_Sprint:13:13:0:2:64:64:4:60:4:60|t "
     if movement ~= nil then
-        self.texts.speed:SetText(string.format(
-            "|TInterface\\Icons\\Ability_Rogue_Sprint:13:13:0:2:64:64:4:60:4:60|t %d%%",
-            movement
-        ))
-    elseif movementUnavailable then
-        self.texts.speed:SetText(
-            "|TInterface\\Icons\\Ability_Rogue_Sprint:13:13:0:2:64:64:4:60:4:60|t N/A"
-        )
+        local value = string.format("%d%%", movement)
+        if movementStale then
+            -- Mark cached values red; never imply a restricted reading is live.
+            value = "|cffff5555" .. value .. "|r"
+        end
+        self.texts.speed:SetText(speedIcon .. value)
+    else
+        -- No valid reading has been seen yet (e.g. login while fighting).
+        self.texts.speed:SetText(speedIcon .. "N/A")
     end
     self.texts.xp:SetText(string.format(
         "|TInterface\\Icons\\xp_icon:13:13:0:2:64:64:4:60:4:60|t %s/h",
