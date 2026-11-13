@@ -51,21 +51,31 @@ local function HasRatingLine(tooltip)
     return false
 end
 
-local function AddComparison(tooltip, comparison)
-    local delta = comparison.difference
-    local r, g, b = 0.72, 0.72, 0.72
+local function FormatDifference(delta)
+    local color = "|cffb8b8b8"
     if delta > 0.049 then
-        r, g, b = 0.25, 0.9, 0.4
+        color = "|cff40e666"
     elseif delta < -0.049 then
-        r, g, b = 1, 0.38, 0.38
+        color = "|cffff6161"
     end
 
-    tooltip:AddDoubleLine(
-        "vs. " .. comparison.label,
-        string.format("%+.1f", delta),
-        0.72, 0.77, 0.85,
-        r, g, b
-    )
+    return string.format("%s%+.1f|r", color, delta)
+end
+
+local function FormatScore(score, comparisons)
+    local formatted = string.format("%.1f", score)
+    if #comparisons == 0 then
+        return formatted
+    end
+
+    local differences = {}
+    for _, comparison in ipairs(comparisons) do
+        differences[#differences + 1] =
+            FormatDifference(comparison.difference)
+    end
+
+    -- Ring/trinket values use slot 1 / slot 2 order; both fit one line.
+    return formatted .. " (" .. table.concat(differences, " / ") .. ")"
 end
 
 function Module:AppendRating(tooltip, data)
@@ -94,18 +104,13 @@ function Module:AppendRating(tooltip, data)
         return
     end
 
+    local comparisons = self:GetEquippedComparisons(result, profile)
     tooltip:AddDoubleLine(
         PREFIX,
-        string.format("%.1f pts", result.score),
+        FormatScore(result.score, comparisons),
         1, 0.78, 0.32,
         1, 0.78, 0.32
     )
-
-    for _, comparison in ipairs(
-        self:GetEquippedComparisons(result, profile)
-    ) do
-        AddComparison(tooltip, comparison)
-    end
 end
 
 local function InstallHook()

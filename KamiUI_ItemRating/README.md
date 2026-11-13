@@ -7,8 +7,10 @@ WoW Forever: preliminary **Feral Cat** DPS-oriented item scoring in
 * Displays the rating on equipment tooltips, including item links and
   Blizzard shopping tooltips, using TooltipDataProcessor (no dependency
   on KamiUI_Tooltips).
-* For worn slots, shows the difference to each equipped candidate.
-  Rings and trinkets compare against both slots.
+* Displays one compact tooltip line: `Item Rating (Cat) 23.7 (-27.9)`;
+  the delta is red/green and the `pts` suffix is omitted.
+* Rings and trinkets show both equipped-slot deltas in order, separated
+  by `/` inside the same parentheses.
 * Uses C_Item.GetItemStats, including passive equip stats and weapon DPS.
   Forever's combat rating values are **not percentages**: Crit /14,
   Hit /10 and Haste /10 at level 60 are used in the weights.
