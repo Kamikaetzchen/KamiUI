@@ -200,12 +200,18 @@ local function Run()
         return
     end
     UI:CancelOutOfCombat(QUEUE_KEY)
-    if not IsMounted then return end
 
-    local mounted = UI:SafeCall(IsMounted)
-    if not UI:CanAccessValue(mounted)
-        or type(mounted) ~= "boolean" then
-        return
+    -- Disabling the feature acts like dismounting: restore only equipment
+    -- installed by this module, even if the character is still mounted.
+    -- Do not require a readable mount state when the feature is disabled.
+    local mounted = false
+    if Module:IsMountGearEnabled() then
+        if not IsMounted then return end
+        mounted = UI:SafeCall(IsMounted)
+        if not UI:CanAccessValue(mounted)
+            or type(mounted) ~= "boolean" then
+            return
+        end
     end
     local records = GetRecords()
     if not records then return end
@@ -319,6 +325,10 @@ local function Run()
             end
         end
     end
+end
+
+function Module:RefreshMountEquipment()
+    Refresh()
 end
 
 Refresh = function()

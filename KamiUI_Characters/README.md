@@ -1,9 +1,16 @@
 # KamiUI - Characters: Automatic Riding Equipment
 
 The Characters module automatically swaps owned riding-speed equipment
-from your bags when `IsMounted()` becomes true. No equipment sets or
-additional UI are required. The feature works while the character pane
-is closed.
+from your bags when `IsMounted()` becomes true. No equipment sets are
+required. The feature works while the character pane is closed.
+
+A per-character **Mount Gear** checkbox sits at the bottom-left of the
+character pane (6 px inset, left of Main Hand), opposite the Item Rating
+button. It is enabled by default. Unchecking stops future automatic
+equips and safely restores any gear previously replaced by this module,
+including when still mounted. Restoration waits until combat ends.
+Manual equipment changes are still respected. The preference is saved
+as `KamiUIDB.characters.data[characterKey].mountGearEnabled`.
 
 Supported Classic/Forever bonuses:
 

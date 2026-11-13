@@ -111,6 +111,22 @@ function Module:GetCurrentCharacter()
     return key, GetDatabase().data[key]
 end
 
+-- The automatic riding-equipment toggle is per character and defaults on,
+-- preserving the behavior that existing players already have.
+function Module:IsMountGearEnabled()
+    local _, character = self:GetCurrentCharacter()
+    return not character or character.mountGearEnabled ~= false
+end
+
+function Module:SetMountGearEnabled(enabled)
+    local _, character = self:GetCurrentCharacter()
+    if not character then return end
+    character.mountGearEnabled = enabled == true
+    if self.RefreshMountEquipment then
+        self:RefreshMountEquipment()
+    end
+end
+
 function Module:GetCharacter(key)
     return key and GetDatabase().data[key] or nil
 end
@@ -777,6 +793,13 @@ local SetOuterPage
 
 local function UpdatePlayerInfo(frame)
     local _, character, isCurrent = Module:GetViewedCharacter()
+    if frame.mountGearCheckbox then
+        -- Cached characters show their saved preference but cannot be
+        -- changed from another character's equipment panel.
+        Components:SetToggleState(frame.mountGearCheckbox,
+            not (character and character.mountGearEnabled == false),
+            isCurrent)
+    end
     local name
     local level
     local className
@@ -4491,6 +4514,41 @@ local function CreateFrameUI()
         frame.equipmentSlots[#frame.equipmentSlots + 1] = button
         frame.equipmentByKey[definition.key] = button
     end
+
+    -- Symmetric with Item Rating's bottom-right button: 6 px from both
+    -- edges, immediately left of the main-hand slot.
+    local mountGear = Components:CreateCheckbox(characterPane, {
+        size = 14,
+        width = 76,
+        height = 20,
+        label = "Mount Gear",
+        labelGap = 5,
+    })
+    mountGear:SetPoint(
+        "BOTTOMLEFT", characterPane, "BOTTOMLEFT", 6, 6
+    )
+    mountGear:SetFrameLevel(
+        frame.equipmentByKey.WristSlot:GetFrameLevel() + 2
+    )
+    mountGear:HookScript("OnClick", function(self)
+        local _, _, isCurrent = Module:GetViewedCharacter()
+        if not isCurrent then return end
+        Module:SetMountGearEnabled(self:GetChecked())
+    end)
+    mountGear:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_CURSOR_RIGHT")
+        GameTooltip:SetText("Mount Gear")
+        GameTooltip:AddLine(
+            "Automatically equip riding-speed items while mounted"
+                .. " and restore your previous gear afterward.",
+            0.75, 0.75, 0.75, true
+        )
+        GameTooltip:Show()
+    end)
+    mountGear:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
+    frame.mountGearCheckbox = mountGear
 
     local tabs = {
         { label = "Character", page = "character", enabled = true },
