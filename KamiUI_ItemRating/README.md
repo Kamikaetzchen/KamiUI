@@ -108,9 +108,10 @@ from the saved Cat item weights.
 The live Crit/AP tooltip also suggests an **Agility Base** for the
 Cat DPS profile, without changing stored weights:
 
-* Uses `GetCritChanceFromStat(2, 1)` on WoW Forever to read **the
-  current level's Crit percentage points per 1 Agility**, without
-  assuming the level-60 20-Agility-per-1%-Crit conversion.
+* Uses `GetCritChanceFromStat(2, 1)` on WoW Forever to read the
+  **current level's Crit fraction per 1 Agility**, multiplies it by 100
+  to get percentage points (matching Blizzard's character sheet),
+  without assuming the level-60 20-Agility-per-1%-Crit conversion.
 * The **Cat** base formula is `1 AP + critPerAgility * liveCritApEquivalent`.
   It always assumes Cat Form grants 1 AP per Agility, even when the
   current Crit/AP reference is read in humanoid or Bear Form.
@@ -124,3 +125,7 @@ Cat DPS profile, without changing stored weights:
   **current** combat state; it does not include skill rotations or
   stat caps. Blessing of Kings remains an optional modifier on saved
   item weights, not part of this unbuffed Cat base.
+
+* **v0.5.2 bug fix:** The API returns a fraction, not a percentage.
+  v0.5.1 omitted the factor of 100 and understated the suggested
+  Agility base (e.g. ~1.007 instead of ~1.70 with 11.10 AP/Crit-%).

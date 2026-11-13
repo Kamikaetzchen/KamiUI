@@ -192,14 +192,16 @@ local function ReadLiveCritEquivalent()
         return nil, "unavailable"
     end
 
-    -- Forever exposes the melee Crit contribution of one Agility at the
-    -- player's CURRENT level. A fixed 1 Agi = 0.05% applies only at 60.
-    -- Keep the live Crit estimate available if this API is unavailable.
+    -- Forever exposes Crit contribution from one Agility at the
+    -- CURRENT level as a FRACTION (e.g. 0.00063 = 0.063%).
+    -- Convert to percentage points to match GetCritChance and the
+    -- editable Crit (%) weight. Blizzard's character sheet does x100.
+    -- Keep the live Crit estimate if this API is unavailable.
     local critPerAgility
     if GetCritChanceFromStat then
         local chance = UI:SafeCall(GetCritChanceFromStat, 2, 1)
         if ValidNumber(chance) and chance > 0 then
-            critPerAgility = chance -- percentage points per 1 Agi
+            critPerAgility = chance * 100 -- percentage points per 1 Agi
         end
     end
 
