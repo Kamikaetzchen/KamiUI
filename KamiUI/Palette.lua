@@ -172,31 +172,61 @@ function Palette:GetDifficultyColor(role)
     return self.difficulty[role] or self.difficulty.normal
 end
 
--- Creature levels use the MOB difficulty/XP thresholds, not the
--- QuestLog's separate gray/green thresholds. Forever exposes
--- GetCreatureDifficultyColor; retain the old API as a fallback only.
-function Palette:GetLevelDifficultyColor(level)
-    local getColor = GetCreatureDifficultyColor
-        or GetQuestDifficultyColor
-    if level and UI:CanAccessValue(level) and getColor then
-        local color = UI:SafeCall(getColor, level)
+-- All enemy level displays share the same MOB difficulty thresholds.
+-- Never fall back to GetQuestDifficultyColor: quest gray thresholds differ
+-- from XP-gray creature thresholds (e.g. a level 42 mob vs player 49).
+local function ClassicCreatureDifficultyColor(playerLevel, mobLevel)
+    local grayLevel
+    if playerLevel <= 5 then
+        grayLevel = 0
+    elseif playerLevel <= 39 then
+        grayLevel = playerLevel - math.floor(playerLevel / 10) - 5
+    elseif playerLevel <= 59 then
+        grayLevel = playerLevel - math.floor(playerLevel / 5) - 1
+    else
+        grayLevel = playerLevel - 9
+    end
 
+    if mobLevel <= grayLevel then
+        return Palette.difficulty.trivial
+    end
+
+    local difference = mobLevel - playerLevel
+    if difference >= 5 then
+        return Palette.difficulty.veryHard
+    elseif difference >= 3 then
+        return Palette.difficulty.hard
+    elseif difference >= -2 then
+        return Palette.difficulty.normal
+    end
+    return Palette.difficulty.easy
+end
+
+function Palette:GetLevelDifficultyColor(level)
+    if not level or not UI:CanAccessValue(level)
+        or type(level) ~= "number" then
+        return self.difficulty.veryHard
+    end
+
+    if GetCreatureDifficultyColor then
+        local color = UI:SafeCall(GetCreatureDifficultyColor, level)
         if color and UI:CanAccessValue(color) then
             local r = color.r or color[1] or 1
             local g = color.g or color[2] or 0.1
             local b = color.b or color[3] or 0.1
-            local isGray =
-                math.abs(r - g) < 0.04
-                and math.abs(g - b) < 0.04
-
-            if isGray and r < 0.72 then
+            if math.abs(r - g) < 0.04
+                and math.abs(g - b) < 0.04 and r < 0.72 then
                 return self.difficulty.trivial
             end
-
             return color
         end
     end
 
+    local playerLevel = UnitLevel and UI:SafeCall(UnitLevel, "player")
+    if playerLevel and UI:CanAccessValue(playerLevel)
+        and type(playerLevel) == "number" and playerLevel > 0 then
+        return ClassicCreatureDifficultyColor(playerLevel, level)
+    end
     return self.difficulty.veryHard
 end
 
