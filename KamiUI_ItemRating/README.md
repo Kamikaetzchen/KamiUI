@@ -71,3 +71,25 @@ KamiUI's Character screen, or type `/kami rating settings`.
   frame's `equipmentByKey.Trinket1Slot`; neither Characters nor Tooltips
   depends on Item Rating.
 
+
+
+## Live Crit/AP reference (v0.4.1)
+
+The compact editor header shows **1% Crit = X AP**, right aligned next
+to "Druid - Feral Cat". This number is a **read-only approximation**,
+not a new weight and not applied to item scores.
+
+* Calculated only while in Cat Form using the local character's
+  UnitAttackPower("player"), UnitDamage("player") and GetCritChance();
+  displays "Cat only" or "n/a" if unavailable.
+* Uses average normal Cat hit damage (base swing speed 1s):
+  AP-equivalent for +1% Crit = 14 * normal-hit DPS / (100 + Crit%).
+  Crit chance is expressed in percent (10, not 0.10).
+* Hover the header value to inspect current AP, Crit%, normal hit
+  damage, the formula, and the level-60 per-Crit-Rating estimate
+  (X / 14) relevant to the editable rating field.
+* Recomputes on window open and on local melee stat, gear, rating,
+  form and aura changes. No polling or saved values.
+* Simplifying assumptions: 200% crit damage and auto-attack scaling.
+  Does not incorporate Cat abilities, crit talents, glancing blows,
+  misses, armor or full Feral DPS rotation.

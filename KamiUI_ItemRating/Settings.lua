@@ -143,6 +143,155 @@ local function ShowStatTooltip(button)
     GameTooltip:Show()
 end
 
+
+-- Read-only auto-attack approximation. In Cat Form the unhasted base
+-- swing is 1s, so average normal-hit damage is normalized Cat DPS.
+-- Haste cancels from the Crit-to-AP ratio:
+-- 1% Crit equivalent = 14 * normal hit DPS / (100 + Crit%).
+-- Does not model skills, hit tables, crit talents or the rotation.
+local function ReadLiveCritEquivalent()
+    if not GetShapeshiftFormID or not UnitAttackPower
+        or not UnitDamage or not GetCritChance then
+        return nil, "unavailable"
+    end
+
+    local formID = UI:SafeCall(GetShapeshiftFormID)
+    if formID == nil then
+        return nil, "form" -- humanoid form
+    end
+
+    if not UI:CanAccessValue(formID) or type(formID) ~= "number" then
+        return nil, "unavailable"
+    end
+
+    if formID ~= 1 then
+        return nil, "form"
+    end
+
+    local baseAP, positiveAP, negativeAP =
+        UI:SafeCall(UnitAttackPower, "player")
+    local minDamage, maxDamage = UI:SafeCall(UnitDamage, "player")
+    local critPct = UI:SafeCall(GetCritChance)
+
+    local function ValidNumber(number)
+        return UI:CanAccessValue(number)
+            and type(number) == "number"
+            and number == number and number > -math.huge
+            and number < math.huge
+    end
+
+    if not ValidNumber(baseAP) or not ValidNumber(positiveAP)
+        or not ValidNumber(negativeAP) or not ValidNumber(minDamage)
+        or not ValidNumber(maxDamage) or not ValidNumber(critPct)
+        or critPct < 0 or minDamage <= 0 or maxDamage <= 0 then
+        return nil, "unavailable"
+    end
+
+    local attackPower = baseAP + positiveAP + negativeAP
+    local normalDPS = (minDamage + maxDamage) / 2
+    local apEquivalent = 14 * normalDPS / (100 + critPct)
+
+    if not ValidNumber(apEquivalent) then
+        return nil, "unavailable"
+    end
+
+    return {
+        attackPower = attackPower,
+        critPct = critPct,
+        normalDPS = normalDPS,
+        apEquivalent = apEquivalent,
+    }
+end
+
+local function RefreshLiveCrit(frame)
+    if not frame or not frame.liveCritLabel then
+        return
+    end
+
+    local values, status = ReadLiveCritEquivalent()
+    frame.liveCritSnapshot = values
+    frame.liveCritStatus = status
+
+    if values then
+        frame.liveCritLabel:SetText(string.format(
+            "1%% Crit = %.1f AP", values.apEquivalent
+        ))
+    elseif status == "form" then
+        frame.liveCritLabel:SetText("1% Crit: Cat only")
+    else
+        frame.liveCritLabel:SetText("1% Crit: n/a")
+    end
+end
+
+local function ShowLiveCritTooltip(hitbox)
+    local frame = hitbox:GetParent()
+    RefreshLiveCrit(frame)
+
+    GameTooltip:SetOwner(hitbox, "ANCHOR_RIGHT")
+    GameTooltip:SetText("Live Crit / AP Estimate", 1, 0.82, 0.3)
+
+    local values = frame.liveCritSnapshot
+    if not values then
+        if frame.liveCritStatus == "form" then
+            GameTooltip:AddLine(
+                "Enter Cat Form to calculate from Cat damage.",
+                0.75, 0.78, 0.84, true
+            )
+        else
+            GameTooltip:AddLine(
+                "Current combat stats are unavailable.",
+                0.75, 0.78, 0.84, true
+            )
+        end
+    else
+        GameTooltip:AddDoubleLine(
+            "Current Attack Power",
+            string.format("%.0f", values.attackPower),
+            0.8, 0.8, 0.85, 1, 0.82, 0.31
+        )
+        GameTooltip:AddDoubleLine(
+            "Current melee crit",
+            string.format("%.2f%%", values.critPct),
+            0.8, 0.8, 0.85, 1, 0.82, 0.31
+        )
+        GameTooltip:AddDoubleLine(
+            "Average normal Cat hit",
+            string.format("%.2f", values.normalDPS),
+            0.8, 0.8, 0.85, 1, 0.82, 0.31
+        )
+        GameTooltip:AddLine(
+            "14 x normal hit DPS / (100 + Crit%)",
+            0.7, 0.76, 0.84
+        )
+        GameTooltip:AddDoubleLine(
+            "+1% Crit equals",
+            string.format("%.2f AP", values.apEquivalent),
+            1, 0.82, 0.31, 1, 0.82, 0.31
+        )
+        GameTooltip:AddLine(
+            string.format(
+                "At level 60: %.4f AP per Crit Rating",
+                values.apEquivalent / 14
+            ),
+            0.72, 0.85, 0.75
+        )
+        GameTooltip:AddLine(
+            "Crit Rating input is per rating point (14 = 1% at level 60).",
+            0.62, 0.66, 0.73, true
+        )
+    end
+
+    GameTooltip:AddLine(
+        "Approximation: auto-attacks, 200% crit damage; excludes abilities, talents and the hit table.",
+        0.62, 0.66, 0.73, true
+    )
+    GameTooltip:AddLine(
+        "Informational only. Base weights and item scores are unchanged.",
+        0.62, 0.66, 0.73, true
+    )
+    GameTooltip:Show()
+end
+
 local function CreateScroll(frame)
     local scroll = CreateFrame("ScrollFrame", nil, frame)
     scroll:SetPoint("TOPLEFT", frame, "TOPLEFT", 13, -116)
@@ -222,6 +371,27 @@ local function CreateSettingsWindow()
     )
     profileTitle:SetPoint("TOPLEFT", 17, -44)
     profileTitle:SetText("Druid - Feral Cat")
+
+    -- Separate live, read-only reference; no changes to saved weights.
+    local liveCritHover = CreateFrame("Frame", nil, frame)
+    liveCritHover:SetSize(166, 19)
+    liveCritHover:SetPoint(
+        "TOPRIGHT", frame, "TOPRIGHT", -17, -43
+    )
+    liveCritHover:EnableMouse(true)
+
+    local liveCritLabel = liveCritHover:CreateFontString(
+        nil, "OVERLAY", "GameFontNormalSmall"
+    )
+    liveCritLabel:SetAllPoints(liveCritHover)
+    liveCritLabel:SetJustifyH("RIGHT")
+    liveCritLabel:SetText("1% Crit: n/a")
+    frame.liveCritLabel = liveCritLabel
+
+    liveCritHover:SetScript("OnEnter", ShowLiveCritTooltip)
+    liveCritHover:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
 
     local kings = Components:CreateCheckbox(frame, {
         size = 14,
@@ -343,6 +513,7 @@ local function CreateSettingsWindow()
 
     frame:HookScript("OnShow", function(self)
         RefreshInputs(self)
+        RefreshLiveCrit(self)
     end)
     frame:SetScript("OnHide", function(self)
         for _, input in ipairs(self.weightInputs) do
@@ -359,7 +530,42 @@ end
 function Module:RefreshSettings()
     if self.settingsWindow and self.settingsWindow:IsShown() then
         RefreshEffective(self.settingsWindow)
+        RefreshLiveCrit(self.settingsWindow)
     end
+end
+
+-- Recompute only when the editor is open; item weights remain static.
+local function UpdateLiveCritIfOpen()
+    local frame = Module.settingsWindow
+    if frame and frame:IsShown() then
+        RefreshLiveCrit(frame)
+    end
+end
+
+local function OnUnitStatChanged(_, unit)
+    if unit == "player" then
+        UpdateLiveCritIfOpen()
+    end
+end
+
+for _, event in ipairs({
+    "UNIT_ATTACK_POWER",
+    "UNIT_DAMAGE",
+    "UNIT_ATTACK_SPEED",
+    "UNIT_STATS",
+    "UNIT_AURA",
+}) do
+    UI:RegisterEvent(event, OnUnitStatChanged)
+end
+
+for _, event in ipairs({
+    "COMBAT_RATING_UPDATE",
+    "PLAYER_EQUIPMENT_CHANGED",
+    "UPDATE_SHAPESHIFT_FORM",
+    "PLAYER_ENTERING_WORLD",
+    "PLAYER_REGEN_ENABLED",
+}) do
+    UI:RegisterEvent(event, UpdateLiveCritIfOpen)
 end
 
 function Module:ToggleSettings()
