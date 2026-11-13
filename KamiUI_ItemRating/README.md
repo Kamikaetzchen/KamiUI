@@ -12,8 +12,9 @@ WoW Forever: preliminary **Feral Cat** DPS-oriented item scoring in
 * Rings and trinkets show both equipped-slot deltas in order, separated
   by `/` inside the same parentheses.
 * Uses C_Item.GetItemStats, including passive equip stats and weapon DPS.
-  Forever's combat rating values are **not percentages**: Crit /14,
-  Hit /10 and Haste /10 at level 60 are used in the weights.
+  Forever's API reports raw combat ratings although item tooltips
+  display percentages. The scoring pipeline converts raw rating to
+  displayed percentage before applying editable weights.
 * No inspections or queries against other players.
 
 ## Deliberate limitations
@@ -54,8 +55,11 @@ Source: https://sixtysim.com/guides/druid/feral/stats/
 Use the **Item Rating** button in the bottom-right below the trinket slots in
 KamiUI's Character screen, or type `/kami rating settings`.
 
-* Base fields are AP equivalents **per one stat/rating point** (not per
-  1% Crit/Hit). Press Enter or leave a field to save; decimal commas work.
+* Base fields are AP equivalents **per one visible stat unit**:
+  Strength/AP/etc. per 1 point; Crit, Hit, Haste, Expertise, Armor Pen,
+  Dodge, Parry and Block **per +1 percentage point**. Defense Skill
+  remains per skill point, not percent. Press Enter or leave a field
+  to save; decimal commas work.
 * Effective values show the result of any applicable multiplicative
   modifiers; they are read-only and never overwrite the saved bases.
 * The compact window scrolls to expose all 23 stats, including healing,
@@ -63,7 +67,9 @@ KamiUI's Character screen, or type `/kami rating settings`.
   For Cat DPS their new default weights are 0, but editable.
 * Overrides live account-wide in `KamiUIDB.itemRating.profiles.DRUID.cat`.
   Missing/cleared values use the built-in defaults. The Reset Defaults
-  button clears this profile's overrides.
+  button clears this profile's overrides. v0.5.0 automatically migrates
+  existing Cat combat-rating overrides to per-percent units once, keeping
+  their previous item-score contributions intact.
 * Item scores use the effective weights immediately on the next tooltip
   display. No caps are applied. Kings is stored under
   `KamiUIDB.itemRating.buffs.DRUID.cat.kings`.
@@ -73,23 +79,26 @@ KamiUI's Character screen, or type `/kami rating settings`.
 
 
 
-## Live Crit/AP reference (v0.4.1)
+## Live Crit/AP reference (v0.5.0)
 
-The compact editor header shows **1% Crit = X AP**, right aligned next
-to "Druid - Feral Cat". This number is a **read-only approximation**,
-not a new weight and not applied to item scores.
+The editor header shows **1% Crit = X AP**, right aligned next to
+"Druid - Feral Cat". This is a **read-only approximation**, separate
+from the saved Cat item weights.
 
-* Calculated only while in Cat Form using the local character's
-  UnitAttackPower("player"), UnitDamage("player") and GetCritChance();
-  displays "Cat only" or "n/a" if unavailable.
-* Uses average normal Cat hit damage (base swing speed 1s):
-  AP-equivalent for +1% Crit = 14 * normal-hit DPS / (100 + Crit%).
+* Works in **all druid forms and other classes**, using the *current*
+  player's UnitAttackPower, UnitDamage, UnitAttackSpeed, GetMeleeHaste
+  and GetCritChance. Unavailable combat data shows "n/a".
+* Convert average normal main-hand hit to unhasted DPS with
+  baseSwing = currentSwing * (1 + meleeHaste/100).
+  The approximation for +1% Crit is then
+  14 * (averageHit / baseSwing) / (100 + Crit%).
   Crit chance is expressed in percent (10, not 0.10).
-* Hover the header value to inspect current AP, Crit%, normal hit
-  damage, the formula, and the level-60 per-Crit-Rating estimate
-  (X / 14) relevant to the editable rating field.
-* Recomputes on window open and on local melee stat, gear, rating,
-  form and aura changes. No polling or saved values.
-* Simplifying assumptions: 200% crit damage and auto-attack scaling.
-  Does not incorporate Cat abilities, crit talents, glancing blows,
-  misses, armor or full Feral DPS rotation.
+* Hover the live estimate for current AP, Crit%, average swing damage,
+  speeds, haste, calculation, and **suggested Crit (%) Base**.
+  This number may be copied manually into the Crit (%) input because
+  both now use AP equivalents **per 1 percentage point**.
+* Updates on opening the window, changes to melee stats, equipment,
+  combat rating, form and auras; no polling or saved live value.
+* Uses simplified 200% melee-crit damage and main-hand auto-attacks,
+  ignoring other abilities, offhands, class talents, glancing blows,
+  misses, armor and rotations.

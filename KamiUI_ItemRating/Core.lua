@@ -3,6 +3,29 @@ local Module = UI:NewModule("ItemRating", "KamiUI_ItemRating")
 
 Module.profiles = {}
 
+-- Forever shows percentages on item tooltips, but C_Item.GetItemStats
+-- returns the underlying raw combat rating. All editable combat
+-- weights are AP equivalents per +1 percentage point of the stat.
+-- Defense Skill is *not* a percentage and stays in skill points.
+Module.ratingPerPercent = {
+    ITEM_MOD_CRIT_RATING_SHORT = 14,
+    ITEM_MOD_HIT_RATING_SHORT = 10,
+    ITEM_MOD_HASTE_RATING_SHORT = 10,
+    ITEM_MOD_EXPERTISE_RATING_SHORT = 10,
+    ITEM_MOD_ARMOR_PENETRATION_RATING_SHORT = 10,
+    ITEM_MOD_DODGE_RATING_SHORT = 12,
+    ITEM_MOD_PARRY_RATING_SHORT = 15,
+    ITEM_MOD_BLOCK_RATING_SHORT = 5,
+}
+
+function Module:GetDisplayStatAmount(key, rawAmount)
+    local perPercent = self.ratingPerPercent[key]
+    if perPercent then
+        return rawAmount / perPercent
+    end
+    return rawAmount
+end
+
 -- Shared account-wide SavedVariables (KamiUIDB.itemRating), independent of
 -- KamiUI_Characters and KamiUI_Tooltips. Only deviations are persisted.
 local function GetOverrides(classFile, spec, create)
@@ -29,6 +52,29 @@ local function ValidWeight(value)
         and value == value
         and value >= 0
         and value <= 100000
+end
+
+-- Older versions saved these eight combat weights per *rating point*.
+-- Migrate the account-wide Cat overrides once, preserving the same item
+-- scores for existing custom settings after the change to percent units.
+function Module:MigrateCatWeightsToPercent()
+    local database = UI:GetDatabase("itemRating", { profiles = {} })
+    if database.catWeightUnitsVersion == 2 then
+        return
+    end
+
+    local druid = database.profiles and database.profiles.DRUID
+    local overrides = druid and druid.cat
+    if overrides then
+        for key, perPercent in pairs(self.ratingPerPercent) do
+            local saved = overrides[key]
+            if ValidWeight(saved) then
+                overrides[key] = saved * perPercent
+            end
+        end
+    end
+
+    database.catWeightUnitsVersion = 2
 end
 
 function Module:ApplySavedWeights(classFile, spec)
@@ -62,6 +108,9 @@ function Module:RegisterProfile(classFile, spec, profile)
     self.profiles[classFile][spec] = profile
     profile.classFile = classFile
     profile.spec = spec
+    if classFile == "DRUID" and spec == "cat" then
+        self:MigrateCatWeightsToPercent()
+    end
     self:ApplySavedWeights(classFile, spec)
 end
 

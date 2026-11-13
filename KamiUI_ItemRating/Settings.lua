@@ -17,20 +17,20 @@ local FIELDS = {
     { "ITEM_MOD_SPIRIT_SHORT", "Spirit" },
     { "ITEM_MOD_ATTACK_POWER_SHORT", "Attack Power" },
     { "ITEM_MOD_FERAL_ATTACK_POWER_SHORT", "Feral Attack Power" },
-    { "ITEM_MOD_CRIT_RATING_SHORT", "Crit Rating" },
-    { "ITEM_MOD_HIT_RATING_SHORT", "Hit Rating" },
-    { "ITEM_MOD_HASTE_RATING_SHORT", "Haste Rating" },
-    { "ITEM_MOD_EXPERTISE_RATING_SHORT", "Expertise Rating" },
-    { "ITEM_MOD_ARMOR_PENETRATION_RATING_SHORT", "Armor Pen. Rating" },
+    { "ITEM_MOD_CRIT_RATING_SHORT", "Crit (%)" },
+    { "ITEM_MOD_HIT_RATING_SHORT", "Hit (%)" },
+    { "ITEM_MOD_HASTE_RATING_SHORT", "Haste (%)" },
+    { "ITEM_MOD_EXPERTISE_RATING_SHORT", "Expertise (%)" },
+    { "ITEM_MOD_ARMOR_PENETRATION_RATING_SHORT", "Armor Pen. (%)" },
     { "ITEM_MOD_DAMAGE_PER_SECOND_SHORT", "Weapon DPS" },
     { "ITEM_MOD_WEAPON_DAMAGE_SHORT", "Weapon Damage" },
     { "ITEM_MOD_SPELL_POWER_SHORT", "Spell Power" },
     { "ITEM_MOD_SPELL_DAMAGE_DONE_SHORT", "Spell Damage" },
     { "ITEM_MOD_SPELL_HEALING_DONE_SHORT", "Spell Healing" },
-    { "ITEM_MOD_DODGE_RATING_SHORT", "Dodge Rating" },
-    { "ITEM_MOD_PARRY_RATING_SHORT", "Parry Rating" },
-    { "ITEM_MOD_DEFENSE_SKILL_RATING_SHORT", "Defense Rating" },
-    { "ITEM_MOD_BLOCK_RATING_SHORT", "Block Rating" },
+    { "ITEM_MOD_DODGE_RATING_SHORT", "Dodge (%)" },
+    { "ITEM_MOD_PARRY_RATING_SHORT", "Parry (%)" },
+    { "ITEM_MOD_DEFENSE_SKILL_RATING_SHORT", "Defense Skill" },
+    { "ITEM_MOD_BLOCK_RATING_SHORT", "Block (%)" },
     { "ITEM_MOD_BLOCK_VALUE_SHORT", "Block Value" },
     { "ITEM_MOD_MANA_REGENERATION_SHORT", "Mana Regen" },
 }
@@ -144,33 +144,22 @@ local function ShowStatTooltip(button)
 end
 
 
--- Read-only auto-attack approximation. In Cat Form the unhasted base
--- swing is 1s, so average normal-hit damage is normalized Cat DPS.
--- Haste cancels from the Crit-to-AP ratio:
--- 1% Crit equivalent = 14 * normal hit DPS / (100 + Crit%).
--- Does not model skills, hit tables, crit talents or the rotation.
+-- Read-only melee auto-attack approximation for any class or form.
+-- Normalize average damage per swing by unhasted main-hand speed:
+-- increased melee haste boosts Crit and AP equally, so it cancels.
+-- 1% Crit AP equivalent = 14 * normalized DPS / (100 + Crit%).
+-- Does not model abilities, offhands, crit talents or the hit table.
 local function ReadLiveCritEquivalent()
-    if not GetShapeshiftFormID or not UnitAttackPower
-        or not UnitDamage or not GetCritChance then
+    if not UnitAttackPower or not UnitDamage or not GetCritChance
+        or not UnitAttackSpeed or not GetMeleeHaste then
         return nil, "unavailable"
-    end
-
-    local formID = UI:SafeCall(GetShapeshiftFormID)
-    if formID == nil then
-        return nil, "form" -- humanoid form
-    end
-
-    if not UI:CanAccessValue(formID) or type(formID) ~= "number" then
-        return nil, "unavailable"
-    end
-
-    if formID ~= 1 then
-        return nil, "form"
     end
 
     local baseAP, positiveAP, negativeAP =
         UI:SafeCall(UnitAttackPower, "player")
     local minDamage, maxDamage = UI:SafeCall(UnitDamage, "player")
+    local currentSwing = UI:SafeCall(UnitAttackSpeed, "player")
+    local meleeHaste = UI:SafeCall(GetMeleeHaste)
     local critPct = UI:SafeCall(GetCritChance)
 
     local function ValidNumber(number)
@@ -183,12 +172,20 @@ local function ReadLiveCritEquivalent()
     if not ValidNumber(baseAP) or not ValidNumber(positiveAP)
         or not ValidNumber(negativeAP) or not ValidNumber(minDamage)
         or not ValidNumber(maxDamage) or not ValidNumber(critPct)
-        or critPct < 0 or minDamage <= 0 or maxDamage <= 0 then
+        or not ValidNumber(currentSwing) or not ValidNumber(meleeHaste)
+        or critPct < 0 or minDamage <= 0 or maxDamage <= 0
+        or currentSwing <= 0 or meleeHaste <= -100 then
         return nil, "unavailable"
     end
 
     local attackPower = baseAP + positiveAP + negativeAP
-    local normalDPS = (minDamage + maxDamage) / 2
+    local averageHit = (minDamage + maxDamage) / 2
+    local baseSwing = currentSwing * (1 + meleeHaste / 100)
+    if baseSwing <= 0 then
+        return nil, "unavailable"
+    end
+
+    local normalDPS = averageHit / baseSwing
     local apEquivalent = 14 * normalDPS / (100 + critPct)
 
     if not ValidNumber(apEquivalent) then
@@ -199,6 +196,10 @@ local function ReadLiveCritEquivalent()
         attackPower = attackPower,
         critPct = critPct,
         normalDPS = normalDPS,
+        averageHit = averageHit,
+        currentSwing = currentSwing,
+        baseSwing = baseSwing,
+        meleeHaste = meleeHaste,
         apEquivalent = apEquivalent,
     }
 end
@@ -216,8 +217,6 @@ local function RefreshLiveCrit(frame)
         frame.liveCritLabel:SetText(string.format(
             "1%% Crit = %.1f AP", values.apEquivalent
         ))
-    elseif status == "form" then
-        frame.liveCritLabel:SetText("1% Crit: Cat only")
     else
         frame.liveCritLabel:SetText("1% Crit: n/a")
     end
@@ -232,17 +231,10 @@ local function ShowLiveCritTooltip(hitbox)
 
     local values = frame.liveCritSnapshot
     if not values then
-        if frame.liveCritStatus == "form" then
-            GameTooltip:AddLine(
-                "Enter Cat Form to calculate from Cat damage.",
-                0.75, 0.78, 0.84, true
-            )
-        else
-            GameTooltip:AddLine(
-                "Current combat stats are unavailable.",
-                0.75, 0.78, 0.84, true
-            )
-        end
+        GameTooltip:AddLine(
+            "Current melee combat stats are unavailable.",
+            0.75, 0.78, 0.84, true
+        )
     else
         GameTooltip:AddDoubleLine(
             "Current Attack Power",
@@ -255,12 +247,25 @@ local function ShowLiveCritTooltip(hitbox)
             0.8, 0.8, 0.85, 1, 0.82, 0.31
         )
         GameTooltip:AddDoubleLine(
-            "Average normal Cat hit",
-            string.format("%.2f", values.normalDPS),
+            "Average normal melee hit",
+            string.format("%.2f", values.averageHit),
+            0.8, 0.8, 0.85, 1, 0.82, 0.31
+        )
+        GameTooltip:AddDoubleLine(
+            "Current / base swing speed",
+            string.format(
+                "%.2fs / %.2fs",
+                values.currentSwing, values.baseSwing
+            ),
+            0.8, 0.8, 0.85, 1, 0.82, 0.31
+        )
+        GameTooltip:AddDoubleLine(
+            "Melee haste",
+            string.format("%.2f%%", values.meleeHaste),
             0.8, 0.8, 0.85, 1, 0.82, 0.31
         )
         GameTooltip:AddLine(
-            "14 x normal hit DPS / (100 + Crit%)",
+            "14 x (average hit / base speed) / (100 + Crit%)",
             0.7, 0.76, 0.84
         )
         GameTooltip:AddDoubleLine(
@@ -268,21 +273,19 @@ local function ShowLiveCritTooltip(hitbox)
             string.format("%.2f AP", values.apEquivalent),
             1, 0.82, 0.31, 1, 0.82, 0.31
         )
-        GameTooltip:AddLine(
-            string.format(
-                "At level 60: %.4f AP per Crit Rating",
-                values.apEquivalent / 14
-            ),
-            0.72, 0.85, 0.75
+        GameTooltip:AddDoubleLine(
+            "Suggested Crit (%) Base",
+            string.format("%.4f", values.apEquivalent),
+            0.72, 0.85, 0.75, 1, 0.82, 0.31
         )
         GameTooltip:AddLine(
-            "Crit Rating input is per rating point (14 = 1% at level 60).",
+            "Editor Crit (%) weights are per +1 percentage point.",
             0.62, 0.66, 0.73, true
         )
     end
 
     GameTooltip:AddLine(
-        "Approximation: auto-attacks, 200% crit damage; excludes abilities, talents and the hit table.",
+        "Approximation: main-hand auto-attacks, 200% crit damage; excludes offhands, abilities, talents and the hit table.",
         0.62, 0.66, 0.73, true
     )
     GameTooltip:AddLine(
@@ -489,7 +492,7 @@ local function CreateSettingsWindow()
     )
     note:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 17, 47)
     Styles:ApplyText(note, "muted", Palette.muted)
-    note:SetText("Hover stats for multiplier details. Scroll for more.")
+    note:SetText("Percent stats use +1% units. Hover for details.")
 
     local reset = CreateFrame("Button", nil, frame)
     reset:SetSize(115, 23)

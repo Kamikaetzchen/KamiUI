@@ -8,9 +8,12 @@ local Module = KamiUI:GetModule("ItemRating")
 -- 1 Strength = 2 AP; 1 Agility = 1 AP + 1/20 of 1% crit.
 -- Kings and Heart of the Wild apply as separate runtime multipliers.
 -- 1% crit = ~27.89 AP equivalents is still simulation-derived.
+-- Secondary combat weights below are AP-equivalents per 1% (not per
+-- raw rating point); Core maps GetItemStats ratings to item tooltip
+-- percentages before each score contribution.
 --
--- Forever item APIs return COMBAT RATINGS, not percentages:
--- 14 Crit / 10 Hit / 10 Haste = 1% at level 60.
+-- Forever item APIs return raw COMBAT RATINGS even though tooltips
+-- show percent: 14 Crit / 10 Hit / 10 Haste = +1%.
 -- The weighting is a provisional LEVEL-60 reference at all levels;
 -- caps, complex talents, procs and gear dependencies are NOT applied.
 -- Weapon DPS and flat Weapon Damage: provisional 14 AP equivalents.
@@ -22,11 +25,11 @@ Module:RegisterProfile("DRUID", "cat", {
         ITEM_MOD_AGILITY_SHORT = 1 + 27.89 / 20,
         ITEM_MOD_ATTACK_POWER_SHORT = 1,
         ITEM_MOD_FERAL_ATTACK_POWER_SHORT = 1,
-        ITEM_MOD_CRIT_RATING_SHORT = (10.6 / 14) / 0.38,
-        ITEM_MOD_HIT_RATING_SHORT = (6.57 / 10) / 0.38,
-        ITEM_MOD_HASTE_RATING_SHORT = (4.24 / 10) / 0.38,
-        ITEM_MOD_EXPERTISE_RATING_SHORT = 0.75 / 0.38,
-        ITEM_MOD_ARMOR_PENETRATION_RATING_SHORT = 0.13 / 0.38,
+        ITEM_MOD_CRIT_RATING_SHORT = 10.6 / 0.38,
+        ITEM_MOD_HIT_RATING_SHORT = 6.57 / 0.38,
+        ITEM_MOD_HASTE_RATING_SHORT = 4.24 / 0.38,
+        ITEM_MOD_EXPERTISE_RATING_SHORT = 0.75 * 10 / 0.38,
+        ITEM_MOD_ARMOR_PENETRATION_RATING_SHORT = 0.13 * 10 / 0.38,
         ITEM_MOD_DAMAGE_PER_SECOND_SHORT = 14,
         ITEM_MOD_WEAPON_DAMAGE_SHORT = 14, -- flat +1 Weapon Damage
 

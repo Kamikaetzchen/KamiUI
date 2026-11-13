@@ -142,7 +142,10 @@ function Module:RateItem(itemLink, profile)
     for key, weight in pairs(weights) do
         local amount = Number(stats[key])
         if amount then
-            score = score + amount * weight
+            -- GetItemStats reports raw rating, while our editor values
+            -- rating-derived stats per visible +1% on the item tooltip.
+            local displayAmount = self:GetDisplayStatAmount(key, amount)
+            score = score + displayAmount * weight
             recognized = true
         end
     end
