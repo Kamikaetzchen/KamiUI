@@ -2412,9 +2412,41 @@ local function BuildLiveRecipeEntries(frame)
     local orderedCategories = {}
 
     for _, category in pairs(categories) do
+        -- Sort recipes within each category by skill tier, hardest first.
+        -- maxTrivialLevel is the profession skill at which the recipe
+        -- becomes grey, so it preserves the order even when all recipes
+        -- currently share the same color. The relative difficulty
+        -- distinguishes recipes with an identical trivial threshold.
         table.sort(category.recipes, function(left, right)
-            return (left.info.name or "")
-                < (right.info.name or "")
+            local leftInfo, rightInfo = left.info, right.info
+            local leftLevel = leftInfo.maxTrivialLevel
+            local rightLevel = rightInfo.maxTrivialLevel
+            leftLevel = type(leftLevel) == "number"
+                and UI:CanAccessValue(leftLevel) and leftLevel or -1
+            rightLevel = type(rightLevel) == "number"
+                and UI:CanAccessValue(rightLevel) and rightLevel or -1
+            if leftLevel ~= rightLevel then
+                return leftLevel > rightLevel
+            end
+
+            local leftDifficulty = leftInfo.relativeDifficulty
+            local rightDifficulty = rightInfo.relativeDifficulty
+            leftDifficulty = type(leftDifficulty) == "number"
+                and UI:CanAccessValue(leftDifficulty)
+                and leftDifficulty or 99
+            rightDifficulty = type(rightDifficulty) == "number"
+                and UI:CanAccessValue(rightDifficulty)
+                and rightDifficulty or 99
+            if leftDifficulty ~= rightDifficulty then
+                return leftDifficulty < rightDifficulty
+            end
+
+            local leftName = leftInfo.name or ""
+            local rightName = rightInfo.name or ""
+            if leftName ~= rightName then
+                return leftName < rightName
+            end
+            return left.recipeID < right.recipeID
         end)
         orderedCategories[#orderedCategories + 1] = category
     end
