@@ -295,9 +295,19 @@ local function ScanMounts(catalog)
             -- nil is not proof of ownership. Forever can return an
             -- absent collection flag for entries not learned yet.
             if name and spell and collected == true then
-                Add(catalog, "mount", spell, name, icon,
+                -- Mount journal entries have a mount ID distinct from the
+                -- summoning spell ID. Forever mounts are summoned through
+                -- the journal API, not through a learned spell action.
+                local useJournal = C_MountJournal.SummonByID ~= nil
+                Add(catalog, "mount", useJournal and id or spell, name,
+                    icon,
                     (usable and 100000 or 0) + (favorite and 20000 or 0),
-                    1, "spell")
+                    1, useJournal and "mount" or "spell")
+                local entry = catalog.mount[
+                    (useJournal and "mount:" or "spell:")
+                        .. tostring(useJournal and id or spell)
+                ]
+                if entry then entry.spellID = spell end
             end
         end
     elseif GetNumCompanions and GetCompanionInfo then
@@ -356,7 +366,10 @@ local function Action(button, entry)
     -- preserves item-ID actions as stacks move between bag slots.
     local key = entry and entry.key
     if button.actionKey == key then return end
-    button:SetAttribute("type1", entry and entry.kind or nil)
+    -- Mounts use C_MountJournal.SummonByID on a real click. They are not
+    -- generic secure spell/item actions; keep the secure type unset.
+    button:SetAttribute("type1", entry and
+        entry.kind ~= "mount" and entry.kind or nil)
     button:SetAttribute("item1", entry and entry.kind == "item"
         and ("item:" .. entry.id) or nil)
     button:SetAttribute("spell1", entry and entry.kind == "spell"
@@ -406,7 +419,9 @@ local function IconButton(button, size, category)
             if self.entry.kind == "item" then
                 GameTooltip:SetHyperlink("item:" .. self.entry.id)
             elseif GameTooltip.SetSpellByID then
-                GameTooltip:SetSpellByID(self.entry.id)
+                GameTooltip:SetSpellByID(
+                    self.entry.spellID or self.entry.id
+                )
             else
                 GameTooltip:SetText(self.entry.name)
             end
@@ -417,6 +432,23 @@ local function IconButton(button, size, category)
         GameTooltip:Show()
     end)
     button:SetScript("OnLeave", function() GameTooltip:Hide() end)
+
+    -- The journal API is callable by addons on a hardware-driven click.
+    -- Do not attempt CastSpellByID here: mount spell IDs don't necessarily
+    -- behave like spells learned in the player's spellbook.
+    button:HookScript("PostClick", function(self, mouseButton, down)
+        if mouseButton ~= "LeftButton" or down
+            or not self.entry or self.entry.kind ~= "mount"
+        then
+            return
+        end
+
+        if C_MountJournal and C_MountJournal.SummonByID then
+            C_MountJournal.SummonByID(self.entry.id)
+        else
+            UI:Print("Mount journal summoning is unavailable.")
+        end
+    end)
 end
 
 local function Display(button, entry, placeholder, favorite)
