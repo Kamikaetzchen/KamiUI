@@ -646,43 +646,13 @@ local function PositionCombatBar()
     positioningCombatBar = false
 end
 
--- Combat log profession spam is SPELL_CREATE. The native "What happened
--- to me?" filter can include that event; disable only this event there,
--- without mirroring or rewriting Blizzard's protected combat log text.
-local function FilterUnrelatedCombatCrafting()
-    local config = _G.Blizzard_CombatLog_Filters
-    local myFilterName = _G.QUICKBUTTON_NAME_ME
-    if not config or not config.filters or not myFilterName then
-        return
-    end
-
-    for index, filter in ipairs(config.filters) do
-        if filter.name == myFilterName
-            or filter.quickButtonName == myFilterName then
-            local changed = false
-            for _, subfilter in ipairs(filter.filters or {}) do
-                if subfilter.eventList
-                    and subfilter.eventList.SPELL_CREATE ~= false then
-                    subfilter.eventList.SPELL_CREATE = false
-                    changed = true
-                end
-            end
-
-            if changed and config.currentFilter == index
-                and not (InCombatLockdown and InCombatLockdown())
-                and _G.C_CombatLog
-                and C_CombatLog.ApplyFilterSettings then
-                C_CombatLog.ApplyFilterSettings(filter)
-            end
-        end
-    end
-end
-
+-- Blizzard's combat log filter configuration triggers protected
+-- ClearEventFilters() when applied. Do not mutate its filter tables or
+-- apply settings from addon code (taint / ADDON_ACTION_FORBIDDEN).
 local function SetupCombatLog()
     if C_AddOns and C_AddOns.LoadAddOn then
         C_AddOns.LoadAddOn("Blizzard_CombatLog")
     end
-    FilterUnrelatedCombatCrafting()
 
     Module.backends.combat = ChatFrame2
 
@@ -973,7 +943,6 @@ function Module:Initialize()
 
     UI:RegisterEvent("ADDON_LOADED", function(_, addonName)
         if addonName == "Blizzard_CombatLog" and Module.started then
-            FilterUnrelatedCombatCrafting()
             HideStockChatUI()
             PositionCombatBar()
         end
