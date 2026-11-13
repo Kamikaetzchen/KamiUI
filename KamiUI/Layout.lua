@@ -62,6 +62,7 @@ UI.Layout = {
         COLLAPSED_WIDTH = 120,
         HEADER_HEIGHT = 24,
         MAX_HEIGHT_RATIO = 0.35,
+        EXPANDED_MAX_HEIGHT_RATIO = 0.75,
         CONTENT_PADDING = 6,
         SECTION_HEADER_HEIGHT = 20,
         HEADER_INDENT = 2,
