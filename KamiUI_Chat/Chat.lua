@@ -543,39 +543,58 @@ local function StyleNativeChatFrame(frame, parent, topInset)
     HideFrameChrome(frame)
 end
 
--- Edit Mode can restore ChatFrame1's saved Blizzard position *after*
--- our layout runs. Keep its original chat backend, but correct the visual
--- anchors whenever that layout system moves it away from the KamiUI panel.
-local generalAnchorElapsed = 0
+-- Blizzard/Edit Mode may restore both the position and the size of native
+-- chat frames after our layout. The previous guard only compared X, so
+-- vertical drift and right-inset changes could go undetected indefinitely.
+local managedAnchorElapsed = 0
 
-local function KeepGeneralChatAnchored(_, elapsed)
-    generalAnchorElapsed = generalAnchorElapsed + elapsed
-    if generalAnchorElapsed < 0.5 then return end
-    generalAnchorElapsed = 0
+local function KeepManagedChatAnchored(_, elapsed)
+    managedAnchorElapsed = managedAnchorElapsed + elapsed
+    if managedAnchorElapsed < 0.3 then return end
+    managedAnchorElapsed = 0
 
     if not Module.started or not Module.leftPanel then return end
     if InCombatLockdown and InCombatLockdown() then return end
 
-    local frame = Module.backends.general
     local panel = Module.leftPanel
-    if not frame then return end
+    local panelLeft, panelRight = panel:GetLeft(), panel:GetRight()
+    local panelTop, panelBottom = panel:GetTop(), panel:GetBottom()
+    if not panelLeft or not panelRight or not panelTop
+        or not panelBottom then return end
 
-    local left, panelLeft = frame:GetLeft(), panel:GetLeft()
-    if not left or not panelLeft then return end
+    for _, config in ipairs(leftTabs) do
+        local frame = Module.backends[config.key]
+        if frame then
+            local topInset = Layout.PADDING
+            if config.key == "combat" then
+                local bar = _G.CombatLogQuickButtonFrame_Custom
+                if bar then
+                    topInset = bar:GetHeight() + Layout.PADDING
+                end
+            end
 
-    if math.abs(left - panelLeft - Layout.PADDING) <= 1 then
-        return
+            local left, right = frame:GetLeft(), frame:GetRight()
+            local top, bottom = frame:GetTop(), frame:GetBottom()
+            local misplaced = frame:GetParent() ~= panel
+                or frame:GetNumPoints() ~= 2
+                or not left or not right or not top or not bottom
+                or math.abs(left - (panelLeft + Layout.PADDING)) > 1
+                or math.abs(right - (panelRight - Layout.PADDING)) > 1
+                or math.abs(top - (panelTop - topInset)) > 1
+                or math.abs(bottom - (panelBottom + Layout.PADDING)) > 1
+
+            if misplaced then
+                if frame:GetParent() ~= panel then
+                    frame:SetParent(panel)
+                end
+                frame:ClearAllPoints()
+                frame:SetPoint("TOPLEFT", panel, "TOPLEFT",
+                    Layout.PADDING, -topInset)
+                frame:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT",
+                    -Layout.PADDING, Layout.PADDING)
+            end
+        end
     end
-
-    frame:ClearAllPoints()
-    frame:SetPoint(
-        "TOPLEFT", panel, "TOPLEFT",
-        Layout.PADDING, -Layout.PADDING
-    )
-    frame:SetPoint(
-        "BOTTOMRIGHT", panel, "BOTTOMRIGHT",
-        -Layout.PADDING, Layout.PADDING
-    )
 end
 
 local function HideStockFrame(frame)
@@ -627,10 +646,43 @@ local function PositionCombatBar()
     positioningCombatBar = false
 end
 
+-- Combat log profession spam is SPELL_CREATE. The native "What happened
+-- to me?" filter can include that event; disable only this event there,
+-- without mirroring or rewriting Blizzard's protected combat log text.
+local function FilterUnrelatedCombatCrafting()
+    local config = _G.Blizzard_CombatLog_Filters
+    local myFilterName = _G.QUICKBUTTON_NAME_ME
+    if not config or not config.filters or not myFilterName then
+        return
+    end
+
+    for index, filter in ipairs(config.filters) do
+        if filter.name == myFilterName
+            or filter.quickButtonName == myFilterName then
+            local changed = false
+            for _, subfilter in ipairs(filter.filters or {}) do
+                if subfilter.eventList
+                    and subfilter.eventList.SPELL_CREATE ~= false then
+                    subfilter.eventList.SPELL_CREATE = false
+                    changed = true
+                end
+            end
+
+            if changed and config.currentFilter == index
+                and not (InCombatLockdown and InCombatLockdown())
+                and _G.C_CombatLog
+                and C_CombatLog.ApplyFilterSettings then
+                C_CombatLog.ApplyFilterSettings(filter)
+            end
+        end
+    end
+end
+
 local function SetupCombatLog()
     if C_AddOns and C_AddOns.LoadAddOn then
         C_AddOns.LoadAddOn("Blizzard_CombatLog")
     end
+    FilterUnrelatedCombatCrafting()
 
     Module.backends.combat = ChatFrame2
 
@@ -763,8 +815,8 @@ function Module:ApplyLayout()
     EnsureTabs()
     PositionPanels()
     PositionTabs()
-    -- Guard against Edit Mode restoring the stock chat position later.
-    Module.leftPanel:SetScript("OnUpdate", KeepGeneralChatAnchored)
+    -- Watch all four frame edges, not just General's left edge.
+    Module.leftPanel:SetScript("OnUpdate", KeepManagedChatAnchored)
     HideStockChatUI()
     PositionManagedChatFrames()
     StyleInputEditBox()
@@ -921,6 +973,7 @@ function Module:Initialize()
 
     UI:RegisterEvent("ADDON_LOADED", function(_, addonName)
         if addonName == "Blizzard_CombatLog" and Module.started then
+            FilterUnrelatedCombatCrafting()
             HideStockChatUI()
             PositionCombatBar()
         end
