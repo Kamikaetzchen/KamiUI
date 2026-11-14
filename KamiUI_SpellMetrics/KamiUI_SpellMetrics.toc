@@ -2,7 +2,7 @@
 ## Title: KamiUI - Spell Metrics
 ## Notes: Spell throughput and efficiency analysis for KamiUI
 ## Author: Kami Katze
-## Version: 0.1.2
+## Version: 0.1.3
 ## IconTexture: Interface\Icons\Spell_Holy_MagicalSentry
 ## RequiredDeps: KamiUI, KamiUI_ActionBars
 ## OptionalDeps: KamiUI_Tooltips
