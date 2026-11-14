@@ -847,7 +847,8 @@ local function DebugFrameBounds(label, frame)
     UI:Print(string.format(
         "  parent=%s scale=%.2f effective=%.2f level=%d",
         DebugFrameName(frame:GetParent()), frame:GetScale(),
-        frame:GetEffectiveScale(), frame:GetFrameLevel()
+        frame:GetEffectiveScale(),
+        frame.GetFrameLevel and frame:GetFrameLevel() or 0
     ))
 end
 
