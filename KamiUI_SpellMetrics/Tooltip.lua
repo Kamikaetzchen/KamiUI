@@ -237,6 +237,13 @@ local function AddSpellAnalysis(tooltip, data, resolvedSpellID)
 
     AddComboMetrics(tooltip, analysis)
 
+    if analysis.discountedEnergyCost then
+        tooltip:AddLine(string.format(
+            "Poised: current cost %d Energy; sustained DPE uses %d.",
+            analysis.discountedEnergyCost, analysis.resourceCost
+        ), 0.65, 0.65, 0.68, true)
+    end
+
     if analysis.comboAPEstimate then
         local five = analysis.comboVariants
             and analysis.comboVariants[5]
@@ -258,14 +265,6 @@ local function AddSpellAnalysis(tooltip, data, resolvedSpellID)
                 .. "armor. Normal in-game hits are lower.",
             0.65, 0.65, 0.68, true
         )
-        if analysis.discountedEnergyCost then
-            tooltip:AddLine(string.format(
-                "Temporary Energy cost: %d (Poised or another buff); "
-                    .. "DPE uses normal %d Energy.",
-                analysis.discountedEnergyCost,
-                analysis.resourceCost
-            ), 0.65, 0.65, 0.68, true)
-        end
     end
 
     local crit = analysis.critComponents
