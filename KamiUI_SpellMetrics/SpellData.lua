@@ -911,6 +911,32 @@ UI:RegisterCommand(
             )
         )
 
+        if analysis.talentModifiers then
+            local m = analysis.talentModifiers
+            UI:Print(
+                "Druid talent ranks:",
+                "Savage Fury=" .. tostring(m.savageFury),
+                "Genesis=" .. tostring(m.genesis),
+                "Naturalist=" .. tostring(m.naturalist),
+                "Shredding Attacks=" .. tostring(m.shreddingAttacks),
+                "Natural Instinct=" .. tostring(
+                    Module:GetDruidTalentRank("naturalInstinct")
+                )
+            )
+        end
+
+        if UnitDamage then
+            local _, _, _, _, _, _, percent =
+                UI:SafeCall(UnitDamage, "player")
+            if UI:CanAccessValue(percent)
+                and type(percent) == "number" then
+                UI:Print(
+                    "UnitDamage percent modifier:",
+                    string.format("%.4f", percent)
+                )
+            end
+        end
+
         if analysis.weaponEstimate then
             UI:Print(
                 "Weapon estimate:",
