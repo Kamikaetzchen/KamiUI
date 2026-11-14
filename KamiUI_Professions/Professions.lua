@@ -726,11 +726,46 @@ function Module:InitializeData()
     end)
 
     UI:RegisterEvent("SKILL_LINES_CHANGED", function()
-        Module:SnapshotProfessionSkills()
+        -- Wait until the game's profession slots reflect an unlearn.
+        C_Timer.After(0, function()
+            Module:SnapshotProfessionSkills()
 
-        if Module.RefreshFrame then
-            Module:RefreshFrame()
-        end
+            -- A removed profession must not remain as a cached card.
+            if GetProfessions and GetProfessionInfo then
+                local _, character = GetCurrentCharacterData()
+                local saved = character and character.professions
+                local slots = { GetProfessions() }
+                local learnedPrimary = {}
+
+                for slot = 1, 2 do
+                    if slots[slot] then
+                        local skillLineID = select(
+                            7, GetProfessionInfo(slots[slot])
+                        )
+                        if skillLineID then
+                            learnedPrimary[skillLineID] = true
+                        end
+                    end
+                end
+
+                for skillLineID, profession in pairs(saved or {}) do
+                    local isPrimary =
+                        profession.isPrimaryProfession == true
+                        or (profession.professionSlot or 99) <= 2
+                    if isPrimary
+                        and not learnedPrimary[skillLineID]
+                        and not learnedPrimary[
+                            profession.parentProfessionID
+                        ] then
+                        saved[skillLineID] = nil
+                    end
+                end
+            end
+
+            if Module.RefreshFrame then
+                Module:RefreshFrame()
+            end
+        end)
     end)
 
     for _, event in ipairs({
