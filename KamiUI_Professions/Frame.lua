@@ -963,11 +963,11 @@ local function LayoutOverviewAbilities(
         button:SetSize(size, size)
         button:ClearAllPoints()
         button:SetPoint(
-            "RIGHT",
+            "BOTTOMRIGHT",
             card,
-            "RIGHT",
+            "BOTTOMRIGHT",
             -8 - (visible - 1) * (size + spacing),
-            0
+            isPrimary and 8 or 7
         )
         button.icon:SetTexture(ability.icon)
         button:SetAlpha(
@@ -1056,6 +1056,57 @@ local function AcquireOverviewCard(frame, index)
             Module:OpenProfession(self.profession)
         end
     end)
+
+    -- Keep the destructive action separate from the profession card click.
+    local unlearn = CreateFrame("Button", nil, card)
+    unlearn:SetSize(18, 18)
+    unlearn:SetPoint("TOPRIGHT", card, "TOPRIGHT", -8, -8)
+    unlearn:SetFrameLevel(card:GetFrameLevel() + 1)
+    Styles:EnsureBackground(unlearn, "KamiBackground", Palette.slot)
+    Styles:CreateBorder(unlearn, Palette.difficulty.veryHard)
+
+    local unlearnText = unlearn:CreateFontString(
+        nil, "OVERLAY", "GameFontNormalSmall"
+    )
+    unlearnText:SetAllPoints()
+    unlearnText:SetJustifyH("CENTER")
+    Styles:ApplyText(unlearnText, 12, Palette.difficulty.veryHard)
+    unlearnText:SetText("X")
+
+    unlearn:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_CURSOR_RIGHT")
+        GameTooltip:SetText(UNLEARN_SKILL_TOOLTIP or "Unlearn profession")
+        GameTooltip:Show()
+    end)
+    unlearn:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
+    unlearn:SetScript("OnClick", function(self)
+        local profession = self.profession
+        if not profession or not GetProfessions
+            or not GetProfessionInfo or not StaticPopup_Show then
+            return
+        end
+
+        -- Validate against the player's actual two primary professions;
+        -- cached characters and secondary professions cannot be unlearned.
+        local slots = { GetProfessions() }
+        for slot = 1, 2 do
+            local index = slots[slot]
+            if index then
+                local name, _, _, _, _, _, skillLineID =
+                    GetProfessionInfo(index)
+                if skillLineID == profession.professionID then
+                    StaticPopup_Show(
+                        "UNLEARN_SKILL", name, nil, skillLineID
+                    )
+                    return
+                end
+            end
+        end
+    end)
+    unlearn:Hide()
+    card.unlearnButton = unlearn
 
     card.abilityButtons = {}
     frame.overviewCards[index] = card
@@ -1169,18 +1220,28 @@ local function FinishOverviewCardLayout(
         isPrimary
     )
 
+    card.unlearnButton.profession =
+        isPrimary and isCurrent and profession or nil
+    card.unlearnButton:SetShown(isPrimary and isCurrent)
+
+    -- Leave room for the top-right X even with no profession ability.
+    local textReservedWidth = math.max(
+        reservedWidth,
+        isPrimary and isCurrent and 26 or 0
+    )
+
     card.name:SetPoint(
         "RIGHT",
         card,
         "RIGHT",
-        -8 - reservedWidth,
+        -8 - textReservedWidth,
         0
     )
     card.rank:SetPoint(
         "RIGHT",
         card,
         "RIGHT",
-        -8 - reservedWidth,
+        -8 - textReservedWidth,
         0
     )
 
