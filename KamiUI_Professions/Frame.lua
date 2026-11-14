@@ -3623,6 +3623,32 @@ function Module:InitializeFrame()
         end
     end)
 
+    -- ItemDB captures actual (reputation-discounted) prices at merchants.
+    -- Refresh after its merchant handlers have populated the price cache.
+    local merchantPriceRefreshQueued = false
+    local function QueueMerchantPriceRefresh()
+        local frame = Module.frame
+        if not frame or not frame:IsShown()
+            or not frame.craftingPage:IsShown()
+            or merchantPriceRefreshQueued then
+            return
+        end
+
+        merchantPriceRefreshQueued = true
+        C_Timer.After(0.1, function()
+            merchantPriceRefreshQueued = false
+
+            local current = Module.frame
+            if current and current:IsShown()
+                and current.craftingPage:IsShown() then
+                Module:RefreshRecipeDetails()
+            end
+        end)
+    end
+
+    UI:RegisterEvent("MERCHANT_SHOW", QueueMerchantPriceRefresh)
+    UI:RegisterEvent("MERCHANT_UPDATE", QueueMerchantPriceRefresh)
+
     UI:RegisterEvent("PLAYER_REGEN_ENABLED", function()
         if Module.pendingNativeVisualSuppression then
             Module:SuppressNativeFrame()
