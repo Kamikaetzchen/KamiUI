@@ -1,4 +1,4 @@
-# KamiUI - Spell Metrics (v0.1.2)
+# KamiUI - Spell Metrics (v0.1.3)
 
 Tooltip and action-bar estimates, based on the client's spell descriptions,
 current weapon damage from `UnitDamage("player")`, and readable combat
@@ -67,3 +67,25 @@ Hit/Expertise caps are not applied in SpellMetrics.
   is used rather than silently reporting an AP-free Bite as complete.
   `/kami spellmetrics debug 22828` shows all parsed combo values for
   the level-48 Bite rank, including the estimated AP contribution.
+
+## Ferocious Bite reference versus real hits (v0.1.3)
+
+* The 612–662 rank-4 tooltip range is a fixed **base** range; it matches
+  the Forever spell database even with a player's gear changing. The
+  earlier assumption that the tooltip had already included AP was wrong.
+* Classic Bite scales by 7% AP per Combo Point. Forever's November
+  tuning notes say AP scaling was increased by **about 25%**, so this
+  version assumes **8.75% AP per CP**. This still needs direct client
+  validation; it is not an exact extracted coefficient.
+* The displayed Combo Damage and 1-second DPS are **expected damage
+  before armor**, including averaged critical strikes and available
+  talent multipliers. They are *not* the typical non-critical hit in a
+  combat log. Physical Bite is reduced by enemy armor, whereas Rip's
+  bleed bypasses armor. A new 5-CP noncrit (before armor) line makes
+  this distinction visible and avoids misleading Bite/Rip comparisons.
+* **Poised** is a one-use, out-of-combat 10-Energy discount. When the
+  player's native Bite tooltip shows 25 Energy, the DPE estimate still
+  uses its normal **35 Energy** for sustained rotation comparisons;
+  the temporary discounted cost is shown separately.
+* Predatory Discipline can add bonus damage from remaining Energy;
+  this bonus is still **excluded** from these estimates.
