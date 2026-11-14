@@ -1,10 +1,11 @@
 ## Interface: 16001
 ## Title: KamiUI - Quests
-## Notes: Automatic quest accept and turn-in for KamiUI
+## Notes: Quest automation and persistent quest log headers
 ## Author: Kami Katze
 ## Version: 0.1.2
 ## IconTexture: Interface\GossipFrame\AvailableQuestIcon
 ## RequiredDeps: KamiUI
 
 Quests.lua
+QuestLog.lua
 TargetMacro.lua
