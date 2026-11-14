@@ -238,11 +238,34 @@ local function AddSpellAnalysis(tooltip, data, resolvedSpellID)
     AddComboMetrics(tooltip, analysis)
 
     if analysis.comboAPEstimate then
+        local five = analysis.comboVariants
+            and analysis.comboVariants[5]
+        if five then
+            tooltip:AddDoubleLine(
+                "5 CP normal hit (before armor)",
+                Module:FormatMetric(five.amount),
+                LABEL_COLOR[1], LABEL_COLOR[2], LABEL_COLOR[3],
+                VALUE_COLOR[1], VALUE_COLOR[2], VALUE_COLOR[3]
+            )
+        end
         tooltip:AddLine(
-            "~ Bite: includes estimated 7% AP per Combo Point; "
-                .. "no excess-Energy bonus.",
+            "~ Bite: 8.75% AP per CP estimate (Forever); "
+                .. "no bonus from excess Energy.",
             0.65, 0.65, 0.68, true
         )
+        tooltip:AddLine(
+            "Damage/DPS above is CRIT-AVERAGED before target "
+                .. "armor. Normal in-game hits are lower.",
+            0.65, 0.65, 0.68, true
+        )
+        if analysis.discountedEnergyCost then
+            tooltip:AddLine(string.format(
+                "Temporary Energy cost: %d (Poised or another buff); "
+                    .. "DPE uses normal %d Energy.",
+                analysis.discountedEnergyCost,
+                analysis.resourceCost
+            ), 0.65, 0.65, 0.68, true)
+        end
     end
 
     local crit = analysis.critComponents
