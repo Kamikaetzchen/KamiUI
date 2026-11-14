@@ -1,4 +1,4 @@
-# KamiUI - Spell Metrics (v0.1.1)
+# KamiUI - Spell Metrics (v0.1.2)
 
 Tooltip and action-bar estimates, based on the client's spell descriptions,
 current weapon damage from `UnitDamage("player")`, and readable combat
@@ -46,3 +46,24 @@ damage-meter or training-target comparison can help validate it.
 
 Omen of Clarity procs, misses, dodges, mana sustain and the
 Hit/Expertise caps are not applied in SpellMetrics.
+
+## Macro tooltips and Ferocious Bite (v0.1.2)
+
+* The action-bar overlay can already resolve spells from macros using
+  LibActionButton's `GetSpellId()`. The native `SetAction` tooltip is a
+  separate Macro data type, not necessarily a Spell tooltip. We register
+  a guarded Macro post-callback and resolve the spell from the owning
+  **KamiUI** action button, leaving the native tooltip intact. The
+  ordinary Spell callback remains unchanged.
+* Ferocious Bite on Forever lists its 1–5 CP damage as **ranges**
+  (e.g. `5 points: 612-662 damage`). The parser now accepts ranges and
+  uses their midpoint for direct, combo-breakdown, and per-Energy metrics.
+* When its tooltip says AP increases damage, estimates add the classic
+  coefficient of **0.07 x attack power x combo points** to the
+  currently learned Bite rank. The exact Forever implementation of
+  this coefficient requires in-game validation. This estimate excludes
+  additional damage from excess Energy: assume a 35-Energy Bite.
+* If attack power is unreadable during combat, the last valid estimate
+  is used rather than silently reporting an AP-free Bite as complete.
+  `/kami spellmetrics debug 22828` shows all parsed combo values for
+  the level-48 Bite rank, including the estimated AP contribution.
