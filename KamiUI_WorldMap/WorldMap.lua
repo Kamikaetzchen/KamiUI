@@ -102,7 +102,16 @@ local function SkinWorldMap()
             and border.TitleContainer.TitleText
             or border.TitleText
         if title then
+            header:SetTitle(title:GetText() or WORLD_MAP)
             title:SetAlpha(0)
+        end
+
+        -- OpenMap/Blizzard change the native title when the map is
+        -- maximized. Keep our header synchronized with that label.
+        if hooksecurefunc and type(border.SetTitle) == "function" then
+            hooksecurefunc(border, "SetTitle", function(_, text)
+                header:SetTitle(text)
+            end)
         end
 
         map:HookScript("OnShow", StyleBreadcrumbs)
