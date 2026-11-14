@@ -102,6 +102,14 @@ local function DPS(model, crit, frenzyRank)
 end
 
 local function ReadModel()
+    -- UnitDamage feeds SpellMetrics: humanoid/Bear form would produce
+    -- misleading Shred values for a Cat boss rotation.
+    if UnitPowerType then
+        local power = Number(UI:SafeCall(UnitPowerType, "player"))
+        if power ~= 3 then
+            return nil, "Cat Form required for live Shred damage"
+        end
+    end
     local spellMetrics = UI:GetModule("SpellMetrics")
     if not spellMetrics or not spellMetrics.GetSpellAnalysis then
         return nil, "SpellMetrics addon not loaded"
