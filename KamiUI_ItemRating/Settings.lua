@@ -373,7 +373,8 @@ local function ShowLiveCritTooltip(hitbox)
             string.format("%.2f AP", values.apEquivalent),
             0.8, 0.8, 0.85, 1, 0.82, 0.31
         )
-        if values.naturalInstinctRank ~= nil then
+        if values.naturalInstinctRank ~= nil
+            and values.naturalInstinctFactor then
             GameTooltip:AddDoubleLine(
                 "Natural Instinct",
                 string.format("%d/2", values.naturalInstinctRank),
