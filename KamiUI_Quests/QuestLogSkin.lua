@@ -70,10 +70,14 @@ local function StyleQuest(button)
     if not button then return end
 
     local info = button.info
+    if info and not UI:CanAccessValue(info) then
+        info = nil
+    end
     local level = info and (
         info.difficultyLevel or info.level
     )
-    local color = type(level) == "number" and level > 0
+    local color = UI:CanAccessValue(level)
+        and type(level) == "number" and level > 0
         and Palette:GetLevelDifficultyColor(level)
         or Palette.text
 
