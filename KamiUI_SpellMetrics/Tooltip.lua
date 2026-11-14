@@ -237,6 +237,14 @@ local function AddSpellAnalysis(tooltip, data, resolvedSpellID)
 
     AddComboMetrics(tooltip, analysis)
 
+    if analysis.comboAPEstimate then
+        tooltip:AddLine(
+            "~ Bite: includes estimated 7% AP per Combo Point; "
+                .. "no excess-Energy bonus.",
+            0.65, 0.65, 0.68, true
+        )
+    end
+
     local crit = analysis.critComponents
     if crit then
         local first = crit.direct or crit.periodic or crit.combo
