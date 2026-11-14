@@ -239,6 +239,41 @@ function Module:GetBloodFrenzyRotationStatus()
     return status
 end
 
+-- Small live diagnostic: verify spellbook data and talent ranks without
+-- assuming the model is available. Does not modify saved weights.
+UI:RegisterCommand("rating", "rotation", function()
+    local crit = GetCritChance
+        and UI:SafeCall(GetCritChance)
+    if not UI:CanAccessValue(crit) or type(crit) ~= "number" then
+        UI:Print("Blood Frenzy rotation: Crit unavailable")
+        return
+    end
+    local factor, info = Module:GetBloodFrenzyCritFactor(crit)
+    if not factor then
+        UI:Print("Blood Frenzy rotation:",
+            (info and info.status) or "unavailable")
+        return
+    end
+    UI:Print(string.format(
+        "Blood Frenzy %d/2: Crit factor x%.4f",
+        info.rank, factor
+    ))
+    if info.secondsPerRip then
+        UI:Print(string.format(
+            "Shred %.1f casts (%.0f E each), Rip %.0f E,"
+                .. " cycle %.1fs, Rip uptime %.1f%%, regen %.1f E/s",
+            info.shredsPerRip, info.shredEnergy,
+            info.ripEnergy, info.secondsPerRip,
+            100 * info.ripUptime, info.regen
+        ))
+        UI:Print(
+            "Shredding Attacks:", tostring(info.shreddingRank),
+            "Rend and Tear:", tostring(info.rendRank),
+            "Shifting Power:", tostring(info.shifting)
+        )
+    end
+end, "Show Blood Frenzy Shred/Rip rotation estimate")
+
 -- No combat-log reading and no protected Blizzard API calls.
 for _, event in ipairs({
     "SPELLS_CHANGED", "PLAYER_ENTERING_WORLD",
