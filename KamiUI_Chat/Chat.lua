@@ -468,6 +468,15 @@ local function StyleNativeChatFrame(frame, parent, topInset)
 
     FCF_SetLocked(frame, true)
 
+    -- Blizzard clamps chat frames away from screen edges to reserve space
+    -- for native buttons and the edit box. Those elements are hidden/moved
+    -- in KamiUI, so clamping shifts an otherwise correctly anchored frame.
+    -- This API is restricted during combat on protected frames.
+    if not (InCombatLockdown and InCombatLockdown())
+        and frame.SetClampedToScreen then
+        frame:SetClampedToScreen(false)
+    end
+
     -- Anchor the chat to our panel rather than Blizzard's Edit Mode
     -- position. The edit box remains a child of ChatFrame1, as required
     -- by Blizzard's SendMessage() implementation.
@@ -584,6 +593,11 @@ local function KeepManagedChatAnchored(_, elapsed)
                 or math.abs(bottom - (panelBottom + Layout.PADDING)) > 1
 
             if misplaced then
+                -- Blizzard may restore clamping along with the chat layout.
+                -- Unclamp before reapplying anchors, never during combat.
+                if frame.IsClampedToScreen and frame:IsClampedToScreen() then
+                    frame:SetClampedToScreen(false)
+                end
                 if frame:GetParent() ~= panel then
                     frame:SetParent(panel)
                 end
@@ -941,6 +955,16 @@ local function DebugChatLayout()
     UI:Print("  FontString regions: " .. count
         .. ", isDocked=" .. tostring(frame.isDocked)
         .. ", isStaticDocked=" .. tostring(frame.isStaticDocked))
+    if frame.IsClampedToScreen then
+        UI:Print("  clampedToScreen=" .. tostring(frame:IsClampedToScreen()))
+    end
+    if frame.GetClampRectInsets then
+        local l, r, t, b = frame:GetClampRectInsets()
+        UI:Print(string.format(
+            "  clamp insets: %.1f %.1f %.1f %.1f",
+            l or 0, r or 0, t or 0, b or 0
+        ))
+    end
 end
 
 UI:RegisterCommand(
