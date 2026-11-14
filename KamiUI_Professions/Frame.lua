@@ -1059,14 +1059,14 @@ local function AcquireOverviewCard(frame, index)
 
     -- Keep the destructive action separate from the profession card click.
     local unlearn = Components:CreateWindowCloseButton(card, {
-        width = 18,
-        height = 18,
+        width = 14.4,
+        height = 14.4,
         point = "TOPRIGHT",
-        x = -8,
-        y = -8,
+        x = -2,
+        y = -2,
         frameLevelOffset = 1,
-        artSize = 16,
-        crossSize = 7,
+        artSize = 12.8,
+        crossSize = 5.6,
     })
 
     unlearn:SetScript("OnEnter", function(self)
