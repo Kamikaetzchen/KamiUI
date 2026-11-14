@@ -740,7 +740,10 @@ function Module:BuildSpellData(spellID)
     -- relevant comparison for this player's ordinary rotation.
     if biteRank[spellID] and comboVariants
         and lower:find("damage is increased by your attack power",
-            1, true) and UnitAttackPower then
+            1, true) then
+        if not UnitAttackPower then
+            return nil, "noAttackPower"
+        end
         local base, positive, negative =
             UI:SafeCall(UnitAttackPower, "player")
         if type(base) == "number" and UI:CanAccessValue(base)
@@ -758,6 +761,10 @@ function Module:BuildSpellData(spellID)
                 and comboVariants[comboPoints].amount
                 or comboDamage
             comboAPEstimate = true
+        else
+            -- Do not display an underestimated Bite as a complete
+            -- damage number when the AP component cannot be read.
+            return nil, "noAttackPower"
         end
     end
 
@@ -884,7 +891,8 @@ function Module:GetSpellAnalysis(spellID)
         -- When instance combat temporarily makes UnitDamage inaccessible,
         -- keep showing the last known value instead of a blank button.
         self.lastValidAnalyses[spellID] = analysis
-    elseif reason == "noWeaponDamage" or reason == "noTooltip" then
+    elseif reason == "noWeaponDamage" or reason == "noTooltip"
+        or reason == "noAttackPower" then
         -- These are temporary data failures, not unsupported spells.
         -- Do not cache the failure: the next refresh should retry.
         return self.lastValidAnalyses[spellID], reason
@@ -990,6 +998,25 @@ UI:RegisterCommand(
                     "UnitDamage percent modifier:",
                     string.format("%.4f", percent)
                 )
+            end
+        end
+
+        if analysis.comboVariants then
+            for cp = 1, 5 do
+                local variant = analysis.comboVariants[cp]
+                if variant then
+                    UI:Print(string.format(
+                        "Combo %d: %.2f base after AP/talents, %.2f expected",
+                        cp, variant.amount,
+                        analysis.comboMetrics
+                            and analysis.comboMetrics[cp]
+                            and analysis.comboMetrics[cp].damage or 0
+                    ))
+                end
+            end
+            if analysis.comboAPEstimate then
+                UI:Print("Bite: +7% AP per CP estimated; "
+                    .. "excess Energy excluded")
             end
         end
 
