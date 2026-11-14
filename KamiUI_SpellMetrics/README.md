@@ -1,4 +1,4 @@
-# KamiUI - Spell Metrics (v0.1.3)
+# KamiUI - Spell Metrics (v0.1.4)
 
 Tooltip and action-bar estimates, based on the client's spell descriptions,
 current weapon damage from `UnitDamage("player")`, and readable combat
@@ -89,3 +89,19 @@ Hit/Expertise caps are not applied in SpellMetrics.
   the temporary discounted cost is shown separately.
 * Predatory Discipline can add bonus damage from remaining Energy;
   this bonus is still **excluded** from these estimates.
+
+## Poised correction for all Cat Energy abilities (v0.1.4)
+
+* The previous v0.1.3 fix recognized Poised only for Ferocious Bite.
+* Poised buff (spell ID **1328827**) reduces the cost of the **next**
+  affected Energy spell by 10, not just Bite. We now detect the buff
+  via `C_UnitAuras.GetPlayerAuraBySpellID` and normalize the parsed
+  Energy cost for Ferocious Bite, Shred, Claw, Rake, Rip, Ravage,
+  Pounce, and Cower. Unaffected abilities and spells without the buff
+  remain unchanged.
+* Display the temporary discounted cost separately in **any** affected
+  SpellMetrics tooltip; DPE uses the normal cost. Shredding Attacks'
+  ongoing Shred reduction is preserved and still applied afterwards.
+* The client should be checked outside combat with and without Poised;
+  when the aura API cannot safely read its state, we leave the parsed
+  cost as-is rather than invent a buff.
