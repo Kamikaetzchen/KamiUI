@@ -82,7 +82,7 @@ UI.Layout = {
 
     Chat = {
         LEFT_WIDTH = 500,
-        HEIGHT = 220,
+        HEIGHT = 240,
         TAB_HEIGHT = 22,
         INPUT_HEIGHT = 24,
         PADDING = 4,
