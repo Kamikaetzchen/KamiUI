@@ -172,8 +172,9 @@ function Module:ApplyDruidTalentModifiers(data)
     local genesis = self:GetDruidTalentRank("genesis")
     local naturalist = self:GetDruidTalentRank("naturalist")
     local shredding = self:GetDruidTalentRank("shreddingAttacks")
-    local name = data.name and type(data.name) == "string"
-        and data.name:lower() or ""
+    local currentName = SpellName(data.spellID) or data.name
+    local name = currentName and type(currentName) == "string"
+        and currentName:lower() or ""
 
     data.talentModifiers = {
         savageFury = savage,
