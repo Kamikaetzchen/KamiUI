@@ -245,6 +245,8 @@ local function ReadLiveCritEquivalent()
     local naturalInstinctRank
     local naturalInstinctFactor
     local catCritApEquivalent
+    local bloodFrenzyFactor
+    local bloodFrenzyInfo
     if UnitClass then
         local _, classFile = UI:SafeCall(UnitClass, "player")
         if UI:CanAccessValue(classFile) and classFile == "DRUID" then
@@ -253,10 +255,12 @@ local function ReadLiveCritEquivalent()
                 naturalInstinctFactor = Module:GetNaturalInstinctCritFactor(
                     critPct
                 )
-                if naturalInstinctFactor then
-                    catCritApEquivalent = apEquivalent * naturalInstinctFactor
-                end
             end
+            bloodFrenzyFactor, bloodFrenzyInfo =
+                Module:GetBloodFrenzyCritFactor(critPct)
+            catCritApEquivalent = apEquivalent
+                * (naturalInstinctFactor or 1)
+                * (bloodFrenzyFactor or 1)
         end
     end
 
@@ -292,6 +296,8 @@ local function ReadLiveCritEquivalent()
         naturalInstinctRank = naturalInstinctRank,
         naturalInstinctFactor = naturalInstinctFactor,
         catCritApEquivalent = catCritApEquivalent,
+        bloodFrenzyFactor = bloodFrenzyFactor,
+        bloodFrenzyInfo = bloodFrenzyInfo,
         attackPower = attackPower,
         critPct = critPct,
         normalDPS = normalDPS,
@@ -401,6 +407,45 @@ local function ShowLiveCritTooltip(hitbox)
                 0.75, 0.72, 0.60, true
             )
         end
+        local rotation = values.bloodFrenzyInfo
+        if values.bloodFrenzyFactor and rotation then
+            GameTooltip:AddDoubleLine(
+                "Blood Frenzy",
+                string.format("%d/2; x%.4f Crit value",
+                    rotation.rank, values.bloodFrenzyFactor),
+                0.8, 0.8, 0.85, 1, 0.82, 0.31
+            )
+            if rotation.secondsPerRip then
+                GameTooltip:AddDoubleLine(
+                    "Shred / Rip cycle",
+                    string.format("%.2f Shreds / %.1f sec",
+                        rotation.shredsPerRip, rotation.secondsPerRip),
+                    0.8, 0.8, 0.85, 1, 0.82, 0.31
+                )
+                GameTooltip:AddDoubleLine(
+                    "Rip uptime (estimate)",
+                    string.format("%.1f%%", 100 * rotation.ripUptime),
+                    0.8, 0.8, 0.85, 1, 0.82, 0.31
+                )
+                GameTooltip:AddDoubleLine(
+                    "Shred energy / energy per sec",
+                    string.format("%.0f / %.1f",
+                        rotation.shredEnergy, rotation.regen),
+                    0.8, 0.8, 0.85, 1, 0.82, 0.31
+                )
+            end
+        elseif rotation and rotation.status then
+            GameTooltip:AddLine(
+                "Blood Frenzy: " .. rotation.status,
+                0.75, 0.72, 0.60, true
+            )
+        end
+        GameTooltip:AddLine(
+            "Boss model: Shred to 5 CP, then Rip. Shifting Power "
+            .. "assumes enough Mana; no Omen procs, Rake, Bite or "
+            .. "encounter movement. Approximate DPS-based Crit factor.",
+            0.62, 0.66, 0.73, true
+        )
         GameTooltip:AddDoubleLine(
             "Suggested Crit (%) Base",
             string.format("%.4f", values.apEquivalent),
@@ -456,7 +501,7 @@ local function ShowLiveCritTooltip(hitbox)
     end
 
     GameTooltip:AddLine(
-        "Base suggestions exclude Natural Instinct and Kings; Effective applies those separately. Crit values use an approximate Cat damage mix.",
+        "Base suggestions exclude talents and Kings. Effective adds Natural Instinct, Blood Frenzy and optional Kings; model is approximate.",
         0.62, 0.66, 0.73, true
     )
     GameTooltip:AddLine(
@@ -739,6 +784,8 @@ for _, event in ipairs({
     "UPDATE_SHAPESHIFT_FORM",
     "PLAYER_ENTERING_WORLD",
     "PLAYER_REGEN_ENABLED",
+    "SPELLS_CHANGED",
+    "PLAYER_LEVEL_UP",
 }) do
     UI:RegisterEvent(event, UpdateLiveCritIfOpen)
 end
