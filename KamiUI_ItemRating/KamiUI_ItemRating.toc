@@ -2,13 +2,14 @@
 ## Title: KamiUI - Item Rating
 ## Notes: Feral Cat item scores and equipped-item comparisons for WoW Forever
 ## Author: Kami Katze
-## Version: 0.5.5
+## Version: 0.5.6
 ## IconTexture: Interface\Icons\Ability_Druid_CatForm
 ## RequiredDeps: KamiUI
-## OptionalDeps: KamiUI_Characters
+## OptionalDeps: KamiUI_Characters, KamiUI_SpellMetrics
 
 Core.lua
 Profiles\DruidCat.lua
+Rotation.lua
 Rating.lua
 Tooltip.lua
 Settings.lua
