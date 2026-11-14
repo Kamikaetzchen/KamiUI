@@ -99,6 +99,20 @@ local function RememberHeader(index, isAuto)
     end
 end
 
+-- Header indexes are not stable across ExpandQuestHeader/CollapseQuestHeader:
+-- either call fires QUEST_LOG_UPDATE, and Forever may rebuild the list.
+-- Resolve each pending header against the LIVE quest log immediately
+-- before changing it, not against an index captured before earlier edits.
+local function FindHeaderToRestore(title, wantCollapsed)
+    for index = GetHeaderCount(), 1, -1 do
+        local currentTitle, collapsed = GetHeader(index)
+
+        if currentTitle == title and collapsed ~= wantCollapsed then
+            return index
+        end
+    end
+end
+
 local function RestoreHeaders()
     if restoring or not QuestMapFrame or not QuestMapFrame:IsShown()
         or not ExpandQuestHeader or not CollapseQuestHeader then
@@ -113,8 +127,8 @@ local function RestoreHeaders()
     local states = GetHeaderStates()
     local changes = {}
 
-    -- Work backwards so collapsing a header cannot affect an index
-    -- we still need to visit.
+    -- Capture identities and requested states only. Never retain an
+    -- index across quest log mutations or impose an addon sort order.
     for index = GetHeaderCount(), 1, -1 do
         local title, collapsed = GetHeader(index)
 
@@ -123,7 +137,7 @@ local function RestoreHeaders()
 
             if collapsed ~= wantCollapsed then
                 changes[#changes + 1] = {
-                    index = index,
+                    title = title,
                     collapsed = wantCollapsed,
                 }
             end
@@ -136,10 +150,19 @@ local function RestoreHeaders()
 
     local ok, err = pcall(function()
         for _, change in ipairs(changes) do
-            if change.collapsed then
-                CollapseQuestHeader(change.index)
-            else
-                ExpandQuestHeader(change.index)
+            local index = FindHeaderToRestore(
+                change.title, change.collapsed
+            )
+
+            -- Native quest updates may have already applied this state
+            -- or moved the header; skip it instead of editing a stale
+            -- position (which can expand/collapse all headers).
+            if index then
+                if change.collapsed then
+                    CollapseQuestHeader(index)
+                else
+                    ExpandQuestHeader(index)
+                end
             end
         end
     end)
