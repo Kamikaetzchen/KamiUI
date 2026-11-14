@@ -2,7 +2,7 @@
 ## Title: KamiUI - Chat
 ## Notes: Chat frame module for KamiUI
 ## Author: Kami Katze
-## Version: 0.1.3
+## Version: 0.1.4
 ## IconTexture: Interface\Icons\INV_Letter_15
 ## RequiredDeps: KamiUI
 
