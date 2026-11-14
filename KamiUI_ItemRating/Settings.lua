@@ -423,6 +423,20 @@ local function ShowLiveCritTooltip(hitbox)
                     0.8, 0.8, 0.85, 1, 0.82, 0.31
                 )
                 GameTooltip:AddDoubleLine(
+                    "Shredding Attacks",
+                    rotation.shreddingRank
+                        and string.format("%d/3", rotation.shreddingRank)
+                        or "unknown; spell cost used",
+                    0.8, 0.8, 0.85, 1, 0.82, 0.31
+                )
+                GameTooltip:AddDoubleLine(
+                    "Rend and Tear",
+                    rotation.rendRank
+                        and string.format("%d/5", rotation.rendRank)
+                        or "unknown; no bonus assumed",
+                    0.8, 0.8, 0.85, 1, 0.82, 0.31
+                )
+                GameTooltip:AddDoubleLine(
                     "Rip uptime (estimate)",
                     string.format("%.1f%%", 100 * rotation.ripUptime),
                     0.8, 0.8, 0.85, 1, 0.82, 0.31
