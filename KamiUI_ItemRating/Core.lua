@@ -202,6 +202,7 @@ local PRIMARY_STATS = {
 }
 
 local HEART_OF_THE_WILD_SPELL = 17003
+local NATURAL_INSTINCT_SPELL = 1223242 -- Forever: max 2 ranks
 
 local function SafeNumeric(value)
     return UI:CanAccessValue(value) and type(value) == "number"
@@ -211,7 +212,7 @@ end
 -- Forever uses Retail-style C_Traits, not the removed Classic talent UI.
 -- Read only the local player's committed/active configuration; never inspect.
 -- A failed lookup returns nil (unknown), NOT zero talent points.
-local function ReadHeartOfTheWildRank()
+local function ReadTalentRank(talentSpellID, maxRank)
     if not C_Traits or not C_Traits.GetConfigInfo
         or not C_Traits.GetTreeNodes or not C_Traits.GetNodeInfo
         or not C_Traits.GetEntryInfo
@@ -280,13 +281,13 @@ local function ReadHeartOfTheWildRank()
                                     local spellID = definition
                                         and UI:CanAccessValue(definition)
                                         and SafeNumeric(definition.spellID)
-                                    if spellID == HEART_OF_THE_WILD_SPELL then
+                                    if spellID == talentSpellID then
                                         local rank = SafeNumeric(
                                             node.activeRank
                                         ) or SafeNumeric(node.currentRank)
                                         if rank then
                                             return math.max(
-                                                0, math.min(5, rank)
+                                                0, math.min(maxRank, rank)
                                             )
                                         end
                                         return nil
@@ -305,6 +306,8 @@ end
 function Module:InvalidateTalentCache()
     self.heartOfTheWildChecked = false
     self.heartOfTheWildRank = nil
+    self.naturalInstinctChecked = false
+    self.naturalInstinctRank = nil
 end
 
 function Module:GetHeartOfTheWildRank()
@@ -318,12 +321,30 @@ function Module:GetHeartOfTheWildRank()
         return self.heartOfTheWildRank
     end
 
-    local rank = ReadHeartOfTheWildRank()
+    local rank = ReadTalentRank(HEART_OF_THE_WILD_SPELL, 5)
     if rank ~= nil then
         self.heartOfTheWildRank = rank
         self.heartOfTheWildChecked = true
     end
     return self.heartOfTheWildRank
+end
+
+-- Active Forever Natural Instinct rank (0/2, 1/2 or 2/2), using
+-- the same trait lookup and combat-safe cache as Heart of the Wild.
+function Module:GetNaturalInstinctRank()
+    if self.naturalInstinctChecked then
+        return self.naturalInstinctRank
+    end
+    if InCombatLockdown and InCombatLockdown() then
+        return self.naturalInstinctRank
+    end
+
+    local rank = ReadTalentRank(NATURAL_INSTINCT_SPELL, 2)
+    if rank ~= nil then
+        self.naturalInstinctRank = rank
+        self.naturalInstinctChecked = true
+    end
+    return self.naturalInstinctRank
 end
 
 -- The editable Strength base is exactly 2 AP per Strength in Cat.
