@@ -1058,20 +1058,16 @@ local function AcquireOverviewCard(frame, index)
     end)
 
     -- Keep the destructive action separate from the profession card click.
-    local unlearn = CreateFrame("Button", nil, card)
-    unlearn:SetSize(18, 18)
-    unlearn:SetPoint("TOPRIGHT", card, "TOPRIGHT", -8, -8)
-    unlearn:SetFrameLevel(card:GetFrameLevel() + 1)
-    Styles:EnsureBackground(unlearn, "KamiBackground", Palette.slot)
-    Styles:CreateBorder(unlearn, Palette.difficulty.veryHard)
-
-    local unlearnText = unlearn:CreateFontString(
-        nil, "OVERLAY", "GameFontNormalSmall"
-    )
-    unlearnText:SetAllPoints()
-    unlearnText:SetJustifyH("CENTER")
-    Styles:ApplyText(unlearnText, 12, Palette.difficulty.veryHard)
-    unlearnText:SetText("X")
+    local unlearn = Components:CreateWindowCloseButton(card, {
+        width = 18,
+        height = 18,
+        point = "TOPRIGHT",
+        x = -8,
+        y = -8,
+        frameLevelOffset = 1,
+        artSize = 16,
+        crossSize = 7,
+    })
 
     unlearn:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_CURSOR_RIGHT")
