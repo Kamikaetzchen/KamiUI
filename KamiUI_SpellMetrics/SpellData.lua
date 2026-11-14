@@ -774,7 +774,7 @@ function Module:BuildSpellData(spellID)
         return nil, "noExecutionTime"
     end
 
-    return {
+    local result = {
         spellID = spellID,
         name = texts[1],
         description = description,
@@ -796,6 +796,11 @@ function Module:BuildSpellData(spellID)
         weaponMultiplier = weaponMultiplier,
         weaponBonus = weaponBonus,
     }
+
+    if self.ApplyDruidTalentModifiers then
+        self:ApplyDruidTalentModifiers(result)
+    end
+    return result
 end
 
 function Module:GetSpellAnalysis(spellID)
