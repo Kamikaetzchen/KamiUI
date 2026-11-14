@@ -193,3 +193,38 @@ Cat DPS profile, without changing stored weights:
   item scores do not automatically subtract over-cap stats.
 * Other stats without a reliable universal cap (such as Haste or Armor
   Penetration) deliberately show no fixed numeric cap.
+
+## Blood Frenzy boss-rotation estimate (v0.5.6)
+
+* Added optional dependency on **KamiUI_SpellMetrics**. The player's
+  highest trained Shred/Rip ranks are resolved from the native spellbook;
+  raw Shred damage and Rip's 5-CP damage come from SpellMetrics. Missing
+  information produces an explicit unavailable status, not an invented
+  rotation bonus.
+* **Boss model:** Shred only to 5 CP, then Rip. No Rake on a bleeding
+  boss, no Ferocious Bite or excess-Energy Bite bonus. Blood Frenzy
+  adds a second CP on a nonperiodic Shred crit with rank 1 = 50%, rank
+  2 = 100% probability. The 5-CP expectation accounts for wasted CP
+  from procs at 4 CP. It uses level/gear-dependent Crit.
+* Shred Energy = 60 - 6 per Shredding Attacks rank (up to 3), read from
+  the active trait config; if unavailable use SpellMetrics' parsed cost.
+  Rip energy and damage come from SpellMetrics.
+* Passive Energy = 10/sec plus an idealized 40/8 = 5/sec if Shifting
+  Power is learned. **Mana limits, missed cooldowns and energy overcap
+  are not simulated**, so projected finisher frequency is an upper bound.
+* Rip isn't clipped: estimated cycle time is the greater of 12 seconds
+  (or Rip's duration from the tooltip) and the full cycle energy cost
+  divided by Energy/sec. Rend and Tear's active rank adds 3% Shred
+  damage per point times estimated Rip uptime. The model does not
+  track individual Shred timestamps or opener damage.
+* Uses the observed **27% white damage** share to calibrate the
+  rotation's auto-attack Crit contribution at the current gear state.
+  With vs without Blood Frenzy, compare **marginal DPS from +1% Crit**;
+  their ratio modifies the existing Natural Instinct-adjusted Crit
+  value. For Agility only its Crit contribution gets that multiplier;
+  the flat 1 AP remains untouched, then Kings applies.
+* This is a **read-only, provisional Effective weight modifier**, not a
+  change to saved Base weights or a cap. The live Crit reference hover
+  reports the factor, average Shreds/Rip, cycle duration, Rip uptime,
+  and energy assumptions. For reliable use compare against combat logs
+  and revisit the model once Rip/Bite choices at level 60 are clearer.
