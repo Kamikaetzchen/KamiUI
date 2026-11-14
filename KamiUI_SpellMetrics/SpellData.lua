@@ -370,6 +370,27 @@ local function ParseComboPointDamage(lower)
         end
     end
 
+    -- Forever finishers such as Ferocious Bite display ranges:
+    -- "1 point : 152-202 damage ... 5 points: 612-662 damage".
+    -- Parse the midpoint rather than mistaking only the lower bound
+    -- for the complete average damage.
+    for _, pointPattern in ipairs(pointPatterns) do
+        local rangePattern = pointPattern .. NUMBER
+            .. "%s*%-%s*" .. NUMBER .. "%s+[%a%s]-damage"
+        for points, low, high in lower:gmatch(rangePattern) do
+            points = tonumber(points)
+            low, high = ParseNumber(low), ParseNumber(high)
+            if points and points >= 1 and points <= 5
+                and low and high and high >= low then
+                variants[points] = {
+                    amount = (low + high) / 2,
+                    low = low,
+                    high = high,
+                }
+            end
+        end
+    end
+
     for _, pointPattern in ipairs(pointPatterns) do
         local directPattern = pointPattern .. NUMBER
             .. "%s+[%a%s]-damage"
@@ -706,6 +727,40 @@ function Module:BuildSpellData(spellID)
     local periodicHealing, healingDuration =
         ParsePeriodicHealing(lower)
 
+    local comboAPEstimate
+    local biteRank = {
+        [1328618] = true, [22568] = true, [22827] = true,
+        [22828] = true, [22829] = true, [31018] = true,
+    }
+    -- The native Ferocious Bite tooltip lists rank damage ranges but
+    -- says its damage also scales with AP. The classic Feral coefficient
+    -- is +7% AP per combo point. Mark this as an estimate, since the
+    -- Forever client doesn't print the AP coefficient explicitly.
+    -- Do not model excess Energy: the base 35-Energy Bite is the
+    -- relevant comparison for this player's ordinary rotation.
+    if biteRank[spellID] and comboVariants
+        and lower:find("damage is increased by your attack power",
+            1, true) and UnitAttackPower then
+        local base, positive, negative =
+            UI:SafeCall(UnitAttackPower, "player")
+        if type(base) == "number" and UI:CanAccessValue(base)
+            and type(positive) == "number"
+            and UI:CanAccessValue(positive)
+            and type(negative) == "number"
+            and UI:CanAccessValue(negative) then
+            local attackPower = base + positive + negative
+            for points, variant in pairs(comboVariants) do
+                variant.amount = variant.amount
+                    + attackPower * 0.07 * points
+            end
+            comboDamage = comboPoints
+                and comboVariants[comboPoints]
+                and comboVariants[comboPoints].amount
+                or comboDamage
+            comboAPEstimate = true
+        end
+    end
+
     local comboDirectDamage
 
     if comboDamage then
@@ -786,6 +841,7 @@ function Module:BuildSpellData(spellID)
         resourceType = resourceType,
         comboPoints = comboPoints,
         comboVariants = comboVariants,
+        comboAPEstimate = comboAPEstimate,
         castTime = castTime,
         instant = instant,
         channeled = channeled,
