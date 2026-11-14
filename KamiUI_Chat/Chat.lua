@@ -817,6 +817,138 @@ UI:RegisterCommand(
     "Reset chat configuration"
 )
 
+-- Read-only layout diagnostics: never modify Blizzard's chat processing.
+-- /kami chat debug toggles outlines and reports the actual frame geometry.
+local function DebugFrameName(frame)
+    if not frame then return "nil" end
+    if frame.GetName then
+        return frame:GetName() or "<unnamed>"
+    end
+    return tostring(frame)
+end
+
+local function DebugFrameBounds(label, frame)
+    if not frame then
+        UI:Print(label .. ": missing")
+        return
+    end
+
+    local left, right = frame:GetLeft(), frame:GetRight()
+    local top, bottom = frame:GetTop(), frame:GetBottom()
+    if not left or not right or not top or not bottom then
+        UI:Print(label .. ": coordinates unavailable")
+        return
+    end
+
+    UI:Print(string.format(
+        "%s: L %.1f R %.1f T %.1f B %.1f (%.1fx%.1f)",
+        label, left, right, top, bottom, right - left, top - bottom
+    ))
+    UI:Print(string.format(
+        "  parent=%s scale=%.2f effective=%.2f level=%d",
+        DebugFrameName(frame:GetParent()), frame:GetScale(),
+        frame:GetEffectiveScale(), frame:GetFrameLevel()
+    ))
+end
+
+local function CreateDebugOutline(target, r, g, b)
+    local outline = CreateFrame("Frame", nil, UIParent, "BackdropTemplate")
+    outline:SetFrameStrata("TOOLTIP")
+    outline:EnableMouse(false)
+    outline:SetAllPoints(target)
+    outline:SetBackdrop({
+        edgeFile = "Interface\\Buttons\\WHITE8X8",
+        edgeSize = 2,
+    })
+    outline:SetBackdropBorderColor(r, g, b, 1)
+    return outline
+end
+
+local function DebugChatLayout()
+    if InCombatLockdown and InCombatLockdown() then
+        UI:Print("Chat debug: use outside combat")
+        return
+    end
+
+    local panel = Module.leftPanel
+    local frame = Module.backends and Module.backends.general
+    if not panel or not frame then
+        UI:Print("Chat debug: chat not initialized")
+        return
+    end
+
+    if not Module.debugOutlines then
+        Module.debugOutlines = {
+            CreateDebugOutline(panel, 0, 1, 0),
+            CreateDebugOutline(frame, 1, 0, 0),
+        }
+    end
+
+    Module.debugOutlinesShown = not Module.debugOutlinesShown
+    for _, outline in ipairs(Module.debugOutlines) do
+        outline:SetShown(Module.debugOutlinesShown)
+    end
+
+    UI:Print("Chat debug: green=panel, red=ChatFrame1; outlines "
+        .. (Module.debugOutlinesShown and "ON" or "OFF"))
+    DebugFrameBounds("Panel", panel)
+    DebugFrameBounds("General", frame)
+
+    local panelLeft, panelRight = panel:GetLeft(), panel:GetRight()
+    local panelTop, panelBottom = panel:GetTop(), panel:GetBottom()
+    local left, right = frame:GetLeft(), frame:GetRight()
+    local top, bottom = frame:GetTop(), frame:GetBottom()
+    if panelLeft and panelRight and panelTop and panelBottom
+        and left and right and top and bottom then
+        UI:Print(string.format(
+            "  offset from expected: L %+.1f R %+.1f T %+.1f B %+.1f",
+            left - panelLeft - Layout.PADDING,
+            right - panelRight + Layout.PADDING,
+            top - panelTop + Layout.PADDING,
+            bottom - panelBottom - Layout.PADDING
+        ))
+    end
+
+    for index = 1, frame:GetNumPoints() do
+        local point, relative, relativePoint, x, y = frame:GetPoint(index)
+        UI:Print(string.format(
+            "  anchor %d: %s -> %s:%s (%.1f, %.1f)",
+            index, tostring(point), DebugFrameName(relative),
+            tostring(relativePoint), x or 0, y or 0
+        ))
+    end
+
+    if frame.GetTextInsets then
+        local ok, l, r, t, b = pcall(frame.GetTextInsets, frame)
+        if ok then
+            UI:Print(string.format(
+                "  text insets: %.1f %.1f %.1f %.1f",
+                l or 0, r or 0, t or 0, b or 0
+            ))
+        end
+    end
+
+    local count = 0
+    for _, region in ipairs({ frame:GetRegions() }) do
+        if region:IsObjectType("FontString") then
+            count = count + 1
+            if count <= 3 then
+                DebugFrameBounds("Text region " .. count, region)
+            end
+        end
+    end
+    UI:Print("  FontString regions: " .. count
+        .. ", isDocked=" .. tostring(frame.isDocked)
+        .. ", isStaticDocked=" .. tostring(frame.isStaticDocked))
+end
+
+UI:RegisterCommand(
+    "chat",
+    "debug",
+    DebugChatLayout,
+    "Toggle chat bounds and inspect native frame positions"
+)
+
 -- Set Blizzard's native 24-hour chat timestamps once. Players can
 -- subsequently change the format in the standard Chat settings.
 local function EnsureChatTimestamps()
