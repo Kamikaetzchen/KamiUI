@@ -36,6 +36,7 @@ Module:RegisterProfile("DRUID", "cat", {
         -- Future class/spec profiles can assign nonzero values. The Cat
         -- profile intentionally gives no Cat-DPS credit to these stats.
         ITEM_MOD_STAMINA_SHORT = 0,
+        RESISTANCE0_NAME = 0, -- Armor, defensive; zero Cat DPS weight
         ITEM_MOD_INTELLECT_SHORT = 0,
         ITEM_MOD_SPIRIT_SHORT = 0,
         ITEM_MOD_SPELL_POWER_SHORT = 0,
