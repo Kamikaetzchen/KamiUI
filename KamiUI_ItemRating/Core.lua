@@ -308,6 +308,10 @@ function Module:InvalidateTalentCache()
     self.heartOfTheWildRank = nil
     self.naturalInstinctChecked = false
     self.naturalInstinctRank = nil
+    self.rotationTalentRanks = nil
+    if self.InvalidateRotationCache then
+        self:InvalidateRotationCache(true)
+    end
 end
 
 function Module:GetHeartOfTheWildRank()
@@ -345,6 +349,28 @@ function Module:GetNaturalInstinctRank()
         self.naturalInstinctChecked = true
     end
     return self.naturalInstinctRank
+end
+
+local ROTATION_TALENTS = {
+    bloodFrenzy = { spellID = 16958, maxRank = 2 },
+    shreddingAttacks = { spellID = 16966, maxRank = 3 },
+    rendAndTear = { spellID = 1223246, maxRank = 5 },
+}
+
+function Module:GetRotationTalentRank(name)
+    local talent = ROTATION_TALENTS[name]
+    if not talent then return nil end
+    self.rotationTalentRanks = self.rotationTalentRanks or {}
+    local known = self.rotationTalentRanks[name]
+    if known ~= nil then return known end
+    if InCombatLockdown and InCombatLockdown() then
+        return nil
+    end
+    local rank = ReadTalentRank(talent.spellID, talent.maxRank)
+    if rank ~= nil then
+        self.rotationTalentRanks[name] = rank
+    end
+    return rank
 end
 
 -- 27% measured Cat white damage; use the remaining 73% as a
@@ -438,6 +464,41 @@ function Module:GetEffectiveWeightInfo(profile, key)
                 name = "Natural Instinct",
                 factor = 1,
                 detail = "Rank/Crit unknown; no bonus applied",
+            }
+        end
+    end
+
+    -- Blood Frenzy changes finisher frequency when Shred crits.
+    -- Apply it only after Natural Instinct, and only to Agility's
+    -- Crit contribution (never to the 1 flat AP from each Agility).
+    if classFile == "DRUID" and spec == "cat"
+        and (key == "ITEM_MOD_CRIT_RATING_SHORT"
+            or key == "ITEM_MOD_AGILITY_SHORT") then
+        local critPct = GetCritChance
+            and SafeNumeric(UI:SafeCall(GetCritChance))
+        local factor, rotation = self:GetBloodFrenzyCritFactor(critPct)
+        if factor then
+            local applied = factor
+            if key == "ITEM_MOD_AGILITY_SHORT" then
+                local before = base * multiplier
+                applied = before > 1
+                    and (1 + (before - 1) * factor) / before or 1
+            end
+            multiplier = multiplier * applied
+            effects[#effects + 1] = {
+                name = "Blood Frenzy",
+                factor = applied,
+                detail = string.format(
+                    "%d/2; 5-CP Shred/Rip, %.1fs per Rip (approx.)",
+                    rotation.rank, rotation.secondsPerRip or 0
+                ),
+            }
+        else
+            effects[#effects + 1] = {
+                name = "Blood Frenzy",
+                factor = 1,
+                detail = rotation and rotation.status
+                    or "rotation estimate unavailable",
             }
         end
     end
