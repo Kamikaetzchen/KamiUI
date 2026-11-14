@@ -347,6 +347,33 @@ function Module:GetNaturalInstinctRank()
     return self.naturalInstinctRank
 end
 
+-- 27% measured Cat white damage; use the remaining 73% as a
+-- provisional upper bound for abilities affected by Natural Instinct.
+-- This affects Effective weights only, never the stored Base weights.
+function Module:GetNaturalInstinctCritFactor(critPct)
+    local rank = self:GetNaturalInstinctRank()
+    if rank == nil then
+        return nil, nil
+    end
+    if rank == 0 then
+        return 1, rank
+    end
+
+    if not SafeNumeric(critPct) then
+        critPct = GetCritChance
+            and SafeNumeric(UI:SafeCall(GetCritChance))
+    end
+    if not critPct or critPct ~= critPct
+        or critPct < 0 or critPct > 100 then
+        return nil, rank
+    end
+
+    local c = critPct / 100
+    local bonus = 1 + rank * 0.10
+    local abilityGain = bonus * (1 + c) / (1 + c * bonus)
+    return 0.27 + 0.73 * abilityGain, rank
+end
+
 -- The editable Strength base is exactly 2 AP per Strength in Cat.
 -- Heart of the Wild and Kings are calculated on top of that base.
 -- The remaining simulation-derived secondary weights stay provisional.
@@ -374,6 +401,43 @@ function Module:GetEffectiveWeightInfo(profile, key)
                 detail = string.format(
                     "%d/5 (+%d%% Strength)", rank, rank * 2
                 ),
+            }
+        end
+    end
+
+    -- Natural Instinct improves the crit damage of Cat abilities, not
+    -- white attacks or the flat 1 AP granted by each Agility point.
+    if classFile == "DRUID" and spec == "cat"
+        and (key == "ITEM_MOD_CRIT_RATING_SHORT"
+            or key == "ITEM_MOD_AGILITY_SHORT") then
+        local talentFactor, rank = self:GetNaturalInstinctCritFactor()
+        if talentFactor then
+            local appliedFactor = talentFactor
+            if key == "ITEM_MOD_AGILITY_SHORT" then
+                -- The editable Agility base contains 1 AP + Crit value.
+                -- Preserve its flat AP; only amplify a positive Crit part.
+                appliedFactor = base > 1
+                    and (1 + (base - 1) * talentFactor) / base or 1
+            end
+            multiplier = multiplier * appliedFactor
+            effects[#effects + 1] = {
+                name = "Natural Instinct",
+                factor = appliedFactor,
+                detail = key == "ITEM_MOD_AGILITY_SHORT"
+                    and string.format(
+                        "%d/2; Crit portion x%.4f, flat 1 AP unchanged",
+                        rank, talentFactor
+                    )
+                    or string.format(
+                        "%d/2; 27%% white, 73%% ability damage estimate",
+                        rank
+                    ),
+            }
+        else
+            effects[#effects + 1] = {
+                name = "Natural Instinct",
+                factor = 1,
+                detail = "Rank/Crit unknown; no bonus applied",
             }
         end
     end
