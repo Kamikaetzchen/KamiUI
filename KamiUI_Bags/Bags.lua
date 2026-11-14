@@ -342,6 +342,8 @@ local function GetBagFamilyColor(bagID)
                     return Palette.bagFamily.soul
                 elseif subClassID == 2 then
                     return Palette.bagFamily.herbs
+                elseif subClassID == 3 then
+                    return Palette.bagFamily.enchanting
                 elseif subClassID == 6 then
                     return Palette.bagFamily.mining
                 elseif subClassID == 7 then
