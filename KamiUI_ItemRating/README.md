@@ -138,8 +138,8 @@ Cat DPS profile, without changing stored weights:
 * The local player's active `C_Traits` rank for **Natural Instinct**
   (Forever spell ID 1223242, 0–2 points) is read with the same
   combat-safe caching approach as Heart of the Wild.
-* For a known rank, the read-only suggested Crit (%) Base and suggested
-  Agility Base use a talent-aware estimate. Let `c = Crit% / 100`,
+* For a known rank, the read-only suggested Crit (%) **Effective** and
+  Agility **Effective** use a talent-aware estimate. Let `c = Crit% / 100`,
   `b = 1 + 0.10 * rank`, then
   `factor = 0.27 + 0.73 * b * (1 + c) / (1 + c * b)`.
   Multiply the existing auto-attack Crit/AP reference by this factor.
@@ -149,9 +149,28 @@ Cat DPS profile, without changing stored weights:
   Windfury, Hurricane and periodic effects that may not get Natural
   Instinct's crit bonus. Does not model the hit table, talent effects
   on combo points, or full ability AP scaling.
-* Unknown rank means **no bonus is guessed**. No saved weights or
-  actual item scores are changed automatically; use the suggested
-  values manually if desired.
+* Unknown rank means **no bonus is guessed**. The saved Base weights
+  are never overwritten. In v0.5.5, Item Rating's Effective weights
+  and item scores apply the rank-dependent Natural Instinct modifier
+  automatically, if its rank and current Crit are readable.
+
+## Consistent Base versus Effective weights (v0.5.5)
+
+* **Strength Base** remains 2 AP; Effective applies Heart of the Wild
+  and optionally Kings.
+* **Crit (%) Base** is the current live melee reference without
+  Natural Instinct. Crit Effective applies the talent's 27% white /
+  73% potentially affected damage approximation automatically.
+* **Agility Base** is 1 flat Cat AP plus the level-dependent Crit value
+  calculated without Natural Instinct. For Agility Effective, the talent
+  multiplies **only the (Base - 1 AP) Crit contribution**, never its
+  1 flat AP; optional Kings multiplies the resulting whole weight.
+* Both suggested Base and suggested Effective are shown in the live
+  hover tooltip. Only Base is intended for manual input. Changes to
+  talents/crit/buffs refresh displayed Effective weights; caps are never
+  applied. Existing custom Base overrides are preserved, so any old
+  talent-inclusive Base values should be replaced manually to avoid
+  applying the talent twice.
 
 ## Armor stat and reference caps (v0.5.4)
 
