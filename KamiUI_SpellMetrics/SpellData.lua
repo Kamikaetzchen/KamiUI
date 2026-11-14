@@ -12,6 +12,32 @@ local RESOURCE_TYPES = {
 
 local scanner
 
+-- Forever: Poised (1328827) reduces the cost of the next Energy
+-- ability by 10. The live tooltip shows that temporary discount;
+-- sustained efficiency should use the normal Energy cost instead.
+-- Only these spells are affected by the Poised aura in Forever.
+local POISED_SPELL_ID = 1328827
+local POISED_ENERGY_ABILITIES = {
+    ["ferocious bite"] = true,
+    ["shred"] = true,
+    ["claw"] = true,
+    ["rake"] = true,
+    ["rip"] = true,
+    ["ravage"] = true,
+    ["pounce"] = true,
+    ["cower"] = true,
+}
+
+local function HasPoised()
+    if not C_UnitAuras or not C_UnitAuras.GetPlayerAuraBySpellID then
+        return false
+    end
+    local aura = UI:SafeCall(
+        C_UnitAuras.GetPlayerAuraBySpellID, POISED_SPELL_ID
+    )
+    return aura ~= nil and UI:CanAccessValue(aura)
+end
+
 local function CleanText(text)
     if type(text) ~= "string"
         or not UI:CanAccessValue(text)
@@ -715,6 +741,20 @@ function Module:BuildSpellData(spellID)
     end
 
     local cost, resourceType = ParseResourceCost(texts)
+    local discountedEnergyCost
+    if cost and resourceType == "Energy" and HasPoised() then
+        local spellName = C_Spell and C_Spell.GetSpellName
+            and UI:SafeCall(C_Spell.GetSpellName, spellID)
+        if not UI:CanAccessValue(spellName) then
+            spellName = nil
+        end
+        spellName = spellName or texts[1]
+        if type(spellName) == "string"
+            and POISED_ENERGY_ABILITIES[spellName:lower()] then
+            discountedEnergyCost = cost
+            cost = cost + 10
+        end
+    end
     local castTime, instant, channeled =
         ParseCastMetadata(texts)
 
@@ -728,20 +768,10 @@ function Module:BuildSpellData(spellID)
         ParsePeriodicHealing(lower)
 
     local comboAPEstimate
-    local discountedEnergyCost
     local biteRank = {
         [1328618] = true, [22568] = true, [22827] = true,
         [22828] = true, [22829] = true, [31018] = true,
     }
-    -- Poised discounts only the NEXT Energy ability by 10.
-    -- Use the permanent 35-Energy cost for Bite efficiency, even
-    -- when a current buff makes its native tooltip show 25 Energy.
-    if biteRank[spellID] and resourceType == "Energy"
-        and cost and cost ~= 35 then
-        discountedEnergyCost = cost
-        cost = 35
-    end
-
     -- The native Forever tooltip's 1-5 CP ranges are base damage,
     -- without personal AP. Classic uses 7% AP per Combo Point; the
     -- Forever patch notes increased AP scaling by ABOUT 25%, so use
@@ -1029,7 +1059,7 @@ UI:RegisterCommand(
                 UI:Print("Bite: +8.75% AP per CP estimated; "
                     .. "excess Energy and target armor excluded")
                 if analysis.discountedEnergyCost then
-                    UI:Print("Temporary Bite Energy cost:",
+                    UI:Print("Temporary Poised Energy cost:",
                         tostring(analysis.discountedEnergyCost),
                         "standard DPE uses:",
                         tostring(analysis.resourceCost))
