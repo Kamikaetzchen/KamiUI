@@ -179,14 +179,14 @@ local function ResetTooltipMarker(tooltip)
     tooltip.KamiSpellMetricsSpellID = nil
 end
 
-local function AddSpellAnalysis(tooltip, data)
+local function AddSpellAnalysis(tooltip, data, resolvedSpellID)
     if not tooltip
         or tooltip.KamiSpellMetricsScanner
     then
         return
     end
 
-    local spellID = GetSpellID(tooltip, data)
+    local spellID = resolvedSpellID or GetSpellID(tooltip, data)
 
     if not spellID
         or tooltip.KamiSpellMetricsSpellID == spellID
@@ -283,6 +283,31 @@ local function AddSpellAnalysis(tooltip, data)
     end
 end
 
+-- LAB shows action-slot macros via GameTooltip:SetAction(), which
+-- produces a Macro tooltip rather than a Spell tooltip. The macro's
+-- resolved spell is already available from the owning LAB button.
+-- Only augment our own action buttons; never treat data.id (macro ID)
+-- as a spell ID, and never replace Blizzard's native macro tooltip.
+local function AddMacroAnalysis(tooltip)
+    if not tooltip or tooltip.KamiSpellMetricsScanner
+        or not tooltip.GetOwner then
+        return
+    end
+
+    local owner = tooltip:GetOwner()
+    if not owner or not owner.KamiSpellMetricsText
+        or not owner.GetSpellId then
+        return
+    end
+
+    local id = UI:SafeCall(owner.GetSpellId, owner)
+    if not UI:CanAccessValue(id) or type(id) ~= "number" then
+        return
+    end
+
+    AddSpellAnalysis(tooltip, nil, id)
+end
+
 local function InstallTooltipHook()
     if Module.tooltipHookInstalled then
         return
@@ -300,6 +325,12 @@ local function InstallTooltipHook()
             Enum.TooltipDataType.Spell,
             AddSpellAnalysis
         )
+        if Enum.TooltipDataType.Macro then
+            TooltipDataProcessor.AddTooltipPostCall(
+                Enum.TooltipDataType.Macro,
+                AddMacroAnalysis
+            )
+        end
     elseif GameTooltip
         and GameTooltip.HookScript
         and GameTooltip.HasScript
