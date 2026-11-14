@@ -202,10 +202,14 @@ function Module:ApplyDruidTalentModifiers(data)
                 * savageFactor + (data.weaponBonus or 0)
         end
         -- Do not multiply weapon-derived damage by Naturalist again.
-    elseif naturalist and naturalist > 0 then
-        if data.direct then
-            data.direct = data.direct * naturalistFactor
+    elseif data.direct then
+        -- Fixed-damage attacks (not built from UnitDamage) have no
+        -- automatic melee-base multiplier to inherit.
+        local factor = naturalistFactor
+        if isSavage and savage then
+            factor = factor * savageFactor
         end
+        data.direct = data.direct * factor
     end
 
     if data.periodic then
