@@ -152,3 +152,25 @@ Cat DPS profile, without changing stored weights:
 * Unknown rank means **no bonus is guessed**. No saved weights or
   actual item scores are changed automatically; use the suggested
   values manually if desired.
+
+## Armor stat and reference caps (v0.5.4)
+
+* Added **Armor** (`RESISTANCE0_NAME`, the key returned by
+  `C_Item.GetItemStats`) to the editable weight list. Its default Cat
+  DPS weight is **0** AP equivalents per point of Armor; users may set
+  a custom weight. Existing Cat DPS scores do not change by default.
+* Hovering **Hit**, **Expertise**, **Armor**, or **Defense Skill** shows
+  reference caps for a level-60 character versus a level-63 raid boss:
+  * Melee Hit: **8%** (single-weapon melee abilities and auto-attacks).
+  * Expertise: **6.5%** boss Dodge soft cap, **14%** boss Parry hard cap;
+    attacks from behind cannot be parried.
+  * Armor: **75%** maximum physical damage reduction. Under the
+    level-63 boss formula, approximately **17,265** total Armor is
+    needed; forms, buffs and target level matter.
+  * Defense: **440** total skill to remove boss crits, absent other
+    crit-immunity effects; above this, avoidance still benefits.
+* These are **informational only**, not calculations of remaining cap
+  from current equipment. Base and Effective weights remain uncapped;
+  item scores do not automatically subtract over-cap stats.
+* Other stats without a reliable universal cap (such as Haste or Armor
+  Penetration) deliberately show no fixed numeric cap.
