@@ -2,10 +2,11 @@
 ## Title: KamiUI - Quests
 ## Notes: Quest automation and persistent quest log headers
 ## Author: Kami Katze
-## Version: 0.1.3
+## Version: 0.2.0
 ## IconTexture: Interface\GossipFrame\AvailableQuestIcon
 ## RequiredDeps: KamiUI
 
 Quests.lua
 QuestLog.lua
+QuestLogSkin.lua
 TargetMacro.lua
