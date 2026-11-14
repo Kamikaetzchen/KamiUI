@@ -81,7 +81,8 @@ local function ReadTalentRanks()
     local ranks = {}
     local names = {}
     for key, item in pairs(TALENTS) do
-        ranks[key] = 0
+        -- Unknown or absent entries stay nil, never silently 0/5.
+        -- A visible unspent talent entry carries activeRank = 0.
         names[key] = SpellName(item.id)
     end
 
