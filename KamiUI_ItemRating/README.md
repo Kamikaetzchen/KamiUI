@@ -129,3 +129,26 @@ Cat DPS profile, without changing stored weights:
 * **v0.5.2 bug fix:** The API returns a fraction, not a percentage.
   v0.5.1 omitted the factor of 100 and understated the suggested
   Agility base (e.g. ~1.007 instead of ~1.70 with 11.10 AP/Crit-%).
+
+## Natural Instinct rotation proxy (v0.5.3)
+
+* Observed damage-meter auto-attacks were **26.0% in Maraudon** and
+  **27.7% in Alcaz Prison**. The live Crit/AP tooltip provisionally
+  assumes **27% white / 73% other damage** for a Cat rotation.
+* The local player's active `C_Traits` rank for **Natural Instinct**
+  (Forever spell ID 1223242, 0–2 points) is read with the same
+  combat-safe caching approach as Heart of the Wild.
+* For a known rank, the read-only suggested Crit (%) Base and suggested
+  Agility Base use a talent-aware estimate. Let `c = Crit% / 100`,
+  `b = 1 + 0.10 * rank`, then
+  `factor = 0.27 + 0.73 * b * (1 + c) / (1 + c * b)`.
+  Multiply the existing auto-attack Crit/AP reference by this factor.
+  The header displays the adjusted estimate; the hover shows the auto
+  reference, talent rank, measured share and factor.
+* **Upper-bound estimate, not exact:** 73% includes damage such as
+  Windfury, Hurricane and periodic effects that may not get Natural
+  Instinct's crit bonus. Does not model the hit table, talent effects
+  on combo points, or full ability AP scaling.
+* Unknown rank means **no bonus is guessed**. No saved weights or
+  actual item scores are changed automatically; use the suggested
+  values manually if desired.
