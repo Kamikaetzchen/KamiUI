@@ -351,15 +351,24 @@ local function UpdateButtonCooldown(button)
 
     if entry.kind == "item" and C_Container
         and C_Container.GetItemCooldown then
+        -- Forever can return no values during instance transitions or
+        -- inventory sync. Never pass nil to SetTimeFromStart().
         local start, duration = C_Container.GetItemCooldown(entry.id)
+        if not UI:CanAccessValue(start)
+            or not UI:CanAccessValue(duration)
+            or type(start) ~= "number"
+            or type(duration) ~= "number"
+            or start <= 0 or duration <= 0 then
+            cooldown:Clear()
+            return
+        end
+
         if C_DurationUtil and C_DurationUtil.CreateDuration
             and cooldown.SetCooldownFromDurationObject then
             local timer = C_DurationUtil.CreateDuration()
             timer:SetTimeFromStart(start, duration, 1)
             cooldown:SetCooldownFromDurationObject(timer, true)
-        elseif UI:CanAccessValue(start) and UI:CanAccessValue(duration)
-            and type(start) == "number"
-            and type(duration) == "number" then
+        else
             -- Fallback for older clients without native duration objects.
             cooldown:SetCooldown(start, duration)
         end
