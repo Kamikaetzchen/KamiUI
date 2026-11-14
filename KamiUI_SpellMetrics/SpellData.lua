@@ -728,16 +728,26 @@ function Module:BuildSpellData(spellID)
         ParsePeriodicHealing(lower)
 
     local comboAPEstimate
+    local discountedEnergyCost
     local biteRank = {
         [1328618] = true, [22568] = true, [22827] = true,
         [22828] = true, [22829] = true, [31018] = true,
     }
-    -- The native Ferocious Bite tooltip lists rank damage ranges but
-    -- says its damage also scales with AP. The classic Feral coefficient
-    -- is +7% AP per combo point. Mark this as an estimate, since the
-    -- Forever client doesn't print the AP coefficient explicitly.
-    -- Do not model excess Energy: the base 35-Energy Bite is the
-    -- relevant comparison for this player's ordinary rotation.
+    -- Poised discounts only the NEXT Energy ability by 10.
+    -- Use the permanent 35-Energy cost for Bite efficiency, even
+    -- when a current buff makes its native tooltip show 25 Energy.
+    if biteRank[spellID] and resourceType == "Energy"
+        and cost and cost ~= 35 then
+        discountedEnergyCost = cost
+        cost = 35
+    end
+
+    -- The native Forever tooltip's 1-5 CP ranges are base damage,
+    -- without personal AP. Classic uses 7% AP per Combo Point; the
+    -- Forever patch notes increased AP scaling by ABOUT 25%, so use
+    -- 8.75% as an explicit approximation until combat-validated.
+    -- Exclude excess Energy; actual hits are also reduced by armor.
+    local foreverBiteAPPerCP = 0.07 * 1.25
     if biteRank[spellID] and comboVariants
         and lower:find("damage is increased by your attack power",
             1, true) then
@@ -754,7 +764,7 @@ function Module:BuildSpellData(spellID)
             local attackPower = base + positive + negative
             for points, variant in pairs(comboVariants) do
                 variant.amount = variant.amount
-                    + attackPower * 0.07 * points
+                    + attackPower * foreverBiteAPPerCP * points
             end
             comboDamage = comboPoints
                 and comboVariants[comboPoints]
@@ -849,6 +859,7 @@ function Module:BuildSpellData(spellID)
         comboPoints = comboPoints,
         comboVariants = comboVariants,
         comboAPEstimate = comboAPEstimate,
+        discountedEnergyCost = discountedEnergyCost,
         castTime = castTime,
         instant = instant,
         channeled = channeled,
@@ -1015,8 +1026,14 @@ UI:RegisterCommand(
                 end
             end
             if analysis.comboAPEstimate then
-                UI:Print("Bite: +7% AP per CP estimated; "
-                    .. "excess Energy excluded")
+                UI:Print("Bite: +8.75% AP per CP estimated; "
+                    .. "excess Energy and target armor excluded")
+                if analysis.discountedEnergyCost then
+                    UI:Print("Temporary Bite Energy cost:",
+                        tostring(analysis.discountedEnergyCost),
+                        "standard DPE uses:",
+                        tostring(analysis.resourceCost))
+                end
             end
         end
 
