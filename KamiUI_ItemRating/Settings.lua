@@ -144,6 +144,25 @@ local function ShowStatTooltip(button)
 end
 
 
+-- Observed Cat rotations: Maraudon 26.0% and Alcaz Prison 27.7%
+-- auto-attack damage. Use 27% as a provisional share. Treat the other
+-- 73% as an UPPER BOUND on crittable melee abilities: Hurricane,
+-- Windfury and non-critting DoT damage are not eligible.
+local CAT_WHITE_DAMAGE_SHARE = 0.27
+
+-- Natural Instinct (10% critical damage bonus per rank) boosts only the
+-- critical DAMAGE BONUS of melee abilities, not their total damage.
+-- Express the affected-ability marginal crit gain relative to an
+-- unmodified 200% melee crit at the player's current crit chance.
+local function NaturalInstinctCritFactor(critPct, rank)
+    local crit = critPct / 100
+    local abilityCritBonus = 1 + 0.10 * rank
+    local abilityRelativeGain = abilityCritBonus * (1 + crit)
+        / (1 + crit * abilityCritBonus)
+    return CAT_WHITE_DAMAGE_SHARE
+        + (1 - CAT_WHITE_DAMAGE_SHARE) * abilityRelativeGain
+end
+
 -- Read-only melee auto-attack approximation for any class or form.
 -- Normalize average damage per swing by unhasted main-hand speed:
 -- increased melee haste boosts Crit and AP equally, so it cancels.
@@ -192,6 +211,24 @@ local function ReadLiveCritEquivalent()
         return nil, "unavailable"
     end
 
+    -- Crit value adjusted for the player's Natural Instinct rank.
+    -- This is an upper-bound Cat rotation proxy, not a full simulator.
+    local naturalInstinctRank
+    local naturalInstinctFactor
+    local catCritApEquivalent
+    if UnitClass then
+        local _, classFile = UI:SafeCall(UnitClass, "player")
+        if UI:CanAccessValue(classFile) and classFile == "DRUID" then
+            naturalInstinctRank = Module:GetNaturalInstinctRank()
+            if naturalInstinctRank ~= nil then
+                naturalInstinctFactor = NaturalInstinctCritFactor(
+                    critPct, naturalInstinctRank
+                )
+                catCritApEquivalent = apEquivalent * naturalInstinctFactor
+            end
+        end
+    end
+
     -- Forever exposes Crit contribution from one Agility at the
     -- CURRENT level as a FRACTION (e.g. 0.00063 = 0.063%).
     -- Convert to percentage points to match GetCritChance and the
@@ -215,7 +252,11 @@ local function ReadLiveCritEquivalent()
         level = level,
         critPerAgility = critPerAgility,
         suggestedAgility = critPerAgility
-            and (1 + apEquivalent * critPerAgility) or nil,
+            and (1 + (catCritApEquivalent or apEquivalent)
+                * critPerAgility) or nil,
+        naturalInstinctRank = naturalInstinctRank,
+        naturalInstinctFactor = naturalInstinctFactor,
+        catCritApEquivalent = catCritApEquivalent,
         attackPower = attackPower,
         critPct = critPct,
         normalDPS = normalDPS,
@@ -238,7 +279,8 @@ local function RefreshLiveCrit(frame)
 
     if values then
         frame.liveCritLabel:SetText(string.format(
-            "1%% Crit = %.1f AP", values.apEquivalent
+            "1%% Crit ~ %.1f AP",
+            values.catCritApEquivalent or values.apEquivalent
         ))
     else
         frame.liveCritLabel:SetText("1% Crit: n/a")
@@ -292,13 +334,41 @@ local function ShowLiveCritTooltip(hitbox)
             0.7, 0.76, 0.84
         )
         GameTooltip:AddDoubleLine(
-            "+1% Crit equals",
+            "Auto-only +1% Crit reference",
             string.format("%.2f AP", values.apEquivalent),
-            1, 0.82, 0.31, 1, 0.82, 0.31
+            0.8, 0.8, 0.85, 1, 0.82, 0.31
         )
+        if values.naturalInstinctRank ~= nil then
+            GameTooltip:AddDoubleLine(
+                "Natural Instinct",
+                string.format("%d/2", values.naturalInstinctRank),
+                0.8, 0.8, 0.85, 1, 0.82, 0.31
+            )
+            GameTooltip:AddDoubleLine(
+                "Assumed White / remaining", "27% / 73%",
+                0.8, 0.8, 0.85, 1, 0.82, 0.31
+            )
+            GameTooltip:AddDoubleLine(
+                "Estimated Crit multiplier",
+                string.format("x%.4f", values.naturalInstinctFactor),
+                0.8, 0.8, 0.85, 1, 0.82, 0.31
+            )
+            GameTooltip:AddLine(
+                "73% is an upper bound: non-eligible sources like "
+                .. "Windfury, Hurricane and bleed ticks lower the benefit.",
+                0.62, 0.66, 0.73, true
+            )
+        else
+            GameTooltip:AddLine(
+                "Natural Instinct rank unavailable: using auto-only "
+                .. "reference without talent adjustment.",
+                0.75, 0.72, 0.60, true
+            )
+        end
         GameTooltip:AddDoubleLine(
             "Suggested Crit (%) Base",
-            string.format("%.4f", values.apEquivalent),
+            string.format("%.4f",
+                values.catCritApEquivalent or values.apEquivalent),
             0.72, 0.85, 0.75, 1, 0.82, 0.31
         )
         GameTooltip:AddLine(
@@ -326,7 +396,7 @@ local function ShowLiveCritTooltip(hitbox)
                 string.format(
                     "1 + %.4f%% x %.2f AP = %.4f",
                     values.critPerAgility,
-                    values.apEquivalent,
+                    values.catCritApEquivalent or values.apEquivalent,
                     values.suggestedAgility
                 ),
                 0.62, 0.66, 0.73, true
@@ -340,7 +410,7 @@ local function ShowLiveCritTooltip(hitbox)
     end
 
     GameTooltip:AddLine(
-        "Approximation: main-hand auto-attacks, 200% crit damage; excludes offhands, abilities, talents and the hit table.",
+        "Approximation: auto-attack base plus a Cat ability-share proxy for Natural Instinct; excludes other talents, glancing blows, hit table and rotation feedback.",
         0.62, 0.66, 0.73, true
     )
     GameTooltip:AddLine(
