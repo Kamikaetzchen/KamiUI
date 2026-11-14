@@ -5,6 +5,36 @@ if not Module then return end
 local Styles = UI.Styles
 local Palette = UI.Palette
 local hooks = {}
+local detailFonts = {}
+
+local function StyleDetailFont(name, role)
+    local font = _G[name]
+    if not font or not font.GetFont or not font.GetTextColor then
+        return
+    end
+
+    if not detailFonts[font] then
+        local fontPath, size, flags = font:GetFont()
+        local r, g, b, a = font:GetTextColor()
+        detailFonts[font] = {
+            fontPath, size, flags, r, g, b, a,
+        }
+    end
+
+    Styles:ApplyText(font, role)
+end
+
+-- QuestInfo FontStrings are shared with NPC quest dialogs. Restore
+-- their exact previous font/color once the map's details pane hides.
+local function RestoreDetailFonts()
+    for font, saved in pairs(detailFonts) do
+        if saved[1] and saved[2] then
+            font:SetFont(saved[1], saved[2], saved[3])
+        end
+        font:SetTextColor(saved[4], saved[5], saved[6], saved[7])
+        detailFonts[font] = nil
+    end
+end
 
 -- Visual pass over Blizzard's pooled quest buttons. This must never
 -- create quest rows, reorder data, change header collapse state, or
@@ -91,10 +121,7 @@ local function StyleQuestDetails()
         "QuestInfoDescriptionHeader",
         "QuestInfoObjectivesHeader",
     }) do
-        local font = _G[name]
-        if font then
-            Styles:ApplyText(font, "panelTitle")
-        end
+        StyleDetailFont(name, "panelTitle")
     end
 
     for _, name in ipairs({
@@ -103,10 +130,7 @@ local function StyleQuestDetails()
         "QuestInfoGroupSize",
         "QuestInfoTimerText",
     }) do
-        local font = _G[name]
-        if font then
-            Styles:ApplyText(font, "normal")
-        end
+        StyleDetailFont(name, "normal")
     end
 end
 
@@ -190,6 +214,9 @@ local function InstallSkin()
         hooks.detailShow = true
         panel.DetailsFrame:HookScript(
             "OnShow", StyleQuestDetails
+        )
+        panel.DetailsFrame:HookScript(
+            "OnHide", RestoreDetailFonts
         )
     end
 
