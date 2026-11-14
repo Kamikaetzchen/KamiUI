@@ -13,6 +13,7 @@ local FIELDS = {
     { "ITEM_MOD_STRENGTH_SHORT", "Strength" },
     { "ITEM_MOD_AGILITY_SHORT", "Agility" },
     { "ITEM_MOD_STAMINA_SHORT", "Stamina" },
+    { "RESISTANCE0_NAME", "Armor" },
     { "ITEM_MOD_INTELLECT_SHORT", "Intellect" },
     { "ITEM_MOD_SPIRIT_SHORT", "Spirit" },
     { "ITEM_MOD_ATTACK_POWER_SHORT", "Attack Power" },
@@ -33,6 +34,37 @@ local FIELDS = {
     { "ITEM_MOD_BLOCK_RATING_SHORT", "Block (%)" },
     { "ITEM_MOD_BLOCK_VALUE_SHORT", "Block Value" },
     { "ITEM_MOD_MANA_REGENERATION_SHORT", "Mana Regen" },
+}
+
+-- Informational raid-boss reference caps. These never modify base
+-- weights, effective weights, or item scores. Assumes level 60 vs 63.
+local CAP_INFO = {
+    ITEM_MOD_HIT_RATING_SHORT = {
+        lines = {
+            { "Melee Hit cap (raid boss)", "8%" },
+        },
+        note = "Level 60 vs 63, single-weapon melee. Count talents and buffs; other attack types can differ.",
+    },
+    ITEM_MOD_EXPERTISE_RATING_SHORT = {
+        lines = {
+            { "Dodge soft cap (raid boss)", "6.5%" },
+            { "Parry hard cap (raid boss)", "14%" },
+        },
+        note = "Cat attacks from behind cannot be parried, so 6.5% is the relevant offensive cap. Frontal attacks also face parry.",
+    },
+    RESISTANCE0_NAME = {
+        lines = {
+            { "Physical damage reduction cap", "75%" },
+            { "Armor at cap vs level 63", "~17,265" },
+        },
+        note = "Armor needed depends on enemy level. Gear, Agility, Bear Form and buffs contribute to total Armor; magic damage is unaffected.",
+    },
+    ITEM_MOD_DEFENSE_SKILL_RATING_SHORT = {
+        lines = {
+            { "Crit-immunity soft cap (raid)", "440 Defense" },
+        },
+        note = "Level 60 vs 63, without other crit-reduction effects. Defense above 440 still improves avoidance.",
+    },
 }
 
 local function Profile()
@@ -133,6 +165,20 @@ local function ShowStatTooltip(button)
         "Effective weight", FormatWeight(effective),
         1, 0.82, 0.31, 1, 0.82, 0.31
     )
+
+    local cap = CAP_INFO[button.statKey]
+    if cap then
+        GameTooltip:AddLine(" ")
+        GameTooltip:AddLine("Reference caps (not applied to ratings)",
+            0.73, 0.89, 0.77)
+        for _, entry in ipairs(cap.lines) do
+            GameTooltip:AddDoubleLine(
+                entry[1], entry[2],
+                0.8, 0.8, 0.85, 1, 0.82, 0.31
+            )
+        end
+        GameTooltip:AddLine(cap.note, 0.62, 0.66, 0.73, true)
+    end
 
     if base == 0 then
         GameTooltip:AddLine(
