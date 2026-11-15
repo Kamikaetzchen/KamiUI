@@ -216,131 +216,140 @@ local function GetLocalizedSpecName(
 end
 
 local function GetSpecFromTraitGroups(unit)
-    if not IsValidPlayerUnit(unit)
-        or UnitIsUnit(unit, "player")
-        or not C_Traits
-        or not C_Traits.GetConfigInfo
+    if not IsValidPlayerUnit(unit) or UnitIsUnit(unit, "player")
+        or not C_Traits or not C_Traits.GetConfigInfo
         or not C_Traits.GetGroupDisplayInfoByTreeID
-        or not C_Traits.GetGroupCurrencyInfo
-        or not Constants
-        or not Constants.TraitConsts
-        or not Constants.TraitConsts.INSPECT_TRAIT_CONFIG_ID
-    then
+        or not Constants or not Constants.TraitConsts
+        or not Constants.TraitConsts.INSPECT_TRAIT_CONFIG_ID then
         return nil
     end
 
     if C_Traits.HasValidInspectData
-        and UI:SafeCall(C_Traits.HasValidInspectData) ~= true
-    then
+        and UI:SafeCall(C_Traits.HasValidInspectData) ~= true then
         return nil
     end
 
-    local configID =
-        Constants.TraitConsts.INSPECT_TRAIT_CONFIG_ID
-    local configInfo =
-        UI:SafeCall(C_Traits.GetConfigInfo, configID)
-
-    if not configInfo
-        or not configInfo.treeIDs
-        or not UI:CanAccessValue(configInfo.treeIDs)
-    then
+    local configID = Constants.TraitConsts.INSPECT_TRAIT_CONFIG_ID
+    local config = UI:SafeCall(C_Traits.GetConfigInfo, configID)
+    if not config or not UI:CanAccessValue(config)
+        or type(config.treeIDs) ~= "table"
+        or not UI:CanAccessValue(config.treeIDs) then
         return nil
     end
 
-    local bestName
-    local bestPoints = -1
-    local tied = false
+    local groups = {}
+    for _, treeID in ipairs(config.treeIDs) do
+        if UI:CanAccessValue(treeID) then
+            local display = UI:SafeCall(
+                C_Traits.GetGroupDisplayInfoByTreeID, treeID
+            )
+            if type(display) == "table"
+                and UI:CanAccessValue(display) then
+                local groupIDs = {}
 
-    for _, treeID in ipairs(configInfo.treeIDs) do
-        local displayInfos = UI:SafeCall(
-            C_Traits.GetGroupDisplayInfoByTreeID,
-            treeID
-        )
-
-        if displayInfos
-            and UI:CanAccessValue(displayInfos)
-        then
-            local groupIDs = {}
-
-            for _, displayInfo in ipairs(displayInfos) do
-                if displayInfo
-                    and displayInfo.groupID
-                    and UI:CanAccessValue(displayInfo.groupID)
-                then
-                    groupIDs[#groupIDs + 1] =
-                        displayInfo.groupID
-                end
-            end
-
-            local groupInfos = #groupIDs > 0
-                and UI:SafeCall(
-                    C_Traits.GetGroupCurrencyInfo,
-                    configID,
-                    groupIDs
-                )
-                or nil
-            local groupInfoByID = {}
-
-            if groupInfos
-                and UI:CanAccessValue(groupInfos)
-            then
-                for _, groupInfo in ipairs(groupInfos) do
-                    local groupID = groupInfo
-                        and groupInfo.traitNodeGroupID
-
-                    if groupID
-                        and UI:CanAccessValue(groupID)
-                    then
-                        groupInfoByID[groupID] = groupInfo
+                for _, info in ipairs(display) do
+                    local id = info and info.groupID
+                    local name = info and info.displayName
+                    if UI:CanAccessValue(id)
+                        and UI:CanAccessValue(name)
+                        and type(id) == "number"
+                        and type(name) == "string" then
+                        groupIDs[#groupIDs + 1] = id
+                        groups[id] = groups[id] or {
+                            name = name,
+                            ranks = 0,
+                            spent = 0,
+                        }
                     end
                 end
-            end
 
-            for _, displayInfo in ipairs(displayInfos) do
-                local name = displayInfo
-                    and displayInfo.displayName
-                local groupID = displayInfo
-                    and displayInfo.groupID
-                local groupInfo =
-                    groupID
-                    and groupInfoByID[groupID]
-                    or nil
-                local currencyInfo =
-                    groupInfo
-                    and groupInfo.currencyInfos
-                    and groupInfo.currencyInfos[1]
-                    or nil
-                local spent =
-                    currencyInfo
-                    and currencyInfo.spent
-                    or 0
+                -- Inspect currency values can be absent or identical
+                -- across talent groups. Count actual learned node
+                -- ranks in each group when the 1.60.1 API provides
+                -- them, instead of relying solely on currency totals.
+                if C_Traits.GetTreeNodes and C_Traits.GetNodeInfo then
+                    local nodes = UI:SafeCall(
+                        C_Traits.GetTreeNodes, treeID
+                    )
+                    if type(nodes) == "table"
+                        and UI:CanAccessValue(nodes) then
+                        for _, nodeID in ipairs(nodes) do
+                            local node = UI:SafeCall(
+                                C_Traits.GetNodeInfo,
+                                configID, nodeID
+                            )
+                            if node and UI:CanAccessValue(node) then
+                                local rank = node.activeRank
+                                    or node.currentRank
+                                local ids = node.groupIDs
+                                if UI:CanAccessValue(rank)
+                                    and type(rank) == "number"
+                                    and rank > 0
+                                    and type(ids) == "table"
+                                    and UI:CanAccessValue(ids) then
+                                    for _, id in ipairs(ids) do
+                                        if groups[id] then
+                                            groups[id].ranks =
+                                                groups[id].ranks + rank
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
 
-                if name
-                    and UI:CanAccessValue(name)
-                    and UI:CanAccessValue(spent)
-                then
-                    spent = tonumber(spent) or 0
-
-                    if spent > bestPoints then
-                        bestName = name
-                        bestPoints = spent
-                        tied = false
-                    elseif spent == bestPoints then
-                        tied = true
+                if C_Traits.GetGroupCurrencyInfo
+                    and #groupIDs > 0 then
+                    local currencies = UI:SafeCall(
+                        C_Traits.GetGroupCurrencyInfo,
+                        configID, groupIDs
+                    )
+                    if type(currencies) == "table"
+                        and UI:CanAccessValue(currencies) then
+                        for _, entry in ipairs(currencies) do
+                            local group = entry
+                                and groups[entry.traitNodeGroupID]
+                            local currency = entry
+                                and entry.currencyInfos
+                                and entry.currencyInfos[1]
+                            local spent = currency and (
+                                currency.spentInTree or currency.spent
+                            )
+                            if group and UI:CanAccessValue(spent)
+                                and type(spent) == "number" then
+                                group.spent = math.max(
+                                    group.spent, spent
+                                )
+                            end
+                        end
                     end
                 end
             end
         end
     end
 
-    if bestName and bestPoints > 0 and not tied then
-        local className = GetClassInfo(unit)
-
-        return bestName
-            .. " "
-            .. (className or "")
+    local hasRanks = false
+    for _, group in pairs(groups) do
+        if group.ranks > 0 then hasRanks = true end
     end
 
+    local best, bestPoints, tied = nil, 0, false
+    for _, group in pairs(groups) do
+        local points = hasRanks and group.ranks or group.spent
+        if points > bestPoints then
+            best = group.name
+            bestPoints = points
+            tied = false
+        elseif points == bestPoints and points > 0 then
+            tied = true
+        end
+    end
+
+    if best and not tied then
+        local className = GetClassInfo(unit)
+        return best .. " " .. (className or "")
+    end
     return nil
 end
 
