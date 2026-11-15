@@ -1514,6 +1514,10 @@ local function HandleInspectReady(guid)
     -- player whose GUID fired INSPECT_READY. Prevents stale talent
     -- groups from being cached for another class or player.
     if IsBlizzardInspectActive() then
+        -- A different manual inspect has superseded any older
+        -- background request; its timeout must not clear this view.
+        pendingInspect = nil
+        queuedInspect = nil
         CacheManualInspectSpec(guid)
     end
 end
