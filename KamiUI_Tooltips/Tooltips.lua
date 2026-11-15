@@ -682,41 +682,34 @@ local function GetCachedSpec(guid)
 end
 
 local function GetBlizzardInspectUnit()
-    if InspectFrame and InspectFrame.unit then
-        return InspectFrame.unit
+    -- Forever's context-menu "View Talents" opens PlayerSpellsFrame
+    -- directly. The old InspectFrame may still retain a stale .unit
+    -- after closing; only inspect the visible window's current unit.
+    local talents = PlayerSpellsFrame
+    if talents and talents.IsShown and talents:IsShown()
+        and talents.IsInspecting and talents:IsInspecting()
+        and talents.GetInspectUnit then
+        local unit = talents:GetInspectUnit()
+        if IsValidPlayerUnit(unit) then return unit end
     end
 
-    if PlayerSpellsFrame
-        and PlayerSpellsFrame.IsInspecting
-        and PlayerSpellsFrame:IsInspecting()
-        and PlayerSpellsFrame.GetInspectUnit
-    then
-        return PlayerSpellsFrame:GetInspectUnit()
+    local inspect = InspectFrame
+    if inspect and inspect.IsShown and inspect:IsShown()
+        and IsValidPlayerUnit(inspect.unit) then
+        return inspect.unit
     end
-
-    return nil
 end
 
 local function IsBlizzardInspectActive()
-    if GetBlizzardInspectUnit() then
+    local talents = PlayerSpellsFrame
+    if talents and talents.IsShown and talents:IsShown()
+        and talents.IsInspecting and talents:IsInspecting() then
         return true
     end
 
-    if InspectFrame
-        and InspectFrame.IsShown
-        and InspectFrame:IsShown()
-    then
-        return true
-    end
-
-    if PlayerSpellsFrame
-        and PlayerSpellsFrame.IsInspecting
-        and PlayerSpellsFrame:IsInspecting()
-    then
-        return true
-    end
-
-    return false
+    local inspect = InspectFrame
+    return inspect and inspect.IsShown and inspect:IsShown()
+        or false
 end
 
 local function CanRequestInspect(unit)
@@ -1448,24 +1441,81 @@ local function ResolveInspectReady(
     end
 end
 
+-- A manual right-click > View Talents can generate INSPECT_READY
+-- without one of our tooltip requests. Read the already-loaded talent
+-- groups, never issue another NotifyInspect or ClearInspectPlayer.
+local function CacheManualInspectSpec(guid)
+    local attempts = 0
+
+    local function TryCache()
+        local unit = GetBlizzardInspectUnit()
+        if not unit then return end
+
+        local unitGUID = UnitGUID(unit)
+        if not UI:CanAccessValue(unitGUID)
+            or unitGUID ~= guid then
+            return
+        end
+
+        attempts = attempts + 1
+
+        if C_Traits and C_Traits.HasValidInspectData
+            and UI:SafeCall(C_Traits.HasValidInspectData) ~= true then
+            if attempts < INSPECT_READY_RETRY_COUNT
+                and C_Timer and C_Timer.After then
+                C_Timer.After(
+                    INSPECT_READY_RETRY_SECONDS, TryCache
+                )
+            end
+            return
+        end
+
+        local spec = ResolveInspectedSpec(unit)
+        if spec then
+            CacheSpec(guid, spec)
+            RefreshVisiblePlayerTooltip(guid)
+            return
+        end
+
+        if attempts < INSPECT_READY_RETRY_COUNT
+            and C_Timer and C_Timer.After then
+            C_Timer.After(
+                INSPECT_READY_RETRY_SECONDS, TryCache
+            )
+        end
+    end
+
+    if C_Timer and C_Timer.After then
+        C_Timer.After(0, TryCache)
+    else
+        TryCache()
+    end
+end
+
 local function HandleInspectReady(guid)
     if not guid or not UI:CanAccessValue(guid) then
         return
     end
 
-    -- INSPECT_READY is shared with Blizzard. Never process or clear an
-    -- inspect request that our tooltip code did not actually start.
     local request = pendingInspect
-    if not request or request.guid ~= guid then
+    if request and request.guid == guid then
+        if IsBlizzardInspectActive() then
+            -- Manual View Talents superseded our tooltip probe.
+            pendingInspect = nil
+            CacheManualInspectSpec(guid)
+            return
+        end
+
+        ResolveInspectReady(guid, request, request.unit)
         return
     end
 
+    -- Ignore unsolicited events unless Blizzard is displaying the
+    -- player whose GUID fired INSPECT_READY. Prevents stale talent
+    -- groups from being cached for another class or player.
     if IsBlizzardInspectActive() then
-        pendingInspect = nil
-        return
+        CacheManualInspectSpec(guid)
     end
-
-    ResolveInspectReady(guid, request, request.unit)
 end
 
 local function InstallManualInspectPriority()
