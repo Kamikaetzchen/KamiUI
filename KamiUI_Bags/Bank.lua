@@ -394,6 +394,82 @@ local function GetBankStructureKey(tabs)
     return table.concat(sections, "|")
 end
 
+-- Cached bank slots only have a hyperlink, not a live bag location.
+-- Blizzard's equipment-set decoration cannot infer membership from that
+-- link alone. Match it against the current character's saved set items.
+-- Do not attribute the current character's sets to cached alts.
+local function AddCachedEquipmentSets(tooltip, itemID)
+    local _, _, isCurrent = GetViewedCharacter()
+    local sets = C_EquipmentSet
+    if not isCurrent or not itemID or not sets
+        or not sets.GetEquipmentSetIDs
+        or not sets.GetEquipmentSetInfo
+        or not sets.GetItemIDs then
+        return
+    end
+
+    local setIDs = UI:SafeCall(sets.GetEquipmentSetIDs)
+    if type(setIDs) ~= "table"
+        or not UI:CanAccessValue(setIDs) then
+        return
+    end
+
+    local names = {}
+    for _, setID in ipairs(setIDs) do
+        if UI:CanAccessValue(setID)
+            and type(setID) == "number" then
+            local itemIDs = UI:SafeCall(sets.GetItemIDs, setID)
+            if type(itemIDs) == "table"
+                and UI:CanAccessValue(itemIDs) then
+                for _, setItemID in pairs(itemIDs) do
+                    if UI:CanAccessValue(setItemID)
+                        and setItemID == itemID then
+                        local name = UI:SafeCall(
+                            sets.GetEquipmentSetInfo, setID
+                        )
+                        if type(name) == "string"
+                            and UI:CanAccessValue(name)
+                            and name ~= "" then
+                            names[#names + 1] = name
+                        end
+                        break
+                    end
+                end
+            end
+        end
+    end
+
+    if #names == 0 then return end
+    table.sort(names)
+    tooltip:AddLine(" ")
+    for _, name in ipairs(names) do
+        tooltip:AddLine("Equipment Set: " .. name, 0.83, 0.71, 0.35)
+    end
+end
+
+local function ShowCachedBankItemTooltip(tooltip, button)
+    local link = button.itemLink
+    local itemID = button.itemID
+
+    if link then
+        tooltip:SetHyperlink(link)
+        if not itemID then
+            itemID = tonumber(link:match("item:(%d+)"))
+        end
+    elseif itemID then
+        if tooltip.SetItemByID then
+            tooltip:SetItemByID(itemID)
+        else
+            tooltip:SetHyperlink("item:" .. itemID)
+        end
+    else
+        return false
+    end
+
+    AddCachedEquipmentSets(tooltip, itemID)
+    return true
+end
+
 local function UpdateCachedItemButton(button, slot, tab)
     button.bagID = tab.bagID
 
@@ -416,6 +492,8 @@ local function UpdateCachedItemButton(button, slot, tab)
 
     Components:SetItemSlotData(button, {
         link = slot and slot.link or nil,
+        itemID = slot and slot.itemID or nil,
+        tooltip = slot and ShowCachedBankItemTooltip or nil,
         icon = slot and slot.icon or nil,
         count = slot and slot.count or 0,
         quality = slot and slot.quality or nil,
