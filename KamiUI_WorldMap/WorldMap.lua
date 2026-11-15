@@ -98,6 +98,16 @@ local function AttachZoneDropdown(button, nav)
     label:SetPoint("CENTER", arrow, "CENTER", -1, 0)
     label:SetText("v")
     arrow.KamiMapChevron = label
+
+    -- Blizzard's arrow mouse scripts re-enable stock textures on
+    -- hover. Run after those scripts and keep our flat skin visible.
+    local function KeepArrowFlat()
+        HideButtonArt(button)
+    end
+    arrow:HookScript("OnEnter", KeepArrowFlat)
+    arrow:HookScript("OnLeave", KeepArrowFlat)
+    arrow:HookScript("OnMouseDown", KeepArrowFlat)
+    arrow:HookScript("OnMouseUp", KeepArrowFlat)
 end
 
 local function StyleNavigationButton(button, active, nav)
@@ -142,10 +152,10 @@ local function StyleNavigationButton(button, active, nav)
 
     -- A recycled native button may acquire dropdown entries later.
     AttachZoneDropdown(button, nav)
-    if button.KamiMapChevron then
-        button.KamiMapChevron:SetTextColor(
-            unpack(Palette.gold)
-        )
+    local chevron = button.MenuArrowButton
+        and button.MenuArrowButton.KamiMapChevron
+    if chevron then
+        Styles:SetTextColor(chevron, Palette.gold)
     end
 end
 
