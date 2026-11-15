@@ -137,6 +137,63 @@ local function GetBankTabs()
     return tabs
 end
 
+-- Equipment sets are per character. Capture itemID -> set names when
+-- that character's bank is synchronized so cached alts retain their
+-- own associations. Item IDs cannot distinguish identical copies
+-- with different enchants; treat this as item-type membership.
+local function ReadCurrentEquipmentSetItems()
+    local api = C_EquipmentSet
+    if not api or not api.GetEquipmentSetIDs
+        or not api.GetEquipmentSetInfo or not api.GetItemIDs then
+        return nil
+    end
+
+    local setIDs = UI:SafeCall(api.GetEquipmentSetIDs)
+    if type(setIDs) ~= "table"
+        or not UI:CanAccessValue(setIDs) then
+        return nil
+    end
+
+    local matches = {}
+    for _, setID in ipairs(setIDs) do
+        if type(setID) == "number"
+            and UI:CanAccessValue(setID) then
+            local name = UI:SafeCall(api.GetEquipmentSetInfo, setID)
+            local itemIDs = UI:SafeCall(api.GetItemIDs, setID)
+
+            if type(name) == "string"
+                and UI:CanAccessValue(name)
+                and name ~= ""
+                and type(itemIDs) == "table"
+                and UI:CanAccessValue(itemIDs) then
+                for _, itemID in pairs(itemIDs) do
+                    if type(itemID) == "number" and itemID > 0
+                        and UI:CanAccessValue(itemID) then
+                        local names = matches[itemID]
+                        if not names then
+                            names = {}
+                            matches[itemID] = names
+                        end
+
+                        local found = false
+                        for _, existing in ipairs(names) do
+                            if existing == name then found = true end
+                        end
+                        if not found then
+                            names[#names + 1] = name
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    for _, names in pairs(matches) do
+        table.sort(names)
+    end
+    return matches
+end
+
 local function SaveCurrentBank()
     if not bankOpen then
         return
@@ -159,9 +216,13 @@ local function SaveCurrentBank()
 
     local character = db.characters[key] or {}
     local bankItems = {}
+    local setItems = ReadCurrentEquipmentSetItems()
     local snapshot = {
         tabs = {},
         equippedBags = {},
+        -- Preserve older data if the equipment-set API is unavailable.
+        equipmentSetItems = setItems
+            or (character.bank and character.bank.equipmentSetItems),
         updated = time and time() or 0,
     }
 
@@ -394,53 +455,24 @@ local function GetBankStructureKey(tabs)
     return table.concat(sections, "|")
 end
 
--- Cached bank slots only have a hyperlink, not a live bag location.
--- Blizzard's equipment-set decoration cannot infer membership from that
--- link alone. Match it against the current character's saved set items.
--- Do not attribute the current character's sets to cached alts.
+-- Cached bank slots have hyperlinks but no live ItemLocation.
+-- Use the current character's live sets, or a cached set index that
+-- belongs to the viewed alt; never mix equipment sets between chars.
 local function AddCachedEquipmentSets(tooltip, itemID)
-    local _, _, isCurrent = GetViewedCharacter()
-    local sets = C_EquipmentSet
-    if not isCurrent or not itemID or not sets
-        or not sets.GetEquipmentSetIDs
-        or not sets.GetEquipmentSetInfo
-        or not sets.GetItemIDs then
-        return
+    if not itemID then return end
+
+    local _, character, isCurrent = GetViewedCharacter()
+    local setItems
+    if isCurrent then
+        setItems = ReadCurrentEquipmentSetItems()
+    else
+        setItems = character and character.bank
+            and character.bank.equipmentSetItems
     end
 
-    local setIDs = UI:SafeCall(sets.GetEquipmentSetIDs)
-    if type(setIDs) ~= "table"
-        or not UI:CanAccessValue(setIDs) then
-        return
-    end
+    local names = setItems and setItems[itemID]
+    if type(names) ~= "table" or #names == 0 then return end
 
-    local names = {}
-    for _, setID in ipairs(setIDs) do
-        if UI:CanAccessValue(setID)
-            and type(setID) == "number" then
-            local itemIDs = UI:SafeCall(sets.GetItemIDs, setID)
-            if type(itemIDs) == "table"
-                and UI:CanAccessValue(itemIDs) then
-                for _, setItemID in pairs(itemIDs) do
-                    if UI:CanAccessValue(setItemID)
-                        and setItemID == itemID then
-                        local name = UI:SafeCall(
-                            sets.GetEquipmentSetInfo, setID
-                        )
-                        if type(name) == "string"
-                            and UI:CanAccessValue(name)
-                            and name ~= "" then
-                            names[#names + 1] = name
-                        end
-                        break
-                    end
-                end
-            end
-        end
-    end
-
-    if #names == 0 then return end
-    table.sort(names)
     tooltip:AddLine(" ")
     for _, name in ipairs(names) do
         tooltip:AddLine("Equipment Set: " .. name, 0.83, 0.71, 0.35)
