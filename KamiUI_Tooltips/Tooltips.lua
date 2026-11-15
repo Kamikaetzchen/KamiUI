@@ -811,29 +811,39 @@ end
 local function GetVisibleTooltipUnit(guid)
     local tooltip = GameTooltip
 
-    if not tooltip
-        or not tooltip:IsShown()
-        or not tooltip.GetUnit
-    then
+    if not tooltip or not tooltip:IsShown() then
         return nil
     end
 
-    local _name, unit = tooltip:GetUnit()
+    if tooltip.GetUnit then
+        local _name, unit = UI:SafeCall(
+            tooltip.GetUnit, tooltip
+        )
 
-    if not IsValidPlayerUnit(unit) then
-        return nil
+        if IsValidPlayerUnit(unit) then
+            local currentGuid = UnitGUID(unit)
+            if UI:CanAccessValue(currentGuid)
+                and currentGuid == guid then
+                return unit
+            end
+
+            -- A different player is shown now. Never inspect the
+            -- old queued GUID just because the mouseover matches.
+            return nil
+        end
     end
 
-    local currentGuid = UnitGUID(unit)
-
-    if not currentGuid
-        or not UI:CanAccessValue(currentGuid)
-        or currentGuid ~= guid
-    then
-        return nil
+    -- World-cursor tooltips can lose their GetUnit token after the
+    -- initial data callback. "mouseover" remains valid while hovered.
+    if IsValidPlayerUnit("mouseover") then
+        local mouseGUID = UnitGUID("mouseover")
+        if UI:CanAccessValue(mouseGUID)
+            and mouseGUID == guid then
+            return "mouseover"
+        end
     end
 
-    return unit
+    return nil
 end
 
 local function ScheduleSpecInspect(unit, guid)
@@ -852,56 +862,56 @@ local function ScheduleSpecInspect(unit, guid)
 
     local request = {
         guid = guid,
+        attempts = 0,
     }
 
     queuedInspect = request
 
     local function TryStart()
-        if queuedInspect ~= request then
-            return
-        end
+        if queuedInspect ~= request then return end
 
-        queuedInspect = nil
-
-        local currentUnit =
-            GetVisibleTooltipUnit(request.guid)
-
+        local currentUnit = GetVisibleTooltipUnit(request.guid)
         if not currentUnit then
+            -- The tooltip post-call fires before GameTooltip is shown.
+            -- Give Blizzard a few frames to finish displaying it.
+            request.attempts = request.attempts + 1
+            if request.attempts < 4
+                and C_Timer and C_Timer.After then
+                C_Timer.After(0.05, TryStart)
+                return
+            end
+
+            queuedInspect = nil
             return
         end
 
-        local hasCached =
-            select(1, GetCachedSpec(request.guid))
-
+        local hasCached = select(1, GetCachedSpec(request.guid))
         if hasCached or pendingInspect then
+            queuedInspect = nil
             return
         end
 
         local now = GetTime and GetTime() or 0
-        local throttleRemaining =
-            INSPECT_THROTTLE_SECONDS
+        local throttleRemaining = INSPECT_THROTTLE_SECONDS
             - (now - lastInspectRequest)
 
         if throttleRemaining > 0
-            and C_Timer
-            and C_Timer.After
-        then
-            queuedInspect = request
-
-            C_Timer.After(
-                throttleRemaining,
-                TryStart
-            )
+            and C_Timer and C_Timer.After then
+            C_Timer.After(throttleRemaining, TryStart)
             return
         end
 
-        StartSpecInspect(
-            currentUnit,
-            request.guid
-        )
+        queuedInspect = nil
+        StartSpecInspect(currentUnit, request.guid)
     end
 
-    TryStart()
+    -- Never run NotifyInspect from inside the Unit-tooltip post-call:
+    -- that is too early for IsShown() and may re-enter tooltip processing.
+    if C_Timer and C_Timer.After then
+        C_Timer.After(0, TryStart)
+    else
+        TryStart()
+    end
 end
 
 local function GetPlayerSpec(unit, guid)
