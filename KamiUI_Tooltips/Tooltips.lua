@@ -81,6 +81,7 @@ local pendingInspect
 local queuedInspect
 local lastInspectRequest = 0
 local externalInspectUntil = 0
+local diagnosticInspectGUID
 
 -- Blizzard's View Talents and tooltip specialization inspection share
 -- the same INSPECT_TRAIT_CONFIG_ID. A manual inspect must take priority
@@ -1523,9 +1524,67 @@ local function InstallPlayerSpellsInspectHook()
     if frame:IsShown() then TryManualInspect() end
 end
 
+-- Show the native inspect state only when explicitly requested.
+-- The trait API can return true for HasValidInspectData while the
+-- inspected config is still empty. Print both values separately.
+local function PrintInspectState(unit, guid, phase)
+    if not IsValidPlayerUnit(unit) then
+        UI:Print("Inspect", phase, "unit unavailable")
+        return
+    end
+
+    local currentGUID = UnitGUID(unit)
+    if not UI:CanAccessValue(currentGUID)
+        or currentGUID ~= guid then
+        UI:Print("Inspect", phase, "target changed")
+        return
+    end
+
+    local trait = C_Traits
+    local configID = Constants and Constants.TraitConsts
+        and Constants.TraitConsts.INSPECT_TRAIT_CONFIG_ID
+    local config = configID and trait
+        and trait.GetConfigInfo
+        and UI:SafeCall(trait.GetConfigInfo, configID)
+    local valid = trait and trait.HasValidInspectData
+        and UI:SafeCall(trait.HasValidInspectData)
+    local treeIDs = config and config.treeIDs
+    local numTrees = type(treeIDs) == "table"
+        and UI:CanAccessValue(treeIDs) and #treeIDs or 0
+    local cached, text = GetCachedSpec(guid)
+
+    UI:Print(
+        "Inspect " .. phase .. ":",
+        "ready=" .. tostring(valid),
+        "config=" .. tostring(configID),
+        "trees=" .. numTrees,
+        "pending=" .. tostring(pendingInspect ~= nil),
+        "cached=" .. (cached and (text or "miss") or "no")
+    )
+    UI:Print(
+        "Readers:",
+        "traits=" .. tostring(GetSpecFromTraitGroups(unit)),
+        "inspect=" .. tostring(GetSpecFromInspectSpecialization(unit)),
+        "points=" .. tostring(GetSpecFromTalentPoints(unit)),
+        "classic=" .. tostring(GetSpecFromClassicTalentTabs(unit))
+    )
+end
+
 local function HandleInspectReady(guid)
     if not guid or not UI:CanAccessValue(guid) then
         return
+    end
+
+    if diagnosticInspectGUID == guid then
+        diagnosticInspectGUID = nil
+        local unit = GetMatchingInspectUnit(
+            guid, pendingInspect and pendingInspect.unit
+        )
+        if unit then
+            PrintInspectState(unit, guid, "INSPECT_READY")
+        else
+            UI:Print("Inspect INSPECT_READY: matching unit unavailable")
+        end
     end
 
     local request = pendingInspect
@@ -1820,44 +1879,55 @@ UI:RegisterCommand("tooltips", "inspect", function()
     end
 
     local guid = UnitGUID(unit)
-    local _, classFile = GetClassInfo(unit)
-    local cached, name = GetCachedSpec(guid)
-    local canInspect = CanInspect
-        and UI:SafeCall(CanInspect, unit)
-    local valid = C_Traits and C_Traits.HasValidInspectData
-        and UI:SafeCall(C_Traits.HasValidInspectData)
-    local configID = Constants and Constants.TraitConsts
-        and Constants.TraitConsts.INSPECT_TRAIT_CONFIG_ID
-    local config = configID and C_Traits
-        and C_Traits.GetConfigInfo
-        and UI:SafeCall(C_Traits.GetConfigInfo, configID)
-    local trees = config and config.treeIDs
+    if not guid or not UI:CanAccessValue(guid) then
+        UI:Print("Inspect: target GUID is not readable.")
+        return
+    end
 
-    UI:Print(
-        "Inspect:", unit, classFile or "?",
-        "can=" .. tostring(canInspect),
-        "ready=" .. tostring(valid),
-        "trees=" .. tostring(type(trees) == "table" and #trees or 0)
-    )
-    UI:Print(
-        "Blizzard inspect visible:", tostring(IsBlizzardInspectActive()),
-        "pending:", tostring(pendingInspect ~= nil),
-        "cached:", cached and (name or "miss") or "no"
-    )
-    UI:Print(
-        "C_Traits groups:",
-        tostring(GetSpecFromTraitGroups(unit))
-    )
-    UI:Print(
-        "Inspect specialization:",
-        tostring(GetSpecFromInspectSpecialization(unit))
-    )
-    UI:Print(
-        "Specialization points:",
-        tostring(GetSpecFromTalentPoints(unit)),
-        "legacy tabs:",
-        tostring(GetSpecFromClassicTalentTabs(unit))
-    )
+    PrintInspectState(unit, guid, "before request")
+
+    if IsBlizzardInspectActive() then
+        UI:Print(
+            "Native View Talents is open; inspecting its existing data."
+        )
+        CacheManualInspectSpec(guid)
+        return
+    end
+
+    if not CanRequestInspect(unit) then
+        UI:Print(
+            "Inspect request blocked: range, combat, or another inspect."
+        )
+        return
+    end
+
+    -- A prior failed hover must not suppress an explicit diagnostic.
+    specCache[guid] = nil
+    diagnosticInspectGUID = guid
+
+    if pendingInspect then
+        UI:Print(
+            "Inspect already pending for another player; retry shortly."
+        )
+        diagnosticInspectGUID = nil
+        return
+    end
+
+    queuedInspect = nil
+    if StartSpecInspect(unit, guid) then
+        UI:Print("NotifyInspect sent; awaiting INSPECT_READY.")
+        if C_Timer and C_Timer.After then
+            C_Timer.After(INSPECT_TIMEOUT_SECONDS + 0.1, function()
+                if diagnosticInspectGUID == guid then
+                    diagnosticInspectGUID = nil
+                    UI:Print("Inspect timed out without INSPECT_READY.")
+                end
+            end)
+        end
+    else
+        diagnosticInspectGUID = nil
+        UI:Print("Inspect request was throttled; retry in 2 seconds.")
+    end
 end, "Diagnose player talent inspect and spec cache")
 
 function Module:Initialize()
