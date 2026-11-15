@@ -4,6 +4,7 @@ if not Module then return end
 
 local Styles = UI.Styles
 local Palette = UI.Palette
+local Components = UI.Components
 local hooks = {}
 local savedFonts = {}
 
@@ -137,6 +138,148 @@ local function StylePanelBackground(frame, key)
     end
 end
 
+-- Blizzard's QuestFramePanelTemplate defaults to 384 px wide, while
+-- QuestFrame itself is only 338 px. Creating a separate black backdrop
+-- on every panel extended it 46 px past the actual right frame edge.
+-- Keep ONE backdrop on QuestFrame; remove only the panels' parchment.
+local function HideNPCPanelParchment(panel)
+    if not panel then return end
+    for _, name in ipairs({
+        "Bg", "MaterialTopLeft", "MaterialTopRight",
+        "MaterialBotLeft", "MaterialBotRight",
+        "SealMaterialBG",
+    }) do
+        local region = panel[name]
+        if region and region.SetAlpha then
+            region:SetAlpha(0)
+        end
+    end
+end
+
+local function CreateNPCPortrait(frame)
+    if frame.KamiNPCPortrait then return end
+
+    local holder = CreateFrame("Frame", nil, frame)
+    holder:SetSize(44, 44)
+    holder:SetPoint("TOPLEFT", frame, "TOPLEFT", 9, -7)
+    Styles:EnsureBackground(
+        holder, "KamiPortraitBackground", Palette.panelStrong
+    )
+    Styles:CreateBorder(holder, {
+        color = Palette.windowBorder.neutral,
+        size = 1,
+        key = "KamiPortraitBorder",
+    })
+
+    -- Same square 3D portrait as KamiUI_UnitFrames, without forcing
+    -- a dependency on that optional module.
+    local portrait = CreateFrame("PlayerModel", nil, holder)
+    portrait:SetPoint("TOPLEFT", holder, "TOPLEFT", 2, -2)
+    portrait:SetPoint("BOTTOMRIGHT", holder, "BOTTOMRIGHT", -2, 2)
+    portrait:EnableMouse(false)
+    if portrait.SetPortraitZoom then
+        portrait:SetPortraitZoom(1)
+    end
+    if portrait.SetCamDistanceScale then
+        portrait:SetCamDistanceScale(1)
+    end
+
+    -- Keep Blizzard's static quest icon as fallback for quests
+    -- without a visible questnpc unit.
+    local texture = _G.QuestFramePortrait
+    if texture then
+        texture:SetParent(holder)
+        texture:ClearAllPoints()
+        texture:SetPoint("TOPLEFT", holder, "TOPLEFT", 2, -2)
+        texture:SetPoint(
+            "BOTTOMRIGHT", holder, "BOTTOMRIGHT", -2, 2
+        )
+    end
+
+    if frame.PortraitContainer then
+        frame.PortraitContainer:SetAlpha(0)
+    end
+
+    frame.KamiNPCPortrait = portrait
+    frame.KamiNPCPortraitFallback = texture
+end
+
+local function RefreshNPCPortrait(frame)
+    local portrait = frame and frame.KamiNPCPortrait
+    if not portrait then return end
+
+    local hasNPC = UnitExists and UnitExists("questnpc")
+    if UI:CanAccessValue(hasNPC) and hasNPC then
+        portrait:SetUnit("questnpc")
+        portrait:Show()
+        if frame.KamiNPCPortraitFallback then
+            frame.KamiNPCPortraitFallback:Hide()
+        end
+    else
+        portrait:Hide()
+        if frame.KamiNPCPortraitFallback then
+            frame.KamiNPCPortraitFallback:Show()
+        end
+    end
+end
+
+local function StyleNPCChrome(frame)
+    if frame.KamiNPCChromeStyled then return end
+    frame.KamiNPCChromeStyled = true
+
+    local close = frame.CloseButton
+    if close then
+        close:ClearAllPoints()
+        close:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -7, -7)
+        close:SetSize(20, 20)
+        Components:StyleCloseButton(close, {
+            artSize = 18,
+            crossSize = 9,
+            crossColor = Palette.text,
+        })
+    end
+
+    -- The scrollbars were actually close to the native right edge;
+    -- the over-wide 384 px panel background made them appear inset.
+    -- Keep Blizzard's scroll anchors and scrolling functionality.
+    for _, name in ipairs({
+        "QuestDetailScrollFrame",
+        "QuestProgressScrollFrame",
+        "QuestRewardScrollFrame",
+        "QuestGreetingScrollFrame",
+    }) do
+        local scroll = _G[name]
+        if scroll and scroll.ScrollBar then
+            Components:StyleScrollBar(scroll.ScrollBar, {
+                width = 6,
+            })
+        end
+    end
+
+    for _, name in ipairs({
+        "QuestFrameAcceptButton", "QuestFrameDeclineButton",
+        "QuestFrameCompleteButton", "QuestFrameGoodbyeButton",
+        "QuestFrameCompleteQuestButton",
+        "QuestFrameGreetingGoodbyeButton",
+    }) do
+        local button = _G[name]
+        if button then
+            Components:StyleButton(button, {
+                textColor = Palette.text,
+                borderColor = Palette.windowBorder.neutral,
+            })
+        end
+    end
+
+    if frame.TitleContainer and frame.TitleContainer.TitleText then
+        Styles:ApplyText(
+            frame.TitleContainer.TitleText, 13, Palette.gold
+        )
+    end
+
+    CreateNPCPortrait(frame)
+end
+
 local function StyleNPCQuest()
     local frame = QuestFrame
     if not frame then return end
@@ -146,6 +289,7 @@ local function StyleNPCQuest()
     if frame.TopTileStreaks then
         frame.TopTileStreaks:SetAlpha(0)
     end
+    if frame.Inset then frame.Inset:SetAlpha(0) end
 
     for _, name in ipairs({
         "QuestFrameDetailPanel",
@@ -153,11 +297,11 @@ local function StyleNPCQuest()
         "QuestFrameRewardPanel",
         "QuestFrameGreetingPanel",
     }) do
-        StylePanelBackground(
-            _G[name], "Kami" .. name .. "Background"
-        )
+        HideNPCPanelParchment(_G[name])
     end
 
+    StyleNPCChrome(frame)
+    RefreshNPCPortrait(frame)
     StyleSharedQuestText()
     for _, name in ipairs({
         "QuestProgressTitleText",
