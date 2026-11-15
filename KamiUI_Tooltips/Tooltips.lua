@@ -1504,6 +1504,47 @@ local function CacheManualInspectSpec(guid)
     end
 end
 
+-- Native "View Talents" can load INSPECT_READY before the
+-- PlayerSpellsFrame becomes visible. Watch the frame lifecycle too.
+local function InstallPlayerSpellsInspectHook()
+    local frame = PlayerSpellsFrame
+    if not frame or frame.KamiSpecInspectHooked
+        or not frame.HookScript then
+        return
+    end
+
+    frame.KamiSpecInspectHooked = true
+
+    local function TryManualInspect()
+        if not frame:IsShown() or not frame.IsInspecting
+            or not frame:IsInspecting()
+            or not frame.GetInspectUnit then
+            return
+        end
+
+        local unit = frame:GetInspectUnit()
+        if not IsValidPlayerUnit(unit) then return end
+
+        local guid = UnitGUID(unit)
+        if not guid or not UI:CanAccessValue(guid) then return end
+
+        -- Blizzard now owns the shared inspect config. Cancel
+        -- tooltip requests but never call ClearInspectPlayer here.
+        pendingInspect = nil
+        queuedInspect = nil
+        externalInspectUntil = (GetTime and GetTime() or 0)
+            + EXTERNAL_INSPECT_GRACE_SECONDS
+
+        CacheManualInspectSpec(guid)
+    end
+
+    frame:HookScript("OnShow", TryManualInspect)
+    if hooksecurefunc and type(frame.SetInspectUnit) == "function" then
+        hooksecurefunc(frame, "SetInspectUnit", TryManualInspect)
+    end
+    if frame:IsShown() then TryManualInspect() end
+end
+
 local function HandleInspectReady(guid)
     if not guid or not UI:CanAccessValue(guid) then
         return
@@ -1784,11 +1825,69 @@ local function InstallStatusBarSuppression()
     end
 end
 
+-- Read-only inspect diagnostics for the target or View Talents.
+UI:RegisterCommand("tooltips", "inspect", function()
+    if InCombatLockdown and InCombatLockdown() then
+        UI:Print("Inspect diagnostics require leaving combat.")
+        return
+    end
+
+    local unit = GetBlizzardInspectUnit()
+    if not unit and IsValidPlayerUnit("target") then
+        unit = "target"
+    end
+    if not unit then
+        UI:Print("Target a player or open View Talents first.")
+        return
+    end
+
+    local guid = UnitGUID(unit)
+    local _, classFile = GetClassInfo(unit)
+    local cached, name = GetCachedSpec(guid)
+    local canInspect = CanInspect
+        and UI:SafeCall(CanInspect, unit)
+    local valid = C_Traits and C_Traits.HasValidInspectData
+        and UI:SafeCall(C_Traits.HasValidInspectData)
+    local configID = Constants and Constants.TraitConsts
+        and Constants.TraitConsts.INSPECT_TRAIT_CONFIG_ID
+    local config = configID and C_Traits
+        and C_Traits.GetConfigInfo
+        and UI:SafeCall(C_Traits.GetConfigInfo, configID)
+    local trees = config and config.treeIDs
+
+    UI:Print(
+        "Inspect:", unit, classFile or "?",
+        "can=" .. tostring(canInspect),
+        "ready=" .. tostring(valid),
+        "trees=" .. tostring(type(trees) == "table" and #trees or 0)
+    )
+    UI:Print(
+        "Blizzard inspect visible:", tostring(IsBlizzardInspectActive()),
+        "pending:", tostring(pendingInspect ~= nil),
+        "cached:", cached and (name or "miss") or "no"
+    )
+    UI:Print(
+        "C_Traits groups:",
+        tostring(GetSpecFromTraitGroups(unit))
+    )
+    UI:Print(
+        "Inspect specialization:",
+        tostring(GetSpecFromInspectSpecialization(unit))
+    )
+    UI:Print(
+        "Specialization points:",
+        tostring(GetSpecFromTalentPoints(unit)),
+        "legacy tabs:",
+        tostring(GetSpecFromClassicTalentTabs(unit))
+    )
+end, "Diagnose player talent inspect and spec cache")
+
 function Module:Initialize()
     StyleKnownTooltips()
     InstallTooltipHideCleanup()
     InstallWorldCursorAnchor()
     InstallManualInspectPriority()
+    InstallPlayerSpellsInspectHook()
     InstallStatusBarSuppression()
     InstallInstantUnitTooltipHide()
     InstallUnitTooltipHook()
@@ -1803,6 +1902,7 @@ function Module:Initialize()
         InstallTooltipHideCleanup()
         InstallWorldCursorAnchor()
         InstallManualInspectPriority()
+        InstallPlayerSpellsInspectHook()
         InstallStatusBarSuppression()
         InstallInstantUnitTooltipHide()
         InstallUnitTooltipHook()
