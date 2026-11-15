@@ -6,7 +6,7 @@ local Module = UI:NewModule("Tooltips", "KamiUI_Tooltips")
 
 
 local INSPECT_CACHE_SECONDS = 600
-local INSPECT_MISS_CACHE_SECONDS = 60
+local INSPECT_MISS_CACHE_SECONDS = 10
 local INSPECT_THROTTLE_SECONDS = 1.5
 local INSPECT_TIMEOUT_SECONDS = 5
 local INSPECT_READY_RETRY_SECONDS = 0.05
@@ -637,10 +637,22 @@ local function NormalizeSpecText(specText, unit)
 end
 
 local function ResolveInspectedSpec(unit)
-    return NormalizeSpecText(
-        GetSpecFromTraitGroups(unit),
-        unit
-    )
+    -- Prefer Blizzard's explicit inspect specialization when present.
+    -- Forever's talent group currencies may not expose spent points in
+    -- every inspected config, so don't stop after one failed reader.
+    local readers = {
+        GetSpecFromInspectSpecialization,
+        GetSpecFromTraitGroups,
+        GetSpecFromTalentPoints,
+        GetSpecFromClassicTalentTabs,
+    }
+
+    for _, reader in ipairs(readers) do
+        local spec = NormalizeSpecText(reader(unit), unit)
+        if spec then return spec end
+    end
+
+    return nil
 end
 
 local function CacheSpec(guid, specText, ttl)
