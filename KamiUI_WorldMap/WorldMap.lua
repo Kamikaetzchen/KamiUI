@@ -10,12 +10,155 @@ local Components = UI.Components
 local hooks = {}
 local mapFrame
 
+-- Hide artwork on native navigation objects, but never suppress
+-- their FontStrings, interactive frames or click behavior.
+local function HideNavigationArtwork(frame)
+    if not frame or not frame.GetRegions then return end
+
+    local regions = { frame:GetRegions() }
+    for _, region in ipairs(regions) do
+        if region.GetObjectType
+            and region:GetObjectType() == "Texture" then
+            region:SetAlpha(0)
+        end
+    end
+end
+
+local function HideButtonArt(button)
+    if not button then return end
+
+    for _, getter in ipairs({
+        "GetNormalTexture",
+        "GetPushedTexture",
+        "GetHighlightTexture",
+    }) do
+        if button[getter] then
+            local region = button[getter](button)
+            if region then region:SetAlpha(0) end
+        end
+    end
+
+    for _, name in ipairs({
+        "selected", "arrowUp", "arrowDown",
+    }) do
+        if button[name] then button[name]:SetAlpha(0) end
+    end
+
+    if button.MenuArrowButton then
+        local arrow = button.MenuArrowButton
+        HideButtonArt(arrow)
+        if arrow.Art then arrow.Art:SetAlpha(0) end
+        if arrow.NormalTexture then
+            arrow.NormalTexture:SetAlpha(0)
+        end
+        if arrow.PushedTexture then
+            arrow.PushedTexture:SetAlpha(0)
+        end
+    end
+end
+
+-- Only the little zone-selection arrow uses our dropdown. A click on
+-- the location label is still handled by Blizzard's NavBar_ButtonOnClick.
+-- Entries come from Blizzard's own listFunc, preserving OpenMap maps.
+local function AttachZoneDropdown(button, nav)
+    if not button.listFunc or not button.MenuArrowButton
+        or button.KamiMapZoneDropdown then
+        return
+    end
+
+    local arrow = button.MenuArrowButton
+    button.KamiMapZoneDropdown = Components:CreateDropdown(nav, {
+        button = arrow,
+        menuParent = UIParent,
+        menuFrameStrata = "DIALOG",
+        menuFrameLevel = nav:GetFrameLevel() + 100,
+        closeWith = mapFrame,
+        styleButton = false,
+        showArrow = false,
+        rowHeight = 21,
+        fontSize = 11,
+        textColor = Palette.text,
+        borderColor = Palette.windowBorder.neutral,
+        minWidth = 145,
+        getEntries = function()
+            return button.listFunc and button:listFunc() or {}
+        end,
+        onSelect = function(entry)
+            if not entry then return end
+            if entry.func then
+                entry.func(arrow, entry.id, nav)
+            elseif entry.id and nav.GoToMap then
+                nav:GoToMap(entry.id)
+            end
+        end,
+    })
+
+    local label = arrow:CreateFontString(nil, "OVERLAY")
+    Styles:ApplyText(label, 11, Palette.gold)
+    label:SetPoint("CENTER", arrow, "CENTER", -1, 0)
+    label:SetText("v")
+    arrow.KamiMapChevron = label
+end
+
+local function StyleNavigationButton(button, active, nav)
+    if not button then return end
+
+    if not button.KamiMapBreadcrumbStyled then
+        button.KamiMapBreadcrumbStyled = true
+        HideNavigationArtwork(button)
+        HideButtonArt(button)
+
+        Styles:EnsureBackground(
+            button, "KamiMapButtonBackground", Palette.panelStrong
+        )
+        Styles:CreateBorder(button, {
+            color = Palette.windowBorder.neutral,
+            size = 1,
+            key = "KamiMapButtonBorder",
+        })
+
+        if button.text then
+            button.text:ClearAllPoints()
+            button.text:SetPoint("LEFT", button, "LEFT", 10, 0)
+            button.text:SetPoint("RIGHT", button, "RIGHT", -28, 0)
+            button.text:SetJustifyH("LEFT")
+            button.text:SetWordWrap(false)
+        end
+
+        AttachZoneDropdown(button, nav)
+    end
+
+    if button.text then
+        Styles:ApplyText(
+            button.text, 11, active and Palette.gold or Palette.text
+        )
+    end
+    if button.KamiMapButtonBackground then
+        Styles:SetColor(
+            button.KamiMapButtonBackground,
+            active and Palette.header or Palette.panelStrong
+        )
+    end
+
+    -- A recycled native button may acquire dropdown entries later.
+    AttachZoneDropdown(button, nav)
+    if button.KamiMapChevron then
+        button.KamiMapChevron:SetTextColor(
+            unpack(Palette.gold)
+        )
+    end
+end
+
 local function StyleBreadcrumbs()
     local nav = mapFrame and mapFrame.NavBar
     if not nav then return end
 
-    -- The native navbar already provides a working clickable path,
-    -- including its overflow menu. Do not create competing buttons.
+    if not nav.KamiMapBreadcrumbStyled then
+        nav.KamiMapBreadcrumbStyled = true
+        HideNavigationArtwork(nav)
+        HideNavigationArtwork(nav.overlay)
+    end
+
     Styles:EnsureBackground(
         nav, "KamiMapBreadcrumbBackground", Palette.header
     )
@@ -32,19 +175,28 @@ local function StyleBreadcrumbs()
     if type(buttons) ~= "table" then return end
 
     for index, button in ipairs(buttons) do
-        if button.text then
-            if not button.KamiMapBreadcrumbStyled then
-                button.KamiMapBreadcrumbStyled = true
-                Styles:ApplyText(button.text, "normal")
-            end
+        StyleNavigationButton(button, index == #buttons, nav)
+    end
 
-            -- Native button callbacks, parent paths, dropdowns and
-            -- widths stay intact. Only the text color is ours.
-            Styles:SetTextColor(
-                button.text,
-                index == #buttons and Palette.gold or Palette.muted
-            )
-        end
+    -- Overflow remains Blizzard-controlled, so hidden ancestors can
+    -- still be selected even when the map is very narrow.
+    local overflow = nav.overflowButton
+    if overflow and not overflow.KamiMapOverflowStyled then
+        overflow.KamiMapOverflowStyled = true
+        HideNavigationArtwork(overflow)
+        HideButtonArt(overflow)
+        Styles:EnsureBackground(
+            overflow, "KamiMapOverflowBackground", Palette.panelStrong
+        )
+        Styles:CreateBorder(overflow, {
+            color = Palette.windowBorder.neutral,
+            size = 1,
+            key = "KamiMapOverflowBorder",
+        })
+        local label = overflow:CreateFontString(nil, "OVERLAY")
+        Styles:ApplyText(label, 11, Palette.gold)
+        label:SetPoint("CENTER")
+        label:SetText("...")
     end
 end
 
