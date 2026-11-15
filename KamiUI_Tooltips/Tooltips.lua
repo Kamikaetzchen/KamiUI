@@ -1397,31 +1397,9 @@ local function ResolveInspectReady(
             preferredUnit
         )
 
-        local hasValidInspectData = true
-        if C_Traits and C_Traits.HasValidInspectData then
-            hasValidInspectData =
-                UI:SafeCall(C_Traits.HasValidInspectData)
-                    == true
-        end
-
-        if not hasValidInspectData then
-            if attempts < INSPECT_READY_RETRY_COUNT
-                and C_Timer
-                and C_Timer.After
-            then
-                C_Timer.After(
-                    INSPECT_READY_RETRY_SECONDS,
-                    TryResolve
-                )
-                return
-            end
-
-            if request then
-                FinishInspectRequest(request)
-            end
-            return
-        end
-
+        -- Some Forever clients expose an inspect specialization
+        -- before (or without) a valid C_Traits inspect config.
+        -- ResolveInspectedSpec checks each reader independently.
         local specText = unit
             and ResolveInspectedSpec(unit)
             or nil
@@ -1480,17 +1458,8 @@ local function CacheManualInspectSpec(guid)
 
         attempts = attempts + 1
 
-        if C_Traits and C_Traits.HasValidInspectData
-            and UI:SafeCall(C_Traits.HasValidInspectData) ~= true then
-            if attempts < INSPECT_READY_RETRY_COUNT
-                and C_Timer and C_Timer.After then
-                C_Timer.After(
-                    INSPECT_READY_RETRY_SECONDS, TryCache
-                )
-            end
-            return
-        end
-
+        -- Do not globally gate fallback readers on the trait config:
+        -- the explicit inspected spec can already be available.
         local spec = ResolveInspectedSpec(unit)
         if spec then
             CacheSpec(guid, spec)
