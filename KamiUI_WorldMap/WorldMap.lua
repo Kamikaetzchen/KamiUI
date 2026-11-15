@@ -184,6 +184,29 @@ local function StyleBreadcrumbs()
     local buttons = nav.navList
     if type(buttons) ~= "table" then return end
 
+    -- Blizzard offsets the "World" home button by -15 px so the
+    -- original beveled breadcrumb textures overlap. Flat rectangular
+    -- KamiUI buttons need a real gap instead. NavBar_CheckLength uses
+    -- the *previous* button's xoffset when placing the next one.
+    local gap = 3
+    local spacingChanged = false
+    for _, button in ipairs(buttons) do
+        if button.xoffset ~= gap then
+            button.xoffset = gap
+            spacingChanged = true
+        end
+    end
+
+    local overflow = nav.overflowButton
+    if overflow and overflow.xoffset ~= gap then
+        overflow.xoffset = gap
+        spacingChanged = true
+    end
+
+    if spacingChanged and type(NavBar_CheckLength) == "function" then
+        NavBar_CheckLength(nav)
+    end
+
     for index, button in ipairs(buttons) do
         StyleNavigationButton(button, index == #buttons, nav)
     end
