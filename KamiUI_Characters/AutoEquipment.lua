@@ -29,7 +29,7 @@ local PLAGUELAND_INSTANCES = {
 }
 local RIDING_GLOVE_ENCHANT = 930
 local MITHRIL_SPURS_ENCHANT = 464
-local QUEUE_KEY = "characters.mountEquipment"
+local QUEUE_KEY = "characters.autoEquipment"
 local SWAP_TIMEOUT = 1.5
 
 -- Slot 14 is handled separately so mounted and zone rules cannot
@@ -179,12 +179,25 @@ end
 local function GetRecords()
     local _, character = Module:GetCurrentCharacter()
     if not character then return nil end
-    if type(character.mountEquipment) ~= "table" then
-        character.mountEquipment = {}
+
+    -- Migrate the previous saved mountEquipment slot records without
+    -- losing the original gear link on reload while mounted.
+    local legacy = character.mountEquipment
+    if type(character.autoEquipment) ~= "table" then
+        character.autoEquipment =
+            type(legacy) == "table" and legacy or {}
+    elseif type(legacy) == "table" then
+        for slot, record in pairs(legacy) do
+            if character.autoEquipment[slot] == nil then
+                character.autoEquipment[slot] = record
+            end
+        end
     end
+    character.mountEquipment = nil
+
     -- Saved per character: /reload or relog while mounted must not
     -- lose the original items needed for the next dismount.
-    return character.mountEquipment
+    return character.autoEquipment
 end
 
 local function CursorOccupied()
