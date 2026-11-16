@@ -54,11 +54,10 @@ Carrot from becoming the permanent restoration target.
 
 After dismounting, Auto Equip checks whether the global cooldown is
 active, using the Forever-compatible GCD detection in KamiUI_ActionBars.
-It checks again every 0.05 seconds and attempts the equipment
-swap immediately once the GCD is no longer observed, without an
-additional clearance margin. If Cat Form's GCD cannot be observed, the measured
-1.28-second threshold is covered by a 1.3-second fallback.
-Normal dismounts retain the short 0.1-second delay.
+After the initial 0.1-second dismount delay, it checks every 0.05
+seconds while a GCD is detected and attempts the equipment swap
+as soon as the GCD is no longer observed, without an additional
+clearance margin. This applies uniformly to all shapeshift forms.
 
 Equipment swaps are also deferred for the full duration of ongoing
 spellcasts or channels, including long crafting casts. A GCD may end
