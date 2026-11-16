@@ -6,8 +6,27 @@ local Module = UI:GetModule("Characters")
 -- Plaguelands: Seal/Rune of the Dawn or Argent Dawn Commission.
 -- Enchanted riding gloves and spurred boots are mounted-only.
 local CARROT_ID = 11122
-local DAWN_TRINKETS = { 13209, 19812, 12846 }
-local PLAGUELAND_MAPS = { [22] = true, [23] = true }
+-- Stronger Argent Dawn trinkets from The Active Agent and Naxxramas
+-- retain the Commission effect. Prefer physical damage for Feral.
+local DAWN_TRINKETS = {
+    23206, -- Mark of the Champion (attack power)
+    13209, -- Seal of the Dawn (attack power)
+    23207, -- Mark of the Champion (spell power)
+    19812, -- Rune of the Dawn (spell power)
+    12846, -- Argent Dawn Commission
+}
+local PLAGUELAND_MAPS = {
+    [22] = true, [23] = true, -- Western/Eastern Plaguelands
+    [306] = true, [307] = true, -- Scholomance floors
+    [308] = true, [309] = true,
+    [317] = true, [318] = true, -- Stratholme wings
+    [476] = true, [477] = true, -- Alternate Scholomance UI maps
+    [478] = true, [479] = true,
+}
+local PLAGUELAND_INSTANCES = {
+    [289] = true, -- Scholomance
+    [329] = true, -- Stratholme
+}
 local RIDING_GLOVE_ENCHANT = 930
 local MITHRIL_SPURS_ENCHANT = 464
 local QUEUE_KEY = "characters.mountEquipment"
@@ -99,6 +118,18 @@ end
 -- Prefer zone map IDs over localized zone strings. The parent
 -- traversal handles submaps such as Light's Hope Chapel (map 24).
 local function IsInPlaguelands()
+    -- Zone map IDs may differ inside an instance. The physical
+    -- instance IDs provide another check on Forever.
+    if GetInstanceInfo then
+        local _, instanceType, _, _, _, _, _, instanceID =
+            UI:SafeCall(GetInstanceInfo)
+        if instanceType == "party"
+            and UI:CanAccessValue(instanceID)
+            and PLAGUELAND_INSTANCES[instanceID] then
+            return true
+        end
+    end
+
     if C_Map and C_Map.GetBestMapForUnit
         and C_Map.GetMapInfo then
         local mapID = UI:SafeCall(
@@ -129,6 +160,8 @@ local function IsInPlaguelands()
         or zone == "Eastern Plaguelands"
         or zone == "Westliche Pestländer"
         or zone == "Östliche Pestländer"
+        or zone == "Scholomance"
+        or zone == "Stratholme"
     ) or false
 end
 
@@ -356,7 +389,10 @@ local function RunTrinket(records, mounted, inPlaguelands, enabled, now)
             end
         end
     elseif record and not restoreBlocked[slot] then
-        if not StartSwap(slot, record.previous, "restore") then
+        if SameItem(current, record.previous) then
+            -- No action needed when the original is already equipped.
+            records[slot] = nil
+        elseif not StartSwap(slot, record.previous, "restore") then
             restoreBlocked[slot] = true
         end
     end
@@ -371,7 +407,7 @@ local function Run()
 
     -- When disabled, restore only items installed by this module.
     -- Unreadable mount state must not trigger an incorrect swap.
-    local enabled = Module:IsMountGearEnabled()
+    local enabled = Module:IsAutoEquipEnabled()
     local mounted = false
     if enabled then
         if not IsMounted then return end
@@ -490,9 +526,12 @@ local function Run()
     end
 end
 
-function Module:RefreshMountEquipment()
+function Module:RefreshAutoEquipment()
     Refresh()
 end
+
+-- Compatibility with the previous Mount Gear implementation.
+Module.RefreshMountEquipment = Module.RefreshAutoEquipment
 
 Refresh = function()
     if Locked() then
