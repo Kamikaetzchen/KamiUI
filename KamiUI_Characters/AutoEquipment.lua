@@ -30,7 +30,8 @@ local PLAGUELAND_INSTANCES = {
 local RIDING_GLOVE_ENCHANT = 930
 local MITHRIL_SPURS_ENCHANT = 464
 local QUEUE_KEY = "characters.autoEquipment"
-local SWAP_TIMEOUT = 1.5
+-- Retry after the 1.5s shapeshift GCD, with a small safety margin.
+local SWAP_TIMEOUT = 1.7
 local MAX_SWAP_ATTEMPTS = 5
 
 -- Slot 14 is handled separately so mounted and zone rules cannot
@@ -460,18 +461,6 @@ local function Run()
             return
         end
 
-        -- Druid forms dismount immediately. Some clients briefly
-        -- report the previous IsMounted() state during the transition.
-        if mounted and UnitClass and GetShapeshiftForm then
-            local _, class = UI:SafeCall(UnitClass, "player")
-            if class == "DRUID" then
-                local form = UI:SafeCall(GetShapeshiftForm)
-                if UI:CanAccessValue(form)
-                    and type(form) == "number" and form > 0 then
-                    mounted = false
-                end
-            end
-        end
     end
     local records = GetRecords()
     if not records then return end
