@@ -31,6 +31,7 @@ local RIDING_GLOVE_ENCHANT = 930
 local MITHRIL_SPURS_ENCHANT = 464
 local QUEUE_KEY = "characters.autoEquipment"
 local SWAP_TIMEOUT = 1.5
+local MAX_SWAP_ATTEMPTS = 5
 
 -- Slot 14 is handled separately so mounted and zone rules cannot
 -- compete. This list only contains mounted-only riding enchants.
@@ -263,20 +264,58 @@ local function SwapInto(slot, link)
 end
 
 local function StartSwap(slot, target, action)
-    local ok
+    if CursorOccupied() then return false end
+    if target ~= false and not (
+        C_Item and C_Item.EquipItemByName or EquipItemByName
+    ) then
+        return false
+    end
+    if target == false and not PickupInventoryItem then
+        return false
+    end
+
+    local from = Equipped(slot) or false
     if target == false then
-        ok = UnequipToBag(slot)
+        UnequipToBag(slot)
     else
-        ok = SwapInto(slot, target)
+        SwapInto(slot, target)
     end
-    if ok then
-        pending[slot] = {
-            action = action,
-            deadline = (GetTime and GetTime() or 0) + SWAP_TIMEOUT,
-        }
-        RequestDelayedCheck()
+
+    -- During a shapeshift/GCD Forever may silently reject an equip.
+    -- Only a changed inventory slot confirms that it succeeded.
+    pending[slot] = {
+        action = action,
+        from = from,
+        attempts = 1,
+        deadline = (GetTime and GetTime() or 0) + SWAP_TIMEOUT,
+    }
+    RequestDelayedCheck()
+    return true
+end
+
+local function RetryPendingSwap(slot, record, waiting, current, now)
+    -- Retry only if the slot still contains the item from before
+    -- our attempt. Never overwrite a manual equipment change.
+    if not record
+        or not SameItem(current, waiting.from)
+        or (waiting.attempts or 1) >= MAX_SWAP_ATTEMPTS then
+        return false
     end
-    return ok
+
+    local target = waiting.action == "mount"
+        and record.riding or record.previous
+    if not CursorOccupied() then
+        if target == false then
+            UnequipToBag(slot)
+        else
+            SwapInto(slot, target)
+        end
+    end
+
+    waiting.attempts = (waiting.attempts or 1) + 1
+    waiting.deadline = now + SWAP_TIMEOUT
+    RequestDelayedCheck()
+    return true
 end
 
 -- A single state machine owns Trinket1Slot (slot 14).
@@ -318,6 +357,8 @@ local function RunTrinket(records, mounted, inPlaguelands, enabled, now)
                 record = nil
             end
         elseif now < waiting.deadline then
+            return
+        elseif RetryPendingSwap(slot, record, waiting, current, now) then
             return
         else
             pending[slot] = nil
@@ -419,6 +460,19 @@ local function Run()
             or type(mounted) ~= "boolean" then
             return
         end
+
+        -- Druid forms dismount immediately. Some clients briefly
+        -- report the previous IsMounted() state during the transition.
+        if mounted and UnitClass and GetShapeshiftForm then
+            local _, class = UI:SafeCall(UnitClass, "player")
+            if class == "DRUID" then
+                local form = UI:SafeCall(GetShapeshiftForm)
+                if UI:CanAccessValue(form)
+                    and type(form) == "number" and form > 0 then
+                    mounted = false
+                end
+            end
+        end
     end
     local records = GetRecords()
     if not records then return end
@@ -469,6 +523,10 @@ local function Run()
                         record = nil
                     end
                 elseif now < waiting.deadline then
+                    skip = true
+                elseif RetryPendingSwap(
+                    slot, record, waiting, current, now
+                ) then
                     skip = true
                 else
                     pending[slot] = nil
@@ -554,6 +612,8 @@ end
 
 UI:RegisterEvent("PLAYER_ENTERING_WORLD", Refresh)
 UI:RegisterEvent("PLAYER_MOUNT_DISPLAY_CHANGED", Refresh)
+UI:RegisterEvent("UPDATE_SHAPESHIFT_FORM", Refresh)
+UI:RegisterEvent("UPDATE_SHAPESHIFT_FORMS", Refresh)
 UI:RegisterEvent("ZONE_CHANGED_NEW_AREA", Refresh)
 UI:RegisterEvent("ZONE_CHANGED", Refresh)
 UI:RegisterEvent("ZONE_CHANGED_INDOORS", Refresh)
