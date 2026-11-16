@@ -136,10 +136,6 @@ function Module:SetAutoEquipEnabled(enabled)
     end
 end
 
--- Existing third-party callers can still use the old methods.
-Module.IsMountGearEnabled = Module.IsAutoEquipEnabled
-Module.SetMountGearEnabled = Module.SetAutoEquipEnabled
-
 function Module:GetCharacter(key)
     return key and GetDatabase().data[key] or nil
 end
