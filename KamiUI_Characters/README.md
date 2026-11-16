@@ -52,6 +52,11 @@ temporary swaps. Transitions between Plaguelands, mounted, dismounted
 and outside preserve that original, preventing the Argent badge or
 Carrot from becoming the permanent restoration target.
 
+After dismounting, Auto Equip waits 0.1 seconds before swapping gear,
+to test whether separating mount-aura removal from the next equip
+helps Forever apply the Argent Dawn buff immediately. This is an
+experimental delay, not a confirmed server tick interval.
+
 Manual equipment changes are respected. Auto Equip verifies each
 swap against the equipped item, and retries transient failures up to
 five times at 0.8-second intervals. Early retries may fall within
