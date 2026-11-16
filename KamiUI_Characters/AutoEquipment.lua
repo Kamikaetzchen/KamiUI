@@ -36,7 +36,7 @@ local MAX_SWAP_ATTEMPTS = 5
 local DISMOUNT_DELAY = 0.1
 local GCD_POLL_INTERVAL = 0.1
 local GCD_CLEAR_MARGIN = 0.05
-local GCD_FALLBACK_DELAY = 1.3
+local GCD_FALLBACK_DELAY = 1.3 -- Cat Form only
 
 -- Slot 14 is handled separately so mounted and zone rules cannot
 -- compete. This list only contains mounted-only riding enchants.
@@ -286,6 +286,39 @@ local function IsGlobalCooldownActive()
     end
 
     return nil
+end
+
+-- Only Cat Form needs the experimentally measured 1.3s fallback
+-- when the client does not report its shapeshift GCD.
+local function IsDruidCatForm()
+    if not UnitClass then return false end
+    local _, class = UI:SafeCall(UnitClass, "player")
+    if not UI:CanAccessValue(class) or class ~= "DRUID" then
+        return false
+    end
+
+    if GetShapeshiftFormID then
+        local form = UI:SafeCall(GetShapeshiftFormID)
+        if UI:CanAccessValue(form)
+            and type(form) == "number"
+            and form == (CAT_FORM or 1) then
+            return true
+        end
+    end
+
+    if UnitPowerType then
+        local power, token = UI:SafeCall(UnitPowerType, "player")
+        if UI:CanAccessValue(token) and token == "ENERGY" then
+            return true
+        end
+        if UI:CanAccessValue(power) and type(power) == "number" then
+            local energy = Enum and Enum.PowerType
+                and Enum.PowerType.Energy or 3
+            return power == energy
+        end
+    end
+
+    return false
 end
 
 local function ScheduleDismountCheck(delay)
@@ -600,10 +633,10 @@ local function Run()
             ScheduleDismountCheck(GCD_POLL_INTERVAL)
             return
         elseif (gcdActive == nil or not dismountHadGCD)
+            and IsDruidCatForm()
             and now - dismountStartedAt < GCD_FALLBACK_DELAY then
-            -- No GCD was observed (e.g. ActionBars unavailable or
-            -- cooldown state not updated yet). Keep the measured
-            -- 1.28s threshold as a safe fallback.
+            -- Only Cat Form needs a fallback when its GCD cannot be
+            -- observed. Normal dismounts use the 0.1s initial delay.
             local remaining = GCD_FALLBACK_DELAY
                 - (now - dismountStartedAt)
             local delay = math.min(GCD_POLL_INTERVAL, remaining)
