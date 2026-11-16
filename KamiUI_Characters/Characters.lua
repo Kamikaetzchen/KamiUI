@@ -66,6 +66,59 @@ local function ImportLegacyBagCharacters()
     end
 end
 
+-- Temporary, one-time account-wide migration. Unlike GetRecords()
+-- (which only sees the logged-in character), this also converts alts
+-- that have never been logged in since the Auto Equip rename.
+-- The version marker makes future reloads a no-op.
+local function MigrateAutoEquipmentData()
+    local db = GetDatabase()
+    if db.autoEquipmentMigrationVersion == 1 then return end
+
+    local changed = 0
+    for _, character in pairs(db.data or {}) do
+        if type(character) == "table" then
+            local migrated = false
+
+            if character.mountGearEnabled ~= nil then
+                if character.autoEquipEnabled == nil then
+                    character.autoEquipEnabled =
+                        character.mountGearEnabled == true
+                end
+                character.mountGearEnabled = nil
+                migrated = true
+            end
+
+            local oldRecords = character.mountEquipment
+            if type(oldRecords) == "table" then
+                if type(character.autoEquipment) ~= "table" then
+                    character.autoEquipment = oldRecords
+                else
+                    -- A newer snapshot wins; only fill missing slots.
+                    for slot, record in pairs(oldRecords) do
+                        if character.autoEquipment[slot] == nil then
+                            character.autoEquipment[slot] = record
+                        end
+                    end
+                end
+                migrated = true
+            end
+            if oldRecords ~= nil then
+                character.mountEquipment = nil
+                migrated = true
+            end
+
+            if migrated then changed = changed + 1 end
+        end
+    end
+
+    db.autoEquipmentMigrationVersion = 1
+    UI:Print(
+        "Auto Equip migration complete (",
+        changed,
+        " characters). /reload or logout to save."
+    )
+end
+
 local function UpdateCurrentCharacter()
     local db = GetDatabase()
     local key = UI:GetCurrentCharacterKey()
@@ -4647,6 +4700,7 @@ end
 function Module:Initialize()
     GetDatabase()
     ImportLegacyBagCharacters()
+    MigrateAutoEquipmentData()
     UpdateCurrentCharacter()
     self.frame = CreateFrameUI()
     self:Refresh()
