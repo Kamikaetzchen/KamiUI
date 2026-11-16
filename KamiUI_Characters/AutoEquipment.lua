@@ -544,8 +544,6 @@ function Module:RefreshAutoEquipment()
     Refresh()
 end
 
--- Compatibility with the previous Mount Gear implementation.
-Module.RefreshMountEquipment = Module.RefreshAutoEquipment
 
 Refresh = function()
     if Locked() then
