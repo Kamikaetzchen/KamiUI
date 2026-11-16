@@ -65,12 +65,6 @@ spellcasts or channels, including long crafting casts. A GCD may end
 long before a 10-second cast ends; Auto Equip waits for the cast to
 finish without consuming any of its five swap attempts.
 
-For debugging, Auto Equip prints the time from dismount until GCD
-clearance, the initial equip request and the **confirmed** Argent Dawn
-trinket swap. It also includes the time between request and confirmation
-and the number of swap attempts. The logged timestamps do not measure
-when the trinket's buff appears.
-
 Manual equipment changes are respected. Auto Equip verifies each
 swap against the equipped item, and retries transient failures up to
 five times at 0.8-second intervals. Early retries may fall within
