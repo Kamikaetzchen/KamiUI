@@ -5,7 +5,7 @@ character pane enables context-sensitive equipment swapping. It replaces
 the old **Mount Gear** label and uses the existing character preference:
 a previously disabled Mount Gear option stays disabled. New changes use
 `autoEquipEnabled` in SavedVariables. The module still loads from
-`AutoEquipment.lua`. The old mount setting/API names remain compatible.
+`AutoEquipment.lua`. Legacy SavedVariables are migrated automatically.
 
 ## Priorities
 
