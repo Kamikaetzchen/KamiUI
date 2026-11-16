@@ -688,6 +688,38 @@ local function FormatCraftMoney(copper)
     return table.concat(parts, " ")
 end
 
+-- Match Blizzard's recipe-list modified-click behavior. A chat
+-- hyperlink is only available when the client can resolve the recipe;
+-- never fabricate links for cached/offline recipes.
+local function LinkRecipeInChat(recipeID)
+    if not recipeID or not IsModifiedClick
+        or not IsModifiedClick("CHATLINK")
+        or not C_TradeSkillUI
+        or not C_TradeSkillUI.GetRecipeLink then
+        return false
+    end
+
+    local link = UI:SafeCall(C_TradeSkillUI.GetRecipeLink, recipeID)
+    if not UI:CanAccessValue(link)
+        or type(link) ~= "string" or link == "" then
+        return false
+    end
+
+    if HandleModifiedItemClick
+        and UI:SafeCall(HandleModifiedItemClick, link) == true then
+        return true
+    end
+
+    if ChatFrameUtil and ChatFrameUtil.GetActiveWindow
+        and ChatFrameUtil.InsertLink
+        and ChatFrameUtil.GetActiveWindow() then
+        ChatFrameUtil.InsertLink(link)
+        return true
+    end
+
+    return false
+end
+
 local function AcquireRecipeRow(frame, index)
     local row = frame.recipeRows[index]
 
@@ -762,6 +794,12 @@ local function AcquireRecipeRow(frame, index)
         end
 
         if self.recipeID then
+            -- Shift-click links this recipe in the active chat edit box.
+            -- A regular click still selects the recipe for crafting.
+            if LinkRecipeInChat(self.recipeID) then
+                return
+            end
+
             Module.selectedRecipeID = self.recipeID
             Module:RefreshRecipeList()
             Module:RefreshRecipeDetails()
