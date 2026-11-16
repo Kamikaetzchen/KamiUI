@@ -111,21 +111,34 @@ function Module:GetCurrentCharacter()
     return key, GetDatabase().data[key]
 end
 
--- The automatic riding-equipment toggle is per character and defaults on,
--- preserving the behavior that existing players already have.
-function Module:IsMountGearEnabled()
-    local _, character = self:GetCurrentCharacter()
-    return not character or character.mountGearEnabled ~= false
+-- Auto Equip shares the old Mount Gear preference. An explicit
+-- "false" remains disabled until the user changes the checkbox.
+local function AutoEquipEnabled(character)
+    if not character then return true end
+    if character.autoEquipEnabled ~= nil then
+        return character.autoEquipEnabled ~= false
+    end
+    return character.mountGearEnabled ~= false
 end
 
-function Module:SetMountGearEnabled(enabled)
+function Module:IsAutoEquipEnabled()
+    local _, character = self:GetCurrentCharacter()
+    return AutoEquipEnabled(character)
+end
+
+function Module:SetAutoEquipEnabled(enabled)
     local _, character = self:GetCurrentCharacter()
     if not character then return end
-    character.mountGearEnabled = enabled == true
-    if self.RefreshMountEquipment then
-        self:RefreshMountEquipment()
+    character.autoEquipEnabled = enabled == true
+    character.mountGearEnabled = nil
+    if self.RefreshAutoEquipment then
+        self:RefreshAutoEquipment()
     end
 end
+
+-- Existing third-party callers can still use the old methods.
+Module.IsMountGearEnabled = Module.IsAutoEquipEnabled
+Module.SetMountGearEnabled = Module.SetAutoEquipEnabled
 
 function Module:GetCharacter(key)
     return key and GetDatabase().data[key] or nil
@@ -793,12 +806,12 @@ local SetOuterPage
 
 local function UpdatePlayerInfo(frame)
     local _, character, isCurrent = Module:GetViewedCharacter()
-    if frame.mountGearCheckbox then
-        -- Cached characters show their saved preference but cannot be
-        -- changed from another character's equipment panel.
-        Components:SetToggleState(frame.mountGearCheckbox,
-            not (character and character.mountGearEnabled == false),
-            isCurrent)
+    if frame.autoEquipCheckbox then
+        -- Cached characters show their saved preference read-only.
+        Components:SetToggleState(
+            frame.autoEquipCheckbox, AutoEquipEnabled(character),
+            isCurrent
+        )
     end
     local name
     local level
@@ -4517,38 +4530,44 @@ local function CreateFrameUI()
 
     -- Symmetric with Item Rating's bottom-right button: 6 px from both
     -- edges, immediately left of the main-hand slot.
-    local mountGear = Components:CreateCheckbox(characterPane, {
+    local autoEquip = Components:CreateCheckbox(characterPane, {
         size = 14,
-        width = 76,
+        width = 85,
         height = 20,
-        label = "Mount Gear",
+        label = "Auto Equip",
         labelGap = 5,
     })
-    mountGear:SetPoint(
+    autoEquip:SetPoint(
         "BOTTOMLEFT", characterPane, "BOTTOMLEFT", 6, 6
     )
-    mountGear:SetFrameLevel(
+    autoEquip:SetFrameLevel(
         frame.equipmentByKey.WristSlot:GetFrameLevel() + 2
     )
-    mountGear:HookScript("OnClick", function(self)
+    autoEquip:HookScript("OnClick", function(self)
         local _, _, isCurrent = Module:GetViewedCharacter()
         if not isCurrent then return end
-        Module:SetMountGearEnabled(self:GetChecked())
+        Module:SetAutoEquipEnabled(self:GetChecked())
     end)
-    mountGear:SetScript("OnEnter", function(self)
+    autoEquip:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_CURSOR_RIGHT")
-        GameTooltip:SetText("Mount Gear")
+        GameTooltip:SetText("Auto Equip")
         GameTooltip:AddLine(
-            "Automatically equip riding-speed items while mounted"
-                .. " and restore your previous gear afterward.",
+            "Equips riding gear while mounted, or an Argent Dawn"
+                .. " trinket in the Plaguelands, Stratholme and"
+                .. " Scholomance. Carrot takes priority on mounts.",
+            0.75, 0.75, 0.75, true
+        )
+        GameTooltip:AddLine(
+            "Restores the previous equipment when the condition ends."
+                .. " Never swaps equipment in combat.",
             0.75, 0.75, 0.75, true
         )
         GameTooltip:Show()
     end)
-    mountGear:SetScript("OnLeave", function()
+    autoEquip:SetScript("OnLeave", function()
         GameTooltip:Hide()
     end)
-    frame.mountGearCheckbox = mountGear
+    frame.autoEquipCheckbox = autoEquip
 
     local tabs = {
         { label = "Character", page = "character", enabled = true },
