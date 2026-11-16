@@ -53,6 +53,7 @@ local lastPlaguelands
 local dismountReadyAt
 local dismountStartedAt
 local dismountSawGCD = false
+local dismountTrace
 local dismountCheckScheduled = false
 local refreshScheduled = false
 local Refresh
@@ -370,6 +371,35 @@ local function RetryPendingSwap(slot, record, waiting, current, now)
     return true
 end
 
+-- Report the verified equipment state, not the equip request. The
+-- Argent Dawn aura may update later than the actual item slot.
+local function TraceDismountTrinket(current, now)
+    local trace = dismountTrace
+    if not trace then return end
+
+    local itemID = ItemID(current)
+    local isDawn = false
+    for _, id in ipairs(DAWN_TRINKETS) do
+        if itemID == id then
+            isDawn = true
+            break
+        end
+    end
+    if not isDawn then return end
+
+    local elapsed = math.max(0, now - trace.startedAt)
+    local released = trace.releasedAt
+        and math.max(0, trace.releasedAt - trace.startedAt)
+        or 0
+
+    UI:Print(string.format(
+        "Auto Equip: Dawn trinket after %.2f s "
+            .. "(GCD wait %.2f s, GCD detected: %s).",
+        elapsed, released, trace.gcdDetected and "yes" or "no"
+    ))
+    dismountTrace = nil
+end
+
 -- A single state machine owns Trinket1Slot (slot 14).
 -- This keeps the saved original item across transitions such as
 -- normal -> Plaguelands -> mounted -> dismounted -> normal.
@@ -403,6 +433,10 @@ local function RunTrinket(records, mounted, inPlaguelands, enabled, now)
         )
         if complete then
             pending[slot] = nil
+            if waiting.action == "mount" and not mounted
+                and inPlaguelands then
+                TraceDismountTrinket(current, now)
+            end
             if waiting.action == "restore" then
                 records[slot] = nil
                 record = nil
@@ -526,11 +560,16 @@ local function Run()
         dismountStartedAt = now
         dismountReadyAt = now + DISMOUNT_DELAY
         dismountSawGCD = false
+        dismountTrace = inPlaguelands and {
+            startedAt = now,
+            gcdDetected = false,
+        } or nil
         ScheduleDismountCheck(DISMOUNT_DELAY)
     elseif mounted or not enabled then
         dismountReadyAt = nil
         dismountStartedAt = nil
         dismountSawGCD = false
+        dismountTrace = nil
     end
 
     if lastMounted ~= mounted
@@ -550,6 +589,9 @@ local function Run()
         local gcdActive = IsGlobalCooldownActive()
         if gcdActive == true then
             dismountSawGCD = true
+            if dismountTrace then
+                dismountTrace.gcdDetected = true
+            end
             dismountReadyAt = now + GCD_POLL_INTERVAL
             ScheduleDismountCheck(GCD_POLL_INTERVAL)
             return
@@ -571,6 +613,9 @@ local function Run()
             return
         end
 
+        if dismountTrace then
+            dismountTrace.releasedAt = now
+        end
         dismountReadyAt = nil
         dismountStartedAt = nil
     end
