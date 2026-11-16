@@ -52,10 +52,17 @@ temporary swaps. Transitions between Plaguelands, mounted, dismounted
 and outside preserve that original, preventing the Argent badge or
 Carrot from becoming the permanent restoration target.
 
-After dismounting, Auto Equip waits 0.1 seconds before swapping gear,
-to test whether separating mount-aura removal from the next equip
-helps Forever apply the Argent Dawn buff immediately. This is an
-experimental delay, not a confirmed server tick interval.
+After dismounting, Auto Equip checks whether the global cooldown is
+active, using the Forever-compatible GCD detection in KamiUI_ActionBars.
+It checks again every 0.1 seconds, waits another 0.05 seconds when
+an observed GCD ends, then equips the original gear or Argent Dawn
+trinket. If no GCD can be detected, the experimentally verified
+1.28-second threshold is used with a 1.3-second fallback.
+
+For debugging, Auto Equip prints the elapsed time from dismount to
+the **confirmed** Argent Dawn trinket swap in chat, along with the
+time spent waiting for GCD clearance. It does not measure when the
+trinket's buff appears.
 
 Manual equipment changes are respected. Auto Equip verifies each
 swap against the equipped item, and retries transient failures up to
