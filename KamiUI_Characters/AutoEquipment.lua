@@ -34,8 +34,7 @@ local QUEUE_KEY = "characters.autoEquipment"
 local SWAP_TIMEOUT = 0.8
 local MAX_SWAP_ATTEMPTS = 5
 local DISMOUNT_DELAY = 0.1
-local GCD_POLL_INTERVAL = 0.1
-local GCD_CLEAR_MARGIN = 0.05
+local GCD_POLL_INTERVAL = 0.05
 local GCD_FALLBACK_DELAY = 1.3 -- Cat Form only
 
 -- Slot 14 is handled separately so mounted and zone rules cannot
@@ -52,7 +51,6 @@ local lastMounted
 local lastPlaguelands
 local dismountReadyAt
 local dismountStartedAt
-local dismountSawGCD = false
 local dismountHadGCD = false
 local dismountTrace
 local dismountCheckScheduled = false
@@ -88,6 +86,14 @@ end
 
 local function ItemID(link)
     return tonumber((ItemPayload(link) or ""):match("^item:(%d+)"))
+end
+
+local function IsDawnTrinket(link)
+    local itemID = ItemID(link)
+    for _, id in ipairs(DAWN_TRINKETS) do
+        if itemID == id then return true end
+    end
+    return false
 end
 
 local function EnchantID(link)
@@ -382,6 +388,12 @@ local function StartSwap(slot, target, action)
     end
 
     local from = Equipped(slot) or false
+    if dismountTrace and action == "mount"
+        and not dismountTrace.requestedAt
+        and IsDawnTrinket(target) then
+        -- This is the first actual equip request, not GCD clearance.
+        dismountTrace.requestedAt = GetTime and GetTime() or 0
+    end
     if target == false then
         UnequipToBag(slot)
     else
@@ -427,29 +439,28 @@ end
 
 -- Report the verified equipment state, not the equip request. The
 -- Argent Dawn aura may update later than the actual item slot.
-local function TraceDismountTrinket(current, now)
+local function TraceDismountTrinket(current, now, attempts)
     local trace = dismountTrace
-    if not trace then return end
+    if not trace or not IsDawnTrinket(current) then return end
 
-    local itemID = ItemID(current)
-    local isDawn = false
-    for _, id in ipairs(DAWN_TRINKETS) do
-        if itemID == id then
-            isDawn = true
-            break
-        end
-    end
-    if not isDawn then return end
-
-    local elapsed = math.max(0, now - trace.startedAt)
+    local confirmed = math.max(0, now - trace.startedAt)
     local released = trace.releasedAt
         and math.max(0, trace.releasedAt - trace.startedAt)
         or 0
+    local requestedAt = trace.requestedAt
+    local requested = requestedAt
+        and string.format("%.2fs",
+            math.max(0, requestedAt - trace.startedAt))
+        or "n/a"
+    local latency = requestedAt
+        and string.format("%.2fs", math.max(0, now - requestedAt))
+        or "n/a"
 
     UI:Print(string.format(
-        "Auto Equip: Dawn trinket after %.2f s "
-            .. "(GCD wait %.2f s, GCD detected: %s).",
-        elapsed, released, trace.gcdDetected and "yes" or "no"
+        "Auto Equip: Dawn GCD wait %.2fs (%s), request %s, "
+            .. "confirm %.2fs (+%s, tries %d).",
+        released, trace.gcdDetected and "yes" or "no",
+        requested, confirmed, latency, attempts or 1
     ))
     dismountTrace = nil
 end
@@ -489,7 +500,7 @@ local function RunTrinket(records, mounted, inPlaguelands, enabled, now)
             pending[slot] = nil
             if waiting.action == "mount" and not mounted
                 and inPlaguelands then
-                TraceDismountTrinket(current, now)
+                TraceDismountTrinket(current, now, waiting.attempts)
             end
             if waiting.action == "restore" then
                 records[slot] = nil
@@ -613,7 +624,6 @@ local function Run()
         and C_Timer and C_Timer.After then
         dismountStartedAt = now
         dismountReadyAt = now + DISMOUNT_DELAY
-        dismountSawGCD = false
         dismountHadGCD = false
         dismountTrace = inPlaguelands and {
             startedAt = now,
@@ -623,7 +633,6 @@ local function Run()
     elseif mounted or not enabled then
         dismountReadyAt = nil
         dismountStartedAt = nil
-        dismountSawGCD = false
         dismountHadGCD = false
         dismountTrace = nil
     end
@@ -644,7 +653,6 @@ local function Run()
 
         local gcdActive = IsGlobalCooldownActive()
         if gcdActive == true then
-            dismountSawGCD = true
             dismountHadGCD = true
             if dismountTrace then
                 dismountTrace.gcdDetected = true
@@ -662,12 +670,6 @@ local function Run()
             local delay = math.min(GCD_POLL_INTERVAL, remaining)
             dismountReadyAt = now + delay
             ScheduleDismountCheck(delay)
-            return
-        elseif gcdActive == false and dismountSawGCD then
-            -- Avoid equipping in the very same update as GCD expiry.
-            dismountSawGCD = false
-            dismountReadyAt = now + GCD_CLEAR_MARGIN
-            ScheduleDismountCheck(GCD_CLEAR_MARGIN)
             return
         end
 
