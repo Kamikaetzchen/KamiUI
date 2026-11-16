@@ -35,7 +35,6 @@ local SWAP_TIMEOUT = 0.8
 local MAX_SWAP_ATTEMPTS = 5
 local DISMOUNT_DELAY = 0.1
 local GCD_POLL_INTERVAL = 0.05
-local GCD_FALLBACK_DELAY = 1.3 -- Cat Form only
 
 -- Slot 14 is handled separately so mounted and zone rules cannot
 -- compete. This list only contains mounted-only riding enchants.
@@ -50,8 +49,6 @@ local restoreBlocked = {}
 local lastMounted
 local lastPlaguelands
 local dismountReadyAt
-local dismountStartedAt
-local dismountHadGCD = false
 local dismountCheckScheduled = false
 local refreshScheduled = false
 local Refresh
@@ -283,39 +280,6 @@ local function IsGlobalCooldownActive()
     end
 
     return nil
-end
-
--- Only Cat Form needs the experimentally measured 1.3s fallback
--- when the client does not report its shapeshift GCD.
-local function IsDruidCatForm()
-    if not UnitClass then return false end
-    local _, class = UI:SafeCall(UnitClass, "player")
-    if not UI:CanAccessValue(class) or class ~= "DRUID" then
-        return false
-    end
-
-    if GetShapeshiftFormID then
-        local form = UI:SafeCall(GetShapeshiftFormID)
-        if UI:CanAccessValue(form)
-            and type(form) == "number"
-            and form == (CAT_FORM or 1) then
-            return true
-        end
-    end
-
-    if UnitPowerType then
-        local power, token = UI:SafeCall(UnitPowerType, "player")
-        if UI:CanAccessValue(token) and token == "ENERGY" then
-            return true
-        end
-        if UI:CanAccessValue(power) and type(power) == "number" then
-            local energy = Enum and Enum.PowerType
-                and Enum.PowerType.Energy or 3
-            return power == energy
-        end
-    end
-
-    return false
 end
 
 -- GCD expiration does not mean that a long spell or crafting cast
@@ -575,14 +539,10 @@ local function Run()
     -- update, then defer gear until the actual GCD has ended.
     if enabled and lastMounted == true and not mounted
         and C_Timer and C_Timer.After then
-        dismountStartedAt = now
         dismountReadyAt = now + DISMOUNT_DELAY
-        dismountHadGCD = false
         ScheduleDismountCheck(DISMOUNT_DELAY)
     elseif mounted or not enabled then
         dismountReadyAt = nil
-        dismountStartedAt = nil
-        dismountHadGCD = false
     end
 
     if lastMounted ~= mounted
@@ -599,27 +559,13 @@ local function Run()
             return
         end
 
-        local gcdActive = IsGlobalCooldownActive()
-        if gcdActive == true then
-            dismountHadGCD = true
+        if IsGlobalCooldownActive() == true then
             dismountReadyAt = now + GCD_POLL_INTERVAL
             ScheduleDismountCheck(GCD_POLL_INTERVAL)
-            return
-        elseif (gcdActive == nil or not dismountHadGCD)
-            and IsDruidCatForm()
-            and now - dismountStartedAt < GCD_FALLBACK_DELAY then
-            -- Only Cat Form needs a fallback when its GCD cannot be
-            -- observed. Normal dismounts use the 0.1s initial delay.
-            local remaining = GCD_FALLBACK_DELAY
-                - (now - dismountStartedAt)
-            local delay = math.min(GCD_POLL_INTERVAL, remaining)
-            dismountReadyAt = now + delay
-            ScheduleDismountCheck(delay)
             return
         end
 
         dismountReadyAt = nil
-        dismountStartedAt = nil
     end
 
     -- A 10s crafting cast can outlast its 1.5s GCD. Do not attempt
