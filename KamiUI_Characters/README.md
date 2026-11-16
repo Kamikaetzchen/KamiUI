@@ -60,6 +60,11 @@ trinket. If Cat Form's GCD cannot be observed, the measured
 1.28-second threshold is covered by a 1.3-second fallback.
 Normal dismounts retain the short 0.1-second delay.
 
+Equipment swaps are also deferred for the full duration of ongoing
+spellcasts or channels, including long crafting casts. A GCD may end
+long before a 10-second cast ends; Auto Equip waits for the cast to
+finish without consuming any of its five swap attempts.
+
 For debugging, Auto Equip prints the elapsed time from dismount to
 the **confirmed** Argent Dawn trinket swap in chat, along with the
 time spent waiting for GCD clearance. It does not measure when the
