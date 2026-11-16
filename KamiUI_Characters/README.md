@@ -56,8 +56,9 @@ After dismounting, Auto Equip checks whether the global cooldown is
 active, using the Forever-compatible GCD detection in KamiUI_ActionBars.
 It checks again every 0.1 seconds, waits another 0.05 seconds when
 an observed GCD ends, then equips the original gear or Argent Dawn
-trinket. If no GCD can be detected, the experimentally verified
-1.28-second threshold is used with a 1.3-second fallback.
+trinket. If Cat Form's GCD cannot be observed, the measured
+1.28-second threshold is covered by a 1.3-second fallback.
+Normal dismounts retain the short 0.1-second delay.
 
 For debugging, Auto Equip prints the elapsed time from dismount to
 the **confirmed** Argent Dawn trinket swap in chat, along with the
