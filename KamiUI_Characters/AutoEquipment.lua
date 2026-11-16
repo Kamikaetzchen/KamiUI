@@ -30,8 +30,8 @@ local PLAGUELAND_INSTANCES = {
 local RIDING_GLOVE_ENCHANT = 930
 local MITHRIL_SPURS_ENCHANT = 464
 local QUEUE_KEY = "characters.autoEquipment"
--- Retry after the 1.5s shapeshift GCD, with a small safety margin.
-local SWAP_TIMEOUT = 1.7
+-- Retry frequently; a later attempt can succeed after the GCD.
+local SWAP_TIMEOUT = 0.8
 local MAX_SWAP_ATTEMPTS = 5
 
 -- Slot 14 is handled separately so mounted and zone rules cannot
