@@ -180,23 +180,12 @@ local function GetRecords()
     local _, character = Module:GetCurrentCharacter()
     if not character then return nil end
 
-    -- Migrate the previous saved mountEquipment slot records without
-    -- losing the original gear link on reload while mounted.
-    local legacy = character.mountEquipment
     if type(character.autoEquipment) ~= "table" then
-        character.autoEquipment =
-            type(legacy) == "table" and legacy or {}
-    elseif type(legacy) == "table" then
-        for slot, record in pairs(legacy) do
-            if character.autoEquipment[slot] == nil then
-                character.autoEquipment[slot] = record
-            end
-        end
+        character.autoEquipment = {}
     end
-    character.mountEquipment = nil
 
-    -- Saved per character: /reload or relog while mounted must not
-    -- lose the original items needed for the next dismount.
+    -- Saved per character: /reload or relog while equipped with
+    -- temporary gear must not lose the original items to restore.
     return character.autoEquipment
 end
 
