@@ -54,9 +54,10 @@ Carrot from becoming the permanent restoration target.
 
 Manual equipment changes are respected. Auto Equip verifies each
 swap against the equipped item, and retries transient failures up to
-five times at 1.7-second intervals (after the 1.5-second shapeshift
-GCD). A change to a different item is never overwritten. Druid form
-changes also trigger an immediate refresh.
+five times at 0.8-second intervals. Early retries may fall within
+the 1.5-second shapeshift GCD; subsequent retries can succeed afterward.
+A change to a different item is never overwritten. Druid form changes
+also trigger an immediate refresh.
 The original saved link survives `/reload` and relog while swapping.
 
 ## Character equipment slot actions and cooldowns
