@@ -5,7 +5,7 @@ character pane enables context-sensitive equipment swapping. It replaces
 the old **Mount Gear** label and uses the existing character preference:
 a previously disabled Mount Gear option stays disabled. New changes use
 `autoEquipEnabled` in SavedVariables. The module still loads from
-`MountEquipment.lua`, and old mount setting/API names remain compatible.
+`AutoEquipment.lua`. The old mount setting/API names remain compatible.
 
 ## Priorities
 
@@ -49,7 +49,7 @@ Equipment swaps **never run in combat**. The existing keyed
 after combat, rather than replaying a stale request.
 
 Auto Equip saves the exact original item link in
-`KamiUIDB.characters.data[characterKey].mountEquipment` and tracks
+`KamiUIDB.characters.data[characterKey].autoEquipment` and tracks
 temporary swaps. Transitions between Plaguelands, mounted, dismounted
 and outside preserve that original, preventing the Argent badge or
 Carrot from becoming the permanent restoration target.
@@ -58,6 +58,8 @@ Manual equipment changes are respected. An unavailable item, occupied
 cursor, no empty bag slots or a failed equipment operation causes
 the swap to be skipped until another relevant state/inventory change.
 The original saved link survives `/reload` and relog while swapping.
+Old `mountEquipment` saved slot records are migrated automatically to
+`autoEquipment` on first use. This preserves in-progress gear swaps.
 
 ## Character equipment slot actions and cooldowns
 
