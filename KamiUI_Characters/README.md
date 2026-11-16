@@ -1,11 +1,9 @@
 # KamiUI - Characters: Auto Equip
 
 The per-character **Auto Equip** checkbox at the bottom-left of the
-character pane enables context-sensitive equipment swapping. It replaces
-the old **Mount Gear** label and uses the existing character preference:
-a previously disabled Mount Gear option stays disabled. New changes use
-`autoEquipEnabled` in SavedVariables. The module still loads from
-`AutoEquipment.lua`. Legacy SavedVariables are migrated automatically.
+character pane enables context-sensitive equipment swapping. The setting
+is saved as `autoEquipEnabled`, and the logic lives in
+`AutoEquipment.lua`.
 
 ## Priorities
 
@@ -58,8 +56,6 @@ Manual equipment changes are respected. An unavailable item, occupied
 cursor, no empty bag slots or a failed equipment operation causes
 the swap to be skipped until another relevant state/inventory change.
 The original saved link survives `/reload` and relog while swapping.
-Old `mountEquipment` saved slot records are migrated automatically to
-`autoEquipment` on first use. This preserves in-progress gear swaps.
 
 ## Character equipment slot actions and cooldowns
 
