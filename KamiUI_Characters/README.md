@@ -54,9 +54,9 @@ Carrot from becoming the permanent restoration target.
 
 After dismounting, Auto Equip checks whether the global cooldown is
 active, using the Forever-compatible GCD detection in KamiUI_ActionBars.
-It checks again every 0.1 seconds, waits another 0.05 seconds when
-an observed GCD ends, then equips the original gear or Argent Dawn
-trinket. If Cat Form's GCD cannot be observed, the measured
+It checks again every 0.05 seconds and attempts the equipment
+swap immediately once the GCD is no longer observed, without an
+additional clearance margin. If Cat Form's GCD cannot be observed, the measured
 1.28-second threshold is covered by a 1.3-second fallback.
 Normal dismounts retain the short 0.1-second delay.
 
@@ -65,10 +65,11 @@ spellcasts or channels, including long crafting casts. A GCD may end
 long before a 10-second cast ends; Auto Equip waits for the cast to
 finish without consuming any of its five swap attempts.
 
-For debugging, Auto Equip prints the elapsed time from dismount to
-the **confirmed** Argent Dawn trinket swap in chat, along with the
-time spent waiting for GCD clearance. It does not measure when the
-trinket's buff appears.
+For debugging, Auto Equip prints the time from dismount until GCD
+clearance, the initial equip request and the **confirmed** Argent Dawn
+trinket swap. It also includes the time between request and confirmation
+and the number of swap attempts. The logged timestamps do not measure
+when the trinket's buff appears.
 
 Manual equipment changes are respected. Auto Equip verifies each
 swap against the equipped item, and retries transient failures up to
