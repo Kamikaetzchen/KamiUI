@@ -53,6 +53,7 @@ local lastPlaguelands
 local dismountReadyAt
 local dismountStartedAt
 local dismountSawGCD = false
+local dismountHadGCD = false
 local dismountTrace
 local dismountCheckScheduled = false
 local refreshScheduled = false
@@ -560,6 +561,7 @@ local function Run()
         dismountStartedAt = now
         dismountReadyAt = now + DISMOUNT_DELAY
         dismountSawGCD = false
+        dismountHadGCD = false
         dismountTrace = inPlaguelands and {
             startedAt = now,
             gcdDetected = false,
@@ -569,6 +571,7 @@ local function Run()
         dismountReadyAt = nil
         dismountStartedAt = nil
         dismountSawGCD = false
+        dismountHadGCD = false
         dismountTrace = nil
     end
 
@@ -589,16 +592,18 @@ local function Run()
         local gcdActive = IsGlobalCooldownActive()
         if gcdActive == true then
             dismountSawGCD = true
+            dismountHadGCD = true
             if dismountTrace then
                 dismountTrace.gcdDetected = true
             end
             dismountReadyAt = now + GCD_POLL_INTERVAL
             ScheduleDismountCheck(GCD_POLL_INTERVAL)
             return
-        elseif gcdActive == nil
+        elseif (gcdActive == nil or not dismountHadGCD)
             and now - dismountStartedAt < GCD_FALLBACK_DELAY then
-            -- No readable GCD (e.g. ActionBars disabled). Use the
-            -- experimentally confirmed 1.28s threshold as fallback.
+            -- No GCD was observed (e.g. ActionBars unavailable or
+            -- cooldown state not updated yet). Keep the measured
+            -- 1.28s threshold as a safe fallback.
             local remaining = GCD_FALLBACK_DELAY
                 - (now - dismountStartedAt)
             local delay = math.min(GCD_POLL_INTERVAL, remaining)
