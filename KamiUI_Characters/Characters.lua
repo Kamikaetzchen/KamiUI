@@ -112,11 +112,10 @@ local function MigrateAutoEquipmentData()
     end
 
     db.autoEquipmentMigrationVersion = 1
-    UI:Print(
-        "Auto Equip migration complete (",
-        changed,
-        " characters). /reload or logout to save."
-    )
+    UI:Print(string.format(
+        "Auto Equip: %d character(s) migrated. Reload/logout to save.",
+        changed
+    ))
 end
 
 local function UpdateCurrentCharacter()
