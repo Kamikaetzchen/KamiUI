@@ -1,19 +1,21 @@
 local UI = KamiUI
 local Module = UI:GetModule("Characters")
 
--- Outfitter-style riding gear, without Blizzard equipment sets.
--- Item 11122: Carrot on a Stick (+3%).
--- Permanent enchant 930: Riding Skill on gloves (+2%).
--- Permanent enchant 464: Mithril Spurs on boots (+4%).
--- Only equipped bonuses are relevant; loose spurs/enchant recipes are ignored.
+-- Outfitter-style auto equipment, without Blizzard equipment sets.
+-- Mounted: Carrot on a Stick (11122) takes precedence in slot 14.
+-- Plaguelands: Seal/Rune of the Dawn or Argent Dawn Commission.
+-- Enchanted riding gloves and spurred boots are mounted-only.
 local CARROT_ID = 11122
+local DAWN_TRINKETS = { 13209, 19812, 12846 }
+local PLAGUELAND_MAPS = { [22] = true, [23] = true }
 local RIDING_GLOVE_ENCHANT = 930
 local MITHRIL_SPURS_ENCHANT = 464
 local QUEUE_KEY = "characters.mountEquipment"
 local SWAP_TIMEOUT = 1.5
 
+-- Slot 14 is handled separately so mounted and zone rules cannot
+-- compete. This list only contains mounted-only riding enchants.
 local EQUIPMENT = {
-    { key = "Trinket1Slot", itemID = CARROT_ID },
     { key = "HandsSlot", enchantID = RIDING_GLOVE_ENCHANT },
     { key = "FeetSlot", enchantID = MITHRIL_SPURS_ENCHANT },
 }
@@ -22,6 +24,7 @@ local pending = {}
 local suppressed = {}
 local restoreBlocked = {}
 local lastMounted
+local lastPlaguelands
 local refreshScheduled = false
 local Refresh
 
@@ -90,6 +93,52 @@ local function FindInBags(definition)
                 return link
             end
         end
+    end
+end
+
+-- Prefer zone map IDs over localized zone strings. The parent
+-- traversal handles submaps such as Light's Hope Chapel (map 24).
+local function IsInPlaguelands()
+    if C_Map and C_Map.GetBestMapForUnit
+        and C_Map.GetMapInfo then
+        local mapID = UI:SafeCall(
+            C_Map.GetBestMapForUnit, "player"
+        )
+        local visited = {}
+        for _ = 1, 8 do
+            if not UI:CanAccessValue(mapID)
+                or type(mapID) ~= "number"
+                or visited[mapID] then
+                break
+            end
+            if PLAGUELAND_MAPS[mapID] then return true end
+            visited[mapID] = true
+            local info = UI:SafeCall(C_Map.GetMapInfo, mapID)
+            if not info or not UI:CanAccessValue(info) then
+                break
+            end
+            mapID = info.parentMapID
+        end
+    end
+
+    -- Forever may report other map IDs for Classic zones.
+    local zone = GetRealZoneText and UI:SafeCall(GetRealZoneText)
+        or GetZoneText and UI:SafeCall(GetZoneText)
+    return UI:CanAccessValue(zone) and (
+        zone == "Western Plaguelands"
+        or zone == "Eastern Plaguelands"
+        or zone == "Westliche Pestländer"
+        or zone == "Östliche Pestländer"
+    ) or false
+end
+
+local function FindBestDawnTrinket(current)
+    for _, itemID in ipairs(DAWN_TRINKETS) do
+        if ItemID(current) == itemID then
+            return current
+        end
+        local candidate = FindInBags({ itemID = itemID })
+        if candidate then return candidate end
     end
 end
 
@@ -194,6 +243,125 @@ local function StartSwap(slot, target, action)
     return ok
 end
 
+-- A single state machine owns Trinket1Slot (slot 14).
+-- This keeps the saved original item across transitions such as
+-- normal -> Plaguelands -> mounted -> dismounted -> normal.
+-- The legacy record fields remain compatible with pre-upgrade saves.
+local function RunTrinket(records, mounted, inPlaguelands, enabled, now)
+    local slot = GetInventorySlotInfo
+        and UI:SafeCall(GetInventorySlotInfo, "Trinket1Slot")
+    if not UI:CanAccessValue(slot)
+        or type(slot) ~= "number" then
+        return
+    end
+
+    local current = Equipped(slot)
+    local record = records[slot]
+    if record and (
+        type(record) ~= "table"
+        or not AccessibleString(record.riding)
+        or (record.previous ~= false
+            and not AccessibleString(record.previous))
+    ) then
+        records[slot] = nil
+        record = nil
+    end
+
+    local waiting = pending[slot]
+    if waiting then
+        local complete = record and (
+            (waiting.action == "mount"
+                and SameItem(current, record.riding))
+            or (waiting.action == "restore"
+                and SameItem(current, record.previous))
+        )
+        if complete then
+            pending[slot] = nil
+            if waiting.action == "restore" then
+                records[slot] = nil
+                record = nil
+            end
+        elseif now < waiting.deadline then
+            return
+        else
+            pending[slot] = nil
+            if waiting.action == "mount" then
+                records[slot] = nil
+                record = nil
+                suppressed[slot] = true
+            else
+                restoreBlocked[slot] = true
+            end
+        end
+    end
+
+    -- Respect manual trinket changes for this mount/zone session.
+    if record and not SameItem(current, record.riding) then
+        records[slot] = nil
+        record = nil
+        suppressed[slot] = true
+    end
+
+    local desired
+    if enabled then
+        local slot13 = GetInventorySlotInfo
+            and UI:SafeCall(GetInventorySlotInfo, "Trinket0Slot")
+        local other = UI:CanAccessValue(slot13)
+            and type(slot13) == "number" and Equipped(slot13)
+
+        -- Already wearing the Carrot in slot 13 counts as mounted gear.
+        if mounted and ItemID(other) ~= CARROT_ID then
+            if ItemID(current) == CARROT_ID then
+                desired = current
+            else
+                desired = FindInBags({ itemID = CARROT_ID })
+            end
+        end
+
+        if not desired and inPlaguelands then
+            -- The Argent badge only needs to be equipped in one slot.
+            local otherHasDawn = false
+            for _, id in ipairs(DAWN_TRINKETS) do
+                if ItemID(other) == id then
+                    otherHasDawn = true
+                    break
+                end
+            end
+            if not otherHasDawn then
+                desired = FindBestDawnTrinket(current)
+            end
+        end
+    end
+
+    if desired then
+        if SameItem(current, desired) or suppressed[slot] then
+            return
+        end
+
+        if record then
+            local old = record.riding
+            record.riding = desired
+            if not StartSwap(slot, desired, "mount") then
+                record.riding = old
+                suppressed[slot] = true
+            end
+        else
+            records[slot] = {
+                previous = current or false,
+                riding = desired,
+            }
+            if not StartSwap(slot, desired, "mount") then
+                records[slot] = nil
+                suppressed[slot] = true
+            end
+        end
+    elseif record and not restoreBlocked[slot] then
+        if not StartSwap(slot, record.previous, "restore") then
+            restoreBlocked[slot] = true
+        end
+    end
+end
+
 local function Run()
     if Locked() then
         UI:RunOutOfCombat(QUEUE_KEY, Run)
@@ -201,11 +369,11 @@ local function Run()
     end
     UI:CancelOutOfCombat(QUEUE_KEY)
 
-    -- Disabling the feature acts like dismounting: restore only equipment
-    -- installed by this module, even if the character is still mounted.
-    -- Do not require a readable mount state when the feature is disabled.
+    -- When disabled, restore only items installed by this module.
+    -- Unreadable mount state must not trigger an incorrect swap.
+    local enabled = Module:IsMountGearEnabled()
     local mounted = false
-    if Module:IsMountGearEnabled() then
+    if enabled then
         if not IsMounted then return end
         mounted = UI:SafeCall(IsMounted)
         if not UI:CanAccessValue(mounted)
@@ -216,15 +384,17 @@ local function Run()
     local records = GetRecords()
     if not records then return end
 
-    if lastMounted ~= mounted then
+    local inPlaguelands = enabled and IsInPlaguelands() or false
+    if lastMounted ~= mounted
+        or lastPlaguelands ~= inPlaguelands then
         suppressed = {}
         restoreBlocked = {}
         lastMounted = mounted
+        lastPlaguelands = inPlaguelands
     end
 
-    local trinket0 = GetInventorySlotInfo
-        and UI:SafeCall(GetInventorySlotInfo, "Trinket0Slot")
     local now = GetTime and GetTime() or 0
+    RunTrinket(records, mounted, inPlaguelands, enabled, now)
 
     for _, definition in ipairs(EQUIPMENT) do
         local slot = GetInventorySlotInfo
@@ -286,13 +456,6 @@ local function Run()
                         local alreadyEquipped = MatchesRidingItem(
                             current, definition
                         )
-                        if definition.itemID and trinket0
-                            and UI:CanAccessValue(trinket0) then
-                            alreadyEquipped = alreadyEquipped
-                                or MatchesRidingItem(
-                                    Equipped(trinket0), definition
-                                )
-                        end
                         if not alreadyEquipped then
                             local candidate = FindInBags(definition)
                             if candidate then
@@ -351,6 +514,9 @@ end
 
 UI:RegisterEvent("PLAYER_ENTERING_WORLD", Refresh)
 UI:RegisterEvent("PLAYER_MOUNT_DISPLAY_CHANGED", Refresh)
+UI:RegisterEvent("ZONE_CHANGED_NEW_AREA", Refresh)
+UI:RegisterEvent("ZONE_CHANGED", Refresh)
+UI:RegisterEvent("ZONE_CHANGED_INDOORS", Refresh)
 UI:RegisterEvent("PLAYER_EQUIPMENT_CHANGED", Refresh)
 UI:RegisterEvent("PLAYER_REGEN_ENABLED", Refresh)
 UI:RegisterEvent("UNIT_AURA", function(_, unit)
