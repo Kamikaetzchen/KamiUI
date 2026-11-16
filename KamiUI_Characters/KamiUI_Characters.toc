@@ -8,4 +8,4 @@
 
 Characters.lua
 EquipmentFlyout.lua
-MountEquipment.lua
+AutoEquipment.lua
