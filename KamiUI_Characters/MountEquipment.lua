@@ -123,10 +123,11 @@ local function IsInPlaguelands()
     if GetInstanceInfo then
         local _, instanceType, _, _, _, _, _, instanceID =
             UI:SafeCall(GetInstanceInfo)
-        if instanceType == "party"
-            and UI:CanAccessValue(instanceID)
-            and PLAGUELAND_INSTANCES[instanceID] then
-            return true
+        if instanceType == "party" or instanceType == "raid" then
+            -- Do not equip the badge in unrelated instances whose
+            -- map ancestry also happens to point to the Plaguelands.
+            return UI:CanAccessValue(instanceID)
+                and PLAGUELAND_INSTANCES[instanceID] == true
         end
     end
 
