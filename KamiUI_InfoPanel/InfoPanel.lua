@@ -248,8 +248,9 @@ local function GetMovementSpeed()
         return Module.lastMovementSpeed, true
     end
 
-    local percent = speed > 0
-        and math.floor((speed / 7) * 100 + 0.5) or 0
+    -- Keep the fractional percent from GetUnitSpeed(). Rounding here
+    -- would always display .0 even with a one-decimal output format.
+    local percent = speed > 0 and (speed / 7) * 100 or 0
     Module.lastMovementSpeed = percent
     return percent, false
 end
@@ -1557,7 +1558,7 @@ function Module:Refresh()
     local speedIcon =
         "|TInterface\\Icons\\Ability_Rogue_Sprint:13:13:0:2:64:64:4:60:4:60|t "
     if movement ~= nil then
-        local value = string.format("%d%%", movement)
+        local value = string.format("%.1f%%", movement)
         if movementStale then
             -- Mark cached values red; never imply a restricted reading is live.
             value = "|cffff5555" .. value .. "|r"
