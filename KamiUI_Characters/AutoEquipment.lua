@@ -321,6 +321,26 @@ local function IsDruidCatForm()
     return false
 end
 
+-- GCD expiration does not mean that a long spell or crafting cast
+-- has completed. Never spend a swap attempt while still casting.
+local function IsPlayerCastingOrChanneling()
+    if UnitCastingInfo then
+        local cast = UI:SafeCall(UnitCastingInfo, "player")
+        if not UI:CanAccessValue(cast) or cast ~= nil then
+            return true
+        end
+    end
+
+    if UnitChannelInfo then
+        local channel = UI:SafeCall(UnitChannelInfo, "player")
+        if not UI:CanAccessValue(channel) or channel ~= nil then
+            return true
+        end
+    end
+
+    return false
+end
+
 local function ScheduleDismountCheck(delay)
     if dismountCheckScheduled
         or not C_Timer or not C_Timer.After then
@@ -658,6 +678,13 @@ local function Run()
         dismountStartedAt = nil
     end
 
+    -- A 10s crafting cast can outlast its 1.5s GCD. Do not attempt
+    -- any equipment swap until the cast/channel really finishes.
+    if IsPlayerCastingOrChanneling() then
+        ScheduleDismountCheck(GCD_POLL_INTERVAL)
+        return
+    end
+
     RunTrinket(records, mounted, inPlaguelands, enabled, now)
 
     for _, definition in ipairs(EQUIPMENT) do
@@ -790,6 +817,16 @@ UI:RegisterEvent("ZONE_CHANGED", Refresh)
 UI:RegisterEvent("ZONE_CHANGED_INDOORS", Refresh)
 UI:RegisterEvent("PLAYER_EQUIPMENT_CHANGED", Refresh)
 UI:RegisterEvent("PLAYER_REGEN_ENABLED", Refresh)
+for _, event in ipairs({
+    "UNIT_SPELLCAST_STOP",
+    "UNIT_SPELLCAST_FAILED",
+    "UNIT_SPELLCAST_INTERRUPTED",
+    "UNIT_SPELLCAST_CHANNEL_STOP",
+}) do
+    UI:RegisterEvent(event, function(_, unit)
+        if unit == "player" then Refresh() end
+    end)
+end
 UI:RegisterEvent("UNIT_AURA", function(_, unit)
     if unit == "player" then Refresh() end
 end)
