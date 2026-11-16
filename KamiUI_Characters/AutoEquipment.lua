@@ -52,7 +52,6 @@ local lastPlaguelands
 local dismountReadyAt
 local dismountStartedAt
 local dismountHadGCD = false
-local dismountTrace
 local dismountCheckScheduled = false
 local refreshScheduled = false
 local Refresh
@@ -86,14 +85,6 @@ end
 
 local function ItemID(link)
     return tonumber((ItemPayload(link) or ""):match("^item:(%d+)"))
-end
-
-local function IsDawnTrinket(link)
-    local itemID = ItemID(link)
-    for _, id in ipairs(DAWN_TRINKETS) do
-        if itemID == id then return true end
-    end
-    return false
 end
 
 local function EnchantID(link)
@@ -388,12 +379,6 @@ local function StartSwap(slot, target, action)
     end
 
     local from = Equipped(slot) or false
-    if dismountTrace and action == "mount"
-        and not dismountTrace.requestedAt
-        and IsDawnTrinket(target) then
-        -- This is the first actual equip request, not GCD clearance.
-        dismountTrace.requestedAt = GetTime and GetTime() or 0
-    end
     if target == false then
         UnequipToBag(slot)
     else
@@ -437,34 +422,6 @@ local function RetryPendingSwap(slot, record, waiting, current, now)
     return true
 end
 
--- Report the verified equipment state, not the equip request. The
--- Argent Dawn aura may update later than the actual item slot.
-local function TraceDismountTrinket(current, now, attempts)
-    local trace = dismountTrace
-    if not trace or not IsDawnTrinket(current) then return end
-
-    local confirmed = math.max(0, now - trace.startedAt)
-    local released = trace.releasedAt
-        and math.max(0, trace.releasedAt - trace.startedAt)
-        or 0
-    local requestedAt = trace.requestedAt
-    local requested = requestedAt
-        and string.format("%.2fs",
-            math.max(0, requestedAt - trace.startedAt))
-        or "n/a"
-    local latency = requestedAt
-        and string.format("%.2fs", math.max(0, now - requestedAt))
-        or "n/a"
-
-    UI:Print(string.format(
-        "Auto Equip: Dawn GCD wait %.2fs (%s), request %s, "
-            .. "confirm %.2fs (+%s, tries %d).",
-        released, trace.gcdDetected and "yes" or "no",
-        requested, confirmed, latency, attempts or 1
-    ))
-    dismountTrace = nil
-end
-
 -- A single state machine owns Trinket1Slot (slot 14).
 -- This keeps the saved original item across transitions such as
 -- normal -> Plaguelands -> mounted -> dismounted -> normal.
@@ -498,10 +455,6 @@ local function RunTrinket(records, mounted, inPlaguelands, enabled, now)
         )
         if complete then
             pending[slot] = nil
-            if waiting.action == "mount" and not mounted
-                and inPlaguelands then
-                TraceDismountTrinket(current, now, waiting.attempts)
-            end
             if waiting.action == "restore" then
                 records[slot] = nil
                 record = nil
@@ -625,16 +578,11 @@ local function Run()
         dismountStartedAt = now
         dismountReadyAt = now + DISMOUNT_DELAY
         dismountHadGCD = false
-        dismountTrace = inPlaguelands and {
-            startedAt = now,
-            gcdDetected = false,
-        } or nil
         ScheduleDismountCheck(DISMOUNT_DELAY)
     elseif mounted or not enabled then
         dismountReadyAt = nil
         dismountStartedAt = nil
         dismountHadGCD = false
-        dismountTrace = nil
     end
 
     if lastMounted ~= mounted
@@ -654,9 +602,6 @@ local function Run()
         local gcdActive = IsGlobalCooldownActive()
         if gcdActive == true then
             dismountHadGCD = true
-            if dismountTrace then
-                dismountTrace.gcdDetected = true
-            end
             dismountReadyAt = now + GCD_POLL_INTERVAL
             ScheduleDismountCheck(GCD_POLL_INTERVAL)
             return
@@ -673,9 +618,6 @@ local function Run()
             return
         end
 
-        if dismountTrace then
-            dismountTrace.releasedAt = now
-        end
         dismountReadyAt = nil
         dismountStartedAt = nil
     end
