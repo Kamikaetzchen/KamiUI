@@ -52,9 +52,11 @@ temporary swaps. Transitions between Plaguelands, mounted, dismounted
 and outside preserve that original, preventing the Argent badge or
 Carrot from becoming the permanent restoration target.
 
-Manual equipment changes are respected. An unavailable item, occupied
-cursor, no empty bag slots or a failed equipment operation causes
-the swap to be skipped until another relevant state/inventory change.
+Manual equipment changes are respected. Auto Equip verifies each
+swap against the equipped item, and retries transient failures up to
+five times at 1.5-second intervals (such as during a shapeshift/GCD).
+A change to a different item is never overwritten. Druid form changes
+also trigger an immediate refresh to detect dismounts into Cat Form.
 The original saved link survives `/reload` and relog while swapping.
 
 ## Character equipment slot actions and cooldowns
