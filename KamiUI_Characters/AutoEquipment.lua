@@ -34,6 +34,9 @@ local QUEUE_KEY = "characters.autoEquipment"
 local SWAP_TIMEOUT = 0.8
 local MAX_SWAP_ATTEMPTS = 5
 local DISMOUNT_DELAY = 0.1
+local GCD_POLL_INTERVAL = 0.1
+local GCD_CLEAR_MARGIN = 0.05
+local GCD_FALLBACK_DELAY = 1.3
 
 -- Slot 14 is handled separately so mounted and zone rules cannot
 -- compete. This list only contains mounted-only riding enchants.
@@ -48,6 +51,9 @@ local restoreBlocked = {}
 local lastMounted
 local lastPlaguelands
 local dismountReadyAt
+local dismountStartedAt
+local dismountSawGCD = false
+local dismountCheckScheduled = false
 local refreshScheduled = false
 local Refresh
 
@@ -248,6 +254,49 @@ local function UnequipToBag(slot)
         return false
     end
     return true
+end
+
+-- Reuse the GCD detector from ActionBars: spell 61304 returns nil
+-- on Forever, so that module also checks cooldowns on real actions.
+-- Use booleans only; cooldown timestamps may be secret.
+local function IsGlobalCooldownActive()
+    local actionBars = UI:GetModule("ActionBars")
+    if actionBars and actionBars.IsGlobalCooldownActive then
+        local active = UI:SafeCall(
+            actionBars.IsGlobalCooldownActive, actionBars
+        )
+        if UI:CanAccessValue(active)
+            and type(active) == "boolean" then
+            return active
+        end
+    end
+
+    -- Available on some clients without the ActionBars module.
+    if C_Spell and C_Spell.GetSpellCooldown then
+        local info = UI:SafeCall(
+            C_Spell.GetSpellCooldown, 61304
+        )
+        if info and UI:CanAccessValue(info)
+            and UI:CanAccessValue(info.isActive)
+            and type(info.isActive) == "boolean" then
+            return info.isActive
+        end
+    end
+
+    return nil
+end
+
+local function ScheduleDismountCheck(delay)
+    if dismountCheckScheduled
+        or not C_Timer or not C_Timer.After then
+        return
+    end
+
+    dismountCheckScheduled = true
+    C_Timer.After(math.max(0.01, delay), function()
+        dismountCheckScheduled = false
+        if Refresh then Refresh() end
+    end)
 end
 
 local function RequestDelayedCheck()
@@ -470,17 +519,18 @@ local function Run()
     local inPlaguelands = enabled and IsInPlaguelands() or false
     local now = GetTime and GetTime() or 0
 
-    -- Let the mount aura clear before putting the Argent Dawn badge
-    -- back on. A UNIT_AURA event during these 100 ms must not bypass
-    -- the delay, and a new mount must cancel the pending dismount.
+    -- Wait a frame after dismount for shapeshift cooldown data to
+    -- update, then defer gear until the actual GCD has ended.
     if enabled and lastMounted == true and not mounted
         and C_Timer and C_Timer.After then
+        dismountStartedAt = now
         dismountReadyAt = now + DISMOUNT_DELAY
-        C_Timer.After(DISMOUNT_DELAY, function()
-            if Refresh then Refresh() end
-        end)
+        dismountSawGCD = false
+        ScheduleDismountCheck(DISMOUNT_DELAY)
     elseif mounted or not enabled then
         dismountReadyAt = nil
+        dismountStartedAt = nil
+        dismountSawGCD = false
     end
 
     if lastMounted ~= mounted
@@ -492,8 +542,37 @@ local function Run()
     end
 
     if dismountReadyAt then
-        if now < dismountReadyAt then return end
+        if now < dismountReadyAt then
+            ScheduleDismountCheck(dismountReadyAt - now)
+            return
+        end
+
+        local gcdActive = IsGlobalCooldownActive()
+        if gcdActive == true then
+            dismountSawGCD = true
+            dismountReadyAt = now + GCD_POLL_INTERVAL
+            ScheduleDismountCheck(GCD_POLL_INTERVAL)
+            return
+        elseif gcdActive == nil
+            and now - dismountStartedAt < GCD_FALLBACK_DELAY then
+            -- No readable GCD (e.g. ActionBars disabled). Use the
+            -- experimentally confirmed 1.28s threshold as fallback.
+            local remaining = GCD_FALLBACK_DELAY
+                - (now - dismountStartedAt)
+            local delay = math.min(GCD_POLL_INTERVAL, remaining)
+            dismountReadyAt = now + delay
+            ScheduleDismountCheck(delay)
+            return
+        elseif gcdActive == false and dismountSawGCD then
+            -- Avoid equipping in the very same update as GCD expiry.
+            dismountSawGCD = false
+            dismountReadyAt = now + GCD_CLEAR_MARGIN
+            ScheduleDismountCheck(GCD_CLEAR_MARGIN)
+            return
+        end
+
         dismountReadyAt = nil
+        dismountStartedAt = nil
     end
 
     RunTrinket(records, mounted, inPlaguelands, enabled, now)
