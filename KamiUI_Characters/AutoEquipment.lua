@@ -33,6 +33,7 @@ local QUEUE_KEY = "characters.autoEquipment"
 -- Retry frequently; a later attempt can succeed after the GCD.
 local SWAP_TIMEOUT = 0.8
 local MAX_SWAP_ATTEMPTS = 5
+local DISMOUNT_DELAY = 0.1
 
 -- Slot 14 is handled separately so mounted and zone rules cannot
 -- compete. This list only contains mounted-only riding enchants.
@@ -46,6 +47,7 @@ local suppressed = {}
 local restoreBlocked = {}
 local lastMounted
 local lastPlaguelands
+local dismountReadyAt
 local refreshScheduled = false
 local Refresh
 
@@ -466,6 +468,21 @@ local function Run()
     if not records then return end
 
     local inPlaguelands = enabled and IsInPlaguelands() or false
+    local now = GetTime and GetTime() or 0
+
+    -- Let the mount aura clear before putting the Argent Dawn badge
+    -- back on. A UNIT_AURA event during these 100 ms must not bypass
+    -- the delay, and a new mount must cancel the pending dismount.
+    if enabled and lastMounted == true and not mounted
+        and C_Timer and C_Timer.After then
+        dismountReadyAt = now + DISMOUNT_DELAY
+        C_Timer.After(DISMOUNT_DELAY, function()
+            if Refresh then Refresh() end
+        end)
+    elseif mounted or not enabled then
+        dismountReadyAt = nil
+    end
+
     if lastMounted ~= mounted
         or lastPlaguelands ~= inPlaguelands then
         suppressed = {}
@@ -474,7 +491,11 @@ local function Run()
         lastPlaguelands = inPlaguelands
     end
 
-    local now = GetTime and GetTime() or 0
+    if dismountReadyAt then
+        if now < dismountReadyAt then return end
+        dismountReadyAt = nil
+    end
+
     RunTrinket(records, mounted, inPlaguelands, enabled, now)
 
     for _, definition in ipairs(EQUIPMENT) do
