@@ -321,7 +321,6 @@ end
 -- A single state machine owns Trinket1Slot (slot 14).
 -- This keeps the saved original item across transitions such as
 -- normal -> Plaguelands -> mounted -> dismounted -> normal.
--- The legacy record fields remain compatible with pre-upgrade saves.
 local function RunTrinket(records, mounted, inPlaguelands, enabled, now)
     local slot = GetInventorySlotInfo
         and UI:SafeCall(GetInventorySlotInfo, "Trinket1Slot")
