@@ -265,6 +265,12 @@ local function GetGCDState()
     return false
 end
 
+-- Share Forever's action-based GCD fallback with Auto Equip.
+-- Do not expose cooldown timestamps: some are secret in combat.
+function Module:IsGlobalCooldownActive()
+    return select(1, GetGCDState()) == true
+end
+
 local function UpdateGCDSwipes()
     local active, durationObject, start, seconds = GetGCDState()
     for _, bar in pairs(Module.bars) do
