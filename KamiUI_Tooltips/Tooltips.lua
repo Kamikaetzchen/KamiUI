@@ -1299,9 +1299,7 @@ end
 
 local function RefreshVisiblePlayerTooltip(guid)
     local tooltip = GameTooltip
-    local unit = GetVisibleTooltipUnit(guid)
-
-    if not tooltip or not unit then
+    if not tooltip or not GetVisibleTooltipUnit(guid) then
         return
     end
 
@@ -1312,15 +1310,40 @@ local function RefreshVisiblePlayerTooltip(guid)
             return
         end
 
-        local currentUnit = GetVisibleTooltipUnit(guid)
-
-        if not currentUnit then
-            tooltip.KamiPendingRefreshGuid = nil
-            return
-        end
-
+        -- The tooltip may have disappeared or changed unit between
+        -- INSPECT_READY and this deferred callback.
         tooltip.KamiPendingRefreshGuid = nil
-        tooltip:SetUnit(currentUnit)
+        local unit = GetVisibleTooltipUnit(guid)
+        if not unit then return end
+
+        local hasCached, cached = GetCachedSpec(guid)
+        if not hasCached or not cached then return end
+
+        local className = GetClassInfo(unit)
+        if not className then return end
+
+        local specText = NormalizeSpecText(cached, unit)
+        local levelText = BuildLevelLine(
+            unit, className, GetClassColor(unit), specText
+        )
+        if not levelText then return end
+
+        -- Do not call GameTooltip:SetUnit() here: it recreates the
+        -- mouseover tooltip, which may then remain visible after
+        -- the cursor leaves the player. Edit only the existing line.
+        local count = tooltip.NumLines and tooltip:NumLines() or 0
+        for index = 1, count do
+            local line = GetTooltipLine(tooltip, "left", index)
+            local text = line and line.GetText and line:GetText()
+            if type(text) == "string"
+                and UI:CanAccessValue(text)
+                and string.find(
+                    StripColorCodes(text), "Level ", 1, true
+                ) == 1 then
+                line:SetText(levelText)
+                return
+            end
+        end
     end
 
     if C_Timer and C_Timer.After then
