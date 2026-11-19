@@ -1377,13 +1377,30 @@ local function GetPlayedTimes()
 end
 
 local function ResetSession()
+    local level, xp, maxXP = GetXPValues()
+    if not level then return false end
+
     Module.sessionStart = GetTime()
     Module.sessionXP = 0
-    Module.lastLevel, Module.lastXP, Module.lastMaxXP = GetXPValues()
+    Module.lastLevel, Module.lastXP, Module.lastMaxXP =
+        level, xp, maxXP
+    return true
+end
+
+-- Wait until the player has entered the world before taking the XP
+-- baseline. During addon loading UnitXP may briefly report zero.
+local function BeginSession()
+    if Module.sessionReady then return end
+    if ResetSession() then
+        Module.sessionReady = true
+        Module:Refresh()
+    else
+        C_Timer.After(0.2, BeginSession)
+    end
 end
 
 local function UpdateXPTracking()
-    if Module.levelUpPending then return end
+    if not Module.sessionReady or Module.levelUpPending then return end
     local level, xp, maxXP = GetXPValues()
     if not level then return end
 
@@ -1400,7 +1417,10 @@ local function UpdateXPTracking()
         -- into the next level. This fixes the lost-XP-at-level-up bug.
         gained = math.max(0,
             (Module.lastMaxXP or 0) - (oldXP or 0)) + xp
-    elseif level == oldLevel and xp >= (oldXP or 0) then
+    elseif level == oldLevel then
+        -- XP cannot decrease within a level. Ignore transient zero
+        -- values instead of counting the full level XP next update.
+        if xp < (oldXP or 0) then return end
         gained = xp - (oldXP or 0)
     end
 
@@ -1619,12 +1639,19 @@ function Module:Refresh()
 end
 
 function Module:Initialize()
-    ResetSession()
+    self.sessionStart = GetTime()
+    self.sessionXP = 0
+    self.sessionReady = false
     RestedXP:CaptureCurrent()
     CreatePanel()
     self:Refresh()
 
     UI:RegisterEvent("PLAYER_ENTERING_WORLD", function()
+        -- Only the first world entry starts a session; zoning does not
+        -- reset it. Defer until initial player XP data has settled.
+        if not Module.sessionReady then
+            C_Timer.After(0.2, BeginSession)
+        end
         C_Timer.After(0, function()
             RequestPlayedTime()
             RestedXP:CaptureCurrent()
