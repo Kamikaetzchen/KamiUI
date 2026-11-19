@@ -1405,6 +1405,8 @@ local function UpdateXPTracking()
     if not level then return end
 
     local oldLevel, oldXP = Module.lastLevel, Module.lastXP
+    -- Ignore temporary stale player data while loading/zoning.
+    if oldLevel and level < oldLevel then return end
     if not oldLevel then
         Module.lastLevel, Module.lastXP, Module.lastMaxXP =
             level, xp, maxXP
