@@ -2,7 +2,7 @@
 ## Title: KamiUI - Nameplates
 ## Notes: Nameplate module for KamiUI
 ## Author: Kami Katze
-## Version: 0.3.3
+## Version: 0.3.4
 ## IconTexture: Interface\Icons\Ability_Hunter_SniperShot
 ## RequiredDeps: KamiUI
 
