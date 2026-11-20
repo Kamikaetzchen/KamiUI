@@ -751,6 +751,11 @@ local function ConfigureNativeFriendlyPlates()
         end
     end
 
+    -- The 12.0 client has a separate switch for friendly NPC nameplates.
+    -- Keep vendor titles visible by disabling those plates, without
+    -- changing the player's friendly-player nameplate preference.
+    SetOption("nameplateShowFriendlyNpcs", "0")
+
     -- On Forever's 12.0 client 0 is displayed as "Large" and 2 as
     -- "Block". The slimmer "Default" preset is the intermediate value.
     -- Don't use Enum.NamePlateStyle.Default: that member is absent here.
