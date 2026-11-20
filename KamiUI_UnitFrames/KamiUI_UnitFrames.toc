@@ -2,7 +2,7 @@
 ## Title: KamiUI - UnitFrames
 ## Notes: UnitFrames module for KamiUI
 ## Author: Kami Katze
-## Version: 0.4.0
+## Version: 0.4.1
 ## IconTexture: Interface\Icons\INV_Misc_GroupLooking
 ## RequiredDeps: KamiUI
 
