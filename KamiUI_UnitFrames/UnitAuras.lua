@@ -179,7 +179,10 @@ local function CreateAuraContainer(
         size,
         1,
         false,
-        false
+        false,
+        -- On Forever, Reverse can push our HoTs behind other buffs.
+        -- Normal prioritizes player-applied auras within the slot limit.
+        AuraContainerSortDirection.Normal
     )
     AddAuraGroup(
         container,
@@ -272,7 +275,8 @@ local function CreatePartyBuffContainer(parent, unit)
         size,
         1,
         false,
-        false
+        false,
+        AuraContainerSortDirection.Normal
     )
 
     container:SetPoint("TOPLEFT", parent, "BOTTOMLEFT", 0, -1)
