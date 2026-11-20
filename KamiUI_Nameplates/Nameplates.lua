@@ -846,10 +846,9 @@ end
 function Module:Initialize()
     if SetCVar then
         SetCVar("nameplateShowEnemies", 1)
-        -- Include friendly players and NPCs instead of styling enemies only.
-        -- A nameplate must exist before the shared custom layout can apply.
-        SetCVar("nameplateShowFriends", 1)
     end
+    -- Respect Blizzard's friendly nameplate visibility settings, including
+    -- NPCs. Enabling friendlies is the player's choice, not KamiUI's.
     ConfigureNativeFriendlyPlates()
     QueueClickArea()
     local function RefreshAfterZoneChange()
