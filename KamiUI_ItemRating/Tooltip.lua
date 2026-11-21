@@ -1,7 +1,7 @@
 local UI = KamiUI
 local Module = UI:GetModule("ItemRating")
 
-local PREFIX = "Item Rating (Cat)"
+local PREFIX = "Item Rating ("
 
 local function GetLink(tooltip, data)
     if data and data.hyperlink
@@ -84,33 +84,37 @@ function Module:AppendRating(tooltip, data)
         return
     end
 
-    local profile = self:GetActiveProfile()
-    if not profile then
-        return
-    end
+    local profiles = self:GetClassProfiles()
+    if #profiles == 0 then return end
 
     local link = GetLink(tooltip, data)
-    local result = link and self:RateItem(link, profile)
-    if not result then
-        return
-    end
+    if not link then return end
 
-    if result.score == nil then
-        tooltip:AddDoubleLine(
-            PREFIX, "Unscored effect",
-            1, 0.78, 0.32,
-            0.65, 0.69, 0.76
-        )
-        return
+    -- Show every spec of the player's class, regardless of which
+    -- profile is being edited. The editor dropdown affects only edits.
+    for _, profile in ipairs(profiles) do
+        local result = self:RateItem(link, profile)
+        if result then
+            local label = PREFIX
+                .. (profile.shortLabel or profile.label) .. ")"
+            if result.score == nil then
+                tooltip:AddDoubleLine(
+                    label, "Unscored effect",
+                    1, 0.78, 0.32,
+                    0.65, 0.69, 0.76
+                )
+            else
+                local comparisons =
+                    self:GetEquippedComparisons(result, profile)
+                tooltip:AddDoubleLine(
+                    label,
+                    FormatScore(result.score, comparisons),
+                    1, 0.78, 0.32,
+                    1, 0.78, 0.32
+                )
+            end
+        end
     end
-
-    local comparisons = self:GetEquippedComparisons(result, profile)
-    tooltip:AddDoubleLine(
-        PREFIX,
-        FormatScore(result.score, comparisons),
-        1, 0.78, 0.32,
-        1, 0.78, 0.32
-    )
 end
 
 local function InstallHook()
