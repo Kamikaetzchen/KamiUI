@@ -120,8 +120,11 @@ function Module:SetWeight(classFile, spec, key, value)
 
     local overrides, specs, classes = GetOverrides(classFile, spec, true)
     local defaultValue = profile.defaultWeights[key]
-    overrides[key] = math.abs(value - defaultValue) < 0.0000001
-        and nil or value
+    if math.abs(value - defaultValue) < 0.0000001 then
+        overrides[key] = nil
+    else
+        overrides[key] = value
+    end
 
     if not next(overrides) then
         specs[spec] = nil
@@ -166,8 +169,11 @@ function Module:ApplyReferenceWeights(classFile, spec, sourceID)
     for key, value in pairs(reference.weights) do
         if profile.defaultWeights[key] ~= nil and ValidWeight(value) then
             local defaultValue = profile.defaultWeights[key]
-            overrides[key] = math.abs(value - defaultValue) < 0.0000001
-                and nil or value
+            if math.abs(value - defaultValue) < 0.0000001 then
+                overrides[key] = nil
+            else
+                overrides[key] = value
+            end
         end
     end
     if not next(overrides) then
