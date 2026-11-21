@@ -63,7 +63,7 @@ local function CommitInput(input)
     if not UI:CanAccessValue(inputText)
         or type(inputText) ~= "string" then return end
 
-    local value = tonumber(inputText:gsub(",", "."))
+    local value = tonumber((inputText:gsub(",", ".")))
     if not value or value ~= value or value < 0 or value > 100000 then
         UI:Print("Invalid Item Rating weight for " .. input.statLabel)
     elseif math.abs(value - (profile.weights[input.statKey] or 0))
