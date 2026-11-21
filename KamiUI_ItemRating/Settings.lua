@@ -9,32 +9,7 @@ local SOURCE_WIDTH = 96
 local SOURCE_X = 238
 local ROW_BASE_WIDTH = 242
 
-local FIELDS = {
-    { "ITEM_MOD_STRENGTH_SHORT", "Strength" },
-    { "ITEM_MOD_AGILITY_SHORT", "Agility" },
-    { "ITEM_MOD_STAMINA_SHORT", "Stamina" },
-    { "RESISTANCE0_NAME", "Armor" },
-    { "ITEM_MOD_INTELLECT_SHORT", "Intellect" },
-    { "ITEM_MOD_SPIRIT_SHORT", "Spirit" },
-    { "ITEM_MOD_ATTACK_POWER_SHORT", "Attack Power" },
-    { "ITEM_MOD_FERAL_ATTACK_POWER_SHORT", "Feral Attack Power" },
-    { "ITEM_MOD_CRIT_RATING_SHORT", "Crit Rating" },
-    { "ITEM_MOD_HIT_RATING_SHORT", "Hit Rating" },
-    { "ITEM_MOD_HASTE_RATING_SHORT", "Haste Rating" },
-    { "ITEM_MOD_EXPERTISE_RATING_SHORT", "Expertise Rating" },
-    { "ITEM_MOD_ARMOR_PENETRATION_RATING_SHORT", "Armor Pen. Rating" },
-    { "ITEM_MOD_DAMAGE_PER_SECOND_SHORT", "Weapon DPS" },
-    { "ITEM_MOD_WEAPON_DAMAGE_SHORT", "Weapon Damage" },
-    { "ITEM_MOD_SPELL_POWER_SHORT", "Spell Power" },
-    { "ITEM_MOD_SPELL_DAMAGE_DONE_SHORT", "Spell Damage" },
-    { "ITEM_MOD_SPELL_HEALING_DONE_SHORT", "Spell Healing" },
-    { "ITEM_MOD_DODGE_RATING_SHORT", "Dodge Rating" },
-    { "ITEM_MOD_PARRY_RATING_SHORT", "Parry Rating" },
-    { "ITEM_MOD_DEFENSE_SKILL_RATING_SHORT", "Defense Skill" },
-    { "ITEM_MOD_BLOCK_RATING_SHORT", "Block Rating" },
-    { "ITEM_MOD_BLOCK_VALUE_SHORT", "Block Value" },
-    { "ITEM_MOD_MANA_REGENERATION_SHORT", "Mana Regen" },
-}
+local FIELDS = Module.statFields
 
 local CAP_INFO = {
     ITEM_MOD_HIT_RATING_SHORT = {
@@ -48,7 +23,7 @@ local CAP_INFO = {
 }
 
 local function Profile()
-    return Module:GetActiveProfile()
+    return Module:GetSelectedProfile()
 end
 
 local function FormatWeight(value)
@@ -77,8 +52,27 @@ end
 local function RefreshInputs(frame)
     local profile = Profile()
     if not profile then return end
+
+    if frame.profileDropdown then
+        Components:RefreshDropdown(frame.profileDropdown)
+    end
+    frame.assumptions:SetText(profile.assumptions or "")
     for _, input in ipairs(frame.weightInputs) do
         input:SetText(FormatWeight(profile.weights[input.statKey]))
+    end
+
+    for index, heading in ipairs(frame.sourceHeadings) do
+        local source = profile.references[index]
+        heading:SetText(source and source.label or "")
+        frame.sourceButtons[index]:SetShown(source ~= nil)
+    end
+    for key, cells in pairs(frame.sourceCells) do
+        for index, cell in ipairs(cells) do
+            local source = profile.references[index]
+            cell:SetText(FormatWeight(
+                source and source.weights[key] or nil
+            ))
+        end
     end
 end
 
@@ -166,11 +160,22 @@ local function CreateScroll(frame, rowWidth)
     return content
 end
 
+local function ClearInputFocus(frame)
+    for _, input in ipairs(frame.weightInputs) do
+        if input:HasFocus() then input:ClearFocus() end
+    end
+end
+
 local function CreateSettingsWindow()
     local profile = Profile()
     if not profile then return nil end
-    local references = profile.references
-    local rowWidth = ROW_BASE_WIDTH + SOURCE_WIDTH * #references
+
+    local profiles = Module:GetClassProfiles()
+    local maxSources = 1
+    for _, entry in ipairs(profiles) do
+        maxSources = math.max(maxSources, #entry.references)
+    end
+    local rowWidth = ROW_BASE_WIDTH + SOURCE_WIDTH * maxSources
     local frame = Components:CreateWindow(
         "KamiUIItemRatingSettings", {
             width = rowWidth + 44,
@@ -181,6 +186,9 @@ local function CreateSettingsWindow()
     )
     frame:SetPoint("CENTER", UIParent, "CENTER", 140, 0)
     frame.weightInputs = {}
+    frame.sourceButtons = {}
+    frame.sourceHeadings = {}
+    frame.sourceCells = {}
 
     Components:CreateWindowCloseButton(frame, {
         point = "TOPRIGHT",
@@ -189,63 +197,98 @@ local function CreateSettingsWindow()
     })
     Components:RegisterEscapeClose(frame)
 
-    local profileTitle = frame:CreateFontString(
-        nil, "OVERLAY", "GameFontNormal"
+    local dropdown = Components:CreateDropdown(frame, {
+        buttonWidth = math.min(300, rowWidth - 18),
+        buttonHeight = 22,
+        menuParent = UIParent,
+        menuFrameStrata = "DIALOG",
+        minWidth = math.min(300, rowWidth - 18),
+        getEntries = function()
+            return Module:GetClassProfiles()
+        end,
+        getText = function(entry)
+            return "Druid - " .. entry.label
+        end,
+        getButtonText = function()
+            local current = Profile()
+            return current and ("Druid - " .. current.label) or "Profile"
+        end,
+        isSelected = function(entry)
+            local current = Profile()
+            return current and entry.spec == current.spec
+        end,
+        onSelect = function(entry)
+            -- Save any edited value to the old profile first.
+            ClearInputFocus(frame)
+            Module:SetSelectedProfile(entry.classFile, entry.spec)
+            RefreshInputs(frame)
+        end,
+    })
+    dropdown.button:SetPoint(
+        "TOPLEFT", frame, "TOPLEFT", 17, -42
     )
-    profileTitle:SetPoint("TOPLEFT", 17, -45)
-    profileTitle:SetText("Druid - " .. profile.label)
+    frame.profileDropdown = dropdown
 
     local assumptions = frame:CreateFontString(
         nil, "OVERLAY", "GameFontNormalSmall"
     )
-    assumptions:SetPoint("TOPLEFT", frame, "TOPLEFT", 17, -66)
-    assumptions:SetText("Lv 60  |  Raid buffs + standard talents")
+    assumptions:SetPoint("TOPLEFT", frame, "TOPLEFT", 17, -70)
     Styles:ApplyText(assumptions, "muted", Palette.muted)
+    frame.assumptions = assumptions
 
     local currentHeader = frame:CreateFontString(
         nil, "OVERLAY", "GameFontNormalSmall"
     )
-    currentHeader:SetPoint("TOPLEFT", frame, "TOPLEFT", 167, -95)
+    currentHeader:SetPoint("TOPLEFT", frame, "TOPLEFT", 167, -99)
     currentHeader:SetText("Current")
 
-    for index, reference in ipairs(references) do
+    for index = 1, maxSources do
         local x = SOURCE_X + (index - 1) * SOURCE_WIDTH + 13
-        local label = frame:CreateFontString(
+        local heading = frame:CreateFontString(
             nil, "OVERLAY", "GameFontNormalSmall"
         )
-        label:SetSize(90, 18)
-        label:SetPoint("TOPLEFT", frame, "TOPLEFT", x, -94)
-        label:SetJustifyH("CENTER")
-        label:SetText(reference.label)
+        heading:SetSize(90, 18)
+        heading:SetPoint("TOPLEFT", frame, "TOPLEFT", x, -97)
+        heading:SetJustifyH("CENTER")
+        frame.sourceHeadings[index] = heading
 
         local copy = CreateFrame("Button", nil, frame)
         copy:SetSize(76, 20)
-        copy:SetPoint("TOPLEFT", frame, "TOPLEFT", x + 7, -111)
+        copy:SetPoint("TOPLEFT", frame, "TOPLEFT", x + 7, -114)
         Components:StyleButton(copy, { text = "Use" })
         copy:SetScript("OnClick", function()
-            for _, input in ipairs(frame.weightInputs) do
-                if input:HasFocus() then input:ClearFocus() end
-            end
+            local selected = Profile()
+            local reference = selected and selected.references[index]
+            if not reference then return end
+
+            ClearInputFocus(frame)
             Module:ApplyReferenceWeights(
-                profile.classFile, profile.spec, reference.id
+                selected.classFile, selected.spec, reference.id
             )
             RefreshInputs(frame)
         end)
         copy:SetScript("OnEnter", function(self)
+            local selected = Profile()
+            local reference = selected and selected.references[index]
+            if not reference then return end
+
             GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
             GameTooltip:SetText(reference.label, 1, 0.82, 0.28)
-            GameTooltip:AddLine(reference.description,
+            GameTooltip:AddLine(reference.description or "",
                 0.85, 0.85, 0.85, true)
-            GameTooltip:AddLine("Reference: " .. reference.date,
+            GameTooltip:AddLine("Reference: " .. (reference.date or ""),
                 0.7, 0.75, 0.82, true)
             GameTooltip:AddLine("Copies published weights only; "
                 .. "missing stats stay unchanged.",
                 0.7, 0.85, 0.72, true)
-            GameTooltip:AddLine(reference.url,
-                0.6, 0.7, 0.85, true)
+            if reference.url then
+                GameTooltip:AddLine(reference.url,
+                    0.6, 0.7, 0.85, true)
+            end
             GameTooltip:Show()
         end)
         copy:SetScript("OnLeave", function() GameTooltip:Hide() end)
+        frame.sourceButtons[index] = copy
     end
 
     local content = CreateScroll(frame, rowWidth)
@@ -298,7 +341,8 @@ local function CreateSettingsWindow()
         input:SetScript("OnEditFocusLost", CommitInput)
         frame.weightInputs[#frame.weightInputs + 1] = input
 
-        for sourceIndex, reference in ipairs(references) do
+        frame.sourceCells[key] = {}
+        for sourceIndex = 1, maxSources do
             local weight = row:CreateFontString(
                 nil, "OVERLAY", "GameFontNormalSmall"
             )
@@ -307,7 +351,7 @@ local function CreateSettingsWindow()
             weight:SetWidth(88)
             weight:SetJustifyH("RIGHT")
             weight:SetTextColor(0.73, 0.89, 0.77)
-            weight:SetText(FormatWeight(reference.weights[key]))
+            frame.sourceCells[key][sourceIndex] = weight
         end
     end
 
@@ -323,11 +367,12 @@ local function CreateSettingsWindow()
     reset:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 17, 14)
     Components:StyleButton(reset, { text = "Reset Defaults" })
     reset:SetScript("OnClick", function()
-        for _, input in ipairs(frame.weightInputs) do
-            if input:HasFocus() then input:ClearFocus() end
+        ClearInputFocus(frame)
+        local current = Profile()
+        if current then
+            Module:ResetWeights(current.classFile, current.spec)
+            RefreshInputs(frame)
         end
-        Module:ResetWeights(profile.classFile, profile.spec)
-        RefreshInputs(frame)
     end)
 
     local close = CreateFrame("Button", nil, frame)
@@ -337,6 +382,7 @@ local function CreateSettingsWindow()
     close:SetScript("OnClick", function() frame:Hide() end)
 
     frame:HookScript("OnShow", RefreshInputs)
+    RefreshInputs(frame)
     frame:SetScript("OnHide", function(self)
         for _, input in ipairs(self.weightInputs) do
             if input:HasFocus() then input:ClearFocus() end
