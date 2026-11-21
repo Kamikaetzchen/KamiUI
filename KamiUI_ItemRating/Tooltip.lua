@@ -89,11 +89,12 @@ function Module:AppendRating(tooltip, data)
 
     local link = GetLink(tooltip, data)
     if not link then return end
+    local itemCache = {}
 
     -- Show every spec of the player's class, regardless of which
     -- profile is being edited. The editor dropdown affects only edits.
     for _, profile in ipairs(profiles) do
-        local result = self:RateItem(link, profile)
+        local result = self:RateItem(link, profile, itemCache)
         if result then
             local label = PREFIX
                 .. (profile.shortLabel or profile.label) .. ")"
@@ -105,7 +106,7 @@ function Module:AppendRating(tooltip, data)
                 )
             else
                 local comparisons =
-                    self:GetEquippedComparisons(result, profile)
+                    self:GetEquippedComparisons(result, profile, itemCache)
                 tooltip:AddDoubleLine(
                     label,
                     FormatScore(result.score, comparisons),
