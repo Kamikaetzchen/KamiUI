@@ -110,6 +110,26 @@ local function GetReputationColor(data)
     return 0.18, 0.55, 0.18
 end
 
+local REPUTATION_RANKS = {
+    "Hated", "Hostile", "Unfriendly", "Neutral",
+    "Friendly", "Honored", "Revered", "Exalted",
+}
+
+local function GetReputationRank(data)
+    local reaction = data and data.reaction
+    if not UI:CanAccessValue(reaction)
+        or type(reaction) ~= "number"
+        or reaction < 1 or reaction > #REPUTATION_RANKS
+        or reaction ~= math.floor(reaction) then
+        return nil
+    end
+
+    -- Prefer the client's localized standing names.
+    local localized = _G["FACTION_STANDING_LABEL" .. reaction]
+    return type(localized) == "string" and localized
+        or REPUTATION_RANKS[reaction]
+end
+
 local function UpdateDividers(frame)
     if not frame.dividers then
         frame.dividers = {}
@@ -213,7 +233,12 @@ local function ShowTooltip(frame)
         local data = frame.reputationData
         local r, g, b = GetReputationColor(data)
 
-        GameTooltip:AddLine(data.name or "Reputation", r, g, b)
+        local factionName = data.name or "Reputation"
+        local rank = GetReputationRank(data)
+        if rank then
+            factionName = factionName .. " (" .. rank .. ")"
+        end
+        GameTooltip:AddLine(factionName, r, g, b)
         GameTooltip:AddLine(
             string.format(
                 "%s/%s",
