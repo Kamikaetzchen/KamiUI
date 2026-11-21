@@ -2,11 +2,12 @@
 ## Title: KamiUI
 ## Notes: Core framework for KamiUI
 ## Author: Kami Katze
-## Version: 0.2.4
+## Version: 0.2.5
 ## IconTexture: Interface\AddOns\KamiUI\Media\KamiUI.tga
 ## SavedVariables: KamiUIDB
 
 Core.lua
+CharacterIdentity.lua
 Media.lua
 BlizzardFrames.lua
 Palette.lua
