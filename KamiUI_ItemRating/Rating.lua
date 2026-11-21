@@ -136,16 +136,13 @@ function Module:RateItem(itemLink, profile)
         stats.ITEM_MOD_WEAPON_DAMAGE_SHORT = flatDamage
     end
 
-    local weights = self:GetEffectiveWeights(profile) or profile.weights
     local score = 0
     local recognized = false
-    for key, weight in pairs(weights) do
+    for key, weight in pairs(profile.weights) do
         local amount = Number(stats[key])
         if amount then
-            -- GetItemStats reports raw rating, while our editor values
-            -- rating-derived stats per visible +1% on the item tooltip.
-            local displayAmount = self:GetDisplayStatAmount(key, amount)
-            score = score + displayAmount * weight
+            -- Every profile weight is per raw point from GetItemStats.
+            score = score + amount * weight
             recognized = true
         end
     end
