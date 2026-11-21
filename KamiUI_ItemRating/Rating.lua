@@ -106,7 +106,7 @@ local function GetEquipLoc(itemLink)
     return equipLoc
 end
 
-function Module:RateItem(itemLink, profile)
+function Module:RateItem(itemLink, profile, itemCache)
     if not itemLink or not UI:CanAccessValue(itemLink)
         or type(itemLink) ~= "string"
         or not C_Item or not C_Item.GetItemStats then
@@ -114,27 +114,35 @@ function Module:RateItem(itemLink, profile)
     end
 
     profile = profile or self:GetActiveProfile()
-    if not profile then
-        return nil
-    end
+    if not profile then return nil end
 
-    local equipLoc = GetEquipLoc(itemLink)
-    if not equipLoc or not EQUIP_SLOTS[equipLoc] then
-        return nil
-    end
+    -- One tooltip displays several profiles. Read and parse the item's
+    -- stats only once, including when comparing worn equipment.
+    local item = itemCache and itemCache[itemLink]
+    if item == false then return nil end
+    if not item then
+        local equipLoc = GetEquipLoc(itemLink)
+        if not equipLoc or not EQUIP_SLOTS[equipLoc] then
+            if itemCache then itemCache[itemLink] = false end
+            return nil
+        end
+        local stats = UI:SafeCall(C_Item.GetItemStats, itemLink)
+        if not stats or not UI:CanAccessValue(stats)
+            or type(stats) ~= "table" then
+            return nil
+        end
 
-    local stats = UI:SafeCall(C_Item.GetItemStats, itemLink)
-    if not stats or not UI:CanAccessValue(stats)
-        or type(stats) ~= "table" then
-        return nil
-    end
+        -- Preserve the flat Weapon Damage fallback when the item API
+        -- does not expose the stat directly.
+        local flatDamage = GetFlatWeaponDamage(itemLink, stats)
+        if flatDamage then
+            stats.ITEM_MOD_WEAPON_DAMAGE_SHORT = flatDamage
+        end
 
-    -- The client may not report flat Weapon Damage as a numeric stat.
-    -- This is a custom Item Rating key so the editor can score it.
-    local flatDamage = GetFlatWeaponDamage(itemLink, stats)
-    if flatDamage then
-        stats.ITEM_MOD_WEAPON_DAMAGE_SHORT = flatDamage
+        item = { equipLoc = equipLoc, stats = stats }
+        if itemCache then itemCache[itemLink] = item end
     end
+    local equipLoc, stats = item.equipLoc, item.stats
 
     local score = 0
     local recognized = false
@@ -175,7 +183,7 @@ function Module:RateItem(itemLink, profile)
     }
 end
 
-function Module:GetEquippedComparisons(itemResult, profile)
+function Module:GetEquippedComparisons(itemResult, profile, itemCache)
     local comparisons = {}
     local slots = itemResult
         and EQUIP_SLOTS[itemResult.equipLoc]
@@ -187,7 +195,7 @@ function Module:GetEquippedComparisons(itemResult, profile)
     for _, slot in ipairs(slots) do
         local equipped = UI:SafeCall(GetInventoryItemLink, "player", slot)
         if equipped and UI:CanAccessValue(equipped) then
-            local equippedResult = self:RateItem(equipped, profile)
+            local equippedResult = self:RateItem(equipped, profile, itemCache)
             if equippedResult and equippedResult.score ~= nil then
                 local oldScore = equippedResult.score
 
@@ -199,7 +207,7 @@ function Module:GetEquippedComparisons(itemResult, profile)
                         GetInventoryItemLink, "player", 17
                     )
                     if offhand and UI:CanAccessValue(offhand) then
-                        local offhandResult = self:RateItem(offhand, profile)
+                        local offhandResult = self:RateItem(offhand, profile, itemCache)
                         if offhandResult and offhandResult.score then
                             oldScore = oldScore + offhandResult.score
                         end
