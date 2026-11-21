@@ -4,6 +4,7 @@ local UI = KamiUI
 -- Migrate the logged-in character only: offline characters do not have
 -- a readable GUID until they are logged in themselves.
 local checkedGUID
+local cachedGUID
 
 local function Copy(value)
     if type(value) ~= "table" then return value end
@@ -263,15 +264,17 @@ function UI:TryMigrateCharacterIdentity(guid, name)
 end
 
 function UI:GetCharacterGUIDKey()
-    if not UnitGUID then return nil end
-    local guid = self:SafeCall(UnitGUID, "player")
-    if not self:CanAccessValue(guid)
-        or type(guid) ~= "string"
-        or not guid:match("^Player%-%d+%-%x+$") then
-        return nil
+    local guid = UnitGUID and self:SafeCall(UnitGUID, "player")
+    if self:CanAccessValue(guid)
+        and type(guid) == "string"
+        and guid:match("^Player%-%d+%-%x+$") then
+        cachedGUID = guid
     end
+    -- Never fall back to an empty-realm key if the GUID becomes
+    -- temporarily inaccessible during combat or a zone transition.
+    if not cachedGUID then return nil end
 
     local _, _, name = self:GetCurrentCharacterNames()
-    self:TryMigrateCharacterIdentity(guid, name)
-    return guid
+    self:TryMigrateCharacterIdentity(cachedGUID, name)
+    return cachedGUID
 end
