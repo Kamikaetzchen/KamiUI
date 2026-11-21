@@ -234,7 +234,10 @@ function RestedXP:CaptureCurrent()
     local snapshot = saved[key] or {}
 
     snapshot.name = name
-    snapshot.realm = GetRealmName and GetRealmName() or ""
+    local realm = GetRealmName and GetRealmName() or ""
+    if type(realm) == "string" and realm ~= "" then
+        snapshot.realm = realm
+    end
     snapshot.classFile = classFile
     snapshot.level = UnitLevel("player")
     snapshot.maxLevel = maxLevel == true
