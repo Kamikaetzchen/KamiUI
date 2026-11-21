@@ -26,6 +26,12 @@ local function Profile()
     return Module:GetSelectedProfile()
 end
 
+local function ClassLabel()
+    local name = UnitClass and UnitClass("player")
+    return (UI:CanAccessValue(name) and type(name) == "string")
+        and name or "Class"
+end
+
 local function FormatWeight(value)
     return type(value) == "number"
         and string.format("%.4f", value) or "--"
@@ -210,11 +216,11 @@ local function CreateSettingsWindow()
             return Module:GetClassProfiles()
         end,
         getText = function(entry)
-            return "Druid - " .. entry.label
+            return ClassLabel() .. " - " .. entry.label
         end,
         getButtonText = function()
             local current = Profile()
-            return current and ("Druid - " .. current.label) or "Profile"
+            return current and (ClassLabel() .. " - " .. current.label) or "Profile"
         end,
         isSelected = function(entry)
             local current = Profile()
