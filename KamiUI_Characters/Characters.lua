@@ -79,7 +79,10 @@ local function UpdateCurrentCharacter()
     character.className = className
     character.classFile = classFile
     character.level = UnitLevel and UnitLevel("player") or character.level or 0
-    character.realm = GetRealmName and GetRealmName() or ""
+    local realm = GetRealmName and GetRealmName() or ""
+    if type(realm) == "string" and realm ~= "" then
+        character.realm = realm
+    end
     character.money = GetMoney and GetMoney() or character.money or 0
 
     -- Store live progress for the account roster. A capped-level character
