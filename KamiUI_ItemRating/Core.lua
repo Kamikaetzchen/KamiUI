@@ -3,6 +3,45 @@ local Module = UI:NewModule("ItemRating", "KamiUI_ItemRating")
 
 Module.profiles = {}
 
+-- Shared stat list: new class/spec profiles need only supply weights.
+-- Values not present in a source default to zero but remain editable.
+Module.statFields = {
+    { "ITEM_MOD_STRENGTH_SHORT", "Strength" },
+    { "ITEM_MOD_AGILITY_SHORT", "Agility" },
+    { "ITEM_MOD_STAMINA_SHORT", "Stamina" },
+    { "RESISTANCE0_NAME", "Armor" },
+    { "ITEM_MOD_INTELLECT_SHORT", "Intellect" },
+    { "ITEM_MOD_SPIRIT_SHORT", "Spirit" },
+    { "ITEM_MOD_ATTACK_POWER_SHORT", "Attack Power" },
+    { "ITEM_MOD_FERAL_ATTACK_POWER_SHORT", "Feral Attack Power" },
+    { "ITEM_MOD_CRIT_RATING_SHORT", "Crit Rating" },
+    { "ITEM_MOD_HIT_RATING_SHORT", "Hit Rating" },
+    { "ITEM_MOD_HASTE_RATING_SHORT", "Haste Rating" },
+    { "ITEM_MOD_EXPERTISE_RATING_SHORT", "Expertise Rating" },
+    { "ITEM_MOD_ARMOR_PENETRATION_RATING_SHORT", "Armor Pen. Rating" },
+    { "ITEM_MOD_DAMAGE_PER_SECOND_SHORT", "Weapon DPS" },
+    { "ITEM_MOD_WEAPON_DAMAGE_SHORT", "Weapon Damage" },
+    { "ITEM_MOD_SPELL_POWER_SHORT", "Spell Power" },
+    { "ITEM_MOD_SPELL_DAMAGE_DONE_SHORT", "Spell Damage" },
+    { "ITEM_MOD_SPELL_HEALING_DONE_SHORT", "Spell Healing" },
+    { "ITEM_MOD_DODGE_RATING_SHORT", "Dodge Rating" },
+    { "ITEM_MOD_PARRY_RATING_SHORT", "Parry Rating" },
+    { "ITEM_MOD_DEFENSE_SKILL_RATING_SHORT", "Defense Skill" },
+    { "ITEM_MOD_BLOCK_RATING_SHORT", "Block Rating" },
+    { "ITEM_MOD_BLOCK_VALUE_SHORT", "Block Value" },
+    { "ITEM_MOD_MANA_REGENERATION_SHORT", "Mana Regen" },
+}
+
+function Module:NewWeightTable(source, extra)
+    local weights = {}
+    for _, field in ipairs(self.statFields) do
+        local key = field[1]
+        weights[key] = (extra and extra[key])
+            or (source and source[key]) or 0
+    end
+    return weights
+end
+
 -- Old Cat weights were AP equivalents. The editor also treated combat
 -- ratings as percentages, while GetItemStats returns raw rating points.
 -- Convert saved user overrides once into raw-rating Agility equivalents.
@@ -184,12 +223,51 @@ function Module:ApplyReferenceWeights(classFile, spec, sourceID)
     return true
 end
 
-function Module:GetActiveProfile()
+function Module:GetClassProfiles(classFile)
+    if not classFile then
+        local _, unitClass = UnitClass("player")
+        if not UI:CanAccessValue(unitClass) then return {} end
+        classFile = unitClass
+    end
+
+    local profiles = {}
+    for _, profile in pairs(self.profiles[classFile] or {}) do
+        profiles[#profiles + 1] = profile
+    end
+    table.sort(profiles, function(a, b)
+        if (a.order or 99) ~= (b.order or 99) then
+            return (a.order or 99) < (b.order or 99)
+        end
+        return (a.label or "") < (b.label or "")
+    end)
+    return profiles
+end
+
+function Module:GetSelectedProfile()
     local _, classFile = UnitClass("player")
     if not UI:CanAccessValue(classFile) then return nil end
+    local db = Database()
+    local selected = db.editorSpec and db.editorSpec[classFile]
+    local profiles = self.profiles[classFile]
+    if profiles and selected and profiles[selected] then
+        return profiles[selected]
+    end
+    local sorted = self:GetClassProfiles(classFile)
+    return sorted[1]
+end
 
-    -- Currently only Cat ships a profile. Additional specs register
-    -- their own source tables without modifying the scoring engine.
-    return self.profiles[classFile]
-        and self.profiles[classFile].cat
+function Module:SetSelectedProfile(classFile, spec)
+    if not (self.profiles[classFile]
+        and self.profiles[classFile][spec]) then return false end
+
+    local db = Database()
+    db.editorSpec = db.editorSpec or {}
+    db.editorSpec[classFile] = spec
+    return true
+end
+
+-- Kept for compatibility with other callers. Tooltip uses every
+-- profile for the current class, independently of the editor selection.
+function Module:GetActiveProfile()
+    return self:GetSelectedProfile()
 end
