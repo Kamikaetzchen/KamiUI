@@ -16,38 +16,17 @@ local SIM_WEIGHTS = {
     ITEM_MOD_ARMOR_PENETRATION_RATING_SHORT = 0.13,
 }
 
-local defaults = {}
-for key, value in pairs(SIM_WEIGHTS) do
-    defaults[key] = value
-end
-
--- Provisional legacy fallback, NOT a SixtySim result: 14 AP per weapon
--- DPS/flat damage, scaled by the source's 0.41 Agility per AP.
--- "Use SixtySim" intentionally leaves these fields alone.
-defaults.ITEM_MOD_DAMAGE_PER_SECOND_SHORT = 14 * 0.41
-defaults.ITEM_MOD_WEAPON_DAMAGE_SHORT = 14 * 0.41
-
--- Keep other stats individually editable, without inventing sim weights.
-for _, key in ipairs({
-    "ITEM_MOD_STAMINA_SHORT",
-    "RESISTANCE0_NAME",
-    "ITEM_MOD_INTELLECT_SHORT",
-    "ITEM_MOD_SPIRIT_SHORT",
-    "ITEM_MOD_SPELL_POWER_SHORT",
-    "ITEM_MOD_SPELL_DAMAGE_DONE_SHORT",
-    "ITEM_MOD_SPELL_HEALING_DONE_SHORT",
-    "ITEM_MOD_DODGE_RATING_SHORT",
-    "ITEM_MOD_PARRY_RATING_SHORT",
-    "ITEM_MOD_DEFENSE_SKILL_RATING_SHORT",
-    "ITEM_MOD_BLOCK_RATING_SHORT",
-    "ITEM_MOD_BLOCK_VALUE_SHORT",
-    "ITEM_MOD_MANA_REGENERATION_SHORT",
-}) do
-    defaults[key] = 0
-end
+-- Keep the explicit local weapon estimate when SixtySim has no DPS
+-- coefficient. It is not a measured SixtySim stat weight.
+local defaults = Module:NewWeightTable(SIM_WEIGHTS, {
+    ITEM_MOD_DAMAGE_PER_SECOND_SHORT = 14 * 0.41,
+    ITEM_MOD_WEAPON_DAMAGE_SHORT = 14 * 0.41,
+})
 
 Module:RegisterProfile("DRUID", "cat", {
     label = "Feral Cat",
+    order = 1,
+    assumptions = "Level 60 / raid buffs / boss DPS",
     shortLabel = "Cat",
     weights = defaults,
     references = {
