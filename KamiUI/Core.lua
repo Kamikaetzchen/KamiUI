@@ -133,9 +133,15 @@ function UI:GetCurrentCharacterNames()
 end
 
 function UI:GetCurrentCharacterKey()
+    -- The full Player GUID is stable even when Forever hides realm names.
+    -- CharacterIdentity migrates matching older name/realm keys on login.
+    local guid = self.GetCharacterGUIDKey
+        and self:GetCharacterGUIDKey()
+    if guid then return guid end
+
+    -- Only used while the client has not exposed the player GUID yet.
     local _, _, fullName = self:GetCurrentCharacterNames()
     local realm = GetRealmName and GetRealmName() or ""
-
     return realm .. "::" .. fullName
 end
 
