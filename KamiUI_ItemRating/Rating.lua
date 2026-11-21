@@ -138,14 +138,25 @@ function Module:RateItem(itemLink, profile)
 
     local score = 0
     local recognized = false
+    local healingScore
     for key, weight in pairs(profile.weights) do
         local amount = Number(stats[key])
         if amount then
             -- Every profile weight is per raw point from GetItemStats.
-            score = score + amount * weight
+            local weighted = amount * weight
+            if profile.exclusiveHealingPower
+                and (key == "ITEM_MOD_SPELL_POWER_SHORT"
+                    or key == "ITEM_MOD_SPELL_HEALING_DONE_SHORT") then
+                -- Some items expose both API keys for the same spell
+                -- bonus. Only use the stronger healing contribution.
+                healingScore = math.max(healingScore or 0, weighted)
+            else
+                score = score + weighted
+            end
             recognized = true
         end
     end
+    if healingScore then score = score + healingScore end
 
     -- Unmodelled stats (including proc-only trinkets) are unknown, not
     -- zero DPS. Items with explicit DPS stats can have a score of zero.
