@@ -37,10 +37,14 @@ function Components:FormatCharacterLabel(character, options)
         )
     end
 
+    local currentRealm = GetRealmName and GetRealmName() or ""
+    -- When Forever conceals realm names, do not append stale realm
+    -- labels to each character in the dropdown.
     if options.showRealm ~= false
+        and currentRealm ~= ""
         and character.realm
         and character.realm ~= ""
-        and character.realm ~= (GetRealmName and GetRealmName() or "")
+        and character.realm ~= currentRealm
     then
         label = label .. " - " .. character.realm
     end
