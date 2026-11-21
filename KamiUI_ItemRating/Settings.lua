@@ -94,10 +94,13 @@ local function ShowStatTooltip(button)
         )
     end
 
-    if key == "ITEM_MOD_DAMAGE_PER_SECOND_SHORT"
-        or key == "ITEM_MOD_WEAPON_DAMAGE_SHORT" then
-        GameTooltip:AddLine("Local weapon-damage approximation, "
-            .. "not a published SixtySim weight.",
+    if (key == "ITEM_MOD_DAMAGE_PER_SECOND_SHORT"
+        or key == "ITEM_MOD_WEAPON_DAMAGE_SHORT")
+        and profile.references[1]
+        and profile.references[1].weights[key] == nil
+        and (profile.weights[key] or 0) ~= 0 then
+        GameTooltip:AddLine("Local weapon-damage approximation; "
+            .. "not supplied by this source.",
             0.72, 0.74, 0.80, true)
     end
 
@@ -333,9 +336,12 @@ local function CreateSettingsWindow()
             self:ClearFocus()
         end)
         input:SetScript("OnEscapePressed", function(self)
-            self:SetText(FormatWeight(
-                profile.weights[self.statKey]
-            ))
+            local current = Profile()
+            if current then
+                self:SetText(FormatWeight(
+                    current.weights[self.statKey]
+                ))
+            end
             self:ClearFocus()
         end)
         input:SetScript("OnEditFocusLost", CommitInput)
