@@ -3,7 +3,7 @@ local UI = KamiUI
 -- Character GUIDs survive realm-name API restrictions and relogs.
 -- Migrate the logged-in character only: offline characters do not have
 -- a readable GUID until they are logged in themselves.
-local checkedGUID
+local checkedIdentity
 local cachedGUID
 
 local function Copy(value)
@@ -209,9 +209,12 @@ end
 function UI:TryMigrateCharacterIdentity(guid, name)
     local db = KamiUIDB
     if type(db) ~= "table" then return end
-    if checkedGUID == guid then return end
     if not name or name == "" or name == "Player" then return end
-    checkedGUID = guid
+    -- Surnames can arrive after the first player identity read.
+    -- Retry if the full display name changes during initial loading.
+    local identityKey = guid .. "::" .. name
+    if checkedIdentity == identityKey then return end
+    checkedIdentity = identityKey
 
     local maps = CharacterMaps(db)
     local legacyKeys, realmCount = LegacyKeys(maps, name)
@@ -261,6 +264,8 @@ function UI:TryMigrateCharacterIdentity(guid, name)
         identity.aliases[key] = guid
     end
     db.characterIdentity = identity
+    self:Print("Migrated " .. name .. " cache to Player GUID ("
+        .. #legacyKeys .. " old key(s)).")
 end
 
 function UI:GetCharacterGUIDKey()
