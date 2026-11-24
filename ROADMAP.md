@@ -154,3 +154,11 @@ the addon; actual shared rendering is in Components/Metallic.lua.
 Update this file after confirmed decisions and in-game feedback. Keep
 the durable design rules in DESIGN.md and agent workflow in AGENTS.md.
 Use the current source and Git history for exact implementation details.
+
+## Character identity cleanup
+
+- [x] Owner reports all characters logged in after GUID migration.
+  Retire automatic legacy merges, retain existing backups and GUID cache.
+  Hide realm suffixes in character dropdowns and InfoPanel rested/gold
+  tooltips; shared roster sort no longer groups by realm. No realm filter.
+  Core 0.2.23 / InfoPanel 0.1.8.

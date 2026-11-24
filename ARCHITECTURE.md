@@ -9,7 +9,7 @@ It consists of a shared core and separate `KamiUI_*` addons. Consult
 | Path under KamiUI/ | Responsibility |
 | --- | --- |
 | Core.lua | Shared utilities, safe API access, character profiles and databases |
-| CharacterIdentity.lua | Player GUID lookup and legacy identity migration |
+| CharacterIdentity.lua | Player GUID lookup and session cache |
 | Media.lua | Shared texture paths and media helpers |
 | Palette.lua | Central semantic colors and opacity values |
 | Styles.lua | Shared styling, dimensions and visual state metrics |
@@ -31,9 +31,13 @@ identity is the complete player GUID, not realm/name. Forever can temporarily
 hide realm names and restrict API values.
 
 - Use `UI:GetCurrentCharacterKey()`; do not construct legacy keys manually.
-- Legacy records migrate when their character logs in. Original records are
-  backed up; ambiguity is deliberately not guessed. See
-  [Characters README](KamiUI_Characters/README.md#character-identity-migration-core-025).
+- The one-time realm/name migration has been retired after the owner
+  completed the roster conversion. Keep existing backups and realm metadata;
+  no active records are merged or deleted on login. See
+  [Characters README](KamiUI_Characters/README.md#character-identity).
+- Character menus and InfoPanel tooltips display names without realm suffixes.
+  Shared sorting groups bank alts last, puts the current character first
+  within its group, then sorts by name. No realm filtering is applied.
 - Preserve valid bank snapshots separately from live bag snapshots.
 - Read existing character/equipment/XP caches rather than duplicating them.
 - Offline data are snapshots, not live server data. Rested XP is an estimate;

@@ -89,34 +89,19 @@ macro**. Left-click pickup, modifier-link and middle-click equipment-set
 ignore controls are unchanged. Right-click is disabled when viewing an
 alt's cached gear.
 
-## Character identity migration (Core 0.2.5)
+## Character identity
 
 WoW Forever can hide the realm name returned by `GetRealmName()`. KamiUI
-now keys per-character SavedVariables by the complete `UnitGUID("player")`
-(e.g. `Player-6947-003DB3DC`), not by `realm::name`.
+uses the complete player GUID as canonical identity and caches the last
+readable GUID during temporary API restrictions. The existing initial
+realm/name fallback remains for the period before the first readable GUID.
 
-* On the first login with each character, Core migrates that character's
-  old `realm::name` and `::name` records into its GUID. **Log into
-  every alt once** to complete the roster conversion. Unvisited alts keep
-  their readable old keys and cached data until then.
-* Migration covers Characters (including equipment, professions and Auto
-  Equip), Bags/Bank, RestedXP, quest-header state, Target Macro settings
-  and RadialMenu favorites. Bank snapshots are chosen separately from bag
-  snapshots, so a recent bag update without an open bank does not erase
-  previously cached bank contents.
-* Original legacy entries are backed up in
-  `KamiUIDB.characterIdentity.legacyBackup`, grouped by module and old key,
-  before their active records are merged/removed. The backups are retained
-  until explicitly cleared; they use additional SavedVariables space.
-* If a character name occurs under multiple distinct old realm names,
-  migration skips that name rather than guessing which realm belongs to
-  the current GUID. Old data remains intact for manual reconciliation.
-* During temporary player-GUID API restrictions the last readable GUID
-  is reused. This prevents creating new empty-realm duplicates in combat.
-* Realm suffixes are not shown in the dropdown when the realm API is
-  unavailable. Previously known nonempty realm metadata is preserved.
+The one-time legacy conversion introduced in Core 0.2.5 was retired in
+Core 0.2.23 after the owner logged into every character. No automatic
+merge of realm/name records runs anymore. Existing GUID records and
+`KamiUIDB.characterIdentity.legacyBackup` are retained unchanged.
 
-Before updating, copy the existing `WTF/Account/.../SavedVariables/KamiUI.lua`
-file with the WoW client closed. To verify the logged-in character after
-updating, run `/run print(KamiUI:GetCurrentCharacterKey())` and check that
-it prints the same `Player-...` GUID on every login.
+Character names are displayed without realm suffixes. Realm metadata
+is retained, but does not affect shared roster ordering. Bank characters
+remain at the bottom and the current character is first within its group.
+No realm-based roster filtering is applied.

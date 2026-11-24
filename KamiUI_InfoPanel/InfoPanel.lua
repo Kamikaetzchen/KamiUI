@@ -755,7 +755,6 @@ local function ShowRestedTooltip(owner)
     local row = 1
     AddRestedTooltipRow(row, "Character (Legacy)", "Lvl", "To cap",
         "Rested", 0.65, 0.65, 0.65, 0.65, 0.65, 0.65, true)
-    local currentRealm = GetRealmName and GetRealmName() or ""
 
     for _, entry in ipairs(RestedXP:GetCharacterEntries()) do
         local profile = entry.character or {}
@@ -777,11 +776,6 @@ local function ShowRestedTooltip(owner)
             vr, vg, vb = GetRestedColor(entry.percent, entry.legacyRank)
         else
             value = "N/A"
-        end
-
-        if profile.realm and profile.realm ~= ""
-            and profile.realm ~= currentRealm then
-            name = string.format("%s - %s", name, profile.realm)
         end
 
         -- Do not imply that an unknown Legacy talent rank equals 0.
@@ -806,7 +800,6 @@ end
 local function ShowGoldTooltip(owner)
     PrepareTooltip(owner, "Gold")
 
-    local currentRealm = GetRealmName and GetRealmName() or ""
     local total = 0
 
     for _, entry in ipairs(GetMoneyCharacters()) do
@@ -819,11 +812,6 @@ local function ShowGoldTooltip(owner)
         local b = color and color.b or 1
 
         total = total + amount
-
-        if character.realm and character.realm ~= ""
-            and character.realm ~= currentRealm then
-            name = string.format("%s - %s", name, character.realm)
-        end
 
         GameTooltip:AddDoubleLine(
             name,

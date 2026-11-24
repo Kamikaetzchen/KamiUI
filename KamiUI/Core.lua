@@ -134,7 +134,6 @@ end
 
 function UI:GetCurrentCharacterKey()
     -- The full Player GUID is stable even when Forever hides realm names.
-    -- CharacterIdentity migrates matching older name/realm keys on login.
     local guid = self.GetCharacterGUIDKey
         and self:GetCharacterGUIDKey()
     if guid then return guid end
@@ -251,15 +250,15 @@ function UI:SortCharacterEntries(entries, getCharacter)
         if leftCurrent ~= rightCurrent then
             return leftCurrent
         end
-        local leftRealm = leftCharacter.realm or ""
-        local rightRealm = rightCharacter.realm or ""
+        local leftName = string.lower(leftCharacter.name or "")
+        local rightName = string.lower(rightCharacter.name or "")
 
-        if leftRealm == rightRealm then
-            return (leftCharacter.name or "")
-                < (rightCharacter.name or "")
+        if leftName ~= rightName then
+            return leftName < rightName
         end
 
-        return leftRealm < rightRealm
+        -- Stable ordering for identical display names.
+        return left.key < right.key
     end)
 
     return entries
