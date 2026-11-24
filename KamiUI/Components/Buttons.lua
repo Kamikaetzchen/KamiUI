@@ -2,6 +2,8 @@ local UI = KamiUI
 local Palette = UI.Palette
 local Styles = UI.Styles
 local Components = UI.Components
+local Media = UI.Media
+
 function Components:ClearButtonArt(button)
     if not button then
         return
@@ -75,6 +77,64 @@ function Components:SetButtonText(button, text)
     end
 end
 
+-- Text buttons have their own rectangular artwork. The three-slice caps
+-- preserve the chamfers even when the label requires a wider button.
+local function RefreshMetallicButton(button, enabled)
+    local config = button.KamiButtonOptions
+    local state = "normal"
+    if not enabled then
+        state = "disabled"
+    elseif button.KamiButtonPressed then
+        state = "pressed"
+    elseif button.KamiButtonHovered then
+        state = "hovered"
+    end
+
+    button.KamiMetallicButton:SetAsset(
+        Media.DarkMetallic.textButton .. state
+    )
+    local color = button.KamiButtonAccentColor
+        or config.accentColor or Palette.metallicAccent.neutral
+    local r, g, b, a = Styles:GetColorChannels(color)
+    button.KamiMetallicButtonAccent:SetVertexColor(r, g, b,
+        enabled and a or 0)
+end
+
+function Components:SetButtonAccentColor(button, color)
+    if not button or not button.KamiMetallicButton then return end
+    button.KamiButtonAccentColor = color
+    button:RefreshKamiButtonStyle()
+end
+
+local function CreateMetallicButton(button, options)
+    if button.KamiMetallicButton then return end
+    local height = options.height or button:GetHeight()
+    button.KamiMetallicButton = Components:CreateThreeSlice(button, {
+        asset = Media.DarkMetallic.textButton .. "normal",
+        height = height,
+    })
+    button.KamiMetallicButtonAccent = Components:CreateThreeSlice(button, {
+        asset = Media.DarkMetallic.textButtonAccent,
+        height = height,
+        sublevel = -6,
+    })
+
+    button:HookScript("OnEnter", function(self)
+        self.KamiButtonHovered = true
+        self:RefreshKamiButtonStyle()
+    end)
+    button:HookScript("OnLeave", function(self)
+        self.KamiButtonHovered = false
+        self.KamiButtonPressed = false
+        self:RefreshKamiButtonStyle()
+    end)
+    button:HookScript("OnHide", function(self)
+        self.KamiButtonHovered = false
+        self.KamiButtonPressed = false
+        self:RefreshKamiButtonStyle()
+    end)
+end
+
 function Components:StyleButton(button, options)
     if not button then
         return nil
@@ -83,43 +143,47 @@ function Components:StyleButton(button, options)
     options = options or {}
     self:ClearButtonArt(button)
 
-    local background = button.KamiButtonBackground
+    if options.metallic or button.KamiMetallicButton then
+        CreateMetallicButton(button, options)
+    else
+        local background = button.KamiButtonBackground
 
-    if not background then
-        background = button:CreateTexture(
-            nil,
-            "BACKGROUND",
-            nil,
-            -7
+        if not background then
+            background = button:CreateTexture(
+                nil,
+                "BACKGROUND",
+                nil,
+                -7
+            )
+            background:SetAllPoints()
+            button.KamiButtonBackground = background
+        end
+
+        Styles:SetColor(
+            background,
+            options.backgroundColor or Palette.panelStrong,
+            options.backgroundAlpha
         )
-        background:SetAllPoints()
-        button.KamiButtonBackground = background
+
+        Styles:CreateBorder(button, {
+            key = "KamiButtonBorder",
+            color = options.borderColor or Palette.border,
+        })
+
+        local highlight = button.KamiButtonHighlight
+
+        if not highlight then
+            highlight = button:CreateTexture(nil, "HIGHLIGHT")
+            highlight:SetAllPoints()
+            button.KamiButtonHighlight = highlight
+        end
+
+        Styles:SetColor(
+            highlight,
+            Palette.white,
+            options.hoverAlpha or Styles.State.hoverAlpha
+        )
     end
-
-    Styles:SetColor(
-        background,
-        options.backgroundColor or Palette.panelStrong,
-        options.backgroundAlpha
-    )
-
-    Styles:CreateBorder(button, {
-        key = "KamiButtonBorder",
-        color = options.borderColor or Palette.border,
-    })
-
-    local highlight = button.KamiButtonHighlight
-
-    if not highlight then
-        highlight = button:CreateTexture(nil, "HIGHLIGHT")
-        highlight:SetAllPoints()
-        button.KamiButtonHighlight = highlight
-    end
-
-    Styles:SetColor(
-        highlight,
-        Palette.white,
-        options.hoverAlpha or Styles.State.hoverAlpha
-    )
 
     local text = button.GetFontString
         and button:GetFontString()
@@ -154,6 +218,10 @@ function Components:StyleButton(button, options)
 
         local config = self.KamiButtonOptions or {}
         local enabled = not self.IsEnabled or self:IsEnabled()
+        if self.KamiMetallicButton then
+            if not enabled then self.KamiButtonPressed = false end
+            RefreshMetallicButton(self, enabled)
+        end
         local label = self.GetFontString
             and self:GetFontString()
             or self.Text
@@ -191,11 +259,15 @@ function Components:StyleButton(button, options)
             self:RefreshKamiButtonStyle()
         end)
 
-        button:HookScript("OnMouseDown", function(self)
+        button:HookScript("OnMouseDown", function(self, mouseButton)
+            if self.KamiMetallicButton and mouseButton == "LeftButton" then
+                self.KamiButtonPressed = true
+            end
             self:RefreshKamiButtonStyle()
         end)
 
         button:HookScript("OnMouseUp", function(self)
+            self.KamiButtonPressed = false
             self:RefreshKamiButtonStyle()
         end)
     end

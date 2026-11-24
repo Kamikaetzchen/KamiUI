@@ -825,11 +825,22 @@ local function UpdatePlayerInfo(frame)
 
     local classColor = Palette:GetClassColor(classFile)
 
-    if classColor then
-        frame.name:SetTextColor(classColor.r, classColor.g, classColor.b)
-    else
-        frame.name:SetTextColor(1, 1, 1)
+    Styles:SetTextColor(frame.name, classColor or Palette.white)
+
+    local accent = Palette:GetClassAccent(classFile)
+    frame.KamiClassAccent = accent
+    frame.KamiMetallicPanel:SetAccentColor(accent)
+    if frame.modelPanel then
+        frame.modelPanel.KamiMetallicPanel:SetAccentColor(accent)
     end
+    for _, tab in ipairs(frame.tabs or {}) do
+        Components:SetTabAccentColor(tab, accent)
+    end
+    if frame.sidebar then
+        Components:SetTabAccentColor(frame.sidebar.statsTab, accent)
+        Components:SetTabAccentColor(frame.sidebar.equipmentTab, accent)
+    end
+    Components:SetButtonAccentColor(frame.KamiItemRatingButton, accent)
 
     frame.name:SetText(name)
 
@@ -4029,7 +4040,7 @@ local function CreateSidebar(frame)
     local newSet = CreateFrame("Button", nil, equipmentPane)
     newSet:SetSize(44, 18)
     newSet:SetPoint("TOPRIGHT", equipmentPane, "TOPRIGHT", -6, -5)
-    Components:StyleButton(newSet, { text = "New" })
+    Components:StyleButton(newSet, { metallic = true, text = "New" })
     equipmentPane.newSet = newSet
 
     local createDialog = CreateFrame(
@@ -4074,12 +4085,12 @@ local function CreateSidebar(frame)
     local createButton = CreateFrame("Button", nil, createDialog)
     createButton:SetSize(56, 18)
     createButton:SetPoint("BOTTOMLEFT", createDialog, "BOTTOMLEFT", 9, 7)
-    Components:StyleButton(createButton, { text = "Create" })
+    Components:StyleButton(createButton, { metallic = true, text = "Create" })
 
     local cancelButton = CreateFrame("Button", nil, createDialog)
     cancelButton:SetSize(56, 18)
     cancelButton:SetPoint("BOTTOMRIGHT", createDialog, "BOTTOMRIGHT", -9, 7)
-    Components:StyleButton(cancelButton, { text = "Cancel" })
+    Components:StyleButton(cancelButton, { metallic = true, text = "Cancel" })
 
     local function CloseCreateDialog()
         nameInput:ClearFocus()
@@ -4133,7 +4144,7 @@ local function CreateSidebar(frame)
     local equip = CreateFrame("Button", nil, equipmentPane)
     equip:SetSize(66, 20)
     equip:SetPoint("BOTTOMRIGHT", equipmentPane, "BOTTOM", -3, 8)
-    Components:StyleButton(equip, { text = "Equip" })
+    Components:StyleButton(equip, { metallic = true, text = "Equip" })
 
     equip:SetScript("OnClick", function()
         local setID = equipmentPane.selectedSetID
@@ -4153,7 +4164,7 @@ local function CreateSidebar(frame)
     local save = CreateFrame("Button", nil, equipmentPane)
     save:SetSize(66, 20)
     save:SetPoint("BOTTOMLEFT", equipmentPane, "BOTTOM", 3, 8)
-    Components:StyleButton(save, { text = "Save" })
+    Components:StyleButton(save, { metallic = true, text = "Save" })
 
     save:SetScript("OnClick", function()
         local setID = equipmentPane.selectedSetID
@@ -4503,6 +4514,7 @@ local function CreateFrameUI()
     end
 
     frame.model = model
+    frame.modelPanel = modelPanel
 
     local offlineLabel = modelPanel:CreateFontString(
         nil,

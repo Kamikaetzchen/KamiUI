@@ -1,6 +1,6 @@
 # KamiUI roadmap and handoff
 
-Last reviewed: 2026-11-24, after the second metallic Characters preview.
+Last reviewed: 2026-11-24, after the slot and palette preview feedback.
 This is the current working state, not a commitment to implement every idea.
 
 ## Current focus: dark-metallic design
@@ -20,11 +20,17 @@ This is the current working state, not a commitment to implement every idea.
   fall back to a conservative inset when mask APIs are unavailable.
 - [x] Add neutral runtime metal derivatives and independent panel fill
   and accent layers. Forward window palette colors through CreateWindow.
-  Core 0.2.7 / Characters 0.3.20; in-game validation pending.
-  Inventory and bank remain on the legacy renderer until the preview
-  is validated. Check purple and green tint before broader rollout.
-- [ ] Test the next Characters revision in game (icon size, corners,
-  common/uncommon/rare/epic quality, quests, transparency, tab states).
+  Core 0.2.7 / Characters 0.3.20. Owner approved the icon fit,
+  restrained rarity glow and transparency in the Hunter screenshot.
+  Other qualities, quest glow and broader module coverage remain untested.
+- [x] Add dedicated metallic text buttons and class-colored bevel accents
+  for Characters (outer/model frames, active tabs and Item Rating).
+  Keep the neutral window fill and existing checkbox/radio visuals.
+  Core 0.2.8 / Characters 0.3.21 / ItemRating 0.7.1.
+- [ ] Test button states, class accents when switching live/cached alts,
+  and common/uncommon/rare/epic quality and quest glow in game.
+  Inventory and bank remain on the legacy renderer; verify their palette
+  colors before broader rollout.
 - [ ] Expand to other modules incrementally: inventory/bank, ActionBars,
   tooltips, unitframes/statusbars/castbars and remaining controls.
   The exact rollout order is not fixed.

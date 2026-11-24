@@ -432,7 +432,12 @@ function Module:AttachCharacterButton()
         "BOTTOMRIGHT", frame.characterPane, "BOTTOMRIGHT", -6, 6
     )
     button:SetFrameLevel(trinket:GetFrameLevel() + 2)
-    Components:StyleButton(button, { text = "Item Rating" })
+    Components:StyleButton(button, {
+        metallic = true,
+        text = "Item Rating",
+        accentColor = frame.KamiClassAccent,
+    })
+    frame.KamiItemRatingButton = button
     button:SetScript("OnClick", function() Module:ToggleSettings() end)
     button:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_CURSOR_RIGHT")

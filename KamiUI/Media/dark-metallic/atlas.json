@@ -1623,6 +1623,55 @@
         128,
         32
       ]
+    },
+    "text_button_normal": {
+      "textureSize": [
+        128,
+        32
+      ],
+      "cap": 16,
+      "kind": "textButton"
+    },
+    "text_button_hovered": {
+      "textureSize": [
+        128,
+        32
+      ],
+      "cap": 16,
+      "kind": "textButton"
+    },
+    "text_button_pressed": {
+      "textureSize": [
+        128,
+        32
+      ],
+      "cap": 16,
+      "kind": "textButton"
+    },
+    "text_button_disabled": {
+      "textureSize": [
+        128,
+        32
+      ],
+      "cap": 16,
+      "kind": "textButton"
+    },
+    "text_button_accent": {
+      "textureSize": [
+        128,
+        32
+      ],
+      "cap": 16,
+      "kind": "accent"
+    },
+    "tab_accent": {
+      "source": "neutral_tab_selected",
+      "textureSize": [
+        128,
+        32
+      ],
+      "cap": 16,
+      "kind": "accent"
     }
   }
 }

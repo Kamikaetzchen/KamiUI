@@ -2,7 +2,7 @@
 ## Title: KamiUI - Item Rating
 ## Notes: Multi-spec druid item scores and equipped-item comparisons
 ## Author: Kami Katze
-## Version: 0.7.0
+## Version: 0.7.1
 ## IconTexture: Interface\Icons\Ability_Druid_CatForm
 ## RequiredDeps: KamiUI
 ## OptionalDeps: KamiUI_Characters

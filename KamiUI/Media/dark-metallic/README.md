@@ -42,3 +42,13 @@ that opening, scaled to the icon bounds. The glow fades inward and is
 white for runtime rarity/quest tint. The original square glow remains
 for legacy slots and for clients without the mask API. In-game validation
 of mask sampling, layering and tint is pending.
+
+## Text buttons and class accents
+
+The dedicated `text_button_{normal,hovered,pressed,disabled}.tga` textures
+are 128 x 32 with 16px caps and matching alpha geometry. The 3px source
+bevel and 6px chamfers are deliberately thinner/smaller than window art.
+`text_button_accent.tga` and `tab_accent.tga` are separate 128 x 32
+white alpha masks, using the same three-slice UVs as their base art.
+They tint only bevels, not text, fill, or the original metal highlights.
+These standalone additions are not part of the original atlas.

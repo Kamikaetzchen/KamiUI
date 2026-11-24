@@ -33,7 +33,10 @@ also tints its silver reflections; use a separate accent layer if that
 makes the material read better. Keep contrast and text readability.
 Preserve the existing configurable/semantic opacity instead of baking
 one opaque surface into all windows. The metallic panel preview uses a neutral frame, tintable inner bevel,
-and independently colored translucent fill. Verify the result in game.
+and independently colored translucent fill. Characters uses the viewed
+character's existing class color on the window/model bevels, active tab
+bevels and Item Rating button accent. Keep the neutral translucent
+background, item quality colors and silver reflections unchanged.
 
 ## Modular assets and rendering
 
@@ -43,8 +46,10 @@ and atlas metadata for dimensions, UVs and alpha conventions.
 - Use reusable nine-slice panels and three-slice horizontal controls.
   Keep corner/cap geometry fixed and stretch or tile only suitable edges.
   Do not sample transparent padding beyond the logical asset bounds.
-- Reuse suitable frame textures for text buttons, dropdowns and inputs
-  before generating special-purpose copies. Keep ornaments separate.
+- Use dedicated thin, chamfered three-slice text-button artwork for all
+  button states; do not stretch square item slots or full window frames.
+  Reuse suitable controls for dropdowns and inputs before adding assets.
+  Keep checkbox/radio styling unchanged for now. Keep ornaments separate.
 - Keep all states of an asset geometrically consistent. Vary lighting,
   tint and opacity, not dimensions.
 - Separate empty statusbar borders, neutral backgrounds and rectangular

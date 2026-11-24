@@ -131,9 +131,13 @@ function Components:ApplyMetallicPanel(frame, options)
             options.accentColor or Palette.metallicAccent.neutral),
     }
 
+    function panel:SetAccentColor(accent)
+        self.accent:SetVertexColor(Styles:GetColorChannels(accent))
+    end
+
     function panel:SetColors(background, accent)
         self.fill:SetVertexColor(Styles:GetColorChannels(background))
-        self.accent:SetVertexColor(Styles:GetColorChannels(accent))
+        self:SetAccentColor(accent)
     end
 
     return panel

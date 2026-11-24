@@ -145,6 +145,28 @@ local function RefreshMetallicTab(tab)
     end
 
     tab.KamiMetallicTab:SetAsset(UI.Media.DarkMetallic.tab .. state)
+    if tab.KamiMetallicTabAccent then
+        local color = tab.KamiTabAccentColor
+        local r, g, b, a = Styles:GetColorChannels(color)
+        tab.KamiMetallicTabAccent:SetVertexColor(r, g, b,
+            color and tab.KamiTabActive and tab.KamiTabEnabled and a or 0)
+    end
+end
+
+function Components:SetTabAccentColor(tab, color)
+    if not tab or not tab.KamiMetallicTab then return end
+
+    if not tab.KamiMetallicTabAccent then
+        tab.KamiMetallicTabAccent = self:CreateThreeSlice(tab, {
+            asset = UI.Media.DarkMetallic.tabAccent,
+            height = tab.KamiTabOptions.height or tab:GetHeight(),
+            flipY = tab.KamiTabOrientation == "bottom",
+            sublevel = -6,
+        })
+    end
+
+    tab.KamiTabAccentColor = color
+    RefreshMetallicTab(tab)
 end
 
 local function CreateMetallicTab(tab, options, orientation)

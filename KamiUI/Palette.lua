@@ -155,6 +155,21 @@ function Palette:GetClassColor(classFile)
     return self.class[classFile] or self.classFallback[classFile]
 end
 
+-- Keep class tint on the bevel only, not the panel or control fill.
+function Palette:GetClassAccent(classFile)
+    local color = self:GetClassColor(classFile)
+    if not color then
+        return self.metallicAccent.neutral
+    end
+
+    return {
+        color.r or color[1],
+        color.g or color[2],
+        color.b or color[3],
+        0.70,
+    }
+end
+
 function Palette:GetPowerColor(powerToken)
     if not powerToken then
         return self.powerFallback.MANA
