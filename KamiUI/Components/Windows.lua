@@ -48,11 +48,47 @@ function Components:SaveTopWindowPosition(frame, database, key)
 end
 
 function Components:ResizeTopWindow(frame, width, height, database, key)
+    local oldHeight = frame:GetHeight()
+    local position
+    if frame.KamiTopAnchored then
+        position = UI:GetFrameCenterOffset(frame)
+        if position then
+            position.y = position.y + oldHeight / 2
+        else
+            position = database[key]
+        end
+    end
+
+    -- Clamp the header, not the entire growing content area. Otherwise
+    -- the client can move the header up when the bottom hits the screen.
+    -- Allow for both sizes during the transition to avoid a clamp jump.
+    local headerHeight = frame.KamiHeader
+        and frame.KamiHeader:GetHeight() + 2 or 30
+    if frame.SetClampRectInsets then
+        frame:SetClampRectInsets(0, 0, 0,
+            math.max(0, oldHeight - headerHeight, height - headerHeight))
+    end
+
+    -- Re-establish the real top point before resizing instead of trusting
+    -- the flag alone; the client may have changed a movable frame's anchor.
+    if position then
+        frame:ClearAllPoints()
+        frame:SetPoint("TOP", UIParent, "CENTER", position.x, position.y)
+    end
+
     frame:SetSize(width, height)
-    -- Preserve the legacy center placement for the first real layout,
-    -- then anchor at its resulting top edge for all subsequent layouts.
+
+    if frame.SetClampRectInsets then
+        frame:SetClampRectInsets(0, 0, 0,
+            math.max(0, height - headerHeight))
+    end
+
+    -- Preserve the legacy center placement for the first real layout.
     if not frame.KamiTopAnchored then
         self:SaveTopWindowPosition(frame, database, key)
+    elseif position then
+        frame:ClearAllPoints()
+        frame:SetPoint("TOP", UIParent, "CENTER", position.x, position.y)
     end
 end
 
