@@ -1393,6 +1393,34 @@ local function AddPlayerDetails(tooltip)
     SetTooltipFrameColor(tooltip, Palette:GetClassTint(classFile))
 end
 
+-- Native tooltip layout has already run when INSPECT_READY arrives.
+-- Grow the existing frame to fit the updated, unwrapped class/spec line.
+-- Do not set a persistent minimum width on the shared GameTooltip.
+local function FitUpdatedTooltipLine(tooltip, line)
+    local measure = line.GetUnboundedStringWidth or line.GetStringWidth
+    local textWidth = UI:SafeCall(measure, line)
+    local width = UI:SafeCall(tooltip.GetWidth, tooltip)
+    if not UI:CanAccessValue(textWidth) or type(textWidth) ~= "number"
+        or not UI:CanAccessValue(width) or type(width) ~= "number" then
+        return
+    end
+
+    local leftInset = 7
+    local lineLeft = UI:SafeCall(line.GetLeft, line)
+    local tooltipLeft = UI:SafeCall(tooltip.GetLeft, tooltip)
+    if UI:CanAccessValue(lineLeft) and type(lineLeft) == "number"
+        and UI:CanAccessValue(tooltipLeft)
+        and type(tooltipLeft) == "number" then
+        leftInset = math.max(leftInset, lineLeft - tooltipLeft)
+    end
+
+    -- Match the seven-pixel tooltip padding and leave a pixel for rounding.
+    local requiredWidth = math.ceil(leftInset + textWidth + 7) + 1
+    if requiredWidth > width then
+        tooltip:SetWidth(requiredWidth)
+    end
+end
+
 local function RefreshVisiblePlayerTooltip(guid)
     local tooltip = GameTooltip
     if not tooltip or not GetVisibleTooltipUnit(guid) then
@@ -1438,6 +1466,7 @@ local function RefreshVisiblePlayerTooltip(guid)
                     StripColorCodes(text), "Level ", 1, true
                 ) == 1 then
                 line:SetText(levelText)
+                FitUpdatedTooltipLine(tooltip, line)
                 SetTooltipFrameColor(tooltip, Palette:GetClassTint(classFile))
                 return
             end
