@@ -125,6 +125,7 @@ local function StylePanelBackground(frame, key)
         })
         frame[key .. "Border"] = Components:CreateNineSlice(frame, {
             asset = UI.Media.DarkMetallic.panelFrame,
+            color = Palette:GetPlayerClassTint(),
             sliceSize = 12,
             layer = "OVERLAY",
         })
@@ -241,6 +242,7 @@ local function StyleNPCChrome(frame)
             Styles.Metrics.headerActionSize)
         Components:StyleCloseButton(close, {
             metallic = true,
+            frameColor = Palette:GetPlayerClassTint(),
             artSize = Styles.Metrics.headerActionSize,
             crossSize = Styles.Metrics.headerCloseCrossSize,
         })
@@ -273,6 +275,7 @@ local function StyleNPCChrome(frame)
         if button then
             Components:StyleButton(button, {
                 metallic = true,
+                frameColor = Palette:GetPlayerClassTint(),
                 textColor = Palette.text,
                 borderColor = Palette.windowBorder.neutral,
             })
@@ -414,6 +417,7 @@ local function StyleQuestList()
     if not scroll.KamiQuestMetallic then
         scroll.KamiQuestMetallic = Components:CreateNineSlice(scroll, {
             asset = UI.Media.DarkMetallic.panelFrame,
+            color = Palette:GetPlayerClassTint(),
             sliceSize = 8,
             layer = "OVERLAY",
         })

@@ -317,7 +317,11 @@ local function CreateWideButton(parent, label, y, onClick,
         leftInset or 8, y)
     button:SetPoint("TOPRIGHT", parent, "TOPRIGHT",
         -(rightInset or 8), y)
-    Components:StyleButton(button, { metallic = true, text = label })
+    Components:StyleButton(button, {
+        metallic = true,
+        frameColor = Palette:GetPlayerClassTint(),
+        text = label,
+    })
     button:SetScript("OnClick", onClick)
     return button
 end
@@ -329,7 +333,10 @@ local function CreateSwapButton(parent, firstIndex)
     button:SetSize(16, 28)
     button:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -27,
         -31 - (firstIndex - 1) * 30)
-    Components:StyleButton(button, { metallic = true })
+    Components:StyleButton(button, {
+        metallic = true,
+        frameColor = Palette:GetPlayerClassTint(),
+    })
 
     -- Reposition the arrow segments when extra rows make the
     -- swap buttons shorter; 3-slot appearance stays identical.
@@ -528,7 +535,7 @@ local function CreateWindow()
         header = false,
         strata = "MEDIUM",
         backgroundColor = { 0, 0, 0, 0.28 },
-        borderColor = Palette.windowBorder.neutral,
+        borderColor = Palette:GetPlayerClassTint(),
         onDragStop = function(frame)
             AnchorTopLeft(frame, settings)
         end,
@@ -595,7 +602,11 @@ local function CreateWindow()
     local collapseButton = CreateFrame("Button", nil, window)
     collapseButton:SetSize(22, 20)
     collapseButton:SetPoint("TOPRIGHT", window, "TOPRIGHT", -8, -5)
-    Components:StyleButton(collapseButton, { metallic = true, text = "-" })
+    Components:StyleButton(collapseButton, {
+        metallic = true,
+        frameColor = Palette:GetPlayerClassTint(),
+        text = "-",
+    })
     collapseButton:SetScript("OnClick", function()
         settings.collapsed = not settings.collapsed
         ApplyCollapsed()
@@ -622,7 +633,10 @@ local function CreateWindow()
         field:SetPoint("TOPRIGHT", content, "TOPRIGHT", -45, y)
         field:SetTextInsets(5, 5, 0, 0)
         field:SetMaxLetters(80)
-        Components:StyleInput(field, { metallic = true })
+        Components:StyleInput(field, {
+            metallic = true,
+            frameColor = Palette:GetPlayerClassTint(),
+        })
 
         field:SetScript("OnEnterPressed", function(self)
             self:ClearFocus()
@@ -646,6 +660,7 @@ local function CreateWindow()
         clear:SetPoint("TOPRIGHT", content, "TOPRIGHT", -7, y)
         Components:StyleCloseButton(clear, {
             metallic = true,
+            frameColor = Palette:GetPlayerClassTint(),
             artSize = 15,
             crossSize = 7,
         })

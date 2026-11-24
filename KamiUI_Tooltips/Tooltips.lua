@@ -135,6 +135,7 @@ local function StyleTooltip(tooltip)
 
         tooltip.KamiMetallicTooltip = Components:CreateNineSlice(tooltip, {
             asset = UI.Media.DarkMetallic.tooltip,
+            color = Palette:GetPlayerClassTint(),
             sliceSize = 10,
         })
 

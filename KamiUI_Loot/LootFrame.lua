@@ -76,6 +76,7 @@ local function CreateLootRow(parent)
         frameType = "Frame",
         size = Layout.ICON_SIZE,
         metallic = true,
+        frameColor = Palette:GetPlayerClassTint(),
         count = true,
         highlight = false,
     })
@@ -352,7 +353,7 @@ function Module:CreateFrame()
             width = Layout.FRAME_WIDTH,
             height = Layout.HEADER_HEIGHT + Layout.FRAME_PADDING * 2,
             backgroundColor = Palette.window.neutral,
-            borderColor = Palette.windowBorder.neutral,
+            borderColor = Palette:GetPlayerClassTint(),
             header = {
                 height = Layout.HEADER_HEIGHT,
                 title = LOOT or "Loot",
@@ -362,6 +363,7 @@ function Module:CreateFrame()
 
     local close = Components:CreateHeaderCloseButton(header, {
         metallic = true,
+        frameColor = Palette:GetPlayerClassTint(),
         onClick = CloseLootWindow,
     })
     frame.closeButton = close

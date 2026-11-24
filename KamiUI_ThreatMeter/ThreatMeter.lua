@@ -1,6 +1,7 @@
 local UI = KamiUI
 local Styles = UI.Styles
 local Components = UI.Components
+local Palette = UI.Palette
 
 local Module = UI:NewModule("ThreatMeter", "KamiUI_ThreatMeter")
 
@@ -89,6 +90,7 @@ local function EnsureFrame()
 
     titleBar.KamiMetallicPanel = Components:ApplyMetallicPanel(titleBar, {
         sliceSize = 8,
+        frameColor = Palette:GetPlayerClassTint(),
         backgroundColor = { 0.03, 0.03, 0.03,
             Styles.State.threatMeterBackgroundAlpha },
     })

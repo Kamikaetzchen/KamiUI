@@ -197,6 +197,14 @@ function Palette:GetClassTint(classFile)
     }
 end
 
+-- Experimental tint for the newly converted HUD and native windows.
+-- Resolve at creation time; keep inventory/bank and viewed-alt colors
+-- independent of the logged-in player's class.
+function Palette:GetPlayerClassTint()
+    local _, classFile = UnitClass("player")
+    return self:GetClassTint(classFile)
+end
+
 function Palette:GetPowerColor(powerToken)
     if not powerToken then
         return self.powerFallback.MANA

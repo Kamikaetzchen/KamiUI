@@ -107,6 +107,9 @@ This is the current working state, not a commitment to implement every idea.
   native map geometry and callbacks; verify pooled navigation and
   maximize/minimize in Forever. Reward icon styling remains a separate
   native-control check.
+- [x] Trial the current player's class tint on the newly converted
+  modules instead of neutral gray. Preserve semantic meter/reset/item
+  colors, existing alpha and inventory/bank tints; await visual feedback.
 - [ ] Owner deferred ActionBars, Minimap, UnitFrames, XPBar, Timers,
   SwingTimer, Auras, Cooldowns, Nameplates and RadialMenu pending a
   separate design pass. Preserve current appearance.

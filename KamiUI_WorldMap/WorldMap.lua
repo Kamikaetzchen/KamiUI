@@ -65,11 +65,21 @@ end
 -- Only add new visual regions and hide the original decoration.
 local function CreateMetallicNavigationArt(button)
     if button.KamiMapMetallicFrame then return end
+    local tint = Palette:GetPlayerClassTint()
+    local r, g, b = Styles:GetColorChannels(tint)
+    local strength = Palette.buttonFillTintStrength
     button.KamiMapMetallicFill = Components:CreateMetallicButtonSlice(button, {
         asset = Media.textButtonFill .. "normal",
+        color = {
+            1 - strength * (1 - r),
+            1 - strength * (1 - g),
+            1 - strength * (1 - b),
+            1,
+        },
     })
     button.KamiMapMetallicFrame = Components:CreateMetallicButtonSlice(button, {
         asset = Media.textButtonFrame .. "normal",
+        color = tint,
         sublevel = -6,
     })
 end
@@ -127,6 +137,7 @@ local function AttachZoneDropdown(button, nav)
         closeWith = mapFrame,
         styleButton = false,
         metallicMenu = true,
+        menuFrameColor = Palette:GetPlayerClassTint(),
         showArrow = false,
         rowHeight = 21,
         fontSize = 11,
@@ -191,7 +202,7 @@ local function StyleNavigationButton(button, active, nav)
     end
     if button.KamiMapMetallicFrame then
         local r, g, b = Styles:GetColorChannels(
-            active and Palette.gold or Palette.metallicTint.neutral
+            Palette:GetPlayerClassTint()
         )
         button.KamiMapMetallicFrame:SetVertexColor(r, g, b, 1)
     end
@@ -306,6 +317,7 @@ local function SkinWorldMap()
 
         border.KamiMetallicFrame = Components:CreateNineSlice(border, {
             asset = Media.panelFrame,
+            color = Palette:GetPlayerClassTint(),
             sliceSize = 12,
             layer = "OVERLAY",
         })

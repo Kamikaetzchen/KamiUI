@@ -2,7 +2,7 @@
 ## Title: KamiUI - Loot
 ## Notes: Loot window module for KamiUI
 ## Author: Kami Katze
-## Version: 0.1.1
+## Version: 0.1.2
 ## IconTexture: Interface\Icons\INV_Misc_Coin_01
 ## RequiredDeps: KamiUI
 

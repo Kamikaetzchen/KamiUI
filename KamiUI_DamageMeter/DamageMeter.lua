@@ -226,7 +226,7 @@ local function CreateFlatButton(parent, text, width, options)
     Components:StyleButton(button, {
         metallic = true,
         text = text,
-        frameColor = options.frameColor,
+        frameColor = options.frameColor or Palette:GetPlayerClassTint(),
         textColor = options.textColor,
         textRole = "normal",
     })
@@ -919,6 +919,7 @@ local function CreateFrameUI()
 
     frame.KamiMetallicPanel = Components:ApplyMetallicPanel(frame, {
         sliceSize = 8,
+        frameColor = Palette:GetPlayerClassTint(),
         backgroundColor = { 0.02, 0.02, 0.025,
             Styles.State.damageMeterBackgroundAlpha },
     })
@@ -957,6 +958,8 @@ local function CreateFrameUI()
 
     local dropdownOptions = {
         styleButton = false,
+        metallicMenu = true,
+        menuFrameColor = Palette:GetPlayerClassTint(),
         direction = "up",
         menuParent = frame,
         anchor = header,

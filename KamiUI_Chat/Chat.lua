@@ -195,6 +195,7 @@ local function CreateTab(index, config)
 
     Components:StyleTab(button, {
         metallic = true,
+        frameColor = Palette:GetPlayerClassTint(),
         orientation = "top",
         joinLeft = index > 1,
     })

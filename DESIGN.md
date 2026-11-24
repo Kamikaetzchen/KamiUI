@@ -159,3 +159,14 @@ mouse-transparent art for native map close/maximize/minimize controls;
 apply new native skin layout outside combat. The owner deferred the
 Minimap, action bars, unit frames, XP bar, timers, auras, nameplates and
 radial menu until a separate design round.
+
+### Class tint experiment
+
+Try the logged-in player's class tint on the newly converted compact
+HUD and native windows: Targets, DamageMeter, ThreatMeter, Objective
+Tracker, Chat tabs, World Map, quest panels, loot and tooltips. Preserve
+semantic action colors (red reset and close glyphs), class/quality
+colors in data displays, existing background alpha, and inventory/bank
+semantic tints. The existing tooltip art is combined, so its dark fill
+receives the same RGB multiplier. Centralize the experimental tint
+through Palette:GetPlayerClassTint for easy adjustment after feedback.

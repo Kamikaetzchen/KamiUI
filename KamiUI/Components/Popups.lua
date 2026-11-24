@@ -98,7 +98,7 @@ function Components:CreatePopupMenu(parent, anchor, options)
         })
         menu.KamiMetallicFrame = self:CreateMetallicButtonSlice(menu, {
             asset = media.textButtonFrame .. "normal",
-            color = Palette.metallicTint.neutral,
+            color = options.frameColor or Palette.metallicTint.neutral,
             sublevel = -6,
         })
     else
@@ -587,6 +587,7 @@ function Components:CreateDropdown(parent, options)
         {
             name = options.menuName,
             metallic = options.metallicMenu,
+            frameColor = options.menuFrameColor,
             point = options.menuPoint or point,
             relativePoint =
                 options.menuRelativePoint or relativePoint,

@@ -329,6 +329,7 @@ local function CreateDetailsWindow()
     if window then return end
     window = Components:CreateWindow("KamiUIDamageMeterDetails", {
         metallic = true,
+        borderColor = Palette:GetPlayerClassTint(),
         width = WIDTH,
         height = HEIGHT,
         strata = "DIALOG",
@@ -348,6 +349,7 @@ local function CreateDetailsWindow()
     -- parented/raised above the header or clicks hit the header instead.
     local close = Components:CreateHeaderCloseButton(window.header, {
         metallic = true,
+        frameColor = Palette:GetPlayerClassTint(),
         frameLevelOffset = 12,
         onClick = function() window:Hide() end,
     })
