@@ -2,6 +2,7 @@ local UI = KamiUI
 local Styles = UI.Styles
 local Palette = UI.Palette
 local Components = UI.Components
+local Media = UI.Media
 local RestedXP = UI.RestedXP
 
 local Module = UI:NewModule("InfoPanel", "KamiUI_InfoPanel")
@@ -1070,13 +1071,7 @@ local function CreatePanel()
         totalWidth = totalWidth + Layout.SLOT_WIDTHS[key]
     end
 
-    local edgePadding = 12
-    local sideAngle = 60
-    local sideRun = math.floor(
-        Layout.HEIGHT / math.tan(math.rad(sideAngle)) + 0.5
-    )
-    local bodyWidth = totalWidth + (edgePadding * 2)
-    local frameWidth = bodyWidth + (sideRun * 2)
+    local frameWidth = totalWidth + Layout.EDGE_PADDING * 2
 
     local frame = CreateFrame("Frame", "KamiUIInfoPanel", UIParent)
     frame:SetSize(frameWidth, Layout.HEIGHT)
@@ -1084,68 +1079,27 @@ local function CreatePanel()
     frame:SetFrameStrata("HIGH")
     frame:EnableMouse(false)
 
-    local background = frame:CreateTexture(nil, "BACKGROUND")
-    background:SetPoint("TOPLEFT", frame, "TOPLEFT", sideRun, 0)
-    background:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -sideRun, 0)
-    background:SetColorTexture(unpack(Palette.infoPanel.background))
-
-    for index = 1, sideRun do
-        local stripHeight = math.ceil(
-            Layout.HEIGHT * index / sideRun
-        )
-
-        local leftStrip = frame:CreateTexture(nil, "BACKGROUND")
-        leftStrip:SetSize(1, stripHeight)
-        leftStrip:SetPoint(
-            "TOPLEFT",
-            frame,
-            "TOPLEFT",
-            index - 1,
-            0
-        )
-        leftStrip:SetColorTexture(unpack(Palette.infoPanel.background))
-
-        local rightStrip = frame:CreateTexture(nil, "BACKGROUND")
-        rightStrip:SetSize(1, stripHeight)
-        rightStrip:SetPoint(
-            "TOPRIGHT",
-            frame,
-            "TOPRIGHT",
-            -(index - 1),
-            0
-        )
-        rightStrip:SetColorTexture(unpack(Palette.infoPanel.background))
+    -- A downward-facing tab, attached to the top of the screen.
+    -- 24 source-pixel caps on 128x32 art keep the 45-degree chamfers
+    -- proportional in both axes while only stretching the central strip.
+    local function CreateLayer(asset, color, sublevel)
+        return Components:CreateThreeSlice(frame, {
+            asset = asset,
+            height = Layout.HEIGHT,
+            capRatio = 24 / 32,
+            sourceCap = 24 / 128,
+            flipY = true,
+            color = color,
+            sublevel = sublevel,
+        })
     end
 
-    local bottomBorder = frame:CreateTexture(nil, "ARTWORK")
-    bottomBorder:SetPoint(
-        "BOTTOMLEFT",
-        frame,
-        "BOTTOMLEFT",
-        sideRun,
-        0
+    frame.KamiMetallicFill = CreateLayer(
+        Media.DarkMetallic.infoPanelFill, Palette.infoPanel.background, -7
     )
-    bottomBorder:SetPoint(
-        "BOTTOMRIGHT",
-        frame,
-        "BOTTOMRIGHT",
-        -sideRun,
-        0
+    frame.KamiMetallicFrame = CreateLayer(
+        Media.DarkMetallic.infoPanelFrame, Palette.infoPanel.frame, -6
     )
-    bottomBorder:SetHeight(3)
-    bottomBorder:SetColorTexture(unpack(Palette.infoPanel.bottomBorder))
-
-    local leftBorder = frame:CreateLine(nil, "ARTWORK")
-    leftBorder:SetThickness(3)
-    leftBorder:SetColorTexture(unpack(Palette.infoPanel.bottomBorder))
-    leftBorder:SetStartPoint("TOPLEFT", frame, 0, 0)
-    leftBorder:SetEndPoint("BOTTOMLEFT", frame, sideRun, 0)
-
-    local rightBorder = frame:CreateLine(nil, "ARTWORK")
-    rightBorder:SetThickness(3)
-    rightBorder:SetColorTexture(unpack(Palette.infoPanel.bottomBorder))
-    rightBorder:SetStartPoint("TOPRIGHT", frame, 0, 0)
-    rightBorder:SetEndPoint("BOTTOMRIGHT", frame, -sideRun, 0)
 
     local content = CreateFrame("Frame", nil, frame)
     content:SetSize(totalWidth, Layout.HEIGHT)

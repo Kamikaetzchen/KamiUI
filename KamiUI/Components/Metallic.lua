@@ -95,12 +95,16 @@ end
 
 function Components:CreateThreeSlice(parent, options)
     local height = options.height or Styles.Metrics.tabHeight
-    local cap = height * Styles.DarkMetallic.tabCapRatio
+    local capRatio = options.capRatio or Styles.DarkMetallic.tabCapRatio
+    local cap = height * capRatio
+    local sourceCap = options.sourceCap or 0.125
     local v = options.flipY and { 1, 0 } or { 0, 1 }
 
-    -- Tab art is 128x32. The outer 16px contain the chamfers.
+    -- Standard tab art is 128x32; the outer 16px contain the chamfers.
+    -- Larger variants can supply matching source/destination caps.
     return CreateSlices(
-        parent, options, { 0, 0.125, 0.875, 1 }, v, cap, height
+        parent, options, { 0, sourceCap, 1 - sourceCap, 1 },
+        v, cap, height
     )
 end
 

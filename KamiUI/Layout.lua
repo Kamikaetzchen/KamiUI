@@ -166,6 +166,7 @@ UI.Layout = {
     InfoPanel = {
         HEIGHT = 20,
         SPACING = 8,
+        EDGE_PADDING = 24,
         SLOT_WIDTHS = {
             location = 210,
             speed = 72,

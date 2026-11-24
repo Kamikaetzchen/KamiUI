@@ -41,7 +41,7 @@ Palette.auras = {
 
 Palette.infoPanel = {
     background = HexColor(0x010204, 0.80),
-    bottomBorder = HexColor(0x8C6B29),
+    frame = HexColor(0xD4AF61),
     text = HexColor(0xD1D1D1),
 }
 

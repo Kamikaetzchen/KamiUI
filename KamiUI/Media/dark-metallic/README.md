@@ -80,3 +80,9 @@ text_button_fill_normal.tga but has flat white RGB and a normalized
 opaque interior alpha mask. The renderer applies the input's actual
 background RGB and opacity, without the raised button face gradient.
 Inputs reuse text_button_frame_normal with identical fixed-size caps.
+
+The InfoPanel frame/fill pair derives from the normal tab art, extending
+the chamfer by four source pixels and preserving the straight bevel
+profiles. Both are standalone 128 x 32 TGA files. Horizontal caps are
+24 source pixels; the renderer flips Y for the top-screen placement.
+The fill is a flat white interior mask with runtime color and opacity.

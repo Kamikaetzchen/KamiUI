@@ -124,3 +124,13 @@ the existing dark input background color and alpha. Do not apply the
 raised face or hover/pressed states to inputs. The Professions search
 and quantity fields opt in first. Header controls use equal top and
 side insets, with matching 22 x 22 character and close buttons.
+
+### InfoPanel rollout
+
+The top-screen InfoPanel is a wide downward-facing metallic tab. Keep
+its existing height, approximately the same total width, text layout
+and dark translucent fill. Replace the full-height 60-degree sloping
+sides with larger 45-degree chamfers on the lower corners and straight
+sides above them. Use a warm gold runtime frame tint and independent
+flat fill. Derive the neutral artwork from the existing tab bevel;
+stretch only the center.

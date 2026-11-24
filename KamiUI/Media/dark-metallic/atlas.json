@@ -1873,6 +1873,29 @@
       "kind": "fill",
       "partition": "same interior geometry; flat white RGB and normalized opaque alpha",
       "usage": "metallic input background with runtime color and opacity"
+    },
+    "info_panel_frame": {
+      "source": "tab_frame_normal",
+      "textureSize": [
+        128,
+        32
+      ],
+      "cap": 24,
+      "kind": "frame",
+      "chamfer": "extended by four source pixels",
+      "usage": "top-screen InfoPanel; flipped vertically"
+    },
+    "info_panel_fill": {
+      "source": "tab_fill_normal",
+      "textureSize": [
+        128,
+        32
+      ],
+      "cap": 24,
+      "kind": "fill",
+      "chamfer": "extended by four source pixels",
+      "usage": "top-screen InfoPanel; flipped vertically",
+      "partition": "flat white RGB with normalized interior alpha"
     }
   }
 }

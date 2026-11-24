@@ -83,6 +83,11 @@ This is the current working state, not a commitment to implement every idea.
   recipe selection, quantities, craft actions and unlearn confirmation.
   Verify closing via X/Escape in combat and reopening before combat ends.
   Keep progress bars, list rows and checkbox styling. Test input focus.
+- [x] Owner approved Professions metallic inputs and header alignment.
+- [x] Replace InfoPanel's old line/strip trapezoid with a gold metallic
+  downward-facing tab: larger 45-degree chamfers and straight sides,
+  preserving the height, transparency and content. Core 0.2.18 /
+  InfoPanel 0.1.6.
 - [ ] Expand to other modules incrementally: ActionBars, tooltips,
   unitframes/statusbars/castbars and remaining controls.
   The exact rollout order is not fixed.
