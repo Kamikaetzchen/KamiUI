@@ -76,3 +76,13 @@ and Palette. Test at the real UI scale; expand only once the preview
 works. Avoid removing potentially redundant files until actual usage
 and visual quality are established. Track current implementation and
 open questions in [ROADMAP.md](ROADMAP.md).
+
+### Raised text buttons
+
+Keep thin chamfered rims, but give text buttons a brighter upper face,
+a darker lower face and a stronger bevel so they look physically raised.
+Hover brightens the face; pressed reverses the vertical lighting to look
+recessed. Preserve the geometry, alpha and independent frame tint.
+Use the shared metallic button style for the Characters close button;
+the character selector uses the existing masked icon frame. Leave
+checkboxes unchanged.

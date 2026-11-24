@@ -19,7 +19,9 @@ comparison includes the worn offhand.
 ## Profile editor
 
 Open **Item Rating** in the Character pane, or type
-`/kami rating settings`.
+`/kami rating settings`. Classes without registered profiles now show
+an explicit unavailable-profile dialog instead of silently doing nothing.
+No new class weights are implied by the dialog.
 
 * The dropdown selects the profile whose values you are editing. The
   choice is stored account-wide in `KamiUIDB.itemRating.editorSpec.DRUID`.

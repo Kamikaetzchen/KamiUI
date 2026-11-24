@@ -847,6 +847,8 @@ local function UpdatePlayerInfo(frame)
         Components:SetButtonFrameColor(button, tint)
     end
     Components:SetButtonFrameColor(frame.KamiItemRatingButton, tint)
+    Components:SetButtonFrameColor(frame.close, tint)
+    Components:SetItemSlotFrameColor(frame.characterButton, tint)
 
     frame.name:SetText(name)
 
@@ -4310,6 +4312,29 @@ local function CreateFrameUI()
         )
 
     local characterButton = characterDropdown.button
+    local icon = characterButton.icon
+    local inset = characterButton:GetWidth()
+        * Styles.DarkMetallic.slotFallbackInsetRatio
+    if icon and characterButton.CreateMaskTexture and icon.AddMaskTexture then
+        local mask = characterButton:CreateMaskTexture()
+        mask:SetTexture(
+            UI.Media:GetDarkMetallicTexture(UI.Media.DarkMetallic.itemMask),
+            "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE"
+        )
+        mask:SetAllPoints(icon)
+        icon:AddMaskTexture(mask)
+        characterButton.KamiItemMask = mask
+        inset = characterButton:GetWidth()
+            * Styles.DarkMetallic.slotInsetRatio
+    end
+    if icon then
+        icon:ClearAllPoints()
+        icon:SetPoint("TOPLEFT", characterButton, "TOPLEFT", inset, -inset)
+        icon:SetPoint("BOTTOMRIGHT", characterButton, "BOTTOMRIGHT",
+            -inset, inset)
+    end
+    characterButton.KamiMetallicSlot =
+        Components:CreateMetallicIconFrame(characterButton)
     characterButton:SetPoint(
         "TOPLEFT",
         header,
@@ -4488,6 +4513,11 @@ local function CreateFrameUI()
     end)
 
     local close = Components:CreateWindowCloseButton(header, {
+        metallic = true,
+        width = 18,
+        height = 18,
+        artSize = 18,
+        crossSize = 9,
         y = -3,
         frameLevelOffset = 10,
         clicks = { "LeftButtonUp" },

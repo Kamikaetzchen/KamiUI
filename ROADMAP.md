@@ -33,7 +33,13 @@ This is the current working state, not a commitment to implement every idea.
   Apply the same class tint to all metallic Characters frames, including
   empty equipment slots and inactive tabs. Keep old assets for rollback.
   Core 0.2.9 / Characters 0.3.22 / ItemRating 0.7.2.
-- [ ] Test button states, direct class tint when switching live/cached alts,
+- [x] Owner approved direct class tint on the Hunter screenshot.
+- [x] Add raised text-button lighting, metallic class-tinted close button
+  and chamfered character dropdown icon. Report missing rating profiles
+  explicitly instead of silently ignoring Item Rating on unsupported
+  classes. Core 0.2.10 / Characters 0.3.23 / ItemRating 0.7.3.
+- [ ] Test raised button states, close/character selector, Item Rating
+  on Hunter and Druid, direct class tint when switching live/cached alts,
   and common/uncommon/rare/epic quality and quest glow in game.
   Inventory and bank remain on the legacy renderer; verify their palette
   colors before broader rollout.

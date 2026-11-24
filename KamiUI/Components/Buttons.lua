@@ -309,21 +309,28 @@ function Components:StyleCloseButton(button, options)
     art:SetPoint("CENTER")
     art:SetSize(artSize, artSize)
 
-    local background = button.KamiCloseButtonBackground
+    if options.metallic then
+        self:StyleButton(button, {
+            metallic = true,
+            frameColor = options.frameColor,
+        })
+    else
+        local background = button.KamiCloseButtonBackground
 
-    if not background then
-        background = art:CreateTexture(nil, "BACKGROUND")
-        background:SetAllPoints()
-        button.KamiCloseButtonBackground = background
+        if not background then
+            background = art:CreateTexture(nil, "BACKGROUND")
+            background:SetAllPoints()
+            button.KamiCloseButtonBackground = background
+        end
+
+        background:SetColorTexture(0, 0, 0, 0.55)
+
+        Styles:CreateBorder(art, {
+            key = "KamiCloseButtonBorder",
+            color = options.borderColor
+                or { 0.22, 0.22, 0.24, 1 },
+        })
     end
-
-    background:SetColorTexture(0, 0, 0, 0.55)
-
-    Styles:CreateBorder(art, {
-        key = "KamiCloseButtonBorder",
-        color = options.borderColor
-            or { 0.22, 0.22, 0.24, 1 },
-    })
 
     local crossSize = options.crossSize or 8
     local crossThickness = options.crossThickness or 1.5
@@ -373,19 +380,21 @@ function Components:StyleCloseButton(button, options)
     )
     crossB:SetThickness(crossThickness)
 
-    local highlight = button.KamiCloseButtonHighlight
+    if not options.metallic then
+        local highlight = button.KamiCloseButtonHighlight
 
-    if not highlight then
-        highlight = button:CreateTexture(nil, "HIGHLIGHT")
-        highlight:SetAllPoints(art)
-        button.KamiCloseButtonHighlight = highlight
+        if not highlight then
+            highlight = button:CreateTexture(nil, "HIGHLIGHT")
+            highlight:SetAllPoints(art)
+            button.KamiCloseButtonHighlight = highlight
+        end
+
+        Styles:SetColor(
+            highlight,
+            Palette.white,
+            options.hoverAlpha or 0.08
+        )
     end
-
-    Styles:SetColor(
-        highlight,
-        Palette.white,
-        options.hoverAlpha or 0.08
-    )
 
     button.KamiCloseButtonOptions = options
 

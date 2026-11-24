@@ -27,6 +27,9 @@ durable project context; do not depend on a previous chat being available.
   and relevant documentation). Split genuinely independent changes.
 - Verify the committed files and report the commit link, what changed, and
   any limitations. Never claim an in-game test that was not performed.
+- If GitHub access temporarily fails, retry the connector before reporting
+  the blocker. Keep blocker reports brief; do not offer manual patches
+  unless the owner asks for them.
 - Work in small, testable increments. The owner pulls and tests in WoW Forever.
 - Update the relevant project documentation when decisions or test results
   change; mark unverified ideas as such. Do not turn the roadmap into a

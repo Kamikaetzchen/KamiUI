@@ -1784,7 +1784,8 @@
       ],
       "cap": 16,
       "kind": "frame",
-      "partition": "original interior alpha vs bevel"
+      "partition": "original interior alpha vs bevel",
+      "lighting": "raised state lighting; original alpha preserved"
     },
     "text_button_fill_normal": {
       "source": "text_button_normal",
@@ -1794,7 +1795,8 @@
       ],
       "cap": 16,
       "kind": "fill",
-      "partition": "original interior alpha vs bevel"
+      "partition": "original interior alpha vs bevel",
+      "lighting": "raised state lighting; original alpha preserved"
     },
     "text_button_frame_hovered": {
       "source": "text_button_hovered",
@@ -1804,7 +1806,8 @@
       ],
       "cap": 16,
       "kind": "frame",
-      "partition": "original interior alpha vs bevel"
+      "partition": "original interior alpha vs bevel",
+      "lighting": "raised state lighting; original alpha preserved"
     },
     "text_button_fill_hovered": {
       "source": "text_button_hovered",
@@ -1814,7 +1817,8 @@
       ],
       "cap": 16,
       "kind": "fill",
-      "partition": "original interior alpha vs bevel"
+      "partition": "original interior alpha vs bevel",
+      "lighting": "raised state lighting; original alpha preserved"
     },
     "text_button_frame_pressed": {
       "source": "text_button_pressed",
@@ -1824,7 +1828,8 @@
       ],
       "cap": 16,
       "kind": "frame",
-      "partition": "original interior alpha vs bevel"
+      "partition": "original interior alpha vs bevel",
+      "lighting": "raised state lighting; original alpha preserved"
     },
     "text_button_fill_pressed": {
       "source": "text_button_pressed",
@@ -1834,7 +1839,8 @@
       ],
       "cap": 16,
       "kind": "fill",
-      "partition": "original interior alpha vs bevel"
+      "partition": "original interior alpha vs bevel",
+      "lighting": "raised state lighting; original alpha preserved"
     },
     "text_button_frame_disabled": {
       "source": "text_button_disabled",
@@ -1844,7 +1850,8 @@
       ],
       "cap": 16,
       "kind": "frame",
-      "partition": "original interior alpha vs bevel"
+      "partition": "original interior alpha vs bevel",
+      "lighting": "raised state lighting; original alpha preserved"
     },
     "text_button_fill_disabled": {
       "source": "text_button_disabled",
@@ -1854,7 +1861,8 @@
       ],
       "cap": 16,
       "kind": "fill",
-      "partition": "original interior alpha vs bevel"
+      "partition": "original interior alpha vs bevel",
+      "lighting": "raised state lighting; original alpha preserved"
     }
   }
 }

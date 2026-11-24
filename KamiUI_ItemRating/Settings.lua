@@ -411,8 +411,46 @@ function Module:RefreshSettings()
     end
 end
 
+local function CreateUnsupportedClassWindow()
+    local frame, header = Components:CreateWindow(
+        "KamiUIItemRatingUnsupportedClass", {
+            width = 290,
+            height = 110,
+            strata = "DIALOG",
+            header = { title = "Item Rating", height = 30 },
+        }
+    )
+    frame:SetPoint("CENTER", UIParent, "CENTER", 140, 0)
+
+    local message = frame:CreateFontString(nil, "OVERLAY")
+    message:SetPoint("TOPLEFT", frame, "TOPLEFT", 12, -37)
+    message:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -12, -37)
+    message:SetJustifyH("CENTER")
+    Styles:ApplyText(message, "normal", Palette.text)
+    message:SetText("No Item Rating profiles are available for "
+        .. ClassLabel() .. " yet.")
+
+    local close = CreateFrame("Button", nil, frame)
+    close:SetSize(72, 20)
+    close:SetPoint("BOTTOM", frame, "BOTTOM", 0, 10)
+    Components:StyleButton(close, { metallic = true, text = "Close" })
+    close:SetScript("OnClick", function() frame:Hide() end)
+    Components:CreateWindowCloseButton(header, {
+        onClick = function() frame:Hide() end,
+    })
+    Components:RegisterEscapeClose(frame)
+    return frame
+end
+
 function Module:ToggleSettings()
-    local frame = self.settingsWindow or CreateSettingsWindow()
+    local frame
+    if Profile() then
+        frame = self.settingsWindow or CreateSettingsWindow()
+    else
+        self.unsupportedClassWindow = self.unsupportedClassWindow
+            or CreateUnsupportedClassWindow()
+        frame = self.unsupportedClassWindow
+    end
     if not frame then return end
     if frame:IsShown() then frame:Hide() else frame:Show() end
 end
@@ -432,6 +470,8 @@ function Module:AttachCharacterButton()
         "BOTTOMRIGHT", frame.characterPane, "BOTTOMRIGHT", -6, 6
     )
     button:SetFrameLevel(trinket:GetFrameLevel() + 2)
+    button:EnableMouse(true)
+    button:RegisterForClicks("LeftButtonUp")
     Components:StyleButton(button, {
         metallic = true,
         text = "Item Rating",

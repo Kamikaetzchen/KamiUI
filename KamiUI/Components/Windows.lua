@@ -269,6 +269,8 @@ function Components:CreateWindowCloseButton(parent, options)
         })
     else
         self:StyleCloseButton(button, {
+            metallic = options.metallic,
+            frameColor = options.frameColor,
             artSize = options.artSize,
             crossSize = options.crossSize,
             crossThickness = options.crossThickness,

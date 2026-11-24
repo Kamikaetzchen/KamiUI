@@ -63,3 +63,8 @@ interior pixels from the bevel pixels using the original alpha values.
 The two textures preserve original pixel RGB and alpha at source-pixel
 centers, with the same cap/UV geometry; only the frame receives the tint.
 The fill stays neutral. Check filtering at actual UI scale in game.
+
+The text-button frame/fill derivatives now use stronger raised lighting:
+bright top, dark lower face, increased rim contrast, and inverted pressed
+lighting. Their source alpha partition and 128 x 32 geometry are unchanged.
+The original text-button textures remain available for rollback.
