@@ -74,3 +74,9 @@ Text-button frame/fill derivatives use horizontal UV boundaries
 fixed-size nine-slice renderer. The 16 x 8 source caps map to 7 x 3.5
 UI units, preserving the thin rim at different control heights.
 No asset pixels or alpha are changed by this renderer update.
+
+The standalone input_fill.tga uses the same interior geometry as
+text_button_fill_normal.tga but has flat white RGB and a normalized
+opaque interior alpha mask. The renderer applies the input's actual
+background RGB and opacity, without the raised button face gradient.
+Inputs reuse text_button_frame_normal with identical fixed-size caps.

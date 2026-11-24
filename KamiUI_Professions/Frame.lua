@@ -9,6 +9,7 @@ if not Module then
 end
 
 local Layout = UI.Layout.Professions
+local HEADER_CONTROL_INSET = 8
 
 local function GetDatabase()
     return Module:GetDatabase()
@@ -1456,8 +1457,8 @@ local function CreateCharacterMenu(frame, header)
         "TOPLEFT",
         header,
         "TOPLEFT",
-        4,
-        -8
+        HEADER_CONTROL_INSET,
+        -HEADER_CONTROL_INSET
     )
 
     frame.characterButton = characterButton
@@ -1574,6 +1575,7 @@ local function CreateCraftingPage(frame)
     search:SetPoint("TOPRIGHT", left, "TOPRIGHT", -5, -5)
     search:SetTextInsets(6, 6, 0, 0)
     Components:StyleInput(search, {
+        metallic = true,
         backgroundColor = Palette.panelStrong,
     })
     search.Instructions = search.Instructions
@@ -1980,6 +1982,7 @@ local function CreateCraftingPage(frame)
     quantity:SetJustifyH("CENTER")
     quantity:SetNumeric(true)
     Components:StyleInput(quantity, {
+        metallic = true,
         backgroundColor = Palette.panelStrong,
     })
     frame.quantity = quantity
@@ -2061,13 +2064,13 @@ function Module:CreateFrame()
         header.RightActions,
         {
             metallic = true,
-            width = 24,
+            width = 22,
             height = 22,
             artSize = 18,
             crossSize = 9,
-            point = "RIGHT",
-            x = -4,
-            y = 0,
+            point = "TOPRIGHT",
+            x = -HEADER_CONTROL_INSET,
+            y = -HEADER_CONTROL_INSET,
             onClick = function()
                 Module:CloseFrame()
             end,

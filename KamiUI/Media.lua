@@ -42,6 +42,7 @@ UI.Media.DarkMetallic = {
     tabFill = "tab_fill_",
     textButtonFrame = "text_button_frame_",
     textButtonFill = "text_button_fill_",
+    inputFill = "input_fill",
     panelFrame = "neutral_panel_frame",
     panelFill = "panel_fill",
     itemMask = "item_mask",

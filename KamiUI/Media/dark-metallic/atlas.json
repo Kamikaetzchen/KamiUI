@@ -1863,6 +1863,16 @@
       "kind": "fill",
       "partition": "original interior alpha vs bevel",
       "lighting": "raised state lighting; original alpha preserved"
+    },
+    "input_fill": {
+      "source": "text_button_fill_normal",
+      "textureSize": [
+        128,
+        32
+      ],
+      "kind": "fill",
+      "partition": "same interior geometry; flat white RGB and normalized opaque alpha",
+      "usage": "metallic input background with runtime color and opacity"
     }
   }
 }

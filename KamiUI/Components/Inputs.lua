@@ -2,6 +2,37 @@ local UI = KamiUI
 local Palette = UI.Palette
 local Styles = UI.Styles
 local Components = UI.Components
+local Media = UI.Media
+
+local function StyleMetallicInput(input, options)
+    if input.KamiInputBackground then
+        input.KamiInputBackground:Hide()
+    end
+    for _, edge in ipairs(input.KamiInputBorder or {}) do
+        edge:Hide()
+    end
+
+    if not input.KamiMetallicInputFill then
+        input.KamiMetallicInputFill = Components:CreateMetallicButtonSlice(
+            input, { asset = Media.DarkMetallic.inputFill }
+        )
+        input.KamiMetallicInputFrame = Components:CreateMetallicButtonSlice(
+            input, {
+                asset = Media.DarkMetallic.textButtonFrame .. "normal",
+                sublevel = -6,
+            }
+        )
+    end
+
+    input.KamiMetallicInputFill:SetVertexColor(
+        Styles:GetColorChannels(options.backgroundColor or Palette.panelStrong)
+    )
+    local r, g, b = Styles:GetColorChannels(
+        options.frameColor or Palette.metallicTint.neutral
+    )
+    input.KamiMetallicInputFrame:SetVertexColor(r, g, b, 1)
+end
+
 function Components:StyleInput(input, options)
     if not input then
         return nil
@@ -25,18 +56,22 @@ function Components:StyleInput(input, options)
 
     ClearNativeInputArt()
 
-    Styles:EnsureBackground(
-        input,
-        "KamiInputBackground",
-        options.backgroundColor or Palette.panelStrong,
-        "BACKGROUND",
-        -7
-    )
+    if options.metallic or input.KamiMetallicInputFrame then
+        StyleMetallicInput(input, options)
+    else
+        Styles:EnsureBackground(
+            input,
+            "KamiInputBackground",
+            options.backgroundColor or Palette.panelStrong,
+            "BACKGROUND",
+            -7
+        )
 
-    Styles:CreateBorder(input, {
-        key = "KamiInputBorder",
-        color = options.borderColor or Palette.border,
-    })
+        Styles:CreateBorder(input, {
+            key = "KamiInputBorder",
+            color = options.borderColor or Palette.border,
+        })
+    end
 
     Styles:ApplyText(
         input,

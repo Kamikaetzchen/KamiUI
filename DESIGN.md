@@ -108,7 +108,7 @@ Use a neutral metallic window and recipe-list panel. Preserve the gold
 primary-profession card hierarchy with the existing gold palette, reuse
 masked slot artwork for profession icons, abilities, reagents and recipe
 results, and use shared raised buttons. Keep existing recipe row behavior,
-progress bars, search/quantity inputs and tracking checkbox unchanged.
+progress bars and tracking checkbox unchanged.
 
 Text buttons use fixed-size nine-slice caps on the existing 128 x 32
 artwork, rather than scaling the rim with control height. A three-pixel
@@ -117,3 +117,10 @@ Keep the frame and fill slice geometry identical; tabs retain their
 separate three-slice renderer. Preserve the existing button lighting,
 state textures and tint behavior. Inset unlearn buttons four UI pixels
 from the overview card's top-right corner.
+
+Metallic edit boxes reuse the exact normal text-button rim and fixed
+nine-slice geometry, with a separate flat interior mask tinted using
+the existing dark input background color and alpha. Do not apply the
+raised face or hover/pressed states to inputs. The Professions search
+and quantity fields opt in first. Header controls use equal top and
+side insets, with matching 22 x 22 character and close buttons.
