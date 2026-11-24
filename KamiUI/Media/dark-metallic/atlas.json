@@ -502,7 +502,7 @@
       "h": 96,
       "kind": "nine-slice",
       "slice": 32,
-      "center": "opaque",
+      "center": "semi-transparent",
       "uv": [
         0.5703125,
         0.6640625,
@@ -519,7 +519,8 @@
         0.75,
         0,
         0.75
-      ]
+      ],
+      "centerAlpha": 140
     },
     "panel_top_left": {
       "x": 696,
@@ -789,7 +790,7 @@
       "h": 96,
       "kind": "nine-slice",
       "slice": 32,
-      "center": "opaque",
+      "center": "semi-transparent",
       "uv": [
         0.1015625,
         0.1953125,
@@ -806,7 +807,8 @@
         0.75,
         0,
         0.75
-      ]
+      ],
+      "centerAlpha": 184
     },
     "tooltip_top_left": {
       "x": 216,
