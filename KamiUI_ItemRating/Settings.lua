@@ -435,7 +435,7 @@ function Module:AttachCharacterButton()
     Components:StyleButton(button, {
         metallic = true,
         text = "Item Rating",
-        accentColor = frame.KamiClassAccent,
+        frameColor = frame.KamiClassTint,
     })
     frame.KamiItemRatingButton = button
     button:SetScript("OnClick", function() Module:ToggleSettings() end)

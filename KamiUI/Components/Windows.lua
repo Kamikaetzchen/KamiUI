@@ -156,7 +156,7 @@ function Components:CreateWindow(name, options)
         frame.KamiMetallicPanel = self:ApplyMetallicPanel(frame, {
             asset = UI.Media.DarkMetallic.panel,
             backgroundColor = options.backgroundColor or Palette.window.neutral,
-            accentColor = Palette:GetMetallicAccent(options.borderColor),
+            frameColor = Palette:GetMetallicTint(options.borderColor),
         })
     else
         Styles:ApplyBackdrop(

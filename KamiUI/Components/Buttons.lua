@@ -91,30 +91,32 @@ local function RefreshMetallicButton(button, enabled)
     end
 
     button.KamiMetallicButton:SetAsset(
-        Media.DarkMetallic.textButton .. state
+        Media.DarkMetallic.textButtonFrame .. state
     )
-    local color = button.KamiButtonAccentColor
-        or config.accentColor or Palette.metallicAccent.neutral
-    local r, g, b, a = Styles:GetColorChannels(color)
-    button.KamiMetallicButtonAccent:SetVertexColor(r, g, b,
-        enabled and a or 0)
+    button.KamiMetallicButtonFill:SetAsset(
+        Media.DarkMetallic.textButtonFill .. state
+    )
+    local color = button.KamiButtonFrameColor or config.frameColor
+    local r, g, b = Styles:GetColorChannels(color)
+    button.KamiMetallicButton:SetVertexColor(r, g, b, 1)
 end
 
-function Components:SetButtonAccentColor(button, color)
+function Components:SetButtonFrameColor(button, color)
     if not button or not button.KamiMetallicButton then return end
-    button.KamiButtonAccentColor = color
-    button:RefreshKamiButtonStyle()
+    button.KamiButtonFrameColor = color
+    local r, g, b = Styles:GetColorChannels(color)
+    button.KamiMetallicButton:SetVertexColor(r, g, b, 1)
 end
 
 local function CreateMetallicButton(button, options)
     if button.KamiMetallicButton then return end
     local height = options.height or button:GetHeight()
-    button.KamiMetallicButton = Components:CreateThreeSlice(button, {
-        asset = Media.DarkMetallic.textButton .. "normal",
+    button.KamiMetallicButtonFill = Components:CreateThreeSlice(button, {
+        asset = Media.DarkMetallic.textButtonFill .. "normal",
         height = height,
     })
-    button.KamiMetallicButtonAccent = Components:CreateThreeSlice(button, {
-        asset = Media.DarkMetallic.textButtonAccent,
+    button.KamiMetallicButton = Components:CreateThreeSlice(button, {
+        asset = Media.DarkMetallic.textButtonFrame .. "normal",
         height = height,
         sublevel = -6,
     })

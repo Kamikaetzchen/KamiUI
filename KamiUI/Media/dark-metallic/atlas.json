@@ -1587,7 +1587,8 @@
         96,
         96
       ],
-      "slice": 32
+      "slice": 32,
+      "usage": "retained; no longer rendered"
     },
     "neutral_tab_normal": {
       "source": "tab_normal",
@@ -1662,7 +1663,8 @@
         32
       ],
       "cap": 16,
-      "kind": "accent"
+      "kind": "accent",
+      "usage": "retained; no longer rendered"
     },
     "tab_accent": {
       "source": "neutral_tab_selected",
@@ -1671,7 +1673,188 @@
         32
       ],
       "cap": 16,
-      "kind": "accent"
+      "kind": "accent",
+      "usage": "retained; no longer rendered"
+    },
+    "tab_frame_normal": {
+      "source": "neutral_tab_normal",
+      "textureSize": [
+        128,
+        32
+      ],
+      "cap": 16,
+      "kind": "frame",
+      "partition": "original interior alpha vs bevel"
+    },
+    "tab_fill_normal": {
+      "source": "neutral_tab_normal",
+      "textureSize": [
+        128,
+        32
+      ],
+      "cap": 16,
+      "kind": "fill",
+      "partition": "original interior alpha vs bevel"
+    },
+    "tab_frame_hovered": {
+      "source": "neutral_tab_hovered",
+      "textureSize": [
+        128,
+        32
+      ],
+      "cap": 16,
+      "kind": "frame",
+      "partition": "original interior alpha vs bevel"
+    },
+    "tab_fill_hovered": {
+      "source": "neutral_tab_hovered",
+      "textureSize": [
+        128,
+        32
+      ],
+      "cap": 16,
+      "kind": "fill",
+      "partition": "original interior alpha vs bevel"
+    },
+    "tab_frame_pressed": {
+      "source": "neutral_tab_pressed",
+      "textureSize": [
+        128,
+        32
+      ],
+      "cap": 16,
+      "kind": "frame",
+      "partition": "original interior alpha vs bevel"
+    },
+    "tab_fill_pressed": {
+      "source": "neutral_tab_pressed",
+      "textureSize": [
+        128,
+        32
+      ],
+      "cap": 16,
+      "kind": "fill",
+      "partition": "original interior alpha vs bevel"
+    },
+    "tab_frame_selected": {
+      "source": "neutral_tab_selected",
+      "textureSize": [
+        128,
+        32
+      ],
+      "cap": 16,
+      "kind": "frame",
+      "partition": "original interior alpha vs bevel"
+    },
+    "tab_fill_selected": {
+      "source": "neutral_tab_selected",
+      "textureSize": [
+        128,
+        32
+      ],
+      "cap": 16,
+      "kind": "fill",
+      "partition": "original interior alpha vs bevel"
+    },
+    "tab_frame_disabled": {
+      "source": "neutral_tab_disabled",
+      "textureSize": [
+        128,
+        32
+      ],
+      "cap": 16,
+      "kind": "frame",
+      "partition": "original interior alpha vs bevel"
+    },
+    "tab_fill_disabled": {
+      "source": "neutral_tab_disabled",
+      "textureSize": [
+        128,
+        32
+      ],
+      "cap": 16,
+      "kind": "fill",
+      "partition": "original interior alpha vs bevel"
+    },
+    "text_button_frame_normal": {
+      "source": "text_button_normal",
+      "textureSize": [
+        128,
+        32
+      ],
+      "cap": 16,
+      "kind": "frame",
+      "partition": "original interior alpha vs bevel"
+    },
+    "text_button_fill_normal": {
+      "source": "text_button_normal",
+      "textureSize": [
+        128,
+        32
+      ],
+      "cap": 16,
+      "kind": "fill",
+      "partition": "original interior alpha vs bevel"
+    },
+    "text_button_frame_hovered": {
+      "source": "text_button_hovered",
+      "textureSize": [
+        128,
+        32
+      ],
+      "cap": 16,
+      "kind": "frame",
+      "partition": "original interior alpha vs bevel"
+    },
+    "text_button_fill_hovered": {
+      "source": "text_button_hovered",
+      "textureSize": [
+        128,
+        32
+      ],
+      "cap": 16,
+      "kind": "fill",
+      "partition": "original interior alpha vs bevel"
+    },
+    "text_button_frame_pressed": {
+      "source": "text_button_pressed",
+      "textureSize": [
+        128,
+        32
+      ],
+      "cap": 16,
+      "kind": "frame",
+      "partition": "original interior alpha vs bevel"
+    },
+    "text_button_fill_pressed": {
+      "source": "text_button_pressed",
+      "textureSize": [
+        128,
+        32
+      ],
+      "cap": 16,
+      "kind": "fill",
+      "partition": "original interior alpha vs bevel"
+    },
+    "text_button_frame_disabled": {
+      "source": "text_button_disabled",
+      "textureSize": [
+        128,
+        32
+      ],
+      "cap": 16,
+      "kind": "frame",
+      "partition": "original interior alpha vs bevel"
+    },
+    "text_button_fill_disabled": {
+      "source": "text_button_disabled",
+      "textureSize": [
+        128,
+        32
+      ],
+      "cap": 16,
+      "kind": "fill",
+      "partition": "original interior alpha vs bevel"
     }
   }
 }

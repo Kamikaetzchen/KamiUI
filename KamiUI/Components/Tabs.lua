@@ -144,37 +144,35 @@ local function RefreshMetallicTab(tab)
         state = "selected"
     end
 
-    tab.KamiMetallicTab:SetAsset(UI.Media.DarkMetallic.tab .. state)
-    if tab.KamiMetallicTabAccent then
-        local color = tab.KamiTabAccentColor
-        local r, g, b, a = Styles:GetColorChannels(color)
-        tab.KamiMetallicTabAccent:SetVertexColor(r, g, b,
-            color and tab.KamiTabActive and tab.KamiTabEnabled and a or 0)
-    end
+    local media = UI.Media.DarkMetallic
+    tab.KamiMetallicTab:SetAsset(media.tabFrame .. state)
+    tab.KamiMetallicTabFill:SetAsset(media.tabFill .. state)
+    local r, g, b = Styles:GetColorChannels(tab.KamiTabFrameColor)
+    tab.KamiMetallicTab:SetVertexColor(r, g, b, 1)
 end
 
-function Components:SetTabAccentColor(tab, color)
+function Components:SetTabFrameColor(tab, color)
     if not tab or not tab.KamiMetallicTab then return end
 
-    if not tab.KamiMetallicTabAccent then
-        tab.KamiMetallicTabAccent = self:CreateThreeSlice(tab, {
-            asset = UI.Media.DarkMetallic.tabAccent,
-            height = tab.KamiTabOptions.height or tab:GetHeight(),
-            flipY = tab.KamiTabOrientation == "bottom",
-            sublevel = -6,
-        })
-    end
-
-    tab.KamiTabAccentColor = color
-    RefreshMetallicTab(tab)
+    tab.KamiTabFrameColor = color
+    local r, g, b = Styles:GetColorChannels(color)
+    tab.KamiMetallicTab:SetVertexColor(r, g, b, 1)
 end
 
 local function CreateMetallicTab(tab, options, orientation)
-    tab.KamiMetallicTab = Components:CreateThreeSlice(tab, {
-        asset = UI.Media.DarkMetallic.tab .. "normal",
+    local media = UI.Media.DarkMetallic
+    tab.KamiMetallicTabFill = Components:CreateThreeSlice(tab, {
+        asset = media.tabFill .. "normal",
         height = options.height or tab:GetHeight(),
         flipY = orientation == "bottom",
     })
+    tab.KamiMetallicTab = Components:CreateThreeSlice(tab, {
+        asset = media.tabFrame .. "normal",
+        height = options.height or tab:GetHeight(),
+        flipY = orientation == "bottom",
+        sublevel = -6,
+    })
+    tab.KamiTabFrameColor = options.frameColor
 
     tab:HookScript("OnEnter", function(self)
         self.KamiTabHovered = true

@@ -827,20 +827,26 @@ local function UpdatePlayerInfo(frame)
 
     Styles:SetTextColor(frame.name, classColor or Palette.white)
 
-    local accent = Palette:GetClassAccent(classFile)
-    frame.KamiClassAccent = accent
-    frame.KamiMetallicPanel:SetAccentColor(accent)
+    local tint = Palette:GetClassTint(classFile)
+    frame.KamiClassTint = tint
+    frame.KamiMetallicPanel:SetFrameColor(tint)
     if frame.modelPanel then
-        frame.modelPanel.KamiMetallicPanel:SetAccentColor(accent)
+        frame.modelPanel.KamiMetallicPanel:SetFrameColor(tint)
+    end
+    for _, button in ipairs(frame.equipmentSlots or {}) do
+        Components:SetItemSlotFrameColor(button, tint)
     end
     for _, tab in ipairs(frame.tabs or {}) do
-        Components:SetTabAccentColor(tab, accent)
+        Components:SetTabFrameColor(tab, tint)
     end
     if frame.sidebar then
-        Components:SetTabAccentColor(frame.sidebar.statsTab, accent)
-        Components:SetTabAccentColor(frame.sidebar.equipmentTab, accent)
+        Components:SetTabFrameColor(frame.sidebar.statsTab, tint)
+        Components:SetTabFrameColor(frame.sidebar.equipmentTab, tint)
     end
-    Components:SetButtonAccentColor(frame.KamiItemRatingButton, accent)
+    for _, button in ipairs(frame.KamiMetallicButtons or {}) do
+        Components:SetButtonFrameColor(button, tint)
+    end
+    Components:SetButtonFrameColor(frame.KamiItemRatingButton, tint)
 
     frame.name:SetText(name)
 
@@ -4188,6 +4194,7 @@ local function CreateSidebar(frame)
         end
     end)
     equipmentPane.save = save
+    frame.KamiMetallicButtons = { newSet, createButton, cancelButton, equip, save }
 
     SetSidebarMode(frame, "stats")
 end

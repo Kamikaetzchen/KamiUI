@@ -62,21 +62,25 @@ Palette.windowBorder = {
     chat = HexColor(0x333333, 1.00),
 }
 
--- Tint only the inner bevel, never the silver metal reflections.
-Palette.metallicAccent = {
-    neutral = HexColor(0xADB5BF, 0.25),
-    inventory = HexColor(0xB56DCE, 0.75),
-    bank = HexColor(0x65B76D, 0.75),
-    chat = HexColor(0xADB5BF, 0.25),
+-- Multiplicative RGB tints for grayscale metallic frame artwork.
+-- Keep alpha at one so tint never changes frame opacity.
+Palette.metallicTint = {
+    neutral = HexColor(0xFFFFFF),
+    inventory = HexColor(0xB56DCE),
+    bank = HexColor(0x65B76D),
+    chat = HexColor(0xFFFFFF),
 }
 
-function Palette:GetMetallicAccent(borderColor)
+-- Blend toward white rather than changing alpha if tint strength is tuned.
+Palette.classTintStrength = 1
+
+function Palette:GetMetallicTint(borderColor)
     for role, color in pairs(self.windowBorder) do
         if color == borderColor then
-            return self.metallicAccent[role] or color
+            return self.metallicTint[role] or color
         end
     end
-    return borderColor or self.metallicAccent.neutral
+    return borderColor or self.metallicTint.neutral
 end
 
 Palette.background = Palette.window.neutral
@@ -155,18 +159,18 @@ function Palette:GetClassColor(classFile)
     return self.class[classFile] or self.classFallback[classFile]
 end
 
--- Keep class tint on the bevel only, not the panel or control fill.
-function Palette:GetClassAccent(classFile)
+function Palette:GetClassTint(classFile)
     local color = self:GetClassColor(classFile)
     if not color then
-        return self.metallicAccent.neutral
+        return self.metallicTint.neutral
     end
 
+    local strength = self.classTintStrength
     return {
-        color.r or color[1],
-        color.g or color[2],
-        color.b or color[3],
-        0.70,
+        1 - strength * (1 - (color.r or color[1])),
+        1 - strength * (1 - (color.g or color[2])),
+        1 - strength * (1 - (color.b or color[3])),
+        1,
     }
 end
 

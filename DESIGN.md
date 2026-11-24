@@ -27,16 +27,16 @@ or `SetStatusBarColor()`, not separate baked-color variants for every
 window. Preserve the existing semantic palette: neutral windows, purple
 inventory, green bank, and existing item-quality/quest colors.
 
-Prefer independent layers for a neutral metal base, tintable accents,
-and the translucent panel background. Tinting an entire metal texture
-also tints its silver reflections; use a separate accent layer if that
-makes the material read better. Keep contrast and text readability.
-Preserve the existing configurable/semantic opacity instead of baking
-one opaque surface into all windows. The metallic panel preview uses a neutral frame, tintable inner bevel,
-and independently colored translucent fill. Characters uses the viewed
-character's existing class color on the window/model bevels, active tab
-bevels and Item Rating button accent. Keep the neutral translucent
-background, item quality colors and silver reflections unchanged.
+Use independent neutral grayscale frame and translucent fill layers.
+Tint the metal itself with RGB multiplication at full alpha; source pixel
+luminance determines the visible brightness, including tinted reflections.
+The owner found separate accent overlays too subtle and inconsistent.
+Do not add a colored bevel overlay on top of the base metal. Retain the
+old assets for rollback, but leave them unused in the current renderer.
+Characters uses the viewed character's class color on all metallic
+frames: outer window, model, equipment slots, all tabs and text buttons.
+Keep the neutral fill, text, opacity and rarity/quest glows independent.
+Use one central class tint strength (RGB blend with white, not alpha).
 
 ## Modular assets and rendering
 

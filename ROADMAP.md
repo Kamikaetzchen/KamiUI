@@ -27,7 +27,13 @@ This is the current working state, not a commitment to implement every idea.
   for Characters (outer/model frames, active tabs and Item Rating).
   Keep the neutral window fill and existing checkbox/radio visuals.
   Core 0.2.8 / Characters 0.3.21 / ItemRating 0.7.1.
-- [ ] Test button states, class accents when switching live/cached alts,
+- [x] Replace the separate accent overlay with direct grayscale frame
+  tinting after the owner found the Hunter accents too subtle. Split
+  tab/button frame and fill without changing the original pixel values.
+  Apply the same class tint to all metallic Characters frames, including
+  empty equipment slots and inactive tabs. Keep old assets for rollback.
+  Core 0.2.9 / Characters 0.3.22 / ItemRating 0.7.2.
+- [ ] Test button states, direct class tint when switching live/cached alts,
   and common/uncommon/rare/epic quality and quest glow in game.
   Inventory and bank remain on the legacy renderer; verify their palette
   colors before broader rollout.

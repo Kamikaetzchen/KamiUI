@@ -126,18 +126,18 @@ function Components:ApplyMetallicPanel(frame, options)
     local panel = {
         fill = Layer(Media.DarkMetallic.panelFill, -7,
             options.backgroundColor or Palette.window.neutral),
-        frame = Layer(Media.DarkMetallic.panelFrame, -6, Palette.white),
-        accent = Layer(Media.DarkMetallic.panelAccent, -5,
-            options.accentColor or Palette.metallicAccent.neutral),
+        frame = Layer(Media.DarkMetallic.panelFrame, -6,
+            options.frameColor or Palette.metallicTint.neutral),
     }
 
-    function panel:SetAccentColor(accent)
-        self.accent:SetVertexColor(Styles:GetColorChannels(accent))
+    function panel:SetFrameColor(color)
+        local r, g, b = Styles:GetColorChannels(color)
+        self.frame:SetVertexColor(r, g, b, 1)
     end
 
-    function panel:SetColors(background, accent)
+    function panel:SetColors(background, frameColor)
         self.fill:SetVertexColor(Styles:GetColorChannels(background))
-        self:SetAccentColor(accent)
+        self:SetFrameColor(frameColor)
     end
 
     return panel

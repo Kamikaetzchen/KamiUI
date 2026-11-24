@@ -52,3 +52,14 @@ bevel and 6px chamfers are deliberately thinner/smaller than window art.
 white alpha masks, using the same three-slice UVs as their base art.
 They tint only bevels, not text, fill, or the original metal highlights.
 These standalone additions are not part of the original atlas.
+
+## Direct frame tint (current renderer)
+
+The previous panel, tab and text-button accent masks are retained but no
+longer rendered. Panel and slot frame art is tinted directly. Each tab
+and text-button state now has a matching `*_frame_*` and `*_fill_*`
+standalone 128 x 32 TGA derived from the existing state by separating its
+interior pixels from the bevel pixels using the original alpha values.
+The two textures preserve original pixel RGB and alpha at source-pixel
+centers, with the same cap/UV geometry; only the frame receives the tint.
+The fill stays neutral. Check filtering at actual UI scale in game.

@@ -238,6 +238,13 @@ local function CreateRarityGlow(
     return CreateRarityGlowController(parts)
 end
 
+-- Independent of quality/quest glow and search opacity.
+function Components:SetItemSlotFrameColor(button, color)
+    if not button or not button.KamiMetallicSlot then return end
+    local r, g, b = Styles:GetColorChannels(color)
+    button.KamiMetallicSlot:SetVertexColor(r, g, b, 1)
+end
+
 function Components:SetItemSlotBorderColor(button, color)
     if not button then
         return
@@ -535,6 +542,7 @@ function Components:StyleItemSlot(button, options)
         -- The artwork supplies the neutral border; quality/quest colors
         -- remain independent on the existing additive glow.
         button.KamiMetallicSlot = self:CreateMetallicIconFrame(button)
+        self:SetItemSlotFrameColor(button, options.frameColor)
         background:ClearAllPoints()
         background:SetPoint("TOPLEFT", button, "TOPLEFT",
             iconInset, -iconInset)
