@@ -136,3 +136,15 @@ flat fill. Derive the neutral artwork from the existing tab bevel;
 stretch only the center. Leave the screen-facing top edge open: the
 metal rim covers only the sides, chamfers and lower edge, while the
 translucent fill extends to the screen boundary.
+
+### Shared window header controls
+
+Keep header height independent of action size. Use 22 x 22 UI-unit
+icon/close buttons, text buttons of the same height, 3 units inset
+from the header (4 from the default outer window edge), and 4 units
+between actions. Anchor actions at the upper corners rather than
+centering vertically in tall headers. Use the same small clock glyph
+with a tooltip to identify cached character views, including the
+current character's offline bank. Keep Characters level/class subtitle;
+Professions uses one title line and removes redundant overview labels.
+Preserve the skill rank and character name in the crafting title.

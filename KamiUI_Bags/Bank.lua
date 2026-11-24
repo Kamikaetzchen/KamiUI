@@ -999,7 +999,7 @@ function Module:UpdateTitle()
         return
     end
 
-    local key, character = GetViewedCharacter()
+    local key, character, isCurrent = GetViewedCharacter()
     local profile = UI:GetCharacterProfile(key, character)
     local name = Components:FormatCharacterLabel(
         profile,
@@ -1007,6 +1007,7 @@ function Module:UpdateTitle()
     )
 
     self.frame.title:SetText(name .. "'s Bank")
+    self.frame.header:SetCached(not (isCurrent and bankOpen))
 end
 
 function Module:Layout()
@@ -1312,6 +1313,8 @@ local function CreateFrameUI()
     frame.title = title
 
     local searchControl = Components:AttachHeaderSearch(frame, header, {
+        metallic = true,
+        frameColor = FRAME_TINT,
         onTextChanged = function()
             Components:ClearNativeContainerSearch()
             Module:Refresh()
@@ -1321,27 +1324,24 @@ local function CreateFrameUI()
         end,
     })
 
-    local close = Components:CreateWindowCloseButton(header, {
+    local close = Components:CreateHeaderCloseButton(header, {
         metallic = true,
         frameColor = FRAME_TINT,
-        width = 18,
-        height = 18,
-        artSize = 18,
-        crossSize = 9,
         clicks = { "LeftButtonUp" },
         onClick = function()
             Module:Hide()
         end,
     })
     frame.close = close
+    Components:CreateHeaderCachedIndicator(header, close)
 
     local characterDropdown =
         Components:CreateCharacterDropdown(
             frame,
             {
                 buttonParent = header,
-                buttonWidth = 20,
-                buttonHeight = 20,
+                buttonWidth = header.ActionSize,
+                buttonHeight = header.ActionSize,
                 styleButton = false,
                 metallicIcon = true,
                 frameColor = FRAME_TINT,
@@ -1371,13 +1371,7 @@ local function CreateFrameUI()
         )
 
     local characterButton = characterDropdown.button
-    characterButton:SetPoint(
-        "TOPLEFT",
-        header,
-        "TOPLEFT",
-        5,
-        -3
-    )
+    header:PlaceAction(characterButton, "left")
     frame.characterButton = characterButton
     frame.characterMenu = characterDropdown.menu
     frame.characterDropdown = characterDropdown
@@ -1392,8 +1386,7 @@ local function CreateFrameUI()
     end)
 
     local bagBarToggle = CreateFrame("Button", nil, header)
-    bagBarToggle:SetSize(52, 20)
-    bagBarToggle:SetPoint("LEFT", characterButton, "RIGHT", 4, 0)
+    header:PlaceAction(bagBarToggle, "left", characterButton, 52)
     bagBarToggle:SetNormalFontObject("GameFontNormalSmall")
     bagBarToggle:SetHighlightFontObject("GameFontHighlightSmall")
     bagBarToggle:SetText("Bags +")

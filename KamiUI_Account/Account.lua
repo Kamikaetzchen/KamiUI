@@ -671,12 +671,8 @@ local function CreateAccountFrame()
         end,
     })
     Module.frame = frame
-    local close = Components:CreateWindowCloseButton(header, {
+    local close = Components:CreateHeaderCloseButton(header, {
         metallic = true,
-        width = 18,
-        height = 18,
-        artSize = 18,
-        crossSize = 9,
         clicks = { "LeftButtonUp" },
         onClick = function() Module:Hide() end,
     })

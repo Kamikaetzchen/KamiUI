@@ -90,6 +90,12 @@ This is the current working state, not a commitment to implement every idea.
   InfoPanel 0.1.6. Owner approved the shape and requested an open top
   edge. Remove only the screen-facing rim and extend the fill to the
   screen boundary (Core 0.2.19 / InfoPanel 0.1.7).
+- [x] Standardize header controls in Bags/Bank, Characters, Professions
+  and Account: fixed 22px height, equal top/side inset, shared cached
+  snapshot clock indicator for character-specific windows. Compact
+  Professions overview and preserve crafting skill rank in one title.
+  Metallic header search in Bags/Bank. Core 0.2.20 / Bags 0.2.7 /
+  Characters 0.3.25 / Professions 0.3.6 / Account 0.2.4.
 - [ ] Expand to other modules incrementally: ActionBars, tooltips,
   unitframes/statusbars/castbars and remaining controls.
   The exact rollout order is not fixed.

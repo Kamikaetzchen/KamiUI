@@ -851,6 +851,7 @@ local function UpdatePlayerInfo(frame)
     Components:SetItemSlotFrameColor(frame.characterButton, tint)
 
     frame.name:SetText(name)
+    frame.header:SetCached(not isCurrent)
 
     local classLabel = className
 
@@ -4283,8 +4284,8 @@ local function CreateFrameUI()
             frame,
             {
                 buttonParent = header,
-                buttonWidth = 22,
-                buttonHeight = 22,
+                buttonWidth = header.ActionSize,
+                buttonHeight = header.ActionSize,
                 styleButton = false,
                 iconTexCoord = { 0.07, 0.93, 0.07, 0.93 },
                 direction = "down",
@@ -4335,13 +4336,7 @@ local function CreateFrameUI()
     end
     characterButton.KamiMetallicSlot =
         Components:CreateMetallicIconFrame(characterButton)
-    characterButton:SetPoint(
-        "TOPLEFT",
-        header,
-        "TOPLEFT",
-        4,
-        -4
-    )
+    header:PlaceAction(characterButton, "left")
     characterButton:SetFrameLevel(header:GetFrameLevel() + 10)
     frame.characterButton = characterButton
     frame.characterMenu = characterDropdown.menu
@@ -4512,13 +4507,8 @@ local function CreateFrameUI()
         titleMenu:Show()
     end)
 
-    local close = Components:CreateWindowCloseButton(header, {
+    local close = Components:CreateHeaderCloseButton(header, {
         metallic = true,
-        width = 18,
-        height = 18,
-        artSize = 18,
-        crossSize = 9,
-        y = -3,
         frameLevelOffset = 10,
         clicks = { "LeftButtonUp" },
         onClick = function()
@@ -4526,6 +4516,7 @@ local function CreateFrameUI()
         end,
     })
     frame.close = close
+    Components:CreateHeaderCachedIndicator(header, close)
 
     local modelPanel = CreateFrame("Frame", nil, characterPane, "BackdropTemplate")
     modelPanel:SetPoint("TOP", characterPane, "TOP", 0, -54)

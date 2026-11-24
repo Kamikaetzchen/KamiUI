@@ -9,7 +9,6 @@ if not Module then
 end
 
 local Layout = UI.Layout.Professions
-local HEADER_CONTROL_INSET = 8
 
 local function GetDatabase()
     return Module:GetDatabase()
@@ -1415,8 +1414,8 @@ local function CreateCharacterMenu(frame, header)
             frame,
             {
                 buttonParent = header,
-                buttonWidth = 22,
-                buttonHeight = 22,
+                buttonWidth = header.ActionSize,
+                buttonHeight = header.ActionSize,
                 styleButton = false,
                 metallicIcon = true,
                 iconTexCoord = { 0.07, 0.93, 0.07, 0.93 },
@@ -1453,13 +1452,7 @@ local function CreateCharacterMenu(frame, header)
         )
 
     local characterButton = characterDropdown.button
-    characterButton:SetPoint(
-        "TOPLEFT",
-        header,
-        "TOPLEFT",
-        HEADER_CONTROL_INSET,
-        -HEADER_CONTROL_INSET
-    )
+    header:PlaceAction(characterButton, "left")
 
     frame.characterButton = characterButton
     frame.characterMenu = characterDropdown.menu
@@ -1494,24 +1487,12 @@ local function CreateOverviewPage(frame)
     page:Hide()
     frame.overviewPage = page
 
-    local title = page:CreateFontString(
-        nil,
-        "OVERLAY",
-        "GameFontNormal"
-    )
-    title:SetPoint("TOPLEFT", 4, -2)
-    Styles:ApplyText(title, 12, Palette.text)
-    title:SetText("Professions")
-    page.title = title
-
-    local subtitle = page:CreateFontString(
-        nil,
-        "OVERLAY",
-        "GameFontNormalSmall"
-    )
-    subtitle:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -3)
-    Styles:ApplyText(subtitle, 9, Palette.muted)
-    page.subtitle = subtitle
+    local empty = page:CreateFontString(nil, "OVERLAY")
+    empty:SetPoint("TOPLEFT", 4, -2)
+    Styles:ApplyText(empty, 9, Palette.muted)
+    empty:SetText("No profession data cached")
+    empty:Hide()
+    page.empty = empty
 
     local primaryLabel = page:CreateFontString(
         nil,
@@ -2040,16 +2021,14 @@ function Module:CreateFrame()
             UI:SaveFramePosition(target, GetDatabase())
         end,
         header = {
-            height = Layout.HEADER_HEIGHT - 1,
-            hasSubtitle = true,
+            height = Layout.HEADER_HEIGHT,
         },
     })
 
     CreateCharacterMenu(frame, header)
 
     local back = CreateFrame("Button", nil, header.LeftActions)
-    back:SetSize(28, 22)
-    back:SetPoint("LEFT", frame.characterButton, "RIGHT", 5, 0)
+    header:PlaceAction(back, "left", frame.characterButton)
     Components:StyleButton(back, { metallic = true, text = "<" })
     back:Hide()
     back:SetScript("OnClick", function()
@@ -2060,23 +2039,14 @@ function Module:CreateFrame()
     end)
     frame.backButton = back
 
-    local close = Components:CreateWindowCloseButton(
-        header.RightActions,
-        {
-            metallic = true,
-            width = 22,
-            height = 22,
-            artSize = 18,
-            crossSize = 9,
-            point = "TOPRIGHT",
-            x = -HEADER_CONTROL_INSET,
-            y = -HEADER_CONTROL_INSET,
-            onClick = function()
-                Module:CloseFrame()
-            end,
-        }
-    )
+    local close = Components:CreateHeaderCloseButton(header, {
+        metallic = true,
+        onClick = function()
+            Module:CloseFrame()
+        end,
+    })
     frame.closeButton = close
+    Components:CreateHeaderCachedIndicator(header, close)
 
     CreateOverviewPage(frame)
     CreateCraftingPage(frame)
@@ -2202,22 +2172,10 @@ function Module:RefreshOverview()
             { showRealm = false }
         ) .. " - Professions"
     )
-    frame.header:SetSubtitle(
-        isCurrent
-            and "Current character"
-            or "Cached character data"
-    )
-
-    local total = #primary + #secondary
-
-    frame.overviewPage.subtitle:SetText(
-        total > 0
-            and "Select a profession"
-            or "No profession data cached"
-    )
+    frame.overviewPage.empty:SetShown(#primary + #secondary == 0)
 
     local cardIndex = 0
-    local y = 44
+    local y = 2
 
     frame.overviewPage.primaryLabel:ClearAllPoints()
     frame.overviewPage.primaryLabel:SetPoint(
@@ -3504,23 +3462,16 @@ function Module:RefreshCrafting()
         return
     end
 
-    frame.header:SetTitle(
-        profession.professionName or "Profession"
-    )
-
     local skill = profession.skillLevel or 0
     local maximum = profession.maxSkillLevel or 0
-    frame.header:SetSubtitle(
-        string.format(
-            "%s  -  %d / %d",
-            Components:FormatCharacterLabel(
-                character or {},
-                { showRealm = false }
-            ),
-            skill,
-            maximum
-        )
-    )
+    frame.header:SetTitle(string.format(
+        "%s - %s - %d / %d",
+        Components:FormatCharacterLabel(
+            character or {}, { showRealm = false }
+        ),
+        profession.professionName or "Profession",
+        skill, maximum
+    ))
 
     frame.backButton:Show()
     self:RefreshRecipeList()
@@ -3535,6 +3486,7 @@ function Module:RefreshFrame()
     end
 
     local _, _, isCurrent = GetViewedCharacter()
+    frame.header:SetCached(not isCurrent)
     local liveInfo = isCurrent and GetLiveProfessionInfo() or nil
     local cachedProfession = self:GetDisplayedCachedProfession()
     local showCrafting =

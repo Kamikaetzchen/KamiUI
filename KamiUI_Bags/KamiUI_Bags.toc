@@ -2,7 +2,7 @@
 ## Title: KamiUI - Bags
 ## Notes: Inventory and bank module for KamiUI
 ## Author: Kami Katze
-## Version: 0.2.6
+## Version: 0.2.7
 ## IconTexture: Interface\Icons\INV_Misc_Bag_07
 ## RequiredDeps: KamiUI
 ## OptionalDeps: KamiUI_Characters

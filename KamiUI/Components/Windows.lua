@@ -123,6 +123,34 @@ function Components:CreateWindowHeader(parent, options)
     rightActions:SetPoint("BOTTOMRIGHT")
     rightActions:SetWidth(options.actionWidth or 96)
     header.RightActions = rightActions
+    header.ActionSize = Styles.Metrics.headerActionSize
+
+    -- Fixed control size, independent of the title/subtitle block height.
+    function header:PlaceAction(control, side, previous, width)
+        local size = self.ActionSize
+        local gap = Styles.Metrics.headerActionGap
+        local padding = Styles.Metrics.headerActionInset
+        local right = side == "right"
+        local edge = right and "TOPRIGHT" or "TOPLEFT"
+        control:SetSize(width or size, size)
+        control:ClearAllPoints()
+        if previous then
+            control:SetPoint(
+                right and "RIGHT" or "LEFT", previous,
+                right and "LEFT" or "RIGHT", right and -gap or gap, 0
+            )
+        else
+            control:SetPoint(
+                edge, self, edge, right and -padding or padding, -padding
+            )
+        end
+    end
+
+    function header:SetCached(shown)
+        if self.CachedIndicator then
+            self.CachedIndicator:SetShown(shown == true)
+        end
+    end
 
     function header:SetTitle(text)
         self.Title:SetText(text or "")
@@ -322,6 +350,57 @@ function Components:CreateWindowCloseButton(parent, options)
     return button
 end
 
+function Components:CreateHeaderCloseButton(header, options)
+    options = options or {}
+    local size = header.ActionSize
+    options.width = size
+    options.height = size
+    options.artSize = size
+    options.crossSize = Styles.Metrics.headerCloseCrossSize
+    local close = self:CreateWindowCloseButton(header, options)
+    header:PlaceAction(close, "right")
+    return close
+end
+
+function Components:CreateHeaderCachedIndicator(header, close)
+    local indicator = CreateFrame("Frame", nil, header)
+    header:PlaceAction(indicator, "right", close)
+    indicator:SetFrameLevel(close:GetFrameLevel())
+    indicator:EnableMouse(true)
+
+    -- Small neutral clock glyph: stored snapshot, not a clickable action.
+    local function Line(x1, y1, x2, y2)
+        local line = indicator:CreateLine(nil, "OVERLAY")
+        line:SetThickness(1.2)
+        line:SetColorTexture(Styles:GetColorChannels(Palette.gold))
+        line:SetStartPoint("CENTER", indicator, x1, y1)
+        line:SetEndPoint("CENTER", indicator, x2, y2)
+    end
+
+    local radius = 6.5
+    for i = 0, 11 do
+        local a = i * math.pi / 6
+        local b = (i + 1) * math.pi / 6
+        Line(radius * math.cos(a), radius * math.sin(a),
+            radius * math.cos(b), radius * math.sin(b))
+    end
+    Line(0, 0, 0, 4)
+    Line(0, 0, 3, -2)
+
+    indicator:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_CURSOR_RIGHT")
+        GameTooltip:SetText("Cached character data")
+        GameTooltip:AddLine("Last saved snapshot, not live data.", 0.8, 0.8, 0.8)
+        GameTooltip:Show()
+    end)
+    indicator:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
+    indicator:Hide()
+    header.CachedIndicator = indicator
+    return indicator
+end
+
 function Components:AttachHeaderSearch(frame, header, options)
     if not frame or not header then
         return nil
@@ -331,6 +410,8 @@ function Components:AttachHeaderSearch(frame, header, options)
 
     local title = options.title or header.Title
     local inset = options.inset or 90
+    local top = options.metallic and -Styles.Metrics.headerActionInset
+        or options.y or -1
     local titleButton = CreateFrame("Button", nil, header)
 
     titleButton:SetPoint(
@@ -338,16 +419,18 @@ function Components:AttachHeaderSearch(frame, header, options)
         header,
         "TOPLEFT",
         inset,
-        options.y or -1
+        top
     )
     titleButton:SetPoint(
         "TOPRIGHT",
         header,
         "TOPRIGHT",
         -inset,
-        options.y or -1
+        top
     )
-    titleButton:SetHeight(options.buttonHeight or 24)
+    titleButton:SetHeight(
+        options.metallic and header.ActionSize or options.buttonHeight or 24
+    )
 
     local onDragStop = options.onDragStop
         or frame.KamiWindowOnDragStop
@@ -363,11 +446,20 @@ function Components:AttachHeaderSearch(frame, header, options)
         options.template or "InputBoxTemplate"
     )
 
-    search:SetPoint("TOPLEFT", titleButton, "TOPLEFT", 0, -1)
-    search:SetPoint("TOPRIGHT", titleButton, "TOPRIGHT", 0, -1)
-    search:SetHeight(options.height or 22)
+    local searchY = options.metallic and 0 or -1
+    search:SetPoint("TOPLEFT", titleButton, "TOPLEFT", 0, searchY)
+    search:SetPoint("TOPRIGHT", titleButton, "TOPRIGHT", 0, searchY)
+    search:SetHeight(
+        options.metallic and header.ActionSize or options.height or 22
+    )
     search:SetAutoFocus(false)
     search:SetTextInsets(6, 6, 0, 0)
+    if options.metallic then
+        self:StyleInput(search, {
+            metallic = true,
+            frameColor = options.frameColor,
+        })
+    end
 
     if search.SetPropagateKeyboardInput then
         search:SetPropagateKeyboardInput(false)

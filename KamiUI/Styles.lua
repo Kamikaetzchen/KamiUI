@@ -11,6 +11,10 @@ Styles.Metrics = {
     tabHeight = 22,
     itemSlotSize = 36,
     sectionInset = 6,
+    headerActionSize = 22,
+    headerActionInset = 3,
+    headerActionGap = 4,
+    headerCloseCrossSize = 9,
 }
 
 -- Opt-in metrics: 32 source pixels per panel corner, 16 per tab cap.
