@@ -166,3 +166,8 @@ Use the current source and Git history for exact implementation details.
 - [x] Context-sensitive tooltip rims: displayed player class, NPC
   reaction, item quality; separate dark fill and reset on clear/hide.
   Core 0.2.24 / Tooltips 0.2.29.
+
+- [x] Fix player tooltip tint being reset by the internal ClearLines
+  rebuild. Use the same class lookup as the visible player text, apply
+  the frame tint after rebuilding, and refresh it on the existing
+  GUID-checked specialization update. Tooltips 0.2.30.

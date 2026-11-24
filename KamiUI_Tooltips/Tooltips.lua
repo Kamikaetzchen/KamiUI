@@ -123,6 +123,9 @@ local function SetTooltipFrameColor(tooltip, color)
 end
 
 local function ResetTooltipFrameColor(tooltip)
+    -- AddPlayerDetails clears and rebuilds lines for the same unit.
+    -- That internal clear is not a change of tooltip content.
+    if tooltip.KamiAddingPlayerDetails then return end
     SetTooltipFrameColor(tooltip)
 end
 
@@ -1267,13 +1270,13 @@ local function AddPlayerDetails(tooltip)
         return
     end
 
-    local className = GetClassInfo(unit)
+    local className, classFile = GetClassInfo(unit)
 
     if not className then
         return
     end
 
-    local classColor = GetClassColor(unit)
+    local classColor = Palette:GetClassColor(classFile) or Palette.text
     local guildName, guildRankName
 
     if GetGuildInfo then
@@ -1384,6 +1387,10 @@ local function AddPlayerDetails(tooltip)
     end
 
     tooltip.KamiAddingPlayerDetails = false
+
+    -- Use the same class data that produced the visible player text.
+    -- Apply the rim after rebuilding, not before ClearLines.
+    SetTooltipFrameColor(tooltip, Palette:GetClassTint(classFile))
 end
 
 local function RefreshVisiblePlayerTooltip(guid)
@@ -1408,12 +1415,13 @@ local function RefreshVisiblePlayerTooltip(guid)
         local hasCached, cached = GetCachedSpec(guid)
         if not hasCached or not cached then return end
 
-        local className = GetClassInfo(unit)
+        local className, classFile = GetClassInfo(unit)
         if not className then return end
 
+        local classColor = Palette:GetClassColor(classFile) or Palette.text
         local specText = NormalizeSpecText(cached, unit)
         local levelText = BuildLevelLine(
-            unit, className, GetClassColor(unit), specText
+            unit, className, classColor, specText
         )
         if not levelText then return end
 
@@ -1430,6 +1438,7 @@ local function RefreshVisiblePlayerTooltip(guid)
                     StripColorCodes(text), "Level ", 1, true
                 ) == 1 then
                 line:SetText(levelText)
+                SetTooltipFrameColor(tooltip, Palette:GetClassTint(classFile))
                 return
             end
         end
