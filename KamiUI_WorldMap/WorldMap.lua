@@ -4,6 +4,7 @@ local Module = UI:NewModule("WorldMap", "KamiUI_WorldMap")
 local Styles = UI.Styles
 local Palette = UI.Palette
 local Components = UI.Components
+local Media = UI.Media.DarkMetallic
 
 -- Styling only: OpenMap owns map position, scale, size, resize grips,
 -- canvas, zoom, pins and the quest log's docked width.
@@ -60,6 +61,57 @@ end
 -- Only the little zone-selection arrow uses our dropdown. A click on
 -- the location label is still handled by Blizzard's NavBar_ButtonOnClick.
 -- Entries come from Blizzard's own listFunc, preserving OpenMap maps.
+-- The native controls keep their hitboxes, visibility and click scripts.
+-- Only add new visual regions and hide the original decoration.
+local function CreateMetallicNavigationArt(button)
+    if button.KamiMapMetallicFrame then return end
+    button.KamiMapMetallicFill = Components:CreateMetallicButtonSlice(button, {
+        asset = Media.textButtonFill .. "normal",
+    })
+    button.KamiMapMetallicFrame = Components:CreateMetallicButtonSlice(button, {
+        asset = Media.textButtonFrame .. "normal",
+        sublevel = -6,
+    })
+end
+
+local function StyleMapControl(button, glyph, red)
+    if not button or not button.CreateFontString then return end
+    HideButtonArt(button)
+    if button.KamiMapControl then return end
+
+    -- A mouse-transparent, fixed-size visual on the existing native button.
+    local art = CreateFrame("Frame", nil, button)
+    art:SetSize(Styles.Metrics.headerActionSize, Styles.Metrics.headerActionSize)
+    art:SetPoint("CENTER")
+    art:EnableMouse(false)
+    CreateMetallicNavigationArt(art)
+    local label = art:CreateFontString(nil, "OVERLAY")
+    Styles:ApplyText(label, 14, red and { 1, 0.15, 0.15, 1 } or Palette.text)
+    label:SetPoint("CENTER")
+    label:SetText(glyph)
+    button.KamiMapControl = art
+
+    local function Refresh(state)
+        HideButtonArt(button)
+        art.KamiMapMetallicFrame:SetAsset(Media.textButtonFrame .. state)
+        art.KamiMapMetallicFill:SetAsset(Media.textButtonFill .. state)
+    end
+    button:HookScript("OnEnter", function() Refresh("hovered") end)
+    button:HookScript("OnLeave", function() Refresh("normal") end)
+    button:HookScript("OnMouseDown", function() Refresh("pressed") end)
+    button:HookScript("OnMouseUp", function() Refresh("hovered") end)
+    button:HookScript("OnShow", function() Refresh("normal") end)
+end
+
+local function StyleMapControls(border)
+    StyleMapControl(border.CloseButton, "X", true)
+    local toggle = border.MaximizeMinimizeFrame
+    if toggle then
+        StyleMapControl(toggle.MaximizeButton, "+")
+        StyleMapControl(toggle.MinimizeButton, "-")
+    end
+end
+
 local function AttachZoneDropdown(button, nav)
     if not button.listFunc or not button.MenuArrowButton
         or button.KamiMapZoneDropdown then
@@ -74,6 +126,7 @@ local function AttachZoneDropdown(button, nav)
         menuFrameLevel = nav:GetFrameLevel() + 100,
         closeWith = mapFrame,
         styleButton = false,
+        metallicMenu = true,
         showArrow = false,
         rowHeight = 21,
         fontSize = 11,
@@ -118,14 +171,7 @@ local function StyleNavigationButton(button, active, nav)
         HideNavigationArtwork(button)
         HideButtonArt(button)
 
-        Styles:EnsureBackground(
-            button, "KamiMapButtonBackground", Palette.panelStrong
-        )
-        Styles:CreateBorder(button, {
-            color = Palette.windowBorder.neutral,
-            size = 1,
-            key = "KamiMapButtonBorder",
-        })
+        CreateMetallicNavigationArt(button)
 
         if button.text then
             button.text:ClearAllPoints()
@@ -143,11 +189,11 @@ local function StyleNavigationButton(button, active, nav)
             button.text, 11, active and Palette.gold or Palette.text
         )
     end
-    if button.KamiMapButtonBackground then
-        Styles:SetColor(
-            button.KamiMapButtonBackground,
-            active and Palette.header or Palette.panelStrong
+    if button.KamiMapMetallicFrame then
+        local r, g, b = Styles:GetColorChannels(
+            active and Palette.gold or Palette.metallicTint.neutral
         )
+        button.KamiMapMetallicFrame:SetVertexColor(r, g, b, 1)
     end
 
     -- A recycled native button may acquire dropdown entries later.
@@ -160,6 +206,10 @@ local function StyleNavigationButton(button, active, nav)
 end
 
 local function StyleBreadcrumbs()
+    if InCombatLockdown and InCombatLockdown() then
+        UI:RunOutOfCombat("worldmap.breadcrumbs", StyleBreadcrumbs)
+        return
+    end
     local nav = mapFrame and mapFrame.NavBar
     if not nav then return end
 
@@ -218,14 +268,7 @@ local function StyleBreadcrumbs()
         overflow.KamiMapOverflowStyled = true
         HideNavigationArtwork(overflow)
         HideButtonArt(overflow)
-        Styles:EnsureBackground(
-            overflow, "KamiMapOverflowBackground", Palette.panelStrong
-        )
-        Styles:CreateBorder(overflow, {
-            color = Palette.windowBorder.neutral,
-            size = 1,
-            key = "KamiMapOverflowBorder",
-        })
+        CreateMetallicNavigationArt(overflow)
         local label = overflow:CreateFontString(nil, "OVERLAY")
         Styles:ApplyText(label, 11, Palette.gold)
         label:SetPoint("CENTER")
@@ -234,6 +277,10 @@ local function StyleBreadcrumbs()
 end
 
 local function SkinWorldMap()
+    if InCombatLockdown and InCombatLockdown() then
+        UI:RunOutOfCombat("worldmap.skin", SkinWorldMap)
+        return
+    end
     local map = _G.WorldMapFrame
     local border = map and map.BorderFrame
     if not map or not border then return end
@@ -257,10 +304,10 @@ local function SkinWorldMap()
             border.Bg:SetAlpha(0)
         end
 
-        Styles:CreateBorder(border, {
-            color = Palette.windowBorder.neutral,
-            size = 1,
-            key = "KamiWorldMapBorder",
+        border.KamiMetallicFrame = Components:CreateNineSlice(border, {
+            asset = Media.panelFrame,
+            sliceSize = 12,
+            layer = "OVERLAY",
         })
 
         local header = Components:CreateWindowHeader(border, {
@@ -299,9 +346,18 @@ local function SkinWorldMap()
             end)
         end
 
-        map:HookScript("OnShow", StyleBreadcrumbs)
+        map:HookScript("OnShow", SkinWorldMap)
+        if hooksecurefunc and type(border.SetBorder) == "function" then
+            hooksecurefunc(border, "SetBorder", function()
+                if not (InCombatLockdown and InCombatLockdown()) then
+                    if border.NineSlice then border.NineSlice:SetAlpha(0) end
+                    StyleMapControls(border)
+                end
+            end)
+        end
     end
 
+    StyleMapControls(border)
     StyleBreadcrumbs()
 end
 

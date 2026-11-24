@@ -148,3 +148,14 @@ with a tooltip to identify cached character views, including the
 current character's offline bank. Keep Characters level/class subtitle;
 Professions uses one title line and removes redundant overview labels.
 Preserve the skill rank and character name in the crafting title.
+
+### Compact and native windows
+
+Use the metallic style for Targets, meter controls, objective tracker
+buttons, chat tabs, loot slots, tooltips and map/quest chrome. Keep compact
+HUD control sizes and existing meter bar geometry. Preserve native map
+and quest actions, anchors, resize grips, and pooled navigation. Use
+mouse-transparent art for native map close/maximize/minimize controls;
+apply new native skin layout outside combat. The owner deferred the
+Minimap, action bars, unit frames, XP bar, timers, auras, nameplates and
+radial menu until a separate design round.

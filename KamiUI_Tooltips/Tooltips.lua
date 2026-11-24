@@ -1,6 +1,7 @@
 local UI = KamiUI
 local Palette = UI.Palette
 local Styles = UI.Styles
+local Components = UI.Components
 
 local Module = UI:NewModule("Tooltips", "KamiUI_Tooltips")
 
@@ -132,16 +133,9 @@ local function StyleTooltip(tooltip)
     if not tooltip.KamiTooltipStyled then
         tooltip.KamiTooltipStyled = true
 
-        Styles:EnsureBackground(
-            tooltip,
-            "KamiTooltipBackground",
-            { 0.005, 0.008, 0.015, 0.60 },
-            "BACKGROUND",
-            -8
-        )
-        Styles:CreateBorder(tooltip, {
-            key = "KamiTooltipBorder",
-            color = Palette.border,
+        tooltip.KamiMetallicTooltip = Components:CreateNineSlice(tooltip, {
+            asset = UI.Media.DarkMetallic.tooltip,
+            sliceSize = 10,
         })
 
         if tooltip.SetPadding then

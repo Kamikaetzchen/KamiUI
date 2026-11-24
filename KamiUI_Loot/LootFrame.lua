@@ -75,9 +75,9 @@ local function CreateLootRow(parent)
     local icon = Components:CreateItemSlot(row, {
         frameType = "Frame",
         size = Layout.ICON_SIZE,
+        metallic = true,
         count = true,
         highlight = false,
-        corners = true,
     })
     icon:SetPoint("LEFT", row, "LEFT", 2, 0)
     row.icon = icon
@@ -348,6 +348,7 @@ function Module:CreateFrame()
     local frame, header = Components:CreateWindow(
         "KamiUILootFrame",
         {
+            metallic = true,
             width = Layout.FRAME_WIDTH,
             height = Layout.HEADER_HEIGHT + Layout.FRAME_PADDING * 2,
             backgroundColor = Palette.window.neutral,
@@ -359,12 +360,10 @@ function Module:CreateFrame()
         }
     )
 
-    local close = Components:CreateWindowCloseButton(
-        header.RightActions,
-        {
-            onClick = CloseLootWindow,
-        }
-    )
+    local close = Components:CreateHeaderCloseButton(header, {
+        metallic = true,
+        onClick = CloseLootWindow,
+    })
     frame.closeButton = close
 
     local content = CreateFrame("Frame", nil, frame)

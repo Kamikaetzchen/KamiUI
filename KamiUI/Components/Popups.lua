@@ -89,11 +89,22 @@ function Components:CreatePopupMenu(parent, anchor, options)
         menu:SetClampedToScreen(options.clampedToScreen ~= false)
     end
 
-    Styles:ApplyBackdrop(
-        menu,
-        options.backgroundColor or { 0, 0, 0, 0.95 },
-        options.borderColor or Palette.border
-    )
+    local background = options.backgroundColor or { 0, 0, 0, 0.95 }
+    if options.metallic then
+        local media = UI.Media.DarkMetallic
+        menu.KamiMetallicFill = self:CreateMetallicButtonSlice(menu, {
+            asset = media.inputFill,
+            color = background,
+        })
+        menu.KamiMetallicFrame = self:CreateMetallicButtonSlice(menu, {
+            asset = media.textButtonFrame .. "normal",
+            color = Palette.metallicTint.neutral,
+            sublevel = -6,
+        })
+    else
+        Styles:ApplyBackdrop(menu, background,
+            options.borderColor or Palette.border)
+    end
 
     menu.buttons = {}
     menu.KamiPopupOptions = options
@@ -575,6 +586,7 @@ function Components:CreateDropdown(parent, options)
         options.anchor or button,
         {
             name = options.menuName,
+            metallic = options.metallicMenu,
             point = options.menuPoint or point,
             relativePoint =
                 options.menuRelativePoint or relativePoint,

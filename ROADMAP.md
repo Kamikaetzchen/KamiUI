@@ -102,6 +102,14 @@ This is the current working state, not a commitment to implement every idea.
 - [x] Extend metallic controls to Targets macro panel, DamageMeter
   and details, ThreatMeter title, ObjectiveTracker buttons, and Chat
   tabs. Preserve meter bar colors, row geometry and macro behavior.
+- [x] Extend metallic artwork to loot, tooltip, map breadcrumbs and
+  native map controls, quest list/detail and NPC quest panels. Keep
+  native map geometry and callbacks; verify pooled navigation and
+  maximize/minimize in Forever. Reward icon styling remains a separate
+  native-control check.
+- [ ] Owner deferred ActionBars, Minimap, UnitFrames, XPBar, Timers,
+  SwingTimer, Auras, Cooldowns, Nameplates and RadialMenu pending a
+  separate design pass. Preserve current appearance.
 - [ ] Expand to other modules incrementally: ActionBars, tooltips,
   unitframes/statusbars/castbars and remaining controls.
   The exact rollout order is not fixed.

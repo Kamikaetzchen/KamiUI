@@ -117,12 +117,18 @@ end
 
 local function StylePanelBackground(frame, key)
     if not frame then return end
-    Styles:EnsureBackground(frame, key, FRAME_BACKGROUND)
-    Styles:CreateBorder(frame, {
-        color = Palette.windowBorder.neutral,
-        size = 1,
-        key = key .. "Border",
-    })
+    if not frame[key] then
+        frame[key] = Components:CreateNineSlice(frame, {
+            asset = UI.Media.DarkMetallic.panelFill,
+            sliceSize = 12,
+            color = FRAME_BACKGROUND,
+        })
+        frame[key .. "Border"] = Components:CreateNineSlice(frame, {
+            asset = UI.Media.DarkMetallic.panelFrame,
+            sliceSize = 12,
+            layer = "OVERLAY",
+        })
+    end
 
     -- Blizzard's QuestFramePanelTemplate puts parchment textures on
     -- BORDER, above custom BACKGROUND textures. All must be hidden.
@@ -231,11 +237,12 @@ local function StyleNPCChrome(frame)
     if close then
         close:ClearAllPoints()
         close:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -7, -7)
-        close:SetSize(20, 20)
+        close:SetSize(Styles.Metrics.headerActionSize,
+            Styles.Metrics.headerActionSize)
         Components:StyleCloseButton(close, {
-            artSize = 18,
-            crossSize = 9,
-            crossColor = Palette.text,
+            metallic = true,
+            artSize = Styles.Metrics.headerActionSize,
+            crossSize = Styles.Metrics.headerCloseCrossSize,
         })
     end
 
@@ -265,6 +272,7 @@ local function StyleNPCChrome(frame)
         local button = _G[name]
         if button then
             Components:StyleButton(button, {
+                metallic = true,
                 textColor = Palette.text,
                 borderColor = Palette.windowBorder.neutral,
             })
@@ -283,6 +291,12 @@ end
 local function StyleNPCQuest()
     local frame = QuestFrame
     if not frame then return end
+    if InCombatLockdown and InCombatLockdown() then
+        UI:RunOutOfCombat("quests.npcSkin", function()
+            if NPCQuestVisible() then StyleNPCQuest() end
+        end)
+        return
+    end
 
     StylePanelBackground(frame, "KamiNPCQuestBackground")
     if frame.NineSlice then frame.NineSlice:SetAlpha(0) end
@@ -323,6 +337,10 @@ end
 local function StyleQuestDetails()
     local details = QuestMapFrame and QuestMapFrame.DetailsFrame
     if not details or not details:IsShown() then return end
+    if InCombatLockdown and InCombatLockdown() then
+        UI:RunOutOfCombat("quests.detailsSkin", StyleQuestDetails)
+        return
+    end
     StylePanelBackground(details, "KamiQuestDetailsBackground")
     StyleSharedQuestText()
 end
@@ -383,18 +401,26 @@ local function StyleQuestList()
     local quests = panel and panel.QuestsFrame
     local scroll = quests and quests.ScrollFrame
     if not scroll then return end
+    if InCombatLockdown and InCombatLockdown() then
+        UI:RunOutOfCombat("quests.listSkin", function()
+            if panel:IsShown() then StyleQuestList() end
+        end)
+        return
+    end
 
     Styles:EnsureBackground(
         panel, "KamiQuestPanelBackground", Palette.window.neutral
     )
-    Styles:EnsureBackground(
-        scroll, "KamiQuestScrollBackground", Palette.panel
-    )
-    Styles:CreateBorder(scroll, {
-        color = Palette.windowBorder.neutral,
-        size = 1,
-        key = "KamiQuestScrollBorder",
-    })
+    if not scroll.KamiQuestMetallic then
+        scroll.KamiQuestMetallic = Components:CreateNineSlice(scroll, {
+            asset = UI.Media.DarkMetallic.panelFrame,
+            sliceSize = 8,
+            layer = "OVERLAY",
+        })
+        Styles:EnsureBackground(
+            scroll, "KamiQuestScrollBackground", Palette.panel
+        )
+    end
 
     if scroll.Background then scroll.Background:SetAlpha(0) end
 
