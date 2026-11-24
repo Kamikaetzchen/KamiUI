@@ -216,6 +216,28 @@ local function GetXPPercent(profile)
     return math.max(0, math.min(100, xp / xpMax * 100))
 end
 
+local function ShowXPTooltip(row)
+    if not row.xpBar:IsShown() or not row.xpCurrent
+        or not row.xpMaximum then
+        if GameTooltip:IsOwned(row) then GameTooltip:Hide() end
+        return
+    end
+
+    GameTooltip:SetOwner(row, "ANCHOR_CURSOR_RIGHT")
+    GameTooltip:SetText("Experience", 1, 0.82, 0)
+    GameTooltip:AddLine(string.format(
+        "%s/%s (%.1f%%)",
+        UI:FormatNumber(row.xpCurrent),
+        UI:FormatNumber(row.xpMaximum),
+        row.xpCurrent / row.xpMaximum * 100
+    ), 1, 1, 1)
+    GameTooltip:Show()
+end
+
+local function HideXPTooltip(row)
+    if GameTooltip:IsOwned(row) then GameTooltip:Hide() end
+end
+
 local function SortCharacterEntries(entries, pane)
     local key = pane.sortKey or "level"
     local ascending = pane.sortAscending == true
@@ -315,12 +337,17 @@ local function RenderCharacters()
             -- A missing snapshot is unknown, not zero progress.
             row.xpBar:SetShown(xpPercent ~= nil)
             row.xpBar:SetValue(xpPercent or 0)
+            row.xpCurrent = xpPercent and tonumber(profile.xp) or nil
+            row.xpMaximum = xpPercent and tonumber(profile.xpMax) or nil
             row.money:SetText(
                 UI:FormatMoney(profile.money or 0, { iconSize = 12 })
             )
             row:Show()
+            if GameTooltip:IsOwned(row) then ShowXPTooltip(row) end
         else
             row.entryKey = nil
+            row.xpCurrent, row.xpMaximum = nil, nil
+            HideXPTooltip(row)
             row.xpBar:Hide()
             row:Hide()
         end
@@ -533,6 +560,11 @@ local function CreateCharactersPane(frame)
         highlight:SetAllPoints(row)
         highlight:SetColorTexture(1, 1, 1, 0.06)
 
+        -- The bar is non-interactive so the entire row stays clickable.
+        -- Hovering the row, including its XP bar, shows exact XP values.
+        row:SetScript("OnEnter", ShowXPTooltip)
+        row:SetScript("OnLeave", HideXPTooltip)
+        row:SetScript("OnHide", HideXPTooltip)
         row:SetScript("OnClick", function(self)
             if not self.entryKey then return end
             local characters = UI:GetCharactersModule()
