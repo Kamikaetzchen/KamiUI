@@ -2,7 +2,7 @@
 ## Title: KamiUI
 ## Notes: Core framework for KamiUI
 ## Author: Kami Katze
-## Version: 0.2.10
+## Version: 0.2.11
 ## IconTexture: Interface\AddOns\KamiUI\Media\KamiUI.tga
 ## SavedVariables: KamiUIDB
 

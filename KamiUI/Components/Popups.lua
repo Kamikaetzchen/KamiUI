@@ -685,5 +685,15 @@ function Components:CreateCharacterDropdown(parent, options)
         end
     end
 
-    return self:CreateDropdown(parent, config)
+    local dropdown = self:CreateDropdown(parent, config)
+    if options.metallicIcon then
+        self:StyleItemSlot(dropdown.button, {
+            size = dropdown.button:GetWidth(),
+            metallic = true,
+            frameColor = options.frameColor,
+            rarityGlow = false,
+        })
+    end
+
+    return dropdown
 end

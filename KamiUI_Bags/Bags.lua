@@ -2,6 +2,7 @@ local UI = KamiUI
 local Palette = UI.Palette
 local Components = UI.Components
 local Styles = UI.Styles
+local FRAME_TINT = Palette.metallicTint.inventory
 
 local Module = UI:NewModule("Bags", "KamiUI_Bags")
 
@@ -1142,10 +1143,11 @@ end
 local function CreateBagBarButton(parent)
     local button = Components:CreateItemSlot(parent, {
         size = 32,
+        metallic = true,
+        frameColor = FRAME_TINT,
         count = true,
         countFontSize = 9,
         rarityGlow = false,
-        border = false,
     })
 
     button:RegisterForClicks(
@@ -1487,7 +1489,9 @@ function Module:Rebuild()
                         if not button then
                             button = Components:CreateItemDisplayButton(frame.content, {
                 size = Layout.SLOT_SIZE,
-                corners = true,
+                metallic = true,
+                frameColor = FRAME_TINT,
+                bagFamilyTint = true,
             })
                             frame.cachedButtons[index] = button
                         end
@@ -1567,7 +1571,9 @@ function Module:Rebuild()
                             carrier,
                             {
                                 size = Layout.SLOT_SIZE,
-                                corners = true,
+                                metallic = true,
+                                frameColor = FRAME_TINT,
+                                bagFamilyTint = true,
                                 onDragStart = function()
                                     itemDragFrame:Show()
                                 end,
@@ -1776,6 +1782,7 @@ end
 
 local function CreateFrameUI()
     local frame, header = Components:CreateWindow("KamiUIBagFrame", {
+        metallic = true,
         backgroundColor = Palette.window.inventory,
         borderColor = Palette.windowBorder.inventory,
         onDragStop = function(target)
@@ -1804,6 +1811,13 @@ local function CreateFrameUI()
     })
 
     local close = Components:CreateWindowCloseButton(header, {
+        metallic = true,
+        frameColor = FRAME_TINT,
+        width = 18,
+        height = 18,
+        artSize = 18,
+        crossSize = 9,
+        clicks = { "LeftButtonUp" },
         onClick = function()
             Module:Hide()
         end,
@@ -1818,6 +1832,8 @@ local function CreateFrameUI()
                 buttonWidth = 20,
                 buttonHeight = 20,
                 styleButton = false,
+                metallicIcon = true,
+                frameColor = FRAME_TINT,
                 direction = "down",
                 align = "left",
                 menuParent = frame,
@@ -1873,7 +1889,10 @@ local function CreateFrameUI()
     bagBarToggle:SetNormalFontObject("GameFontNormalSmall")
     bagBarToggle:SetHighlightFontObject("GameFontHighlightSmall")
     bagBarToggle:SetText("Bags +")
-    Components:StyleButton(bagBarToggle)
+    Components:StyleButton(bagBarToggle, {
+        metallic = true,
+        frameColor = FRAME_TINT,
+    })
     bagBarToggle:SetScript("OnClick", function()
         local db = GetDatabase()
         db.bagBarExpanded = not db.bagBarExpanded
@@ -1902,7 +1921,10 @@ local function CreateFrameUI()
     sort:SetNormalFontObject("GameFontNormalSmall")
     sort:SetHighlightFontObject("GameFontHighlightSmall")
     sort:SetText("Sort")
-    Components:StyleButton(sort)
+    Components:StyleButton(sort, {
+        metallic = true,
+        frameColor = FRAME_TINT,
+    })
     sort:SetScript("OnClick", function()
         if sortingBags then
             return

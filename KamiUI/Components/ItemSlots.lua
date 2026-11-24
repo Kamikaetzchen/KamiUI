@@ -250,6 +250,13 @@ function Components:SetItemSlotBorderColor(button, color)
         return
     end
 
+    if button.KamiBagFamilyFrameTint then
+        self:SetItemSlotFrameColor(button, Palette:GetBagFrameTint(
+            color, button.KamiBagFamilyFrameTint
+        ))
+        return
+    end
+
     Styles:SetBorderColor(button.KamiBorders, color or Palette.slotBorder)
 
     for _, corner in ipairs(button.KamiBorderCorners or {}) do
@@ -543,6 +550,10 @@ function Components:StyleItemSlot(button, options)
         -- remain independent on the existing additive glow.
         button.KamiMetallicSlot = self:CreateMetallicIconFrame(button)
         self:SetItemSlotFrameColor(button, options.frameColor)
+        if options.bagFamilyTint then
+            button.KamiBagFamilyFrameTint = options.frameColor
+                or Palette.metallicTint.neutral
+        end
         background:ClearAllPoints()
         background:SetPoint("TOPLEFT", button, "TOPLEFT",
             iconInset, -iconInset)
@@ -557,7 +568,7 @@ function Components:StyleItemSlot(button, options)
         })
     end
 
-    if options.corners then
+    if options.corners and not options.metallic then
         local corners = {}
 
         for _, point in ipairs({
@@ -1185,6 +1196,9 @@ function Components:SetContainerSlotHighlight(
                 1
             )
             highlight:SetColorTexture(1, 1, 1, 0.14)
+            if button.KamiItemMask and highlight.AddMaskTexture then
+                highlight:AddMaskTexture(button.KamiItemMask)
+            end
             highlight:Hide()
             button.KamiBagHighlight = highlight
         end

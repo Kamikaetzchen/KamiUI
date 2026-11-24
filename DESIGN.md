@@ -86,3 +86,15 @@ recessed. Preserve the geometry, alpha and independent frame tint.
 Use the shared metallic button style for the Characters close button;
 the character selector uses the existing masked icon frame. Leave
 checkboxes unchanged.
+
+### Inventory, bank and account rollout
+
+Reuse the approved metallic panel, raised text buttons, close button,
+icon mask, item slot and tab components without new textures. Inventory
+and Bank keep their semantic purple/green backgrounds and frame tints;
+special bag families override the normal slot tint using normalized
+versions of the existing family colors. Account is a neutral account-wide
+window rather than a single-character class-colored window. Preserve
+native item interactions, cached snapshots, search dimming, XP bars and
+checkboxes. Search inputs, popup surfaces and native bank purchases are
+outside this first rollout.

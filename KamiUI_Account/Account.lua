@@ -618,7 +618,7 @@ local function CreateItemsPane(frame)
         for column = 1, GRID_COLUMNS do
             local button = Components:CreateItemDisplayButton(pane, {
                 size = SLOT_SIZE,
-                corners = true,
+                metallic = true,
             })
             button:SetPoint(
                 "TOPLEFT", pane, "TOPLEFT",
@@ -657,6 +657,7 @@ end
 
 local function CreateAccountFrame()
     local frame, header = Components:CreateWindow("KamiUIAccountFrame", {
+        metallic = true,
         width = WIDTH,
         height = HEIGHT,
         backgroundColor = Palette.window.neutral,
@@ -671,6 +672,12 @@ local function CreateAccountFrame()
     })
     Module.frame = frame
     local close = Components:CreateWindowCloseButton(header, {
+        metallic = true,
+        width = 18,
+        height = 18,
+        artSize = 18,
+        crossSize = 9,
+        clicks = { "LeftButtonUp" },
         onClick = function() Module:Hide() end,
     })
     frame.close = close
@@ -684,6 +691,7 @@ local function CreateAccountFrame()
         { label = "Items", page = "items" },
     }) do
         local tab = Components:CreateTab(frame, {
+            metallic = true,
             width = 100,
             height = 22,
             text = definition.label,

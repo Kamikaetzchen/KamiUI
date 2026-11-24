@@ -115,6 +115,26 @@ Palette.bagFamily = {
     keyring = HexColor(0xE6B326, 1.00),
 }
 
+-- Bag-family colors were authored for flat borders. Normalize their
+-- brightness for multiplication with dark grayscale metal artwork.
+local bagFamilyTints = {}
+for _, color in pairs(Palette.bagFamily) do
+    local peak = math.max(color[1], color[2], color[3])
+    if peak > 0 then
+        bagFamilyTints[color] = {
+            0.12 + 0.88 * color[1] / peak,
+            0.12 + 0.88 * color[2] / peak,
+            0.12 + 0.88 * color[3] / peak,
+            1,
+        }
+    end
+end
+
+function Palette:GetBagFrameTint(familyColor, defaultTint)
+    return bagFamilyTints[familyColor] or defaultTint
+        or self.metallicTint.neutral
+end
+
 Palette.scrollbar = {
     track = HexColor(0xFFFFFF, 0.05),
     thumb = HexColor(0x73737A, 0.65),

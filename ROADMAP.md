@@ -38,13 +38,21 @@ This is the current working state, not a commitment to implement every idea.
   and chamfered character dropdown icon. Report missing rating profiles
   explicitly instead of silently ignoring Item Rating on unsupported
   classes. Core 0.2.10 / Characters 0.3.23 / ItemRating 0.7.3.
-- [ ] Test raised button states, close/character selector, Item Rating
-  on Hunter and Druid, direct class tint when switching live/cached alts,
-  and common/uncommon/rare/epic quality and quest glow in game.
-  Inventory and bank remain on the legacy renderer; verify their palette
-  colors before broader rollout.
-- [ ] Expand to other modules incrementally: inventory/bank, ActionBars,
-  tooltips, unitframes/statusbars/castbars and remaining controls.
+- [x] Owner approved raised text buttons, close button and character
+  selector in the Characters preview.
+- [x] Extend metallic windows, controls and slots to Bags, Bank and Account.
+  Inventory uses purple, bank green, account neutral. Keep bag-family
+  distinctions using normalized RGB frame tints; preserve native actions,
+  search dimming, sorting, cached data and checkbox styling.
+  Core 0.2.11 / Bags 0.2.2 / Account 0.2.3.
+- [ ] Test Bags/Bank live and cached, including drag/drop, sorting, search,
+  bag-family colors, quest/rarity glow, cooldowns and combat updates.
+  Test both Account tabs and existing XP bars. The native bank purchase
+  button, search inputs and popup menu surfaces remain unchanged for now.
+- [ ] Test Item Rating on Hunter and Druid, class tint on cached alts,
+  and additional item quality and quest glow states in Characters.
+- [ ] Expand to other modules incrementally: ActionBars, tooltips,
+  unitframes/statusbars/castbars and remaining controls.
   The exact rollout order is not fixed.
 - [ ] Review asset redundancy after integration. For example, mirrored
   header decorations may share one texture via UV flipping; generic

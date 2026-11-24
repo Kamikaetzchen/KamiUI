@@ -2,7 +2,7 @@
 ## Title: KamiUI - Account
 ## Notes: Account-wide character overview and item finder
 ## Author: Kami Katze
-## Version: 0.2.2
+## Version: 0.2.3
 ## IconTexture: Interface\Icons\INV_Misc_Book_09
 ## RequiredDeps: KamiUI, KamiUI_Characters, KamiUI_Bags
 
