@@ -752,11 +752,18 @@ end
 
 local function ShowRestedTooltip(owner)
     PrepareTooltip(owner, "Rested XP")
+    local entries = RestedXP:GetCharacterEntries()
+    if #entries == 0 then
+        GameTooltip:AddLine("No leveling characters", 0.65, 0.65, 0.65)
+        GameTooltip:Show()
+        return
+    end
+
     local row = 1
     AddRestedTooltipRow(row, "Character (Legacy)", "Lvl", "To cap",
         "Rested", 0.65, 0.65, 0.65, 0.65, 0.65, 0.65, true)
 
-    for _, entry in ipairs(RestedXP:GetCharacterEntries()) do
+    for _, entry in ipairs(entries) do
         local profile = entry.character or {}
         local name = profile.name or select(2, UI:ParseCharacterKey(entry.key))
         local classColor = Palette:GetClassColor(profile.classFile)
@@ -766,9 +773,7 @@ local function ShowRestedTooltip(owner)
         local value
         local vr, vg, vb = 0.72, 0.72, 0.76
 
-        if entry.maxLevel then
-            value = "Max level"
-        elseif entry.percent ~= nil then
+        if entry.percent ~= nil then
             local outsideRestingArea = not entry.isCurrent
                 and entry.restingOnLogout == false
             value = string.format("%s%.1f%%",
@@ -790,7 +795,7 @@ local function ShowRestedTooltip(owner)
 
         row = row + 1
         AddRestedTooltipRow(row, name, levelText,
-            entry.maxLevel and "--" or FormatRestedTime(entry.timeToCap),
+            FormatRestedTime(entry.timeToCap),
             value, r, g, b, vr, vg, vb)
     end
 

@@ -366,6 +366,16 @@ function RestedXP:GetCharacterEntries()
         end
     end
 
+    -- Exclude capped characters from the rested roster, even when only
+    -- their character profile is available. Keep unknown levels visible.
+    for index = #records, 1, -1 do
+        local entry = records[index]
+        local level = entry.character and entry.character.level
+        if entry.maxLevel or (SafeNumber(level) and level >= MAX_LEVEL) then
+            table.remove(records, index)
+        end
+    end
+
     return records
 end
 
