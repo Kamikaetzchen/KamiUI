@@ -1883,7 +1883,8 @@
       "cap": 24,
       "kind": "frame",
       "chamfer": "extended by four source pixels",
-      "usage": "top-screen InfoPanel; flipped vertically"
+      "usage": "top-screen InfoPanel; flipped vertically",
+      "screenEdge": "open top after vertical flip; source rows 28-31 extend straight sides and fill"
     },
     "info_panel_fill": {
       "source": "tab_fill_normal",
@@ -1895,7 +1896,8 @@
       "kind": "fill",
       "chamfer": "extended by four source pixels",
       "usage": "top-screen InfoPanel; flipped vertically",
-      "partition": "flat white RGB with normalized interior alpha"
+      "partition": "flat white RGB with normalized interior alpha",
+      "screenEdge": "open top after vertical flip; source rows 28-31 extend straight sides and fill"
     }
   }
 }

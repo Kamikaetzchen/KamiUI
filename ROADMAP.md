@@ -87,7 +87,9 @@ This is the current working state, not a commitment to implement every idea.
 - [x] Replace InfoPanel's old line/strip trapezoid with a gold metallic
   downward-facing tab: larger 45-degree chamfers and straight sides,
   preserving the height, transparency and content. Core 0.2.18 /
-  InfoPanel 0.1.6.
+  InfoPanel 0.1.6. Owner approved the shape and requested an open top
+  edge. Remove only the screen-facing rim and extend the fill to the
+  screen boundary (Core 0.2.19 / InfoPanel 0.1.7).
 - [ ] Expand to other modules incrementally: ActionBars, tooltips,
   unitframes/statusbars/castbars and remaining controls.
   The exact rollout order is not fixed.

@@ -133,4 +133,6 @@ and dark translucent fill. Replace the full-height 60-degree sloping
 sides with larger 45-degree chamfers on the lower corners and straight
 sides above them. Use a warm gold runtime frame tint and independent
 flat fill. Derive the neutral artwork from the existing tab bevel;
-stretch only the center.
+stretch only the center. Leave the screen-facing top edge open: the
+metal rim covers only the sides, chamfers and lower edge, while the
+translucent fill extends to the screen boundary.

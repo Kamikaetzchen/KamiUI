@@ -86,3 +86,7 @@ the chamfer by four source pixels and preserving the straight bevel
 profiles. Both are standalone 128 x 32 TGA files. Horizontal caps are
 24 source pixels; the renderer flips Y for the top-screen placement.
 The fill is a flat white interior mask with runtime color and opacity.
+
+The screen-facing edge is open: source rows 28–31 extend the straight
+side bevel and interior fill from row 27 instead of closing the rim.
+With the vertical flip, the fill reaches the screen's upper edge.
