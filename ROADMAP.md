@@ -52,12 +52,12 @@ This is the current working state, not a commitment to implement every idea.
 - [x] Anchor inventory and bank to their top edge so opening/closing
   the bag bar does not move the header. Migrate existing center offsets
   after the first real layout; preserve drag and reset behavior.
-  Core 0.2.13 / Bags 0.2.4. Owner confirmed cached bank but reported
-  continued movement in inventory. Reassert the actual top anchor on
-  every resize and clamp only the header, allowing content to extend
-  below the screen when needed. Defer bag-bar geometry changes during
-  combat. Core 0.2.14 / Bags 0.2.5. Verify live/cached windows, reload,
-  repeated toggling, dragging and screen-edge behavior.
+  Core 0.2.13 / Bags 0.2.4. Owner confirmed cached bank and inventory
+  after moving the inventory once. The later clamp/reanchor change and
+  combat deferral (0273921) caused a reported combat toggle regression
+  and were reverted at the owner's request. Keep the original TOP anchor
+  and full-window clamping; Core 0.2.15 / Bags 0.2.6. Retest combat
+  toggling, dragging, reload and screen-edge behavior.
 - [ ] Test Bags/Bank live and cached, including drag/drop, sorting, search,
   bag-family colors, quest/rarity glow, cooldowns and combat updates.
   Test both Account tabs and existing XP bars. The native bank purchase

@@ -1058,14 +1058,6 @@ function Module:UpdateBagBarVisibility()
         return
     end
 
-    -- Layout may move protected item buttons and change clamp insets.
-    if InCombatLockdown and InCombatLockdown() then
-        UI:RunOutOfCombat("bank.bagBarLayout", function()
-            Module:UpdateBagBarVisibility()
-        end)
-        return
-    end
-
     local expanded = GetDatabase().bankBagBarExpanded
 
     frame.bagBar:SetShown(expanded)
