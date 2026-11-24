@@ -17,7 +17,7 @@ UI.Layout = {
 
     Bags = {
         SLOT_SIZE = 36,
-        SLOT_SPACING = 3,
+        SLOT_SPACING = 2,
         COLUMNS = 10,
         FRAME_PADDING = 10,
         HEADER_HEIGHT = 28,
@@ -27,7 +27,7 @@ UI.Layout = {
 
     Bank = {
         SLOT_SIZE = 36,
-        SLOT_SPACING = 3,
+        SLOT_SPACING = 2,
         COLUMNS = 10,
         FRAME_PADDING = 10,
         HEADER_HEIGHT = 28,

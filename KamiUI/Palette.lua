@@ -74,6 +74,9 @@ Palette.metallicTint = {
 -- Blend toward white rather than changing alpha if tint strength is tuned.
 Palette.classTintStrength = 1
 
+-- Tint raised button faces more gently than their metal rims.
+Palette.buttonFillTintStrength = 0.70
+
 function Palette:GetMetallicTint(borderColor)
     for role, color in pairs(self.windowBorder) do
         if color == borderColor then

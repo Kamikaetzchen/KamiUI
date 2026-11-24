@@ -35,7 +35,8 @@ Do not add a colored bevel overlay on top of the base metal. Retain the
 old assets for rollback, but leave them unused in the current renderer.
 Characters uses the viewed character's class color on all metallic
 frames: outer window, model, equipment slots, all tabs and text buttons.
-Keep the neutral fill, text, opacity and rarity/quest glows independent.
+Keep window and slot fills, text, opacity and rarity/quest glows independent.
+Raised text-button faces inherit a gentler tint from their frames.
 Use one central class tint strength (RGB blend with white, not alpha).
 
 ## Modular assets and rendering
@@ -82,7 +83,9 @@ open questions in [ROADMAP.md](ROADMAP.md).
 Keep thin chamfered rims, but give text buttons a brighter upper face,
 a darker lower face and a stronger bevel so they look physically raised.
 Hover brightens the face; pressed reverses the vertical lighting to look
-recessed. Preserve the geometry, alpha and independent frame tint.
+recessed. Preserve the geometry and alpha. Apply the frame's RGB tint
+also to the face, blended 70% toward that tint from white via
+`Palette.buttonFillTintStrength`. Neutral controls remain neutral.
 Use the shared metallic button style for the Characters close button;
 the character selector uses the existing masked icon frame. Leave
 checkboxes unchanged.

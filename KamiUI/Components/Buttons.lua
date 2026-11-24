@@ -77,6 +77,18 @@ function Components:SetButtonText(button, text)
     end
 end
 
+local function ApplyMetallicButtonTint(button, color)
+    local r, g, b = Styles:GetColorChannels(color or Palette.white)
+    local strength = Palette.buttonFillTintStrength
+    button.KamiMetallicButton:SetVertexColor(r, g, b, 1)
+    button.KamiMetallicButtonFill:SetVertexColor(
+        1 - strength * (1 - r),
+        1 - strength * (1 - g),
+        1 - strength * (1 - b),
+        1
+    )
+end
+
 -- Text buttons have their own rectangular artwork. The three-slice caps
 -- preserve the chamfers even when the label requires a wider button.
 local function RefreshMetallicButton(button, enabled)
@@ -97,15 +109,14 @@ local function RefreshMetallicButton(button, enabled)
         Media.DarkMetallic.textButtonFill .. state
     )
     local color = button.KamiButtonFrameColor or config.frameColor
-    local r, g, b = Styles:GetColorChannels(color)
-    button.KamiMetallicButton:SetVertexColor(r, g, b, 1)
+    ApplyMetallicButtonTint(button, color)
 end
 
 function Components:SetButtonFrameColor(button, color)
     if not button or not button.KamiMetallicButton then return end
     button.KamiButtonFrameColor = color
-    local r, g, b = Styles:GetColorChannels(color)
-    button.KamiMetallicButton:SetVertexColor(r, g, b, 1)
+    ApplyMetallicButtonTint(button, color
+        or button.KamiButtonOptions.frameColor)
 end
 
 local function CreateMetallicButton(button, options)

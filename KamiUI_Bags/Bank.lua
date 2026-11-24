@@ -932,7 +932,7 @@ function Module:UpdateBagBar()
             "LEFT",
             frame.bagBar,
             "LEFT",
-            (index - 1) * 35,
+            (index - 1) * (32 + Layout.SLOT_SPACING),
             0
         )
         button:Show()
@@ -982,7 +982,7 @@ function Module:UpdateBagBar()
                 "LEFT",
                 frame.bagBar,
                 "LEFT",
-                #tabs * 35,
+                #tabs * (32 + Layout.SLOT_SPACING),
                 0
             )
             button:Show()
