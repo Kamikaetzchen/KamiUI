@@ -21,6 +21,41 @@ local function ConfigureDragHandle(handle, dragTarget, onDragStop)
     end)
 end
 
+-- Variable-height windows keep their top edge fixed when content changes.
+-- Positions without an anchor field are legacy center offsets.
+function Components:ApplyTopWindowPosition(frame, database, key, x, y)
+    local position = database[key]
+    frame.KamiTopAnchored = position and position.anchor == "TOP"
+    if frame.KamiTopAnchored then
+        frame:ClearAllPoints()
+        frame:SetPoint("TOP", UIParent, "CENTER", position.x, position.y)
+    else
+        UI:ApplyFramePosition(frame, database, key, x, y)
+    end
+end
+
+function Components:SaveTopWindowPosition(frame, database, key)
+    local position = UI:GetFrameCenterOffset(frame)
+    local height = frame:GetHeight()
+    if not position or height <= 0 then return end
+
+    position.y = position.y + height / 2
+    position.anchor = "TOP"
+    frame:ClearAllPoints()
+    frame:SetPoint("TOP", UIParent, "CENTER", position.x, position.y)
+    frame.KamiTopAnchored = true
+    database[key] = position
+end
+
+function Components:ResizeTopWindow(frame, width, height, database, key)
+    frame:SetSize(width, height)
+    -- Preserve the legacy center placement for the first real layout,
+    -- then anchor at its resulting top edge for all subsequent layouts.
+    if not frame.KamiTopAnchored then
+        self:SaveTopWindowPosition(frame, database, key)
+    end
+end
+
 function Components:CreateWindowHeader(parent, options)
     options = options or {}
 

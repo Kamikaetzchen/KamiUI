@@ -1427,9 +1427,12 @@ function Module:Layout()
         }
     )
 
-    frame:SetSize(
+    Components:ResizeTopWindow(
+        frame,
         gridWidth + Layout.FRAME_PADDING * 2,
-        contentTop + gridHeight + Layout.FOOTER_HEIGHT + Layout.FRAME_PADDING
+        contentTop + gridHeight + Layout.FOOTER_HEIGHT + Layout.FRAME_PADDING,
+        GetDatabase(),
+        "position"
     )
     frame.content:SetSize(gridWidth, gridHeight)
 end
@@ -1713,7 +1716,10 @@ function Module:ResetPosition()
     db.position = nil
 
     if self.frame then
-        UI:ApplyFramePosition(self.frame, GetDatabase(), "position", 280, 0)
+        Components:ApplyTopWindowPosition(
+            self.frame, GetDatabase(), "position", 280, 0
+        )
+        Components:SaveTopWindowPosition(self.frame, GetDatabase(), "position")
     end
 
     UI:Print("Bag position reset")
@@ -1786,7 +1792,7 @@ local function CreateFrameUI()
         backgroundColor = Palette.window.inventory,
         borderColor = Palette.windowBorder.inventory,
         onDragStop = function(target)
-            UI:SaveFramePosition(target, GetDatabase())
+            Components:SaveTopWindowPosition(target, GetDatabase(), "position")
         end,
         header = {
             height = Layout.HEADER_HEIGHT,
@@ -2017,7 +2023,9 @@ local function CreateFrameUI()
 
     Components:RegisterEscapeClose(frame)
 
-    UI:ApplyFramePosition(frame, GetDatabase(), "position", 280, 0)
+    Components:ApplyTopWindowPosition(
+        frame, GetDatabase(), "position", 280, 0
+    )
 
     return frame
 end
@@ -2332,7 +2340,6 @@ function Module:Initialize()
         BindKey("B")
     end
 
-    self:UpdateBagBarVisibility()
     self:Rebuild()
 
     InstallTooltipHook()

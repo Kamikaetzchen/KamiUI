@@ -1041,9 +1041,12 @@ function Module:Layout()
         }
     )
 
-    frame:SetSize(
+    Components:ResizeTopWindow(
+        frame,
         gridWidth + Layout.FRAME_PADDING * 2,
-        contentTop + gridHeight + Layout.FOOTER_HEIGHT + Layout.FRAME_PADDING
+        contentTop + gridHeight + Layout.FOOTER_HEIGHT + Layout.FRAME_PADDING,
+        GetDatabase(),
+        "bankPosition"
     )
     frame.content:SetSize(gridWidth, gridHeight)
 end
@@ -1297,7 +1300,7 @@ local function CreateFrameUI()
         backgroundColor = Palette.window.bank,
         borderColor = Palette.windowBorder.bank,
         onDragStop = function(target)
-            UI:SaveFramePosition(target, GetDatabase(), "bankPosition")
+            Components:SaveTopWindowPosition(target, GetDatabase(), "bankPosition")
         end,
         header = {
             height = Layout.HEADER_HEIGHT,
@@ -1503,7 +1506,9 @@ local function CreateFrameUI()
 
     Components:RegisterEscapeClose(frame)
 
-    UI:ApplyFramePosition(frame, GetDatabase(), "bankPosition", -280, 0)
+    Components:ApplyTopWindowPosition(
+        frame, GetDatabase(), "bankPosition", -280, 0
+    )
 
     return frame
 end
@@ -1541,7 +1546,10 @@ function Module:ResetPosition()
     GetDatabase().bankPosition = nil
 
     if self.frame then
-        UI:ApplyFramePosition(self.frame, GetDatabase(), "bankPosition", -280, 0)
+        Components:ApplyTopWindowPosition(
+            self.frame, GetDatabase(), "bankPosition", -280, 0
+        )
+        Components:SaveTopWindowPosition(self.frame, GetDatabase(), "bankPosition")
     end
 
     UI:Print("Bank position reset")

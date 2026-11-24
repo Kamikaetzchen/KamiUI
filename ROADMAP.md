@@ -49,6 +49,10 @@ This is the current working state, not a commitment to implement every idea.
   faces at 70% of the frame tint (shared, no new artwork) and reduce
   Bags/Bank slot spacing from 3 to 2 UI pixels, including bag bars.
   Core 0.2.12 / Bags 0.2.3 / Characters 0.3.24 / ItemRating 0.7.4.
+- [x] Anchor inventory and bank to their top edge so opening/closing
+  the bag bar does not move the header. Migrate existing center offsets
+  after the first real layout; preserve drag and reset behavior.
+  Core 0.2.13 / Bags 0.2.4. Verify reload, repeated toggling and clamping.
 - [ ] Test Bags/Bank live and cached, including drag/drop, sorting, search,
   bag-family colors, quest/rarity glow, cooldowns and combat updates.
   Test both Account tabs and existing XP bars. The native bank purchase
