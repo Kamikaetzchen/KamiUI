@@ -39,6 +39,12 @@ Palette.auras = {
     background = HexColor(0x080808),
 }
 
+Palette.tooltipReaction = {
+    friendly = HexColor(0x33CC55),
+    neutral = HexColor(0xFFD100),
+    hostile = HexColor(0xFF3333),
+}
+
 Palette.infoPanel = {
     background = HexColor(0x010204, 0.80),
     frame = HexColor(0xD4AF61),

@@ -170,3 +170,13 @@ colors in data displays, existing background alpha, and inventory/bank
 semantic tints. The existing tooltip art is combined, so its dark fill
 receives the same RGB multiplier. Centralize the experimental tint
 through Palette:GetPlayerClassTint for easy adjustment after feedback.
+
+### Context-sensitive tooltip tint
+
+Use the displayed player's class color, including opposing players;
+for NPCs use reaction (friendly green, neutral yellow, hostile red).
+For item tooltips use native item quality colors. If unit or item
+information is unavailable, use neutral metal; other tooltip types
+retain the logged-in class tint. Reset on clear/hide. Only tint the
+separate grayscale rim, not the dark translucent fill. Use the existing
+unit/item post-processing hooks without rebuilding Blizzard tooltips.

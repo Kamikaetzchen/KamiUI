@@ -1898,6 +1898,36 @@
       "usage": "top-screen InfoPanel; flipped vertically",
       "partition": "flat white RGB with normalized interior alpha",
       "screenEdge": "open top after vertical flip; source rows 28-31 extend straight sides and fill"
+    },
+    "tooltip_frame": {
+      "source": "tooltip_9slice",
+      "file": "textures/tooltip_frame.tga",
+      "textureSize": [
+        128,
+        128
+      ],
+      "textureUV": [
+        0,
+        0.75,
+        0,
+        0.75
+      ],
+      "description": "Grayscale rim, original rim alpha; interior transparent"
+    },
+    "tooltip_fill": {
+      "source": "tooltip_9slice",
+      "file": "textures/tooltip_fill.tga",
+      "textureSize": [
+        128,
+        128
+      ],
+      "textureUV": [
+        0,
+        0.75,
+        0,
+        0.75
+      ],
+      "description": "Original dark interior pixels with alpha 184; rim transparent"
     }
   }
 }

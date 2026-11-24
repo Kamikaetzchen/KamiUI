@@ -115,6 +115,91 @@ local function GetColorChannels(color)
     return Styles:GetColorChannels(color)
 end
 
+local function SetTooltipFrameColor(tooltip, color)
+    local frame = tooltip and tooltip.KamiMetallicTooltip
+    if not frame then return end
+    local r, g, b = GetColorChannels(color or Palette:GetPlayerClassTint())
+    frame:SetVertexColor(r, g, b, 1)
+end
+
+local function ResetTooltipFrameColor(tooltip)
+    SetTooltipFrameColor(tooltip)
+end
+
+local function ColorUnitTooltip(tooltip)
+    if not tooltip.KamiMetallicTooltip or not tooltip.GetUnit then return end
+
+    -- Use the displayed unit, never the player's selected target.
+    local _, unit = UI:SafeCall(tooltip.GetUnit, tooltip)
+    local color = Palette.metallicTint.neutral
+    if UI:CanAccessValue(unit) and type(unit) == "string" and unit ~= "" then
+        local exists = UI:SafeCall(UnitExists, unit)
+        if UI:CanAccessValue(exists) and exists then
+            local isPlayer = UI:SafeCall(UnitIsPlayer, unit)
+            local classColor
+            if UI:CanAccessValue(isPlayer) and isPlayer then
+                local _, classFile = UI:SafeCall(UnitClass, unit)
+                if UI:CanAccessValue(classFile) then
+                    classColor = Palette:GetClassColor(classFile)
+                    if classColor then
+                        color = Palette:GetClassTint(classFile)
+                    end
+                end
+            end
+            if not classColor then
+                local reaction = UI:SafeCall(UnitReaction, unit, "player")
+                if UI:CanAccessValue(reaction)
+                    and type(reaction) == "number" then
+                    local colors = Palette.tooltipReaction
+                    color = reaction >= 5 and colors.friendly
+                        or reaction == 4 and colors.neutral
+                        or reaction >= 1 and colors.hostile
+                        or color
+                end
+            end
+        end
+    end
+    SetTooltipFrameColor(tooltip, color)
+end
+
+local function ColorItemTooltip(tooltip, data)
+    if not tooltip.KamiMetallicTooltip then return end
+
+    local quality, link, id
+    if UI:CanAccessValue(data) and type(data) == "table" then
+        quality = data.quality
+        link = data.hyperlink
+        id = data.id
+    end
+    if not UI:CanAccessValue(link) or type(link) ~= "string" then
+        link = nil
+    end
+    if not UI:CanAccessValue(id) or type(id) ~= "number" then
+        id = nil
+    end
+    if not link and tooltip.GetItem then
+        local _, itemLink = UI:SafeCall(tooltip.GetItem, tooltip)
+        if UI:CanAccessValue(itemLink) and type(itemLink) == "string" then
+            link = itemLink
+        end
+    end
+    if not UI:CanAccessValue(quality) or type(quality) ~= "number" then
+        quality = nil
+        local getInfo = (C_Item and C_Item.GetItemInfo) or GetItemInfo
+        if getInfo and (link or id) then
+            local _, _, itemQuality = UI:SafeCall(getInfo, link or id)
+            if UI:CanAccessValue(itemQuality)
+                and type(itemQuality) == "number" then
+                quality = itemQuality
+            end
+        end
+    end
+
+    local color = quality and ITEM_QUALITY_COLORS
+        and ITEM_QUALITY_COLORS[quality]
+    SetTooltipFrameColor(tooltip, color or Palette.metallicTint.neutral)
+end
+
 local function StyleTooltip(tooltip)
     if not tooltip then
         return
@@ -133,10 +218,15 @@ local function StyleTooltip(tooltip)
     if not tooltip.KamiTooltipStyled then
         tooltip.KamiTooltipStyled = true
 
+        tooltip.KamiMetallicTooltipFill = Components:CreateNineSlice(tooltip, {
+            asset = UI.Media.DarkMetallic.tooltipFill,
+            sliceSize = 10,
+        })
         tooltip.KamiMetallicTooltip = Components:CreateNineSlice(tooltip, {
-            asset = UI.Media.DarkMetallic.tooltip,
+            asset = UI.Media.DarkMetallic.tooltipFrame,
             color = Palette:GetPlayerClassTint(),
             sliceSize = 10,
+            sublevel = -6,
         })
 
         if tooltip.SetPadding then
@@ -155,6 +245,10 @@ local function StyleTooltip(tooltip)
             tooltip:HookScript("OnShow", function(self)
                 StyleTooltip(self)
             end)
+            tooltip:HookScript("OnHide", ResetTooltipFrameColor)
+            if tooltip.HasScript and tooltip:HasScript("OnTooltipCleared") then
+                tooltip:HookScript("OnTooltipCleared", ResetTooltipFrameColor)
+            end
         end
     end
 end
@@ -1694,6 +1788,7 @@ local function InstallItemLevelHook()
         TooltipDataProcessor.AddTooltipPostCall(
             Enum.TooltipDataType.Item,
             function(tooltip, data)
+                ColorItemTooltip(tooltip, data)
                 Module:AppendItemLevel(tooltip, data)
             end
         )
@@ -1702,6 +1797,7 @@ local function InstallItemLevelHook()
         and GameTooltip:HasScript("OnTooltipSetItem") then
         Module.itemLevelHookInstalled = true
         GameTooltip:HookScript("OnTooltipSetItem", function(tooltip)
+            ColorItemTooltip(tooltip)
             Module:AppendItemLevel(tooltip)
         end)
     end
@@ -1723,6 +1819,7 @@ local function InstallUnitTooltipHook()
         TooltipDataProcessor.AddTooltipPostCall(
             Enum.TooltipDataType.Unit,
             function(tooltip)
+                ColorUnitTooltip(tooltip)
                 AddPlayerDetails(tooltip)
             end
         )
@@ -1738,7 +1835,10 @@ local function InstallUnitTooltipHook()
         Module.unitTooltipHookInstalled = true
         GameTooltip:HookScript(
             "OnTooltipSetUnit",
-            AddPlayerDetails
+            function(tooltip)
+                ColorUnitTooltip(tooltip)
+                AddPlayerDetails(tooltip)
+            end
         )
     end
 end

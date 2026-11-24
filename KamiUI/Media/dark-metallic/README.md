@@ -90,3 +90,8 @@ The fill is a flat white interior mask with runtime color and opacity.
 The screen-facing edge is open: source rows 28–31 extend the straight
 side bevel and interior fill from row 27 instead of closing the rim.
 With the vertical flip, the fill reaches the screen's upper edge.
+
+Tooltip rendering uses separate `tooltip_frame.tga` and `tooltip_fill.tga`
+nine-slices (same UVs as the original). The frame is grayscale for
+runtime class/reaction/quality tinting. The original dark interior
+and alpha are unchanged; the two masks partition the original alpha.

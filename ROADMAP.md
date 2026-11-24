@@ -162,3 +162,7 @@ Use the current source and Git history for exact implementation details.
   Hide realm suffixes in character dropdowns and InfoPanel rested/gold
   tooltips; shared roster sort no longer groups by realm. No realm filter.
   Core 0.2.23 / InfoPanel 0.1.8.
+
+- [x] Context-sensitive tooltip rims: displayed player class, NPC
+  reaction, item quality; separate dark fill and reset on clear/hide.
+  Core 0.2.24 / Tooltips 0.2.29.
