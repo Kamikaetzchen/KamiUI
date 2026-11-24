@@ -23,3 +23,22 @@ KamiUI/Components/Metallic.lua. The Characters preview has been tested
 visually by the owner, including the thinner-border revision; other
 module integrations are not yet verified. See [DESIGN.md](../../../DESIGN.md)
 and [ROADMAP.md](../../../ROADMAP.md) for design rules and open tasks.
+
+## Neutral runtime derivatives
+
+The original 54-region atlas and original standalone artwork remain intact.
+The preview now uses additional standalone derivatives (not atlas regions):
+`neutral_button_normal` and `neutral_tab_*` preserve the original alpha
+and geometry, with luminance-only RGB. `neutral_panel_frame`, `panel_fill`
+and `panel_accent` are 128 x 128, with the same 96 x 96 logical area and
+32px slices as the original panel. The fill is a white alpha silhouette of
+the opening; its color and opacity come from the palette. The accent is
+an independent inner-bevel mask. The metal frame remains neutral.
+
+The revised normal button has a 4px straight border and 56 x 56 opening
+with 6px inner chamfers (source coordinates). `item_mask.tga` and
+`item_rarity_glow.tga` are 64 x 64 standalone RGBA textures aligned to
+that opening, scaled to the icon bounds. The glow fades inward and is
+white for runtime rarity/quest tint. The original square glow remains
+for legacy slots and for clients without the mask API. In-game validation
+of mask sampling, layering and tint is pending.

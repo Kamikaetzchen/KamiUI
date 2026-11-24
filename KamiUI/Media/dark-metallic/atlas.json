@@ -25,10 +25,10 @@
       "kind": "button",
       "state": "normal",
       "interior": [
-        12,
-        12,
-        40,
-        40
+        4,
+        4,
+        56,
+        56
       ],
       "uv": [
         0.0078125,
@@ -46,7 +46,8 @@
         1,
         0,
         1
-      ]
+      ],
+      "interiorChamfer": 6
     },
     "tab_normal": {
       "x": 88,
@@ -1519,6 +1520,108 @@
         1,
         0,
         1
+      ]
+    }
+  },
+  "runtimeDerivatives": {
+    "note": "Standalone derived assets; not atlas regions",
+    "neutral_button_normal": {
+      "source": "button_normal",
+      "textureSize": [
+        64,
+        64
+      ],
+      "interior": [
+        4,
+        4,
+        56,
+        56
+      ],
+      "interiorChamfer": 6
+    },
+    "item_mask": {
+      "textureSize": [
+        64,
+        64
+      ],
+      "space": "icon bounds"
+    },
+    "item_rarity_glow": {
+      "textureSize": [
+        64,
+        64
+      ],
+      "space": "icon bounds"
+    },
+    "neutral_panel_frame": {
+      "source": "panel_9slice",
+      "textureSize": [
+        128,
+        128
+      ],
+      "logicalSize": [
+        96,
+        96
+      ],
+      "slice": 32
+    },
+    "panel_fill": {
+      "source": "panel_9slice",
+      "textureSize": [
+        128,
+        128
+      ],
+      "logicalSize": [
+        96,
+        96
+      ],
+      "slice": 32
+    },
+    "panel_accent": {
+      "source": "panel_9slice",
+      "textureSize": [
+        128,
+        128
+      ],
+      "logicalSize": [
+        96,
+        96
+      ],
+      "slice": 32
+    },
+    "neutral_tab_normal": {
+      "source": "tab_normal",
+      "textureSize": [
+        128,
+        32
+      ]
+    },
+    "neutral_tab_hovered": {
+      "source": "tab_hovered",
+      "textureSize": [
+        128,
+        32
+      ]
+    },
+    "neutral_tab_pressed": {
+      "source": "tab_pressed",
+      "textureSize": [
+        128,
+        32
+      ]
+    },
+    "neutral_tab_selected": {
+      "source": "tab_selected",
+      "textureSize": [
+        128,
+        32
+      ]
+    },
+    "neutral_tab_disabled": {
+      "source": "tab_disabled",
+      "textureSize": [
+        128,
+        32
       ]
     }
   }

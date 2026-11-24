@@ -32,8 +32,8 @@ and the translucent panel background. Tinting an entire metal texture
 also tints its silver reflections; use a separate accent layer if that
 makes the material read better. Keep contrast and text readability.
 Preserve the existing configurable/semantic opacity instead of baking
-one opaque surface into all windows. The current metallic preview does
-not yet fully implement this layered architecture.
+one opaque surface into all windows. The metallic panel preview uses a neutral frame, tintable inner bevel,
+and independently colored translucent fill. Verify the result in game.
 
 ## Modular assets and rendering
 

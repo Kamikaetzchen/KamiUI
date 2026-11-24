@@ -13,22 +13,16 @@ This is the current working state, not a commitment to implement every idea.
 - [x] Revise assets with thinner borders and translucent panel interiors
   (`73c4261`). Owner tested the revised Characters appearance and
   considers it more elegant. No claim of testing other modules.
-- [ ] Next: fit icons to metallic slots. Current
-  `Styles.DarkMetallic.slotInsetRatio = 12 / 64` is used by
-  `Components:StyleItemSlot()`, leaving excessive padding after the
-  border revision. Inspect actual revised artwork, measure the inner
-  opening, and match the inset/mask to it. Do not guess dimensions.
-- [ ] Add a dedicated chamfered icon mask and matching neutral rarity/
-  quest glow in the metallic texture directory (proposed names:
-  `item_mask.tga`, `item_rarity_glow.tga`). The current glow uses
-  `KamiUI/Media/ItemRarityGlow_16x16.tga` and a square slice renderer
-  in ItemSlots.lua. Retain the original path and behavior for legacy
-  slots; preserve quality colors, gold quest glow, search dimming,
-  cooldowns, and item interactions. Test empty and populated slots.
-- [ ] Evaluate neutral metal textures plus runtime palette tint and a
-  separate accent/background layer. The current metallic window uses
-  ApplyMetallicPanel rather than the legacy colored backdrop, so
-  verify inventory purple and bank green before expanding.
+- [x] Measure the revised 64px button: 4px straight border, 56px
+  opening and 6px inner chamfers. Fit the icon to that opening.
+- [x] Add standalone chamfered icon mask and neutral rarity/quest glow.
+  Use shared ItemSlots rendering, retain the square legacy glow, and
+  fall back to a conservative inset when mask APIs are unavailable.
+- [x] Add neutral runtime metal derivatives and independent panel fill
+  and accent layers. Forward window palette colors through CreateWindow.
+  Core 0.2.7 / Characters 0.3.20; in-game validation pending.
+  Inventory and bank remain on the legacy renderer until the preview
+  is validated. Check purple and green tint before broader rollout.
 - [ ] Test the next Characters revision in game (icon size, corners,
   common/uncommon/rare/epic quality, quests, transparency, tab states).
 - [ ] Expand to other modules incrementally: inventory/bank, ActionBars,

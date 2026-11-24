@@ -62,6 +62,23 @@ Palette.windowBorder = {
     chat = HexColor(0x333333, 1.00),
 }
 
+-- Tint only the inner bevel, never the silver metal reflections.
+Palette.metallicAccent = {
+    neutral = HexColor(0xADB5BF, 0.25),
+    inventory = HexColor(0xB56DCE, 0.75),
+    bank = HexColor(0x65B76D, 0.75),
+    chat = HexColor(0xADB5BF, 0.25),
+}
+
+function Palette:GetMetallicAccent(borderColor)
+    for role, color in pairs(self.windowBorder) do
+        if color == borderColor then
+            return self.metallicAccent[role] or color
+        end
+    end
+    return borderColor or self.metallicAccent.neutral
+end
+
 Palette.background = Palette.window.neutral
 Palette.panel = HexColor(0x000000, 0.24)
 Palette.panelStrong = HexColor(0x000000, 0.40)

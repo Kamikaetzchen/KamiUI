@@ -17,7 +17,9 @@ Styles.Metrics = {
 Styles.DarkMetallic = {
     panelSlice = 16,
     modelSlice = 12,
-    slotInsetRatio = 12 / 64,
+    -- Measured from the revised 64px frame (56px chamfered opening).
+    slotInsetRatio = 4 / 64,
+    slotFallbackInsetRatio = 8 / 64,
     tabCapRatio = 16 / 32,
 }
 

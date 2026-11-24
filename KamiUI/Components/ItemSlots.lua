@@ -1,6 +1,7 @@
 local UI = KamiUI
 local Palette = UI.Palette
 local Styles = UI.Styles
+local Media = UI.Media
 local Components = UI.Components
 
 -- One dimming value for live and cached bags/bank items.
@@ -89,6 +90,20 @@ local function CreateRarityGlow(
     iconInset,
     options
 )
+    if options.metallic then
+        local texture = button:CreateTexture(nil, "OVERLAY", nil, 1)
+        texture:SetTexture(
+            Media:GetDarkMetallicTexture(Media.DarkMetallic.itemGlow)
+        )
+        texture:SetPoint("TOPLEFT", button, "TOPLEFT", iconInset, -iconInset)
+        texture:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT",
+            -iconInset, iconInset)
+        texture:SetBlendMode("ADD")
+        texture:SetAlpha(options.rarityAlpha or 1)
+        texture:Hide()
+        return CreateRarityGlowController({ texture })
+    end
+
     local innerSize = math.max(1, size - iconInset * 2)
     local glowDepth = math.max(
         3,
@@ -296,7 +311,7 @@ local function UpdateQuestItemDecoration(button, data)
             button,
             button.KamiGlowSize or button:GetWidth(),
             button.KamiGlowIconInset or 1,
-            { rarityAlpha = 1 }
+            { rarityAlpha = 1, metallic = button.KamiMetallicGlow }
         )
         glow:SetVertexColor(
             QUEST_GLOW_COLOR[1],
@@ -455,9 +470,31 @@ function Components:StyleItemSlot(button, options)
     button.KamiItemSlotStyled = true
 
     local size = options.size or Styles.Metrics.itemSlotSize
+    local icon = GetItemSlotIcon(button)
+    if not icon and options.createIcon ~= false then
+        icon = button:CreateTexture(nil, "ARTWORK")
+        button.icon = icon
+    end
+
+    local mask
+    if options.metallic and icon and button.CreateMaskTexture
+        and icon.AddMaskTexture
+    then
+        mask = button:CreateMaskTexture()
+        mask:SetTexture(
+            Media:GetDarkMetallicTexture(Media.DarkMetallic.itemMask),
+            "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE"
+        )
+        mask:SetAllPoints(icon)
+        icon:AddMaskTexture(mask)
+        button.KamiItemMask = mask
+    end
+
     local iconInset = options.iconInset or 1
     if options.metallic and not options.iconInset then
-        iconInset = math.ceil(size * Styles.DarkMetallic.slotInsetRatio)
+        local ratio = mask and Styles.DarkMetallic.slotInsetRatio
+            or Styles.DarkMetallic.slotFallbackInsetRatio
+        iconInset = size * ratio
     end
 
     button:SetSize(size, size)
@@ -503,6 +540,9 @@ function Components:StyleItemSlot(button, options)
             iconInset, -iconInset)
         background:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT",
             -iconInset, iconInset)
+        if mask and background.AddMaskTexture then
+            background:AddMaskTexture(mask)
+        end
     elseif options.border ~= false then
         button.KamiBorders = Styles:CreateBorder(button, {
             color = options.borderColor or Palette.slotBorder,
@@ -539,19 +579,16 @@ function Components:StyleItemSlot(button, options)
     if options.rarityGlow ~= false then
         button.KamiGlowSize = size
         button.KamiGlowIconInset = iconInset
+        button.KamiMetallicGlow = options.metallic and mask ~= nil
         button.KamiRarityGlow = CreateRarityGlow(
             button,
             size,
             iconInset,
-            options
+            {
+                metallic = button.KamiMetallicGlow,
+                rarityAlpha = options.rarityAlpha,
+            }
         )
-    end
-
-    local icon = GetItemSlotIcon(button)
-
-    if not icon and options.createIcon ~= false then
-        icon = button:CreateTexture(nil, "ARTWORK")
-        button.icon = icon
     end
 
     if icon then
@@ -584,6 +621,9 @@ function Components:StyleItemSlot(button, options)
         end
 
         highlight:SetAllPoints()
+        if mask and highlight.AddMaskTexture then
+            highlight:AddMaskTexture(mask)
+        end
         Styles:SetColor(
             highlight,
             Palette.white,

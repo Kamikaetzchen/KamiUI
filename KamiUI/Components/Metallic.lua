@@ -2,6 +2,7 @@ local UI = KamiUI
 local Components = UI.Components
 local Styles = UI.Styles
 local Media = UI.Media
+local Palette = UI.Palette
 
 -- Render a contiguous texture as independent anchored regions. The
 -- caller supplies UV boundaries (including any power-of-two padding)
@@ -15,7 +16,7 @@ local function CreateSlices(parent, options, u, v, capX, capY)
     for row = 1, rows do
         for column = 1, columns do
             local layer = options.layer or "BACKGROUND"
-            local texture = parent:CreateTexture(nil, layer, nil, -7)
+            local texture = parent:CreateTexture(nil, layer, nil, options.sublevel or -7)
             texture:SetTexCoord(
                 u[column], u[column + 1], v[row], v[row + 1]
             )
@@ -67,7 +68,16 @@ local function CreateSlices(parent, options, u, v, capX, capY)
         end
     end
 
+    function holder:SetVertexColor(r, g, b, a)
+        for _, part in ipairs(parts) do
+            part:SetVertexColor(r, g, b, a)
+        end
+    end
+
     holder:SetAsset(options.asset)
+    if options.color then
+        holder:SetVertexColor(Styles:GetColorChannels(options.color))
+    end
     parent:HookScript("OnSizeChanged", Layout)
     Layout()
     return holder
@@ -98,7 +108,35 @@ function Components:ApplyMetallicPanel(frame, options)
     if frame.SetBackdrop then
         frame:SetBackdrop(nil)
     end
-    return self:CreateNineSlice(frame, options)
+    options = options or {}
+    if options.asset and options.asset ~= Media.DarkMetallic.panel then
+        return self:CreateNineSlice(frame, options)
+    end
+
+    local function Layer(asset, sublevel, color)
+        return self:CreateNineSlice(frame, {
+            asset = asset,
+            sliceSize = options.sliceSize,
+            layer = options.layer,
+            sublevel = sublevel,
+            color = color,
+        })
+    end
+
+    local panel = {
+        fill = Layer(Media.DarkMetallic.panelFill, -7,
+            options.backgroundColor or Palette.window.neutral),
+        frame = Layer(Media.DarkMetallic.panelFrame, -6, Palette.white),
+        accent = Layer(Media.DarkMetallic.panelAccent, -5,
+            options.accentColor or Palette.metallicAccent.neutral),
+    }
+
+    function panel:SetColors(background, accent)
+        self.fill:SetVertexColor(Styles:GetColorChannels(background))
+        self.accent:SetVertexColor(Styles:GetColorChannels(accent))
+    end
+
+    return panel
 end
 
 function Components:CreateMetallicIconFrame(button)
