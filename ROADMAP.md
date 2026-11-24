@@ -99,6 +99,9 @@ This is the current working state, not a commitment to implement every idea.
 - [x] Reset Professions to the current character on window close, like
   Bags/Characters. Clear cached profession and selected recipe state;
   preserve the protected backend close handling. Professions 0.3.7.
+- [x] Extend metallic controls to Targets macro panel, DamageMeter
+  and details, ThreatMeter title, ObjectiveTracker buttons, and Chat
+  tabs. Preserve meter bar colors, row geometry and macro behavior.
 - [ ] Expand to other modules incrementally: ActionBars, tooltips,
   unitframes/statusbars/castbars and remaining controls.
   The exact rollout order is not fixed.

@@ -224,11 +224,9 @@ local function CreateFlatButton(parent, text, width, options)
     options = options or {}
 
     Components:StyleButton(button, {
+        metallic = true,
         text = text,
-        backgroundColor =
-            options.backgroundColor or Palette.panelStrong,
-        backgroundAlpha = options.backgroundAlpha,
-        borderColor = options.borderColor,
+        frameColor = options.frameColor,
         textColor = options.textColor,
         textRole = "normal",
     })
@@ -919,22 +917,16 @@ local function CreateFrameUI()
     frame:SetFrameLevel(50)
     frame:EnableMouse(true)
 
-    CreateBackground(frame, Styles.State.damageMeterBackgroundAlpha)
-    Styles:CreateBorder(frame, Palette.border)
+    frame.KamiMetallicPanel = Components:ApplyMetallicPanel(frame, {
+        sliceSize = 8,
+        backgroundColor = { 0.02, 0.02, 0.025,
+            Styles.State.damageMeterBackgroundAlpha },
+    })
 
     local header = CreateFrame("Frame", nil, frame)
     header:SetPoint("TOPLEFT", frame, "TOPLEFT", 1, -1)
     header:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -1, -1)
     header:SetHeight(Layout.HEADER_HEIGHT - 1)
-
-    local headerBackground = CreateBackground(header, 0.92)
-    Styles:SetColor(headerBackground, Palette.header, 0.92)
-
-    local bottomBorder = header:CreateTexture(nil, "OVERLAY")
-    bottomBorder:SetPoint("BOTTOMLEFT")
-    bottomBorder:SetPoint("BOTTOMRIGHT")
-    bottomBorder:SetHeight(1)
-    Styles:SetColor(bottomBorder, Palette.border)
 
     local minimizeButton = CreateFlatButton(header, "-", 20)
     minimizeButton:SetPoint("RIGHT", header, "RIGHT", 0, 0)
@@ -945,9 +937,7 @@ local function CreateFrameUI()
         "Reset",
         44,
         {
-            backgroundColor = { 0.30, 0.035, 0.045, 1.00 },
-            backgroundAlpha = 0.90,
-            borderColor = { 0.52, 0.08, 0.10, 1.00 },
+            frameColor = { 0.90, 0.24, 0.28, 1.00 },
             textColor = { 1.00, 0.74, 0.74, 1.00 },
         }
     )
@@ -966,6 +956,7 @@ local function CreateFrameUI()
     frame.sessionButton = sessionButton
 
     local dropdownOptions = {
+        styleButton = false,
         direction = "up",
         menuParent = frame,
         anchor = header,

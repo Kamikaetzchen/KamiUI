@@ -328,6 +328,7 @@ end
 local function CreateDetailsWindow()
     if window then return end
     window = Components:CreateWindow("KamiUIDamageMeterDetails", {
+        metallic = true,
         width = WIDTH,
         height = HEIGHT,
         strata = "DIALOG",
@@ -345,10 +346,9 @@ local function CreateDetailsWindow()
 
     -- The header sits above the base window. Its close button must be
     -- parented/raised above the header or clicks hit the header instead.
-    local close = Components:CreateWindowCloseButton(window.header, {
-        relativeTo = window.header,
+    local close = Components:CreateHeaderCloseButton(window.header, {
+        metallic = true,
         frameLevelOffset = 12,
-        x = -2, y = -4,
         onClick = function() window:Hide() end,
     })
     close:EnableMouse(true)

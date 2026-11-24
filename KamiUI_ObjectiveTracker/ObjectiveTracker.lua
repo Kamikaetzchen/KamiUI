@@ -1156,17 +1156,17 @@ local function CreateFrameUI()
     toggle:SetNormalFontObject("GameFontNormal")
     toggle:SetHighlightFontObject("GameFontHighlight")
     toggle:SetText("-")
-    Components:StyleButton(toggle)
+    Components:StyleButton(toggle, { metallic = true })
     toggle:SetScript("OnClick", function()
         Module:ToggleMinimized()
     end)
     frame.toggle = toggle
 
     local heightModeButton = CreateFrame("Button", nil, header)
-    heightModeButton:SetSize(30, 16)
+    heightModeButton:SetSize(30, 18)
     heightModeButton:SetPoint("RIGHT", header, "RIGHT", -2, 0)
     heightModeButton:SetNormalFontObject("GameFontNormalSmall")
-    Components:StyleButton(heightModeButton)
+    Components:StyleButton(heightModeButton, { metallic = true })
 
     local heightModeText = heightModeButton:GetFontString()
 

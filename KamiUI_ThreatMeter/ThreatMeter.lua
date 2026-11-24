@@ -1,5 +1,6 @@
 local UI = KamiUI
 local Styles = UI.Styles
+local Components = UI.Components
 
 local Module = UI:NewModule("ThreatMeter", "KamiUI_ThreatMeter")
 
@@ -86,14 +87,11 @@ local function EnsureFrame()
     titleBar:SetSize(Layout.WIDTH, Layout.TITLE_HEIGHT)
     titleBar:SetPoint("TOPRIGHT", frame, "TOPRIGHT")
 
-    local titleBackground = titleBar:CreateTexture(nil, "BACKGROUND")
-    titleBackground:SetAllPoints()
-    titleBackground:SetColorTexture(
-        0.03,
-        0.03,
-        0.03,
-        Styles.State.threatMeterBackgroundAlpha
-    )
+    titleBar.KamiMetallicPanel = Components:ApplyMetallicPanel(titleBar, {
+        sliceSize = 8,
+        backgroundColor = { 0.03, 0.03, 0.03,
+            Styles.State.threatMeterBackgroundAlpha },
+    })
 
     local title = titleBar:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     title:SetPoint("LEFT", titleBar, "LEFT", 5, 0)
@@ -108,7 +106,7 @@ local function EnsureFrame()
     end
 
     title:SetTextColor(1, 1, 1)
-    Styles:CreateBorder(titleBar, { color = { 0, 0, 0, 1 } })
+
 
     frame.titleBar = titleBar
     frame.title = title

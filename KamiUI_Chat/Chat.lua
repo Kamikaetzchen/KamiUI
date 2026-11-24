@@ -194,6 +194,7 @@ local function CreateTab(index, config)
     button:SetText(config.label)
 
     Components:StyleTab(button, {
+        metallic = true,
         orientation = "top",
         joinLeft = index > 1,
     })

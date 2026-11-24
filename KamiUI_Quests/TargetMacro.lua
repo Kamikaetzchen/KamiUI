@@ -317,7 +317,7 @@ local function CreateWideButton(parent, label, y, onClick,
         leftInset or 8, y)
     button:SetPoint("TOPRIGHT", parent, "TOPRIGHT",
         -(rightInset or 8), y)
-    Components:StyleButton(button, { text = label })
+    Components:StyleButton(button, { metallic = true, text = label })
     button:SetScript("OnClick", onClick)
     return button
 end
@@ -329,10 +329,7 @@ local function CreateSwapButton(parent, firstIndex)
     button:SetSize(16, 28)
     button:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -27,
         -31 - (firstIndex - 1) * 30)
-    Components:StyleButton(button, {
-        backgroundColor = { 0, 0, 0, 0.35 },
-        hoverAlpha = 0.16,
-    })
+    Components:StyleButton(button, { metallic = true })
 
     -- Reposition the arrow segments when extra rows make the
     -- swap buttons shorter; 3-slot appearance stays identical.
@@ -525,12 +522,13 @@ local function CreateWindow()
 
     local settings = GetSettings()
     window = Components:CreateWindow("KamiUITargetMacroWindow", {
+        metallic = true,
         width = EXPANDED_WIDTH,
         height = EXPANDED_HEIGHT,
         header = false,
         strata = "MEDIUM",
         backgroundColor = { 0, 0, 0, 0.28 },
-        borderColor = { 0.18, 0.18, 0.20, 0.45 },
+        borderColor = Palette.windowBorder.neutral,
         onDragStop = function(frame)
             AnchorTopLeft(frame, settings)
         end,
@@ -597,7 +595,7 @@ local function CreateWindow()
     local collapseButton = CreateFrame("Button", nil, window)
     collapseButton:SetSize(22, 20)
     collapseButton:SetPoint("TOPRIGHT", window, "TOPRIGHT", -8, -5)
-    Components:StyleButton(collapseButton, { text = "-" })
+    Components:StyleButton(collapseButton, { metallic = true, text = "-" })
     collapseButton:SetScript("OnClick", function()
         settings.collapsed = not settings.collapsed
         ApplyCollapsed()
@@ -624,7 +622,7 @@ local function CreateWindow()
         field:SetPoint("TOPRIGHT", content, "TOPRIGHT", -45, y)
         field:SetTextInsets(5, 5, 0, 0)
         field:SetMaxLetters(80)
-        Components:StyleInput(field)
+        Components:StyleInput(field, { metallic = true })
 
         field:SetScript("OnEnterPressed", function(self)
             self:ClearFocus()
@@ -647,6 +645,7 @@ local function CreateWindow()
         clear:SetSize(18, 18)
         clear:SetPoint("TOPRIGHT", content, "TOPRIGHT", -7, y)
         Components:StyleCloseButton(clear, {
+            metallic = true,
             artSize = 15,
             crossSize = 7,
         })
