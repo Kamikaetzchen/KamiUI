@@ -12,6 +12,8 @@ local GRID_COLUMNS = 12
 local GRID_ROWS = 9
 local ROW_HEIGHT = 39
 local CHARACTER_ROWS = 10
+local MAX_LEVEL = 60
+local XP_BAR_HEIGHT = 6
 
 local function GetDatabase()
     return UI:GetDatabase("account", {})
@@ -204,9 +206,11 @@ local CHARACTER_COLUMNS = {
 }
 
 local function GetXPPercent(profile)
+    local level = tonumber(profile.level)
     local xp = tonumber(profile.xp)
     local xpMax = tonumber(profile.xpMax)
-    if not xp or not xpMax or xpMax <= 0 then
+    if not level or level <= 0 or level >= MAX_LEVEL
+        or not xp or not xpMax or xpMax <= 0 then
         return nil
     end
     return math.max(0, math.min(100, xp / xpMax * 100))
@@ -307,12 +311,17 @@ local function RenderCharacters()
             row.xp:SetText(
                 xpPercent and string.format("%.0f%%", xpPercent) or "-"
             )
+            -- Offline characters use their last recorded XP snapshot.
+            -- A missing snapshot is unknown, not zero progress.
+            row.xpBar:SetShown(xpPercent ~= nil)
+            row.xpBar:SetValue(xpPercent or 0)
             row.money:SetText(
                 UI:FormatMoney(profile.money or 0, { iconSize = 12 })
             )
             row:Show()
         else
             row.entryKey = nil
+            row.xpBar:Hide()
             row:Hide()
         end
     end
@@ -501,6 +510,24 @@ local function CreateCharactersPane(frame)
                 field:SetMaxLines(1)
             end
         end
+
+        -- Use the XPBar module's colors without requiring that addon.
+        -- There is enough space below the existing centered row labels.
+        local xpBar = CreateFrame("StatusBar", nil, row)
+        xpBar:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", 3, 4)
+        xpBar:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", -7, 4)
+        xpBar:SetHeight(XP_BAR_HEIGHT)
+        xpBar:SetStatusBarTexture("Interface\\Buttons\\WHITE8X8")
+        xpBar:SetStatusBarColor(unpack(Palette.xpBar.experience))
+        xpBar:SetMinMaxValues(0, 100)
+        xpBar:SetValue(0)
+        xpBar:EnableMouse(false)
+
+        local background = xpBar:CreateTexture(nil, "BACKGROUND")
+        background:SetAllPoints()
+        background:SetColorTexture(unpack(Palette.xpBar.background))
+        xpBar:Hide()
+        row.xpBar = xpBar
 
         local highlight = row:CreateTexture(nil, "HIGHLIGHT")
         highlight:SetAllPoints(row)
