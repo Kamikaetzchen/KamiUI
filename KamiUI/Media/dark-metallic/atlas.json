@@ -1,0 +1,1523 @@
+{
+  "version": 1,
+  "format": "32-bit straight-alpha RGBA (TGA BGRA on disk, top-left origin)",
+  "atlas": {
+    "file": "atlas.tga",
+    "preview": "atlas.png",
+    "width": 1024,
+    "height": 512,
+    "coordinateOrigin": "top-left",
+    "uvOrder": [
+      "left",
+      "right",
+      "top",
+      "bottom"
+    ],
+    "grid": 8,
+    "gutterMin": 16
+  },
+  "assets": {
+    "button_normal": {
+      "x": 8,
+      "y": 8,
+      "w": 64,
+      "h": 64,
+      "kind": "button",
+      "state": "normal",
+      "interior": [
+        12,
+        12,
+        40,
+        40
+      ],
+      "uv": [
+        0.0078125,
+        0.0703125,
+        0.015625,
+        0.140625
+      ],
+      "file": "textures/button_normal.tga",
+      "textureSize": [
+        64,
+        64
+      ],
+      "textureUV": [
+        0,
+        1,
+        0,
+        1
+      ]
+    },
+    "tab_normal": {
+      "x": 88,
+      "y": 8,
+      "w": 128,
+      "h": 32,
+      "kind": "tab",
+      "state": "normal",
+      "uv": [
+        0.0859375,
+        0.2109375,
+        0.015625,
+        0.078125
+      ],
+      "file": "textures/tab_normal.tga",
+      "textureSize": [
+        128,
+        32
+      ],
+      "textureUV": [
+        0,
+        1,
+        0,
+        1
+      ]
+    },
+    "button_hovered": {
+      "x": 232,
+      "y": 8,
+      "w": 64,
+      "h": 64,
+      "kind": "button",
+      "state": "hovered",
+      "interior": [
+        12,
+        12,
+        40,
+        40
+      ],
+      "uv": [
+        0.2265625,
+        0.2890625,
+        0.015625,
+        0.140625
+      ],
+      "file": "textures/button_hovered.tga",
+      "textureSize": [
+        64,
+        64
+      ],
+      "textureUV": [
+        0,
+        1,
+        0,
+        1
+      ]
+    },
+    "tab_hovered": {
+      "x": 312,
+      "y": 8,
+      "w": 128,
+      "h": 32,
+      "kind": "tab",
+      "state": "hovered",
+      "uv": [
+        0.3046875,
+        0.4296875,
+        0.015625,
+        0.078125
+      ],
+      "file": "textures/tab_hovered.tga",
+      "textureSize": [
+        128,
+        32
+      ],
+      "textureUV": [
+        0,
+        1,
+        0,
+        1
+      ]
+    },
+    "button_pressed": {
+      "x": 456,
+      "y": 8,
+      "w": 64,
+      "h": 64,
+      "kind": "button",
+      "state": "pressed",
+      "interior": [
+        12,
+        12,
+        40,
+        40
+      ],
+      "uv": [
+        0.4453125,
+        0.5078125,
+        0.015625,
+        0.140625
+      ],
+      "file": "textures/button_pressed.tga",
+      "textureSize": [
+        64,
+        64
+      ],
+      "textureUV": [
+        0,
+        1,
+        0,
+        1
+      ]
+    },
+    "tab_pressed": {
+      "x": 536,
+      "y": 8,
+      "w": 128,
+      "h": 32,
+      "kind": "tab",
+      "state": "pressed",
+      "uv": [
+        0.5234375,
+        0.6484375,
+        0.015625,
+        0.078125
+      ],
+      "file": "textures/tab_pressed.tga",
+      "textureSize": [
+        128,
+        32
+      ],
+      "textureUV": [
+        0,
+        1,
+        0,
+        1
+      ]
+    },
+    "button_selected": {
+      "x": 680,
+      "y": 8,
+      "w": 64,
+      "h": 64,
+      "kind": "button",
+      "state": "selected",
+      "interior": [
+        12,
+        12,
+        40,
+        40
+      ],
+      "uv": [
+        0.6640625,
+        0.7265625,
+        0.015625,
+        0.140625
+      ],
+      "file": "textures/button_selected.tga",
+      "textureSize": [
+        64,
+        64
+      ],
+      "textureUV": [
+        0,
+        1,
+        0,
+        1
+      ]
+    },
+    "tab_selected": {
+      "x": 760,
+      "y": 8,
+      "w": 128,
+      "h": 32,
+      "kind": "tab",
+      "state": "selected",
+      "uv": [
+        0.7421875,
+        0.8671875,
+        0.015625,
+        0.078125
+      ],
+      "file": "textures/tab_selected.tga",
+      "textureSize": [
+        128,
+        32
+      ],
+      "textureUV": [
+        0,
+        1,
+        0,
+        1
+      ]
+    },
+    "button_disabled": {
+      "x": 904,
+      "y": 8,
+      "w": 64,
+      "h": 64,
+      "kind": "button",
+      "state": "disabled",
+      "interior": [
+        12,
+        12,
+        40,
+        40
+      ],
+      "uv": [
+        0.8828125,
+        0.9453125,
+        0.015625,
+        0.140625
+      ],
+      "file": "textures/button_disabled.tga",
+      "textureSize": [
+        64,
+        64
+      ],
+      "textureUV": [
+        0,
+        1,
+        0,
+        1
+      ]
+    },
+    "tab_disabled": {
+      "x": 8,
+      "y": 88,
+      "w": 128,
+      "h": 32,
+      "kind": "tab",
+      "state": "disabled",
+      "uv": [
+        0.0078125,
+        0.1328125,
+        0.171875,
+        0.234375
+      ],
+      "file": "textures/tab_disabled.tga",
+      "textureSize": [
+        128,
+        32
+      ],
+      "textureUV": [
+        0,
+        1,
+        0,
+        1
+      ]
+    },
+    "status_frame": {
+      "x": 152,
+      "y": 88,
+      "w": 256,
+      "h": 32,
+      "kind": "bar-border",
+      "interior": [
+        24,
+        8,
+        208,
+        16
+      ],
+      "slice_x": [
+        32,
+        224
+      ],
+      "uv": [
+        0.1484375,
+        0.3984375,
+        0.171875,
+        0.234375
+      ],
+      "file": "textures/status_frame.tga",
+      "textureSize": [
+        256,
+        32
+      ],
+      "textureUV": [
+        0,
+        1,
+        0,
+        1
+      ]
+    },
+    "cast_frame": {
+      "x": 424,
+      "y": 88,
+      "w": 256,
+      "h": 32,
+      "kind": "bar-border",
+      "interior": [
+        24,
+        8,
+        208,
+        16
+      ],
+      "slice_x": [
+        32,
+        224
+      ],
+      "uv": [
+        0.4140625,
+        0.6640625,
+        0.171875,
+        0.234375
+      ],
+      "file": "textures/cast_frame.tga",
+      "textureSize": [
+        256,
+        32
+      ],
+      "textureUV": [
+        0,
+        1,
+        0,
+        1
+      ]
+    },
+    "unit_frame": {
+      "x": 696,
+      "y": 88,
+      "w": 256,
+      "h": 32,
+      "kind": "bar-border",
+      "interior": [
+        24,
+        8,
+        208,
+        16
+      ],
+      "slice_x": [
+        32,
+        224
+      ],
+      "uv": [
+        0.6796875,
+        0.9296875,
+        0.171875,
+        0.234375
+      ],
+      "file": "textures/unit_frame.tga",
+      "textureSize": [
+        256,
+        32
+      ],
+      "textureUV": [
+        0,
+        1,
+        0,
+        1
+      ]
+    },
+    "bar_background": {
+      "x": 8,
+      "y": 136,
+      "w": 128,
+      "h": 16,
+      "kind": "bar-background",
+      "uv": [
+        0.0078125,
+        0.1328125,
+        0.265625,
+        0.296875
+      ],
+      "file": "textures/bar_background.tga",
+      "textureSize": [
+        128,
+        16
+      ],
+      "textureUV": [
+        0,
+        1,
+        0,
+        1
+      ]
+    },
+    "bar_fill_satin": {
+      "x": 152,
+      "y": 136,
+      "w": 128,
+      "h": 16,
+      "kind": "tintable-fill",
+      "uv": [
+        0.1484375,
+        0.2734375,
+        0.265625,
+        0.296875
+      ],
+      "file": "textures/bar_fill_satin.tga",
+      "textureSize": [
+        128,
+        16
+      ],
+      "textureUV": [
+        0,
+        1,
+        0,
+        1
+      ]
+    },
+    "bar_fill_gloss": {
+      "x": 296,
+      "y": 136,
+      "w": 128,
+      "h": 16,
+      "kind": "tintable-fill",
+      "uv": [
+        0.2890625,
+        0.4140625,
+        0.265625,
+        0.296875
+      ],
+      "file": "textures/bar_fill_gloss.tga",
+      "textureSize": [
+        128,
+        16
+      ],
+      "textureUV": [
+        0,
+        1,
+        0,
+        1
+      ]
+    },
+    "bar_fill_flat": {
+      "x": 440,
+      "y": 136,
+      "w": 128,
+      "h": 16,
+      "kind": "tintable-fill",
+      "uv": [
+        0.4296875,
+        0.5546875,
+        0.265625,
+        0.296875
+      ],
+      "file": "textures/bar_fill_flat.tga",
+      "textureSize": [
+        128,
+        16
+      ],
+      "textureUV": [
+        0,
+        1,
+        0,
+        1
+      ]
+    },
+    "panel_9slice": {
+      "x": 584,
+      "y": 136,
+      "w": 96,
+      "h": 96,
+      "kind": "nine-slice",
+      "slice": 32,
+      "center": "opaque",
+      "uv": [
+        0.5703125,
+        0.6640625,
+        0.265625,
+        0.453125
+      ],
+      "file": "textures/panel_9slice.tga",
+      "textureSize": [
+        128,
+        128
+      ],
+      "textureUV": [
+        0,
+        0.75,
+        0,
+        0.75
+      ]
+    },
+    "panel_top_left": {
+      "x": 696,
+      "y": 136,
+      "w": 32,
+      "h": 32,
+      "kind": "nine-slice-tile",
+      "source": "panel_9slice",
+      "column": 0,
+      "row": 0,
+      "repeatX": false,
+      "repeatY": false,
+      "uv": [
+        0.6796875,
+        0.7109375,
+        0.265625,
+        0.328125
+      ],
+      "file": "textures/panel_top_left.tga",
+      "textureSize": [
+        32,
+        32
+      ],
+      "textureUV": [
+        0,
+        1,
+        0,
+        1
+      ]
+    },
+    "panel_top_center": {
+      "x": 744,
+      "y": 136,
+      "w": 32,
+      "h": 32,
+      "kind": "nine-slice-tile",
+      "source": "panel_9slice",
+      "column": 1,
+      "row": 0,
+      "repeatX": true,
+      "repeatY": false,
+      "uv": [
+        0.7265625,
+        0.7578125,
+        0.265625,
+        0.328125
+      ],
+      "file": "textures/panel_top_center.tga",
+      "textureSize": [
+        32,
+        32
+      ],
+      "textureUV": [
+        0,
+        1,
+        0,
+        1
+      ]
+    },
+    "panel_top_right": {
+      "x": 792,
+      "y": 136,
+      "w": 32,
+      "h": 32,
+      "kind": "nine-slice-tile",
+      "source": "panel_9slice",
+      "column": 2,
+      "row": 0,
+      "repeatX": false,
+      "repeatY": false,
+      "uv": [
+        0.7734375,
+        0.8046875,
+        0.265625,
+        0.328125
+      ],
+      "file": "textures/panel_top_right.tga",
+      "textureSize": [
+        32,
+        32
+      ],
+      "textureUV": [
+        0,
+        1,
+        0,
+        1
+      ]
+    },
+    "panel_middle_left": {
+      "x": 840,
+      "y": 136,
+      "w": 32,
+      "h": 32,
+      "kind": "nine-slice-tile",
+      "source": "panel_9slice",
+      "column": 0,
+      "row": 1,
+      "repeatX": false,
+      "repeatY": true,
+      "uv": [
+        0.8203125,
+        0.8515625,
+        0.265625,
+        0.328125
+      ],
+      "file": "textures/panel_middle_left.tga",
+      "textureSize": [
+        32,
+        32
+      ],
+      "textureUV": [
+        0,
+        1,
+        0,
+        1
+      ]
+    },
+    "panel_middle_center": {
+      "x": 888,
+      "y": 136,
+      "w": 32,
+      "h": 32,
+      "kind": "nine-slice-tile",
+      "source": "panel_9slice",
+      "column": 1,
+      "row": 1,
+      "repeatX": true,
+      "repeatY": true,
+      "uv": [
+        0.8671875,
+        0.8984375,
+        0.265625,
+        0.328125
+      ],
+      "file": "textures/panel_middle_center.tga",
+      "textureSize": [
+        32,
+        32
+      ],
+      "textureUV": [
+        0,
+        1,
+        0,
+        1
+      ]
+    },
+    "panel_middle_right": {
+      "x": 936,
+      "y": 136,
+      "w": 32,
+      "h": 32,
+      "kind": "nine-slice-tile",
+      "source": "panel_9slice",
+      "column": 2,
+      "row": 1,
+      "repeatX": false,
+      "repeatY": true,
+      "uv": [
+        0.9140625,
+        0.9453125,
+        0.265625,
+        0.328125
+      ],
+      "file": "textures/panel_middle_right.tga",
+      "textureSize": [
+        32,
+        32
+      ],
+      "textureUV": [
+        0,
+        1,
+        0,
+        1
+      ]
+    },
+    "panel_bottom_left": {
+      "x": 984,
+      "y": 136,
+      "w": 32,
+      "h": 32,
+      "kind": "nine-slice-tile",
+      "source": "panel_9slice",
+      "column": 0,
+      "row": 2,
+      "repeatX": false,
+      "repeatY": false,
+      "uv": [
+        0.9609375,
+        0.9921875,
+        0.265625,
+        0.328125
+      ],
+      "file": "textures/panel_bottom_left.tga",
+      "textureSize": [
+        32,
+        32
+      ],
+      "textureUV": [
+        0,
+        1,
+        0,
+        1
+      ]
+    },
+    "panel_bottom_center": {
+      "x": 8,
+      "y": 248,
+      "w": 32,
+      "h": 32,
+      "kind": "nine-slice-tile",
+      "source": "panel_9slice",
+      "column": 1,
+      "row": 2,
+      "repeatX": true,
+      "repeatY": false,
+      "uv": [
+        0.0078125,
+        0.0390625,
+        0.484375,
+        0.546875
+      ],
+      "file": "textures/panel_bottom_center.tga",
+      "textureSize": [
+        32,
+        32
+      ],
+      "textureUV": [
+        0,
+        1,
+        0,
+        1
+      ]
+    },
+    "panel_bottom_right": {
+      "x": 56,
+      "y": 248,
+      "w": 32,
+      "h": 32,
+      "kind": "nine-slice-tile",
+      "source": "panel_9slice",
+      "column": 2,
+      "row": 2,
+      "repeatX": false,
+      "repeatY": false,
+      "uv": [
+        0.0546875,
+        0.0859375,
+        0.484375,
+        0.546875
+      ],
+      "file": "textures/panel_bottom_right.tga",
+      "textureSize": [
+        32,
+        32
+      ],
+      "textureUV": [
+        0,
+        1,
+        0,
+        1
+      ]
+    },
+    "tooltip_9slice": {
+      "x": 104,
+      "y": 248,
+      "w": 96,
+      "h": 96,
+      "kind": "nine-slice",
+      "slice": 32,
+      "center": "opaque",
+      "uv": [
+        0.1015625,
+        0.1953125,
+        0.484375,
+        0.671875
+      ],
+      "file": "textures/tooltip_9slice.tga",
+      "textureSize": [
+        128,
+        128
+      ],
+      "textureUV": [
+        0,
+        0.75,
+        0,
+        0.75
+      ]
+    },
+    "tooltip_top_left": {
+      "x": 216,
+      "y": 248,
+      "w": 32,
+      "h": 32,
+      "kind": "nine-slice-tile",
+      "source": "tooltip_9slice",
+      "column": 0,
+      "row": 0,
+      "repeatX": false,
+      "repeatY": false,
+      "uv": [
+        0.2109375,
+        0.2421875,
+        0.484375,
+        0.546875
+      ],
+      "file": "textures/tooltip_top_left.tga",
+      "textureSize": [
+        32,
+        32
+      ],
+      "textureUV": [
+        0,
+        1,
+        0,
+        1
+      ]
+    },
+    "tooltip_top_center": {
+      "x": 264,
+      "y": 248,
+      "w": 32,
+      "h": 32,
+      "kind": "nine-slice-tile",
+      "source": "tooltip_9slice",
+      "column": 1,
+      "row": 0,
+      "repeatX": true,
+      "repeatY": false,
+      "uv": [
+        0.2578125,
+        0.2890625,
+        0.484375,
+        0.546875
+      ],
+      "file": "textures/tooltip_top_center.tga",
+      "textureSize": [
+        32,
+        32
+      ],
+      "textureUV": [
+        0,
+        1,
+        0,
+        1
+      ]
+    },
+    "tooltip_top_right": {
+      "x": 312,
+      "y": 248,
+      "w": 32,
+      "h": 32,
+      "kind": "nine-slice-tile",
+      "source": "tooltip_9slice",
+      "column": 2,
+      "row": 0,
+      "repeatX": false,
+      "repeatY": false,
+      "uv": [
+        0.3046875,
+        0.3359375,
+        0.484375,
+        0.546875
+      ],
+      "file": "textures/tooltip_top_right.tga",
+      "textureSize": [
+        32,
+        32
+      ],
+      "textureUV": [
+        0,
+        1,
+        0,
+        1
+      ]
+    },
+    "tooltip_middle_left": {
+      "x": 360,
+      "y": 248,
+      "w": 32,
+      "h": 32,
+      "kind": "nine-slice-tile",
+      "source": "tooltip_9slice",
+      "column": 0,
+      "row": 1,
+      "repeatX": false,
+      "repeatY": true,
+      "uv": [
+        0.3515625,
+        0.3828125,
+        0.484375,
+        0.546875
+      ],
+      "file": "textures/tooltip_middle_left.tga",
+      "textureSize": [
+        32,
+        32
+      ],
+      "textureUV": [
+        0,
+        1,
+        0,
+        1
+      ]
+    },
+    "tooltip_middle_center": {
+      "x": 408,
+      "y": 248,
+      "w": 32,
+      "h": 32,
+      "kind": "nine-slice-tile",
+      "source": "tooltip_9slice",
+      "column": 1,
+      "row": 1,
+      "repeatX": true,
+      "repeatY": true,
+      "uv": [
+        0.3984375,
+        0.4296875,
+        0.484375,
+        0.546875
+      ],
+      "file": "textures/tooltip_middle_center.tga",
+      "textureSize": [
+        32,
+        32
+      ],
+      "textureUV": [
+        0,
+        1,
+        0,
+        1
+      ]
+    },
+    "tooltip_middle_right": {
+      "x": 456,
+      "y": 248,
+      "w": 32,
+      "h": 32,
+      "kind": "nine-slice-tile",
+      "source": "tooltip_9slice",
+      "column": 2,
+      "row": 1,
+      "repeatX": false,
+      "repeatY": true,
+      "uv": [
+        0.4453125,
+        0.4765625,
+        0.484375,
+        0.546875
+      ],
+      "file": "textures/tooltip_middle_right.tga",
+      "textureSize": [
+        32,
+        32
+      ],
+      "textureUV": [
+        0,
+        1,
+        0,
+        1
+      ]
+    },
+    "tooltip_bottom_left": {
+      "x": 504,
+      "y": 248,
+      "w": 32,
+      "h": 32,
+      "kind": "nine-slice-tile",
+      "source": "tooltip_9slice",
+      "column": 0,
+      "row": 2,
+      "repeatX": false,
+      "repeatY": false,
+      "uv": [
+        0.4921875,
+        0.5234375,
+        0.484375,
+        0.546875
+      ],
+      "file": "textures/tooltip_bottom_left.tga",
+      "textureSize": [
+        32,
+        32
+      ],
+      "textureUV": [
+        0,
+        1,
+        0,
+        1
+      ]
+    },
+    "tooltip_bottom_center": {
+      "x": 552,
+      "y": 248,
+      "w": 32,
+      "h": 32,
+      "kind": "nine-slice-tile",
+      "source": "tooltip_9slice",
+      "column": 1,
+      "row": 2,
+      "repeatX": true,
+      "repeatY": false,
+      "uv": [
+        0.5390625,
+        0.5703125,
+        0.484375,
+        0.546875
+      ],
+      "file": "textures/tooltip_bottom_center.tga",
+      "textureSize": [
+        32,
+        32
+      ],
+      "textureUV": [
+        0,
+        1,
+        0,
+        1
+      ]
+    },
+    "tooltip_bottom_right": {
+      "x": 600,
+      "y": 248,
+      "w": 32,
+      "h": 32,
+      "kind": "nine-slice-tile",
+      "source": "tooltip_9slice",
+      "column": 2,
+      "row": 2,
+      "repeatX": false,
+      "repeatY": false,
+      "uv": [
+        0.5859375,
+        0.6171875,
+        0.484375,
+        0.546875
+      ],
+      "file": "textures/tooltip_bottom_right.tga",
+      "textureSize": [
+        32,
+        32
+      ],
+      "textureUV": [
+        0,
+        1,
+        0,
+        1
+      ]
+    },
+    "action_outer_9slice": {
+      "x": 648,
+      "y": 248,
+      "w": 96,
+      "h": 96,
+      "kind": "nine-slice",
+      "slice": 32,
+      "center": "transparent",
+      "uv": [
+        0.6328125,
+        0.7265625,
+        0.484375,
+        0.671875
+      ],
+      "file": "textures/action_outer_9slice.tga",
+      "textureSize": [
+        128,
+        128
+      ],
+      "textureUV": [
+        0,
+        0.75,
+        0,
+        0.75
+      ]
+    },
+    "action_outer_top_left": {
+      "x": 760,
+      "y": 248,
+      "w": 32,
+      "h": 32,
+      "kind": "nine-slice-tile",
+      "source": "action_outer_9slice",
+      "column": 0,
+      "row": 0,
+      "repeatX": false,
+      "repeatY": false,
+      "uv": [
+        0.7421875,
+        0.7734375,
+        0.484375,
+        0.546875
+      ],
+      "file": "textures/action_outer_top_left.tga",
+      "textureSize": [
+        32,
+        32
+      ],
+      "textureUV": [
+        0,
+        1,
+        0,
+        1
+      ]
+    },
+    "action_outer_top_center": {
+      "x": 808,
+      "y": 248,
+      "w": 32,
+      "h": 32,
+      "kind": "nine-slice-tile",
+      "source": "action_outer_9slice",
+      "column": 1,
+      "row": 0,
+      "repeatX": true,
+      "repeatY": false,
+      "uv": [
+        0.7890625,
+        0.8203125,
+        0.484375,
+        0.546875
+      ],
+      "file": "textures/action_outer_top_center.tga",
+      "textureSize": [
+        32,
+        32
+      ],
+      "textureUV": [
+        0,
+        1,
+        0,
+        1
+      ]
+    },
+    "action_outer_top_right": {
+      "x": 856,
+      "y": 248,
+      "w": 32,
+      "h": 32,
+      "kind": "nine-slice-tile",
+      "source": "action_outer_9slice",
+      "column": 2,
+      "row": 0,
+      "repeatX": false,
+      "repeatY": false,
+      "uv": [
+        0.8359375,
+        0.8671875,
+        0.484375,
+        0.546875
+      ],
+      "file": "textures/action_outer_top_right.tga",
+      "textureSize": [
+        32,
+        32
+      ],
+      "textureUV": [
+        0,
+        1,
+        0,
+        1
+      ]
+    },
+    "action_outer_middle_left": {
+      "x": 904,
+      "y": 248,
+      "w": 32,
+      "h": 32,
+      "kind": "nine-slice-tile",
+      "source": "action_outer_9slice",
+      "column": 0,
+      "row": 1,
+      "repeatX": false,
+      "repeatY": true,
+      "uv": [
+        0.8828125,
+        0.9140625,
+        0.484375,
+        0.546875
+      ],
+      "file": "textures/action_outer_middle_left.tga",
+      "textureSize": [
+        32,
+        32
+      ],
+      "textureUV": [
+        0,
+        1,
+        0,
+        1
+      ]
+    },
+    "action_outer_middle_right": {
+      "x": 952,
+      "y": 248,
+      "w": 32,
+      "h": 32,
+      "kind": "nine-slice-tile",
+      "source": "action_outer_9slice",
+      "column": 2,
+      "row": 1,
+      "repeatX": false,
+      "repeatY": true,
+      "uv": [
+        0.9296875,
+        0.9609375,
+        0.484375,
+        0.546875
+      ],
+      "file": "textures/action_outer_middle_right.tga",
+      "textureSize": [
+        32,
+        32
+      ],
+      "textureUV": [
+        0,
+        1,
+        0,
+        1
+      ]
+    },
+    "action_outer_bottom_left": {
+      "x": 8,
+      "y": 360,
+      "w": 32,
+      "h": 32,
+      "kind": "nine-slice-tile",
+      "source": "action_outer_9slice",
+      "column": 0,
+      "row": 2,
+      "repeatX": false,
+      "repeatY": false,
+      "uv": [
+        0.0078125,
+        0.0390625,
+        0.703125,
+        0.765625
+      ],
+      "file": "textures/action_outer_bottom_left.tga",
+      "textureSize": [
+        32,
+        32
+      ],
+      "textureUV": [
+        0,
+        1,
+        0,
+        1
+      ]
+    },
+    "action_outer_bottom_center": {
+      "x": 56,
+      "y": 360,
+      "w": 32,
+      "h": 32,
+      "kind": "nine-slice-tile",
+      "source": "action_outer_9slice",
+      "column": 1,
+      "row": 2,
+      "repeatX": true,
+      "repeatY": false,
+      "uv": [
+        0.0546875,
+        0.0859375,
+        0.703125,
+        0.765625
+      ],
+      "file": "textures/action_outer_bottom_center.tga",
+      "textureSize": [
+        32,
+        32
+      ],
+      "textureUV": [
+        0,
+        1,
+        0,
+        1
+      ]
+    },
+    "action_outer_bottom_right": {
+      "x": 104,
+      "y": 360,
+      "w": 32,
+      "h": 32,
+      "kind": "nine-slice-tile",
+      "source": "action_outer_9slice",
+      "column": 2,
+      "row": 2,
+      "repeatX": false,
+      "repeatY": false,
+      "uv": [
+        0.1015625,
+        0.1328125,
+        0.703125,
+        0.765625
+      ],
+      "file": "textures/action_outer_bottom_right.tga",
+      "textureSize": [
+        32,
+        32
+      ],
+      "textureUV": [
+        0,
+        1,
+        0,
+        1
+      ]
+    },
+    "portrait_hex": {
+      "x": 152,
+      "y": 360,
+      "w": 128,
+      "h": 128,
+      "kind": "portrait",
+      "uv": [
+        0.1484375,
+        0.2734375,
+        0.703125,
+        0.953125
+      ],
+      "file": "textures/portrait_hex.tga",
+      "textureSize": [
+        128,
+        128
+      ],
+      "textureUV": [
+        0,
+        1,
+        0,
+        1
+      ]
+    },
+    "portrait_circle": {
+      "x": 296,
+      "y": 360,
+      "w": 128,
+      "h": 128,
+      "kind": "portrait",
+      "uv": [
+        0.2890625,
+        0.4140625,
+        0.703125,
+        0.953125
+      ],
+      "file": "textures/portrait_circle.tga",
+      "textureSize": [
+        128,
+        128
+      ],
+      "textureUV": [
+        0,
+        1,
+        0,
+        1
+      ]
+    },
+    "ornament_diamond": {
+      "x": 440,
+      "y": 360,
+      "w": 32,
+      "h": 32,
+      "kind": "ornament",
+      "uv": [
+        0.4296875,
+        0.4609375,
+        0.703125,
+        0.765625
+      ],
+      "file": "textures/ornament_diamond.tga",
+      "textureSize": [
+        32,
+        32
+      ],
+      "textureUV": [
+        0,
+        1,
+        0,
+        1
+      ]
+    },
+    "ornament_crest": {
+      "x": 488,
+      "y": 360,
+      "w": 64,
+      "h": 64,
+      "kind": "ornament",
+      "uv": [
+        0.4765625,
+        0.5390625,
+        0.703125,
+        0.828125
+      ],
+      "file": "textures/ornament_crest.tga",
+      "textureSize": [
+        64,
+        64
+      ],
+      "textureUV": [
+        0,
+        1,
+        0,
+        1
+      ]
+    },
+    "action_junction": {
+      "x": 568,
+      "y": 360,
+      "w": 32,
+      "h": 32,
+      "kind": "junction",
+      "uv": [
+        0.5546875,
+        0.5859375,
+        0.703125,
+        0.765625
+      ],
+      "file": "textures/action_junction.tga",
+      "textureSize": [
+        32,
+        32
+      ],
+      "textureUV": [
+        0,
+        1,
+        0,
+        1
+      ]
+    },
+    "divider": {
+      "x": 616,
+      "y": 360,
+      "w": 128,
+      "h": 16,
+      "kind": "repeatable-divider",
+      "uv": [
+        0.6015625,
+        0.7265625,
+        0.703125,
+        0.734375
+      ],
+      "file": "textures/divider.tga",
+      "textureSize": [
+        128,
+        16
+      ],
+      "textureUV": [
+        0,
+        1,
+        0,
+        1
+      ]
+    },
+    "header_left": {
+      "x": 760,
+      "y": 360,
+      "w": 64,
+      "h": 32,
+      "kind": "header",
+      "uv": [
+        0.7421875,
+        0.8046875,
+        0.703125,
+        0.765625
+      ],
+      "file": "textures/header_left.tga",
+      "textureSize": [
+        64,
+        32
+      ],
+      "textureUV": [
+        0,
+        1,
+        0,
+        1
+      ]
+    },
+    "header_right": {
+      "x": 840,
+      "y": 360,
+      "w": 64,
+      "h": 32,
+      "kind": "header",
+      "uv": [
+        0.8203125,
+        0.8828125,
+        0.703125,
+        0.765625
+      ],
+      "file": "textures/header_right.tga",
+      "textureSize": [
+        64,
+        32
+      ],
+      "textureUV": [
+        0,
+        1,
+        0,
+        1
+      ]
+    }
+  }
+}
