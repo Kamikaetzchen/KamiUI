@@ -21,6 +21,8 @@ Styles.DarkMetallic = {
     slotInsetRatio = 4 / 64,
     slotFallbackInsetRatio = 8 / 64,
     tabCapRatio = 16 / 32,
+    -- Three source pixels produce a ~1.31 UI-pixel button rim.
+    buttonTextureScale = 7 / 16,
 }
 
 Styles.State = {

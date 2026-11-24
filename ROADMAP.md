@@ -72,6 +72,10 @@ This is the current working state, not a commitment to implement every idea.
   ADDON_ACTION_BLOCKED in combat. Defer only the native backend close,
   keep custom window closing immediate, and cancel stale close requests
   when reopening. Professions 0.3.3.
+- [x] Owner approved the Professions preview but noted thick raised
+  button rims compared with the character selector. Use fixed-size
+  nine-slice caps for shared text/close buttons and increase unlearn
+  insets from two to four UI pixels. Core 0.2.16 / Professions 0.3.4.
 - [ ] Test current and cached profession overview, ability use/drag,
   recipe selection, quantities, craft actions and unlearn confirmation.
   Verify closing via X/Escape in combat and reopening before combat ends.

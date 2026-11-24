@@ -89,8 +89,8 @@ local function ApplyMetallicButtonTint(button, color)
     )
 end
 
--- Text buttons have their own rectangular artwork. The three-slice caps
--- preserve the chamfers even when the label requires a wider button.
+-- Fixed-size nine-slice caps preserve the thin bevel and chamfers
+-- independently of the width and height of the text button.
 local function RefreshMetallicButton(button, enabled)
     local config = button.KamiButtonOptions
     local state = "normal"
@@ -121,16 +121,17 @@ end
 
 local function CreateMetallicButton(button, options)
     if button.KamiMetallicButton then return end
-    local height = options.height or button:GetHeight()
-    button.KamiMetallicButtonFill = Components:CreateThreeSlice(button, {
-        asset = Media.DarkMetallic.textButtonFill .. "normal",
-        height = height,
-    })
-    button.KamiMetallicButton = Components:CreateThreeSlice(button, {
-        asset = Media.DarkMetallic.textButtonFrame .. "normal",
-        height = height,
-        sublevel = -6,
-    })
+    button.KamiMetallicButtonFill = Components:CreateMetallicButtonSlice(
+        button, {
+            asset = Media.DarkMetallic.textButtonFill .. "normal",
+        }
+    )
+    button.KamiMetallicButton = Components:CreateMetallicButtonSlice(
+        button, {
+            asset = Media.DarkMetallic.textButtonFrame .. "normal",
+            sublevel = -6,
+        }
+    )
 
     button:HookScript("OnEnter", function(self)
         self.KamiButtonHovered = true

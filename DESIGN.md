@@ -109,3 +109,11 @@ primary-profession card hierarchy with the existing gold palette, reuse
 masked slot artwork for profession icons, abilities, reagents and recipe
 results, and use shared raised buttons. Keep existing recipe row behavior,
 progress bars, search/quantity inputs and tracking checkbox unchanged.
+
+Text buttons use fixed-size nine-slice caps on the existing 128 x 32
+artwork, rather than scaling the rim with control height. A three-pixel
+source bevel is approximately 1.31 UI pixels at the shared 7/16 scale.
+Keep the frame and fill slice geometry identical; tabs retain their
+separate three-slice renderer. Preserve the existing button lighting,
+state textures and tint behavior. Inset unlearn buttons four UI pixels
+from the overview card's top-right corner.

@@ -104,6 +104,18 @@ function Components:CreateThreeSlice(parent, options)
     )
 end
 
+-- Text-button art is 128x32, with a three-pixel bevel and chamfers.
+-- Slice both axes so the rim does not grow with button height.
+function Components:CreateMetallicButtonSlice(parent, options)
+    local scale = Styles.DarkMetallic.buttonTextureScale
+    return CreateSlices(
+        parent, options,
+        { 0, 0.125, 0.875, 1 },
+        { 0, 0.25, 0.75, 1 },
+        16 * scale, 8 * scale
+    )
+end
+
 function Components:ApplyMetallicPanel(frame, options)
     if frame.SetBackdrop then
         frame:SetBackdrop(nil)

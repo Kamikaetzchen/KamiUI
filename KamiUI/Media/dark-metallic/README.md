@@ -68,3 +68,9 @@ The text-button frame/fill derivatives now use stronger raised lighting:
 bright top, dark lower face, increased rim contrast, and inverted pressed
 lighting. Their source alpha partition and 128 x 32 geometry are unchanged.
 The original text-button textures remain available for rollback.
+
+Text-button frame/fill derivatives use horizontal UV boundaries
+0, 0.125, 0.875, 1 and vertical boundaries 0, 0.25, 0.75, 1 in the
+fixed-size nine-slice renderer. The 16 x 8 source caps map to 7 x 3.5
+UI units, preserving the thin rim at different control heights.
+No asset pixels or alpha are changed by this renderer update.
