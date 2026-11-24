@@ -2064,6 +2064,16 @@ function Module:CreateFrame()
     end)
 
     frame:SetScript("OnHide", function()
+        Module.viewCharacterKey = nil
+        Module.cachedProfessionID = nil
+        Module.selectedRecipeID = nil
+        Module.forceOverview = false
+
+        if frame.characterMenu then
+            frame.characterMenu:Hide()
+        end
+        GameTooltip:Hide()
+
         if Module.suppressBackendClose then
             return
         end

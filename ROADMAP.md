@@ -96,6 +96,9 @@ This is the current working state, not a commitment to implement every idea.
   Professions overview and preserve crafting skill rank in one title.
   Metallic header search in Bags/Bank. Core 0.2.20 / Bags 0.2.7 /
   Characters 0.3.25 / Professions 0.3.6 / Account 0.2.4.
+- [x] Reset Professions to the current character on window close, like
+  Bags/Characters. Clear cached profession and selected recipe state;
+  preserve the protected backend close handling. Professions 0.3.7.
 - [ ] Expand to other modules incrementally: ActionBars, tooltips,
   unitframes/statusbars/castbars and remaining controls.
   The exact rollout order is not fixed.
