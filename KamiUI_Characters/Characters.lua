@@ -336,6 +336,7 @@ local function CreateEquipmentSlot(parent, definition)
         -- Uses Blizzard's protected item action handler outside combat,
         -- without making the entire movable character window protected.
         template = "InsecureActionButtonTemplate",
+        metallic = true,
         size = slotSize,
         borderColor = Palette.emptyBorder,
         label = definition.label,
@@ -3786,6 +3787,8 @@ local function CreateSidebar(frame)
     statsTab:SetPoint("TOPRIGHT", sidebar, "TOP", 0, -1)
     statsTab:SetHeight(24)
     Components:StyleTab(statsTab, {
+        metallic = true,
+        height = 24,
         orientation = "top",
         text = "Stats",
         active = true,
@@ -3801,6 +3804,8 @@ local function CreateSidebar(frame)
     equipmentTab:SetPoint("TOPRIGHT", sidebar, "TOPRIGHT", -1, -1)
     equipmentTab:SetHeight(24)
     Components:StyleTab(equipmentTab, {
+        metallic = true,
+        height = 24,
         orientation = "top",
         text = "Equipment",
         joinLeft = true,
@@ -4178,6 +4183,7 @@ end
 
 local function CreateFrameUI()
     local frame, header = Components:CreateWindow("KamiUICharacterFrame", {
+        metallic = true,
         width = (Layout.LEFT_PANE_WIDTH + Layout.RIGHT_PANE_WIDTH),
         height = Layout.FRAME_HEIGHT,
         backgroundColor = Palette.window.neutral,
@@ -4477,17 +4483,15 @@ local function CreateFrameUI()
     modelPanel:SetPoint("TOP", characterPane, "TOP", 0, -54)
     modelPanel:SetPoint("BOTTOM", characterPane, "BOTTOM", 0, 58)
     modelPanel:SetWidth(230)
-    modelPanel:SetBackdrop({
-        bgFile = "Interface\\Buttons\\WHITE8X8",
-        edgeFile = "Interface\\Buttons\\WHITE8X8",
-        edgeSize = 1,
+    modelPanel.KamiMetallicPanel = Components:ApplyMetallicPanel(modelPanel, {
+        sliceSize = Styles.DarkMetallic.modelSlice,
     })
-    modelPanel:SetBackdropColor(unpack(Palette.panelStrong))
-    modelPanel:SetBackdropBorderColor(0.12, 0.12, 0.14, 1)
 
     local model = CreateFrame("PlayerModel", nil, modelPanel)
-    model:SetPoint("TOPLEFT", 1, -1)
-    model:SetPoint("BOTTOMRIGHT", -1, 1)
+    -- Leave the metallic bevel visible around the existing model panel.
+    local modelInset = math.ceil(Styles.DarkMetallic.modelSlice / 2)
+    model:SetPoint("TOPLEFT", modelInset, -modelInset)
+    model:SetPoint("BOTTOMRIGHT", -modelInset, modelInset)
     model:SetUnit("player")
 
     if model.SetPortraitZoom then
@@ -4590,6 +4594,8 @@ local function CreateFrameUI()
         tab:SetText(definition.label)
 
         Components:StyleTab(tab, {
+            metallic = true,
+            height = 22,
             orientation = "bottom",
             joinLeft = index > 1,
             enabled = definition.enabled == true,

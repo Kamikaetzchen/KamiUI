@@ -456,6 +456,9 @@ function Components:StyleItemSlot(button, options)
 
     local size = options.size or Styles.Metrics.itemSlotSize
     local iconInset = options.iconInset or 1
+    if options.metallic and not options.iconInset then
+        iconInset = math.ceil(size * Styles.DarkMetallic.slotInsetRatio)
+    end
 
     button:SetSize(size, size)
 
@@ -491,7 +494,16 @@ function Components:StyleItemSlot(button, options)
     button.KamiBackground = background
     button.background = background
 
-    if options.border ~= false then
+    if options.metallic then
+        -- The artwork supplies the neutral border; quality/quest colors
+        -- remain independent on the existing additive glow.
+        button.KamiMetallicSlot = self:CreateMetallicIconFrame(button)
+        background:ClearAllPoints()
+        background:SetPoint("TOPLEFT", button, "TOPLEFT",
+            iconInset, -iconInset)
+        background:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT",
+            -iconInset, iconInset)
+    elseif options.border ~= false then
         button.KamiBorders = Styles:CreateBorder(button, {
             color = options.borderColor or Palette.slotBorder,
         })
@@ -762,6 +774,7 @@ local function SetItemSlotVisualAlpha(button, alpha)
     if button.label then button.label:SetAlpha(alpha) end
     if button.KamiQuestBang then button.KamiQuestBang:SetAlpha(alpha) end
     if button.KamiBackground then button.KamiBackground:SetAlpha(alpha) end
+    if button.KamiMetallicSlot then button.KamiMetallicSlot:SetAlpha(alpha) end
     if button.KamiRarityGlow then button.KamiRarityGlow:SetAlpha(alpha) end
     if button.KamiQuestGlow then button.KamiQuestGlow:SetAlpha(alpha) end
     if button.Cooldown then button.Cooldown:SetAlpha(alpha) end

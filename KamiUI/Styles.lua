@@ -13,6 +13,14 @@ Styles.Metrics = {
     sectionInset = 6,
 }
 
+-- Opt-in metrics: 32 source pixels per panel corner, 16 per tab cap.
+Styles.DarkMetallic = {
+    panelSlice = 16,
+    modelSlice = 12,
+    slotInsetRatio = 12 / 64,
+    tabCapRatio = 16 / 32,
+}
+
 Styles.State = {
     normalAlpha = 0.40,
     activeAlpha = 0.55,

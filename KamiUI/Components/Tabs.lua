@@ -132,6 +132,52 @@ local function CreateChamferedTabVisual(tab, orientation, chamfer, borderColor)
     tab.borders = borders
 end
 
+local function RefreshMetallicTab(tab)
+    local state = "normal"
+    if not tab.KamiTabEnabled then
+        state = "disabled"
+    elseif tab.KamiTabPressed then
+        state = "pressed"
+    elseif tab.KamiTabHovered then
+        state = "hovered"
+    elseif tab.KamiTabActive then
+        state = "selected"
+    end
+
+    tab.KamiMetallicTab:SetAsset(UI.Media.DarkMetallic.tab .. state)
+end
+
+local function CreateMetallicTab(tab, options, orientation)
+    tab.KamiMetallicTab = Components:CreateThreeSlice(tab, {
+        asset = UI.Media.DarkMetallic.tab .. "normal",
+        height = options.height or tab:GetHeight(),
+        flipY = orientation == "bottom",
+    })
+
+    tab:HookScript("OnEnter", function(self)
+        self.KamiTabHovered = true
+        RefreshMetallicTab(self)
+    end)
+    tab:HookScript("OnLeave", function(self)
+        self.KamiTabHovered = false
+        self.KamiTabPressed = false
+        RefreshMetallicTab(self)
+    end)
+    tab:HookScript("OnMouseDown", function(self)
+        self.KamiTabPressed = true
+        RefreshMetallicTab(self)
+    end)
+    tab:HookScript("OnMouseUp", function(self)
+        self.KamiTabPressed = false
+        RefreshMetallicTab(self)
+    end)
+    tab:HookScript("OnHide", function(self)
+        self.KamiTabHovered = false
+        self.KamiTabPressed = false
+        RefreshMetallicTab(self)
+    end)
+end
+
 function Components:StyleTab(tab, options)
     if not tab then
         return nil
@@ -148,12 +194,16 @@ function Components:StyleTab(tab, options)
     if not tab.KamiTabStyled then
         tab.KamiTabStyled = true
         tab.KamiTabOrientation = orientation
-        CreateChamferedTabVisual(
-            tab,
-            orientation,
-            chamfer,
-            borderColor
-        )
+        if options.metallic then
+            CreateMetallicTab(tab, options, orientation)
+        else
+            CreateChamferedTabVisual(
+                tab,
+                orientation,
+                chamfer,
+                borderColor
+            )
+        end
     end
 
     tab.KamiTabOptions = options
@@ -212,21 +262,27 @@ function Components:SetTabState(tab, active, enabled)
 
     enabled = enabled ~= false
 
-    SetTabBackground(
-        tab,
-        active and { 0.04, 0.04, 0.05, 1.00 } or Palette.black,
-        active and Styles.State.activeAlpha
-            or Styles.State.normalAlpha
-    )
+    if tab.KamiMetallicTab then
+        tab.KamiTabActive = active
+        tab.KamiTabEnabled = enabled
+        RefreshMetallicTab(tab)
+    else
+        SetTabBackground(
+            tab,
+            active and { 0.04, 0.04, 0.05, 1.00 } or Palette.black,
+            active and Styles.State.activeAlpha
+                or Styles.State.normalAlpha
+        )
 
-    local connectedBorder = tab.KamiTabOrientation == "top"
-        and tab.borders
-        and tab.borders[2]
-        or tab.borders
-        and tab.borders[1]
+        local connectedBorder = tab.KamiTabOrientation == "top"
+            and tab.borders
+            and tab.borders[2]
+            or tab.borders
+            and tab.borders[1]
 
-    if connectedBorder then
-        connectedBorder:SetShown(not active)
+        if connectedBorder then
+            connectedBorder:SetShown(not active)
+        end
     end
 
     local text = tab:GetFontString()

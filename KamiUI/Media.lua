@@ -30,3 +30,19 @@ function UI.Media:ApplyPebble(texture, width, height, opacity)
         opacity or 1
     )
 end
+
+-- Standalone textures avoid atlas filtering at the slice boundaries.
+UI.Media.DarkMetallic = {
+    path = "Interface\\AddOns\\KamiUI\\Media\\dark-metallic\\textures\\",
+    panel = "panel_9slice",
+    outline = "action_outer_9slice",
+    tooltip = "tooltip_9slice",
+    button = "button_normal",
+    tab = "tab_",
+    barBackground = "bar_background",
+    barFill = "bar_fill_satin",
+}
+
+function UI.Media:GetDarkMetallicTexture(asset)
+    return self.DarkMetallic.path .. asset .. ".tga"
+end

@@ -152,11 +152,17 @@ function Components:CreateWindow(name, options)
     frame:SetClampedToScreen(options.clamped ~= false)
     frame:EnableMouse(options.mouse ~= false)
 
-    Styles:ApplyBackdrop(
-        frame,
-        options.backgroundColor or Palette.window.neutral,
-        options.borderColor or Palette.border
-    )
+    if options.metallic then
+        frame.KamiMetallicPanel = self:ApplyMetallicPanel(frame, {
+            asset = UI.Media.DarkMetallic.panel,
+        })
+    else
+        Styles:ApplyBackdrop(
+            frame,
+            options.backgroundColor or Palette.window.neutral,
+            options.borderColor or Palette.border
+        )
+    end
 
     local onDragStop = options.onDragStop
     frame.KamiWindowOnDragStop = onDragStop

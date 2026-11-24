@@ -1,0 +1,111 @@
+local UI = KamiUI
+local Components = UI.Components
+local Styles = UI.Styles
+local Media = UI.Media
+
+-- Render a contiguous texture as independent anchored regions. The
+-- caller supplies UV boundaries (including any power-of-two padding)
+-- and fixed destination cap sizes. Only the middle regions stretch.
+local function CreateSlices(parent, options, u, v, capX, capY)
+    local parts = {}
+    local columns = #u - 1
+    local rows = #v - 1
+    local holder = {}
+
+    for row = 1, rows do
+        for column = 1, columns do
+            local layer = options.layer or "BACKGROUND"
+            local texture = parent:CreateTexture(nil, layer, nil, -7)
+            texture:SetTexCoord(
+                u[column], u[column + 1], v[row], v[row + 1]
+            )
+            parts[#parts + 1] = texture
+        end
+    end
+
+    local function Layout()
+        local width = parent:GetWidth()
+        local height = parent:GetHeight()
+        if width <= 0 or height <= 0 then return end
+
+        -- Shrink both corner axes uniformly for undersized frames.
+        local scale = math.min(1, width / (2 * capX))
+        if rows == 3 then
+            scale = math.min(scale, height / (2 * capY))
+        else
+            scale = math.min(scale, height / (2 * capX))
+        end
+
+        local x = { 0, capX * scale, width - capX * scale, width }
+        local y = rows == 3
+            and { 0, capY * scale, height - capY * scale, height }
+            or { 0, height }
+
+        for row = 1, rows do
+            for column = 1, columns do
+                local part = parts[(row - 1) * columns + column]
+                part:ClearAllPoints()
+                part:SetPoint(
+                    "TOPLEFT", parent, "TOPLEFT", x[column], -y[row]
+                )
+                part:SetPoint(
+                    "BOTTOMRIGHT", parent, "TOPLEFT",
+                    x[column + 1], -y[row + 1]
+                )
+                part:SetShown(
+                    x[column + 1] > x[column]
+                    and y[row + 1] > y[row]
+                )
+            end
+        end
+    end
+
+    function holder:SetAsset(asset)
+        local path = Media:GetDarkMetallicTexture(asset)
+        for _, part in ipairs(parts) do
+            part:SetTexture(path)
+        end
+    end
+
+    holder:SetAsset(options.asset)
+    parent:HookScript("OnSizeChanged", Layout)
+    Layout()
+    return holder
+end
+
+function Components:CreateNineSlice(parent, options)
+    options = options or {}
+    local size = options.sliceSize or Styles.DarkMetallic.panelSlice
+    options.asset = options.asset or Media.DarkMetallic.panel
+
+    -- 96 logical pixels in a 128px TGA; never sample the padding.
+    local bounds = { 0, 0.25, 0.5, 0.75 }
+    return CreateSlices(parent, options, bounds, bounds, size, size)
+end
+
+function Components:CreateThreeSlice(parent, options)
+    local height = options.height or Styles.Metrics.tabHeight
+    local cap = height * Styles.DarkMetallic.tabCapRatio
+    local v = options.flipY and { 1, 0 } or { 0, 1 }
+
+    -- Tab art is 128x32. The outer 16px contain the chamfers.
+    return CreateSlices(
+        parent, options, { 0, 0.125, 0.875, 1 }, v, cap, height
+    )
+end
+
+function Components:ApplyMetallicPanel(frame, options)
+    if frame.SetBackdrop then
+        frame:SetBackdrop(nil)
+    end
+    return self:CreateNineSlice(frame, options)
+end
+
+function Components:CreateMetallicIconFrame(button)
+    local texture = button:CreateTexture(nil, "OVERLAY", nil, 0)
+    texture:SetAllPoints(button)
+    texture:SetTexture(
+        Media:GetDarkMetallicTexture(Media.DarkMetallic.button)
+    )
+    return texture
+end

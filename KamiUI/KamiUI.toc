@@ -2,7 +2,7 @@
 ## Title: KamiUI
 ## Notes: Core framework for KamiUI
 ## Author: Kami Katze
-## Version: 0.2.5
+## Version: 0.2.6
 ## IconTexture: Interface\AddOns\KamiUI\Media\KamiUI.tga
 ## SavedVariables: KamiUIDB
 
@@ -14,6 +14,7 @@ Palette.lua
 Styles.lua
 Layout.lua
 Components\Core.lua
+Components\Metallic.lua
 Components\Tabs.lua
 Components\Buttons.lua
 Components\Inputs.lua
