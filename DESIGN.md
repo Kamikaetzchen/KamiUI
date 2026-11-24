@@ -101,3 +101,11 @@ window rather than a single-character class-colored window. Preserve
 native item interactions, cached snapshots, search dimming, XP bars and
 checkboxes. Search inputs, popup surfaces and native bank purchases are
 outside this first rollout.
+
+### Professions rollout
+
+Use a neutral metallic window and recipe-list panel. Preserve the gold
+primary-profession card hierarchy with the existing gold palette, reuse
+masked slot artwork for profession icons, abilities, reagents and recipe
+results, and use shared raised buttons. Keep existing recipe row behavior,
+progress bars, search/quantity inputs and tracking checkbox unchanged.

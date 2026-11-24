@@ -933,7 +933,25 @@ local function PickupOverviewAbility(button)
     end
 end
 
-local function AcquireOverviewAbilityButton(card, index)
+-- Overview cards are reused for primary and secondary professions.
+-- Keep the shared masked icon and its background aligned after resizing.
+local function ResizeOverviewIcon(button, size)
+    if button:GetWidth() == size and button:GetHeight() == size then
+        return
+    end
+
+    button:SetSize(size, size)
+    local ratio = button.KamiItemMask and Styles.DarkMetallic.slotInsetRatio
+        or Styles.DarkMetallic.slotFallbackInsetRatio
+    local inset = size * ratio
+    for _, texture in ipairs({ button.icon, button.background }) do
+        texture:ClearAllPoints()
+        texture:SetPoint("TOPLEFT", button, "TOPLEFT", inset, -inset)
+        texture:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", -inset, inset)
+    end
+end
+
+local function AcquireOverviewAbilityButton(card, index, size)
     card.abilityButtons = card.abilityButtons or {}
 
     local button = card.abilityButtons[index]
@@ -942,33 +960,14 @@ local function AcquireOverviewAbilityButton(card, index)
         return button
     end
 
-    button = CreateFrame("Button", nil, card)
+    button = Components:CreateItemSlot(card, {
+        size = size,
+        metallic = true,
+        rarityGlow = false,
+        highlightAlpha = Styles.State.hoverAlpha,
+    })
     button:RegisterForClicks("LeftButtonUp")
     button:RegisterForDrag("LeftButton")
-
-    button.background = Styles:EnsureBackground(
-        button,
-        "KamiBackground",
-        Palette.slot
-    )
-    button.KamiBorders = Styles:CreateBorder(
-        button,
-        Palette.slotBorder
-    )
-
-    local icon = button:CreateTexture(nil, "ARTWORK")
-    icon:SetPoint("TOPLEFT", button, "TOPLEFT", 1, -1)
-    icon:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", -1, 1)
-    icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
-    button.icon = icon
-
-    local highlight = button:CreateTexture(nil, "HIGHLIGHT")
-    highlight:SetAllPoints()
-    Styles:SetColor(
-        highlight,
-        Palette.white,
-        Styles.State.hoverAlpha
-    )
 
     button:SetScript("OnEnter", SetOverviewAbilityTooltip)
     button:SetScript("OnLeave", function()
@@ -995,10 +994,10 @@ local function LayoutOverviewAbilities(
     for index, ability in ipairs(abilities) do
         visible = visible + 1
 
-        local button = AcquireOverviewAbilityButton(card, index)
+        local button = AcquireOverviewAbilityButton(card, index, size)
         button.ability = ability
         button.isCurrent = isCurrent
-        button:SetSize(size, size)
+        ResizeOverviewIcon(button, size)
         button:ClearAllPoints()
         button:SetPoint(
             "BOTTOMRIGHT",
@@ -1037,25 +1036,29 @@ local function AcquireOverviewCard(frame, index)
     card = CreateFrame("Button", nil, frame.overviewPage)
     card:RegisterForClicks("LeftButtonUp")
 
-    local background = Styles:EnsureBackground(
-        card,
-        "KamiBackground",
-        Palette.panelStrong
-    )
-    card.background = background
-    card.KamiBorders = Styles:CreateBorder(card)
+    card.KamiMetallicPanel = Components:ApplyMetallicPanel(card, {
+        sliceSize = 12,
+        backgroundColor = Palette.panelStrong,
+    })
 
-    local icon = card:CreateTexture(nil, "ARTWORK")
-    icon:SetPoint("LEFT", card, "LEFT", 8, 0)
-    icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
-    card.icon = icon
+    local iconFrame = Components:CreateItemSlot(card, {
+        frameType = "Frame",
+        size = 46,
+        metallic = true,
+        rarityGlow = false,
+        highlight = false,
+    })
+    iconFrame:EnableMouse(false)
+    iconFrame:SetPoint("LEFT", card, "LEFT", 8, 0)
+    card.iconFrame = iconFrame
+    card.icon = iconFrame.icon
 
     local name = card:CreateFontString(
         nil,
         "OVERLAY",
         "GameFontNormal"
     )
-    name:SetPoint("TOPLEFT", icon, "TOPRIGHT", 8, -1)
+    name:SetPoint("TOPLEFT", iconFrame, "TOPRIGHT", 8, -1)
     name:SetPoint("RIGHT", card, "RIGHT", -8, 0)
     name:SetJustifyH("LEFT")
     card.name = name
@@ -1097,6 +1100,8 @@ local function AcquireOverviewCard(frame, index)
 
     -- Keep the destructive action separate from the profession card click.
     local unlearn = Components:CreateWindowCloseButton(card, {
+        metallic = true,
+        frameColor = Palette.gold,
         width = 14.4,
         height = 14.4,
         point = "TOPRIGHT",
@@ -1150,21 +1155,17 @@ end
 local function StyleOverviewCard(card, isPrimary)
     if isPrimary then
         card:SetHeight(68)
-        card.icon:SetSize(46, 46)
-        Styles:SetColor(
-            card.background,
-            { 0.035, 0.028, 0.008, 0.56 }
+        ResizeOverviewIcon(card.iconFrame, 46)
+        card.KamiMetallicPanel:SetColors(
+            { 0.035, 0.028, 0.008, 0.56 }, Palette.gold
         )
-        Styles:SetBorderColor(
-            card.KamiBorders,
-            { 0.42, 0.32, 0.08, 0.95 }
-        )
+        Components:SetItemSlotFrameColor(card.iconFrame, Palette.gold)
         Styles:ApplyText(card.name, 12, Palette.gold)
         Styles:ApplyText(card.rank, 9, Palette.text)
         card.name:ClearAllPoints()
         card.name:SetPoint(
             "TOPLEFT",
-            card.icon,
+            card.iconFrame,
             "TOPRIGHT",
             8,
             -1
@@ -1195,21 +1196,19 @@ local function StyleOverviewCard(card, isPrimary)
         )
     else
         card:SetHeight(46)
-        card.icon:SetSize(30, 30)
-        Styles:SetColor(
-            card.background,
-            Palette.panelStrong
+        ResizeOverviewIcon(card.iconFrame, 30)
+        card.KamiMetallicPanel:SetColors(
+            Palette.panelStrong, Palette.metallicTint.neutral
         )
-        Styles:SetBorderColor(
-            card.KamiBorders,
-            Palette.border
+        Components:SetItemSlotFrameColor(
+            card.iconFrame, Palette.metallicTint.neutral
         )
         Styles:ApplyText(card.name, 10, Palette.text)
         Styles:ApplyText(card.rank, 8, Palette.muted)
         card.name:ClearAllPoints()
         card.name:SetPoint(
             "TOPLEFT",
-            card.icon,
+            card.iconFrame,
             "TOPRIGHT",
             8,
             -1
@@ -1308,9 +1307,9 @@ local function AcquireReagentRow(frame, index)
 
     local slot = Components:CreateItemDisplayButton(row, {
         size = 36,
+        metallic = true,
         count = true,
         countFontSize = 8,
-        corners = true,
     })
     slot:SetPoint("LEFT", row, "LEFT", 0, 0)
     row.slot = slot
@@ -1395,6 +1394,7 @@ local function CreateCharacterMenu(frame, header)
                 buttonWidth = 22,
                 buttonHeight = 22,
                 styleButton = false,
+                metallicIcon = true,
                 iconTexCoord = { 0.07, 0.93, 0.07, 0.93 },
                 direction = "down",
                 align = "left",
@@ -1533,12 +1533,10 @@ local function CreateCraftingPage(frame)
     left:SetPoint("TOPLEFT")
     left:SetPoint("BOTTOMLEFT")
     left:SetWidth(Layout.RECIPE_PANEL_WIDTH)
-    Styles:EnsureBackground(
-        left,
-        "KamiBackground",
-        { 0, 0, 0, 0.28 }
-    )
-    Styles:CreateBorder(left)
+    left.KamiMetallicPanel = Components:ApplyMetallicPanel(left, {
+        sliceSize = 12,
+        backgroundColor = { 0, 0, 0, 0.28 },
+    })
     frame.recipePanel = left
 
     local search = CreateFrame(
@@ -1797,9 +1795,9 @@ local function CreateCraftingPage(frame)
         detailContent,
         {
             size = 44,
+            metallic = true,
             count = true,
             countFontSize = 9,
-            corners = true,
         }
     )
     outputSlot:SetPoint("TOPLEFT", detailContent, "TOPLEFT", 0, 0)
@@ -1938,13 +1936,13 @@ local function CreateCraftingPage(frame)
     local craftAll = CreateFrame("Button", nil, right)
     craftAll:SetSize(64, 24)
     craftAll:SetPoint("BOTTOMLEFT", right, "BOTTOMLEFT", 0, 0)
-    Components:StyleButton(craftAll, { text = "Craft All" })
+    Components:StyleButton(craftAll, { metallic = true, text = "Craft All" })
     frame.craftAllButton = craftAll
 
     local minus = CreateFrame("Button", nil, right)
     minus:SetSize(24, 24)
     minus:SetPoint("LEFT", craftAll, "RIGHT", 6, 0)
-    Components:StyleButton(minus, { text = "-" })
+    Components:StyleButton(minus, { metallic = true, text = "-" })
     frame.quantityMinus = minus
 
     local quantity = CreateFrame(
@@ -1966,14 +1964,14 @@ local function CreateCraftingPage(frame)
     local plus = CreateFrame("Button", nil, right)
     plus:SetSize(24, 24)
     plus:SetPoint("LEFT", quantity, "RIGHT", 4, 0)
-    Components:StyleButton(plus, { text = "+" })
+    Components:StyleButton(plus, { metallic = true, text = "+" })
     frame.quantityPlus = plus
 
     local craft = CreateFrame("Button", nil, right)
     craft:SetHeight(24)
     craft:SetPoint("LEFT", plus, "RIGHT", 10, 0)
     craft:SetPoint("RIGHT", right, "RIGHT", 0, 0)
-    Components:StyleButton(craft, { text = "Craft" })
+    Components:StyleButton(craft, { metallic = true, text = "Craft" })
     frame.craftButton = craft
 
     minus:SetScript("OnClick", function()
@@ -2006,6 +2004,7 @@ function Module:CreateFrame()
     end
 
     local frame, header = Components:CreateWindow("KamiUIProfessionFrame", {
+        metallic = true,
         width = Layout.FRAME_WIDTH,
         height = Layout.FRAME_HEIGHT,
         toplevel = true,
@@ -2025,7 +2024,7 @@ function Module:CreateFrame()
     local back = CreateFrame("Button", nil, header.LeftActions)
     back:SetSize(28, 22)
     back:SetPoint("LEFT", frame.characterButton, "RIGHT", 5, 0)
-    Components:StyleButton(back, { text = "<" })
+    Components:StyleButton(back, { metallic = true, text = "<" })
     back:Hide()
     back:SetScript("OnClick", function()
         Module.forceOverview = true
@@ -2038,8 +2037,11 @@ function Module:CreateFrame()
     local close = Components:CreateWindowCloseButton(
         header.RightActions,
         {
+            metallic = true,
             width = 24,
             height = 22,
+            artSize = 18,
+            crossSize = 9,
             point = "RIGHT",
             x = -4,
             y = 0,

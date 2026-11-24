@@ -64,6 +64,13 @@ This is the current working state, not a commitment to implement every idea.
   button, search inputs and popup menu surfaces remain unchanged for now.
 - [ ] Test Item Rating on Hunter and Druid, class tint on cached alts,
   and additional item quality and quest glow states in Characters.
+- [x] Extend the metallic theme to Professions overview and crafting:
+  neutral window, gold primary profession cards, framed profession
+  icons/abilities and recipe output/reagent slots, raised buttons,
+  character selector and close/unlearn buttons. Professions 0.3.2.
+- [ ] Test current and cached profession overview, ability use/drag,
+  recipe selection, quantities, craft actions and unlearn confirmation.
+  Keep progress bars, search inputs, list rows and checkbox styling.
 - [ ] Expand to other modules incrementally: ActionBars, tooltips,
   unitframes/statusbars/castbars and remaining controls.
   The exact rollout order is not fixed.
