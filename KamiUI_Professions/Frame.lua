@@ -58,6 +58,29 @@ local function IsLiveProfessionOpen()
     return GetLiveProfessionInfo() ~= nil
 end
 
+local NATIVE_CLOSE_TASK = "professions.closeBackend"
+
+-- The custom window is not protected, but its Blizzard backend can be.
+-- Close the backend only outside combat and discard stale close requests.
+function Module:CloseNativeFrame()
+    UI:RunOutOfCombat(NATIVE_CLOSE_TASK, function()
+        if self.frame and self.frame:IsShown() then
+            return
+        end
+
+        if IsLiveProfessionOpen()
+            and C_TradeSkillUI
+            and C_TradeSkillUI.CloseTradeSkill
+        then
+            C_TradeSkillUI.CloseTradeSkill()
+        elseif _G.ProfessionsFrame
+            and _G.ProfessionsFrame:IsShown()
+        then
+            _G.ProfessionsFrame:Hide()
+        end
+    end)
+end
+
 local secondaryProfessionIDs = {
     [129] = true, -- First Aid
     [185] = true, -- Cooking
@@ -2056,6 +2079,7 @@ function Module:CreateFrame()
     CreateCraftingPage(frame)
 
     frame:SetScript("OnShow", function()
+        UI:CancelOutOfCombat(NATIVE_CLOSE_TASK)
         UI:ApplyFramePosition(
             frame,
             GetDatabase(),
@@ -2071,16 +2095,7 @@ function Module:CreateFrame()
             return
         end
 
-        if IsLiveProfessionOpen()
-            and C_TradeSkillUI
-            and C_TradeSkillUI.CloseTradeSkill
-        then
-            C_TradeSkillUI.CloseTradeSkill()
-        elseif _G.ProfessionsFrame
-            and _G.ProfessionsFrame:IsShown()
-        then
-            _G.ProfessionsFrame:Hide()
-        end
+        Module:CloseNativeFrame()
     end)
 
     Components:RegisterEscapeClose(frame)
@@ -3535,6 +3550,7 @@ function Module:RefreshFrame()
 end
 
 function Module:ShowFrame()
+    UI:CancelOutOfCombat(NATIVE_CLOSE_TASK)
     local frame = self:CreateFrame()
 
     UI:ApplyFramePosition(
@@ -3559,16 +3575,7 @@ function Module:CloseFrame()
         return
     end
 
-    if IsLiveProfessionOpen()
-        and C_TradeSkillUI
-        and C_TradeSkillUI.CloseTradeSkill
-    then
-        C_TradeSkillUI.CloseTradeSkill()
-    elseif _G.ProfessionsFrame
-        and _G.ProfessionsFrame:IsShown()
-    then
-        _G.ProfessionsFrame:Hide()
-    end
+    self:CloseNativeFrame()
 end
 
 -- The native profession UI must stay shown to provide its backend,

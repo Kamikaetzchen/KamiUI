@@ -68,8 +68,13 @@ This is the current working state, not a commitment to implement every idea.
   neutral window, gold primary profession cards, framed profession
   icons/abilities and recipe output/reagent slots, raised buttons,
   character selector and close/unlearn buttons. Professions 0.3.2.
+- [x] Guard native ProfessionsFrame closing after the owner reported
+  ADDON_ACTION_BLOCKED in combat. Defer only the native backend close,
+  keep custom window closing immediate, and cancel stale close requests
+  when reopening. Professions 0.3.3.
 - [ ] Test current and cached profession overview, ability use/drag,
   recipe selection, quantities, craft actions and unlearn confirmation.
+  Verify closing via X/Escape in combat and reopening before combat ends.
   Keep progress bars, search inputs, list rows and checkbox styling.
 - [ ] Expand to other modules incrementally: ActionBars, tooltips,
   unitframes/statusbars/castbars and remaining controls.
