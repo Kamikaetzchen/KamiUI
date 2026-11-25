@@ -1,8 +1,8 @@
 ## Interface: 16001
 ## Title: KamiUI - Item Rating
-## Notes: Multi-spec druid item scores and equipped-item comparisons
+## Notes: Multi-spec item scores and equipped-item comparisons
 ## Author: Kami Katze
-## Version: 0.7.4
+## Version: 0.8.0
 ## IconTexture: Interface\Icons\Ability_Druid_CatForm
 ## RequiredDeps: KamiUI
 ## OptionalDeps: KamiUI_Characters
@@ -11,6 +11,10 @@ Core.lua
 Profiles\DruidCat.lua
 Profiles\DruidBear.lua
 Profiles\DruidRestoration.lua
+Profiles\ShamanLeveling.lua
+Profiles\ShamanEnhancement.lua
+Profiles\ShamanElemental.lua
+Profiles\ShamanRestoration.lua
 Rating.lua
 Tooltip.lua
 Settings.lua

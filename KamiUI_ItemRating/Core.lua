@@ -21,9 +21,13 @@ Module.statFields = {
     { "ITEM_MOD_ARMOR_PENETRATION_RATING_SHORT", "Armor Pen. Rating" },
     { "ITEM_MOD_DAMAGE_PER_SECOND_SHORT", "Weapon DPS" },
     { "ITEM_MOD_WEAPON_DAMAGE_SHORT", "Weapon Damage" },
+    { "KAMI_MAIN_HAND_SPEED", "Main Hand Speed (s)" },
     { "ITEM_MOD_SPELL_POWER_SHORT", "Spell Power" },
     { "ITEM_MOD_SPELL_DAMAGE_DONE_SHORT", "Spell Damage" },
     { "ITEM_MOD_SPELL_HEALING_DONE_SHORT", "Spell Healing" },
+    { "ITEM_MOD_SPELL_PENETRATION_SHORT", "Spell Penetration" },
+    { "ITEM_MOD_NATURE_DAMAGE_DONE_SHORT", "Nature Damage" },
+    { "ITEM_MOD_FIRE_DAMAGE_DONE_SHORT", "Fire Damage" },
     { "ITEM_MOD_DODGE_RATING_SHORT", "Dodge Rating" },
     { "ITEM_MOD_PARRY_RATING_SHORT", "Parry Rating" },
     { "ITEM_MOD_DEFENSE_SKILL_RATING_SHORT", "Defense Skill" },
@@ -223,6 +227,13 @@ function Module:ApplyReferenceWeights(classFile, spec, sourceID)
     return true
 end
 
+local function IsProfileAvailable(profile)
+    if not profile.hideAtLevel then return true end
+    local level = UI:SafeCall(UnitLevel, "player")
+    return not UI:CanAccessValue(level) or type(level) ~= "number"
+        or level < profile.hideAtLevel
+end
+
 function Module:GetClassProfiles(classFile)
     if not classFile then
         local _, unitClass = UnitClass("player")
@@ -232,7 +243,9 @@ function Module:GetClassProfiles(classFile)
 
     local profiles = {}
     for _, profile in pairs(self.profiles[classFile] or {}) do
-        profiles[#profiles + 1] = profile
+        if IsProfileAvailable(profile) then
+            profiles[#profiles + 1] = profile
+        end
     end
     table.sort(profiles, function(a, b)
         if (a.order or 99) ~= (b.order or 99) then
@@ -249,7 +262,8 @@ function Module:GetSelectedProfile()
     local db = Database()
     local selected = db.editorSpec and db.editorSpec[classFile]
     local profiles = self.profiles[classFile]
-    if profiles and selected and profiles[selected] then
+    if profiles and selected and profiles[selected]
+        and IsProfileAvailable(profiles[selected]) then
         return profiles[selected]
     end
     local sorted = self:GetClassProfiles(classFile)
@@ -257,8 +271,9 @@ function Module:GetSelectedProfile()
 end
 
 function Module:SetSelectedProfile(classFile, spec)
-    if not (self.profiles[classFile]
-        and self.profiles[classFile][spec]) then return false end
+    local profile = self.profiles[classFile]
+        and self.profiles[classFile][spec]
+    if not profile or not IsProfileAvailable(profile) then return false end
 
     local db = Database()
     db.editorSpec = db.editorSpec or {}

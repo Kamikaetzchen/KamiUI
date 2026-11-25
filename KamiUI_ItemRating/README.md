@@ -121,3 +121,28 @@ automatically assigned a Healing weight.
   is already reflected in each source.
 * Support for additional classes requires registering profiles and
   their weights. The editor automatically includes the new profile.
+
+## Shaman profiles (0.8.0)
+
+Leveling (Enhancement, level 20 solo, 5 Nov 2026) is listed first below
+level 60 and hidden at level 60 in both tooltips and the editor. The
+other three profiles remain visible at all levels. The selected editor
+profile falls back to the first available one without deleting overrides.
+Leveling uses a fixed AP-normalized reference, not dynamic level scaling.
+Its local weapon DPS estimate (14 AP per DPS) is not a SixtySim weight.
+
+Enhancement and Elemental use the 22 Nov 2026 one-boss, one-minute
+benchmarks; Restoration uses the same date's one-boss, three-minute
+single-target benchmark. All weights are per raw point. Main-hand speed
+is measured in seconds from the original item tooltip, with EN/DE
+fallback parsing for weapon DPS as needed. School-specific damage and
+spell penetration rely on native item-stat keys. General Spell Power
+and Spell Damage aliases are scored only once for Shaman DPS profiles.
+Healing profiles retain the existing exclusive healing-power rule.
+Unpublished weights are zero by default and absent from source columns.
+
+References: https://sixtysim.com/guides/shaman/leveling/stats/ and the
+corresponding enhancement, elemental and restoration stat pages.
+The leveling source predates November talent changes; all benchmarks
+are estimates from their respective gear and talent setups. Raw stat
+availability in the Forever client still determines scoring.

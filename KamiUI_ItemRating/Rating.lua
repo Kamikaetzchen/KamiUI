@@ -90,6 +90,44 @@ local function GetFlatWeaponDamage(link, stats)
     return nil
 end
 
+-- Weapon speed is an intrinsic item property, not a combat stat.
+-- Read the original tooltip, never the equipped player's swing timer.
+local function ReadMainHandWeaponStats(link, stats, equipLoc)
+    if equipLoc ~= "INVTYPE_WEAPON" and equipLoc ~= "INVTYPE_2HWEAPON"
+        and equipLoc ~= "INVTYPE_WEAPONMAINHAND" then
+        return
+    end
+    if not C_TooltipInfo or not C_TooltipInfo.GetHyperlink then return end
+    local data = UI:SafeCall(C_TooltipInfo.GetHyperlink, link)
+    if not UI:CanAccessValue(data) or type(data) ~= "table"
+        or not UI:CanAccessValue(data.lines)
+        or type(data.lines) ~= "table" then return end
+
+    for _, line in ipairs(data.lines) do
+        if UI:CanAccessValue(line) and type(line) == "table" then
+            for _, key in ipairs({ "leftText", "rightText" }) do
+                local raw = line[key]
+                if UI:CanAccessValue(raw) and type(raw) == "string" then
+                    local text = raw:gsub("|c%x%x%x%x%x%x%x%x", "")
+                        :gsub("|r", ""):lower()
+                    local speed = text:match("^speed%s+([%d.,]+)$")
+                        or text:match("^tempo%s+([%d.,]+)$")
+                    local dps = text:match("([%d.,]+)%s+damage per second")
+                        or text:match("([%d.,]+)%s+schaden pro sekunde")
+                    if speed then
+                        stats.KAMI_MAIN_HAND_SPEED =
+                            tonumber((speed:gsub(",", ".")))
+                    end
+                    if dps and not Number(stats.ITEM_MOD_DAMAGE_PER_SECOND_SHORT) then
+                        stats.ITEM_MOD_DAMAGE_PER_SECOND_SHORT =
+                            tonumber((dps:gsub(",", ".")))
+                    end
+                end
+            end
+        end
+    end
+end
+
 local function GetEquipLoc(itemLink)
     if not C_Item or not C_Item.GetItemInfoInstant then
         return nil
@@ -139,6 +177,11 @@ function Module:RateItem(itemLink, profile, itemCache)
             stats.ITEM_MOD_WEAPON_DAMAGE_SHORT = flatDamage
         end
 
+        -- Shaman profiles need the actual weapon DPS and base speed.
+        -- Keep existing druid weapon scoring behavior unchanged.
+        if profile.classFile == "SHAMAN" then
+            ReadMainHandWeaponStats(itemLink, stats, equipLoc)
+        end
         item = { equipLoc = equipLoc, stats = stats }
         if itemCache then itemCache[itemLink] = item end
     end
@@ -147,6 +190,7 @@ function Module:RateItem(itemLink, profile, itemCache)
     local score = 0
     local recognized = false
     local healingScore
+    local spellDamageScore
     for key, weight in pairs(profile.weights) do
         local amount = Number(stats[key])
         if amount then
@@ -158,6 +202,10 @@ function Module:RateItem(itemLink, profile, itemCache)
                 -- Some items expose both API keys for the same spell
                 -- bonus. Only use the stronger healing contribution.
                 healingScore = math.max(healingScore or 0, weighted)
+            elseif profile.exclusiveSpellDamage
+                and (key == "ITEM_MOD_SPELL_POWER_SHORT"
+                    or key == "ITEM_MOD_SPELL_DAMAGE_DONE_SHORT") then
+                spellDamageScore = math.max(spellDamageScore or 0, weighted)
             else
                 score = score + weighted
             end
@@ -165,6 +213,7 @@ function Module:RateItem(itemLink, profile, itemCache)
         end
     end
     if healingScore then score = score + healingScore end
+    if spellDamageScore then score = score + spellDamageScore end
 
     -- Unmodelled stats (including proc-only trinkets) are unknown, not
     -- zero DPS. Items with explicit DPS stats can have a score of zero.

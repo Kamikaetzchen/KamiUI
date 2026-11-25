@@ -38,7 +38,9 @@ local function FormatWeight(value)
 end
 
 local function CommitInput(input)
-    local profile = Profile()
+    -- A level-up can hide the profile while its editor is open.
+    -- Commit to the profile whose values are actually in the input.
+    local profile = input.editProfile or Profile()
     if not profile then return end
     local inputText = input:GetText()
     if not UI:CanAccessValue(inputText)
@@ -64,6 +66,7 @@ local function RefreshInputs(frame)
     end
     frame.assumptions:SetText(profile.assumptions or "")
     for _, input in ipairs(frame.weightInputs) do
+        input.editProfile = profile
         input:SetText(FormatWeight(profile.weights[input.statKey]))
     end
 
@@ -498,6 +501,19 @@ UI:RegisterCommand(
     "edit Item Rating stat weights"
 )
 Module:AttachCharacterButton()
+UI:RegisterEvent("PLAYER_LEVEL_UP", function()
+    local frame = Module.settingsWindow
+    if not frame or not frame:IsShown() then return end
+    ClearInputFocus(frame)
+    if frame.profileDropdown and frame.profileDropdown.menu then
+        frame.profileDropdown.menu:Hide()
+    end
+    if C_Timer and C_Timer.After then
+        C_Timer.After(0, function() Module:RefreshSettings() end)
+    else
+        Module:RefreshSettings()
+    end
+end)
 UI:RegisterEvent("ADDON_LOADED", function(_, addon)
     if addon == "KamiUI_Characters" then
         Module:AttachCharacterButton()
