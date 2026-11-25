@@ -1021,7 +1021,8 @@ function Module:Layout()
     local bagBarOffset = GetDatabase().bankBagBarExpanded
         and Layout.BAG_BAR_HEIGHT
         or 0
-    local contentTop = Layout.HEADER_HEIGHT + Layout.FRAME_PADDING + bagBarOffset
+    local contentTop = Layout.HEADER_HEIGHT + 1
+        + Styles.Metrics.windowContentGap + bagBarOffset
 
     frame.content:ClearAllPoints()
     frame.content:SetPoint(
@@ -1408,14 +1409,14 @@ local function CreateFrameUI()
         frame,
         "TOPLEFT",
         Layout.FRAME_PADDING,
-        -Layout.HEADER_HEIGHT - 4
+        -Layout.HEADER_HEIGHT - 1 - Styles.Metrics.windowContentGap
     )
     bagBar:SetPoint(
         "TOPRIGHT",
         frame,
         "TOPRIGHT",
         -Layout.FRAME_PADDING,
-        -Layout.HEADER_HEIGHT - 4
+        -Layout.HEADER_HEIGHT - 1 - Styles.Metrics.windowContentGap
     )
     frame.bagBar = bagBar
     frame.bagBarButtons = {}
@@ -1439,7 +1440,8 @@ local function CreateFrameUI()
 
     local sort = CreateFrame("Button", nil, frame)
     sort:SetSize(34, 18)
-    sort:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", Layout.FRAME_PADDING, 4)
+    sort:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT",
+        Layout.FRAME_PADDING, Layout.FRAME_PADDING)
     sort:SetNormalFontObject("GameFontNormalSmall")
     sort:SetHighlightFontObject("GameFontHighlightSmall")
     sort:SetText("Sort")

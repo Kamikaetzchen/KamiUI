@@ -115,7 +115,8 @@ end
 local function CreateSpellRow(index)
     local row = CreateFrame("Button", nil, window)
     row:SetHeight(ROW_HEIGHT)
-    row:SetPoint("LEFT", window, "LEFT", 7, 0)
+    row:SetPoint("LEFT", window, "LEFT",
+        Styles.Metrics.windowContentInset, 0)
     row:SetPoint("RIGHT", window, "RIGHT", -23, 0)
     if index == 1 then
         row:SetPoint("TOP", window.columnHeader, "BOTTOM", 0, -1)
@@ -360,8 +361,10 @@ local function CreateDetailsWindow()
 
     local header = CreateFrame("Frame", nil, window)
     header:SetHeight(21)
-    header:SetPoint("TOPLEFT", window.header, "BOTTOMLEFT", 6, -1)
-    header:SetPoint("TOPRIGHT", window.header, "BOTTOMRIGHT", -6, -1)
+    local inset = Styles.Metrics.windowContentInset - 1
+    local gap = Styles.Metrics.windowContentGap
+    header:SetPoint("TOPLEFT", window.header, "BOTTOMLEFT", inset, -gap)
+    header:SetPoint("TOPRIGHT", window.header, "BOTTOMRIGHT", -inset, -gap)
     window.columnHeader = header
 
     local spellLabel = CreateText(header, 9, Palette.gold)

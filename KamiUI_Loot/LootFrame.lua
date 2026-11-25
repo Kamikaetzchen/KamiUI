@@ -296,7 +296,7 @@ function Module:Refresh()
     frame.content:SetHeight(contentHeight)
     frame:SetHeight(
         Layout.HEADER_HEIGHT
-        + Layout.FRAME_PADDING
+        + 1 + Styles.Metrics.windowContentGap
         + contentHeight
         + Layout.FRAME_PADDING
     )
@@ -351,7 +351,8 @@ function Module:CreateFrame()
         {
             metallic = true,
             width = Layout.FRAME_WIDTH,
-            height = Layout.HEADER_HEIGHT + Layout.FRAME_PADDING * 2,
+            height = Layout.HEADER_HEIGHT + 1
+                + Styles.Metrics.windowContentGap + Layout.FRAME_PADDING,
             backgroundColor = Palette.window.neutral,
             borderColor = Palette:GetPlayerClassTint(),
             header = {
@@ -374,14 +375,14 @@ function Module:CreateFrame()
         frame,
         "TOPLEFT",
         Layout.FRAME_PADDING,
-        -Layout.HEADER_HEIGHT - Layout.FRAME_PADDING
+        -Layout.HEADER_HEIGHT - 1 - Styles.Metrics.windowContentGap
     )
     content:SetPoint(
         "TOPRIGHT",
         frame,
         "TOPRIGHT",
         -Layout.FRAME_PADDING,
-        -Layout.HEADER_HEIGHT - Layout.FRAME_PADDING
+        -Layout.HEADER_HEIGHT - 1 - Styles.Metrics.windowContentGap
     )
     content:SetHeight(1)
 

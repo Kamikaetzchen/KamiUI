@@ -1407,7 +1407,8 @@ function Module:Layout()
     local bagBarOffset = GetDatabase().bagBarExpanded
         and Layout.BAG_BAR_HEIGHT
         or 0
-    local contentTop = Layout.HEADER_HEIGHT + Layout.FRAME_PADDING + bagBarOffset
+    local contentTop = Layout.HEADER_HEIGHT + 1
+        + Styles.Metrics.windowContentGap + bagBarOffset
 
     frame.content:ClearAllPoints()
     frame.content:SetPoint(
@@ -1895,8 +1896,8 @@ local function CreateFrameUI()
 
     local bagBar = CreateFrame("Frame", nil, frame)
     bagBar:SetHeight(32)
-    bagBar:SetPoint("TOPLEFT", frame, "TOPLEFT", Layout.FRAME_PADDING, -Layout.HEADER_HEIGHT - 4)
-    bagBar:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -Layout.FRAME_PADDING, -Layout.HEADER_HEIGHT - 4)
+    bagBar:SetPoint("TOPLEFT", frame, "TOPLEFT", Layout.FRAME_PADDING, -Layout.HEADER_HEIGHT - 1 - Styles.Metrics.windowContentGap)
+    bagBar:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -Layout.FRAME_PADDING, -Layout.HEADER_HEIGHT - 1 - Styles.Metrics.windowContentGap)
     frame.bagBar = bagBar
     frame.bagBarButtons = {}
 
@@ -1910,7 +1911,8 @@ local function CreateFrameUI()
 
     local sort = CreateFrame("Button", nil, frame)
     sort:SetSize(34, 18)
-    sort:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", Layout.FRAME_PADDING, 4)
+    sort:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT",
+        Layout.FRAME_PADDING, Layout.FRAME_PADDING)
     sort:SetNormalFontObject("GameFontNormalSmall")
     sort:SetHighlightFontObject("GameFontHighlightSmall")
     sort:SetText("Sort")
@@ -1937,7 +1939,8 @@ local function CreateFrameUI()
     frame.sort = sort
 
     local money = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    money:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -Layout.FRAME_PADDING, 8)
+    money:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT",
+        -Layout.FRAME_PADDING, Layout.FRAME_PADDING + 4)
     money:SetTextColor(0.85, 0.85, 0.85)
     frame.money = money
 

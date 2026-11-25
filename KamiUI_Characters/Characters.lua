@@ -7,6 +7,12 @@ local Module = UI:NewModule("Characters", "KamiUI_Characters")
 
 
 local Layout = UI.Layout.Characters
+local CONTENT_INSET = Styles.Metrics.windowContentInset
+local CONTENT_GAP = Styles.Metrics.windowContentGap
+local LIST_PANE_WIDTH = Layout.LEFT_PANE_WIDTH - Layout.BORDER_INSET
+    - CONTENT_INSET
+local SIDEBAR_WIDTH = Layout.RIGHT_PANE_WIDTH + Layout.BORDER_INSET
+    - CONTENT_INSET
 
 local CHARACTER_DATABASE_DEFAULTS = {
     data = {},
@@ -642,7 +648,8 @@ local BOTTOM_SLOT_X = {
 
 local function LayoutEquipmentSlot(button, definition, frame)
     local pane = frame.characterPane or frame
-    local top = -58
+    local top = -Layout.HEADER_HEIGHT - CONTENT_GAP + Layout.BORDER_INSET
+    local inset = CONTENT_INSET - Layout.BORDER_INSET
 
     button:ClearAllPoints()
 
@@ -651,7 +658,7 @@ local function LayoutEquipmentSlot(button, definition, frame)
             "TOPLEFT",
             pane,
             "TOPLEFT",
-            6,
+            inset,
             top - (definition.row - 1) * (Layout.SLOT_SIZE + Layout.SLOT_GAP)
         )
     elseif definition.side == "RIGHT" then
@@ -659,7 +666,7 @@ local function LayoutEquipmentSlot(button, definition, frame)
             "TOPRIGHT",
             pane,
             "TOPRIGHT",
-            -6,
+            -inset,
             top - (definition.row - 1) * (Layout.SLOT_SIZE + Layout.SLOT_GAP)
         )
     else
@@ -2353,8 +2360,10 @@ end
 
 local function CreateReputationPane(frame)
     local pane = CreateFrame("Frame", nil, frame)
-    pane:SetPoint("TOPLEFT", frame, "TOPLEFT", 1, -Layout.HEADER_HEIGHT)
-    pane:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -1, 1)
+    pane:SetPoint("TOPLEFT", frame, "TOPLEFT",
+        CONTENT_INSET, -Layout.HEADER_HEIGHT - CONTENT_GAP)
+    pane:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT",
+        -CONTENT_INSET, CONTENT_INSET)
     pane:Hide()
     pane.rows = {}
     frame.reputationPane = pane
@@ -2362,7 +2371,7 @@ local function CreateReputationPane(frame)
     local listPanel = CreateFrame("Frame", nil, pane)
     listPanel:SetPoint("TOPLEFT", 0, 0)
     listPanel:SetPoint("BOTTOMLEFT", 0, 0)
-    listPanel:SetWidth((Layout.LEFT_PANE_WIDTH - 2 * Layout.BORDER_INSET))
+    listPanel:SetWidth((LIST_PANE_WIDTH))
 
     local list = CreateFrame("ScrollFrame", nil, listPanel)
     list:SetPoint("TOPLEFT", 1, -1)
@@ -2371,7 +2380,7 @@ local function CreateReputationPane(frame)
     pane.list = list
 
     local content = CreateFrame("Frame", nil, list)
-    content:SetWidth((Layout.LEFT_PANE_WIDTH - 2 * Layout.BORDER_INSET - Layout.LIST_CONTENT_INSET))
+    content:SetWidth(LIST_PANE_WIDTH - Layout.LIST_CONTENT_INSET)
     content:SetHeight(1)
     list:SetScrollChild(content)
     pane.listContent = content
@@ -2462,14 +2471,14 @@ local function CreateReputationPane(frame)
         "TOPLEFT",
         pane,
         "TOPLEFT",
-        (Layout.LEFT_PANE_WIDTH - 2 * Layout.BORDER_INSET),
+        (LIST_PANE_WIDTH),
         0
     )
     splitDivider:SetPoint(
         "BOTTOMLEFT",
         pane,
         "BOTTOMLEFT",
-        (Layout.LEFT_PANE_WIDTH - 2 * Layout.BORDER_INSET),
+        (LIST_PANE_WIDTH),
         0
     )
     splitDivider:SetWidth(1)
@@ -3015,8 +3024,10 @@ end
 
 local function CreateSkillsPane(frame)
     local pane = CreateFrame("Frame", nil, frame)
-    pane:SetPoint("TOPLEFT", frame, "TOPLEFT", 1, -Layout.HEADER_HEIGHT)
-    pane:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -1, 1)
+    pane:SetPoint("TOPLEFT", frame, "TOPLEFT",
+        CONTENT_INSET, -Layout.HEADER_HEIGHT - CONTENT_GAP)
+    pane:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT",
+        -CONTENT_INSET, CONTENT_INSET)
     pane:Hide()
     pane.rows = {}
     pane.elapsed = 0
@@ -3025,7 +3036,7 @@ local function CreateSkillsPane(frame)
     local listPanel = CreateFrame("Frame", nil, pane)
     listPanel:SetPoint("TOPLEFT", 0, 0)
     listPanel:SetPoint("BOTTOMLEFT", 0, 0)
-    listPanel:SetWidth((Layout.LEFT_PANE_WIDTH - 2 * Layout.BORDER_INSET))
+    listPanel:SetWidth((LIST_PANE_WIDTH))
 
     local list = CreateFrame("ScrollFrame", nil, listPanel)
     list:SetPoint("TOPLEFT", 1, -1)
@@ -3034,7 +3045,7 @@ local function CreateSkillsPane(frame)
     pane.list = list
 
     local content = CreateFrame("Frame", nil, list)
-    content:SetWidth((Layout.LEFT_PANE_WIDTH - 2 * Layout.BORDER_INSET - Layout.LIST_CONTENT_INSET))
+    content:SetWidth(LIST_PANE_WIDTH - Layout.LIST_CONTENT_INSET)
     content:SetHeight(1)
     list:SetScrollChild(content)
     pane.listContent = content
@@ -3128,14 +3139,14 @@ local function CreateSkillsPane(frame)
         "TOPLEFT",
         pane,
         "TOPLEFT",
-        (Layout.LEFT_PANE_WIDTH - 2 * Layout.BORDER_INSET),
+        (LIST_PANE_WIDTH),
         0
     )
     splitDivider:SetPoint(
         "BOTTOMLEFT",
         pane,
         "BOTTOMLEFT",
-        (Layout.LEFT_PANE_WIDTH - 2 * Layout.BORDER_INSET),
+        (LIST_PANE_WIDTH),
         0
     )
     splitDivider:SetWidth(1)
@@ -3776,7 +3787,7 @@ local function LayoutOuterTabs(frame)
             "TOPLEFT",
             frame,
             "BOTTOMLEFT",
-            20 + (index - 1) * tabWidth,
+            CONTENT_INSET + (index - 1) * tabWidth,
             1
         )
     end
@@ -3788,11 +3799,12 @@ local function CreateSidebar(frame)
         "TOPRIGHT",
         frame,
         "TOPRIGHT",
-        -1,
-        -Layout.HEADER_HEIGHT
+        -CONTENT_INSET,
+        -Layout.HEADER_HEIGHT - CONTENT_GAP
     )
-    sidebar:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -1, 1)
-    sidebar:SetWidth(Layout.RIGHT_PANE_WIDTH)
+    sidebar:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT",
+        -CONTENT_INSET, CONTENT_INSET)
+    sidebar:SetWidth(SIDEBAR_WIDTH)
     frame.sidebar = sidebar
 
     local divider = sidebar:CreateTexture(nil, "OVERLAY")
@@ -3843,7 +3855,7 @@ local function CreateSidebar(frame)
     sidebar.statsPane = statsPane
 
     local statsContent = CreateFrame("Frame", nil, statsPane)
-    statsContent:SetWidth(Layout.RIGHT_PANE_WIDTH - 12)
+    statsContent:SetWidth(SIDEBAR_WIDTH - 12)
     statsContent:SetHeight(1)
     statsPane:SetScrollChild(statsContent)
     statsPane.content = statsContent
@@ -4229,15 +4241,15 @@ local function CreateFrameUI()
         "TOPLEFT",
         frame,
         "TOPLEFT",
-        1,
-        -Layout.HEADER_HEIGHT
+        CONTENT_INSET,
+        -Layout.HEADER_HEIGHT - CONTENT_GAP
     )
     nativePane:SetPoint(
         "BOTTOMRIGHT",
         frame,
         "BOTTOMRIGHT",
-        -1,
-        1
+        -CONTENT_INSET,
+        CONTENT_INSET
     )
     nativePane:SetFrameLevel(frame:GetFrameLevel() + 1)
     nativePane:Hide()
@@ -4247,7 +4259,7 @@ local function CreateFrameUI()
     local nativeLeftPane = CreateFrame("Frame", nil, nativePane)
     nativeLeftPane:SetPoint("TOPLEFT")
     nativeLeftPane:SetPoint("BOTTOMLEFT")
-    nativeLeftPane:SetWidth(Layout.LEFT_PANE_WIDTH - 2 * Layout.BORDER_INSET)
+    nativeLeftPane:SetWidth(LIST_PANE_WIDTH)
     frame.nativeLeftPane = nativeLeftPane
 
     local nativeRightPane = CreateFrame("Frame", nil, nativePane)
@@ -4519,7 +4531,8 @@ local function CreateFrameUI()
     Components:CreateHeaderCachedIndicator(header, close)
 
     local modelPanel = CreateFrame("Frame", nil, characterPane, "BackdropTemplate")
-    modelPanel:SetPoint("TOP", characterPane, "TOP", 0, -54)
+    modelPanel:SetPoint("TOP", characterPane, "TOP", 0,
+        -Layout.HEADER_HEIGHT - CONTENT_GAP + Layout.BORDER_INSET)
     modelPanel:SetPoint("BOTTOM", characterPane, "BOTTOM", 0, 58)
     modelPanel:SetWidth(230)
     modelPanel.KamiMetallicPanel = Components:ApplyMetallicPanel(modelPanel, {
@@ -4575,7 +4588,9 @@ local function CreateFrameUI()
         labelGap = 5,
     })
     autoEquip:SetPoint(
-        "BOTTOMLEFT", characterPane, "BOTTOMLEFT", 6, 6
+        "BOTTOMLEFT", characterPane, "BOTTOMLEFT",
+        CONTENT_INSET - Layout.BORDER_INSET,
+        CONTENT_INSET - Layout.BORDER_INSET
     )
     autoEquip:SetFrameLevel(
         frame.equipmentByKey.WristSlot:GetFrameLevel() + 2

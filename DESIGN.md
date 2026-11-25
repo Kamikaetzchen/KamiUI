@@ -180,3 +180,13 @@ information is unavailable, use neutral metal; other tooltip types
 retain the logged-in class tint. Reset on clear/hide. Only tint the
 separate grayscale rim, not the dark translucent fill. Use the existing
 unit/item post-processing hooks without rebuilding Blizzard tooltips.
+
+### Window spacing
+
+Use six UI pixels from the outer window edge for shared header controls
+and primary content, six between the header and content, and six for
+nested panel padding where practical. Preserve existing slot dimensions
+and gaps (Bags/Bank 2, Character/Account 3). Fixed grids, reserved footer
+and scrollbar areas, equipment weapon/checkbox layout and compact HUD
+layouts retain their functional geometry rather than forcing every
+internal element to the outer inset.

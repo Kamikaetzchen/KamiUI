@@ -12,7 +12,11 @@ Styles.Metrics = {
     itemSlotSize = 36,
     sectionInset = 6,
     headerActionSize = 22,
-    headerActionInset = 3,
+    -- The header is itself inset by one pixel.
+    headerActionInset = 5,
+    windowContentInset = 6,
+    windowContentGap = 6,
+    panelContentInset = 6,
     headerActionGap = 4,
     headerCloseCrossSize = 9,
 }

@@ -1,4 +1,5 @@
 local UI = KamiUI
+local Metrics = UI.Styles.Metrics
 
 -- Editable layout dimensions and offsets, grouped by module.
 -- Derived sizes are calculated at their point of use.
@@ -19,26 +20,26 @@ UI.Layout = {
         SLOT_SIZE = 36,
         SLOT_SPACING = 2,
         COLUMNS = 10,
-        FRAME_PADDING = 10,
+        FRAME_PADDING = Metrics.windowContentInset,
         HEADER_HEIGHT = 28,
         FOOTER_HEIGHT = 24,
-        BAG_BAR_HEIGHT = 42,
+        BAG_BAR_HEIGHT = 32 + Metrics.windowContentGap,
     },
 
     Bank = {
         SLOT_SIZE = 36,
         SLOT_SPACING = 2,
         COLUMNS = 10,
-        FRAME_PADDING = 10,
+        FRAME_PADDING = Metrics.windowContentInset,
         HEADER_HEIGHT = 28,
         FOOTER_HEIGHT = 24,
-        BAG_BAR_HEIGHT = 42,
+        BAG_BAR_HEIGHT = 32 + Metrics.windowContentGap,
     },
 
     Loot = {
         FRAME_WIDTH = 280,
         HEADER_HEIGHT = 28,
-        FRAME_PADDING = 7,
+        FRAME_PADDING = Metrics.windowContentInset,
         ROW_HEIGHT = 36,
         ROW_SPACING = 3,
         ICON_SIZE = 32,
@@ -52,7 +53,7 @@ UI.Layout = {
         FRAME_HEIGHT = 520,
         HEADER_HEIGHT = 28,
         RECIPE_PANEL_WIDTH = 300,
-        CONTENT_PADDING = 8,
+        CONTENT_PADDING = Metrics.windowContentInset,
         ROW_HEIGHT = 22,
         REAGENT_ROW_HEIGHT = 42,
     },

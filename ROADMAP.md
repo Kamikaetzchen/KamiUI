@@ -171,3 +171,7 @@ Use the current source and Git history for exact implementation details.
   rebuild. Use the same class lookup as the visible player text, apply
   the frame tint after rebuilding, and refresh it on the existing
   GUID-checked specialization update. Tooltips 0.2.30.
+
+- [x] Normalize shared header and primary custom window content spacing
+  to 6 UI pixels; preserve existing slot gaps and functional sub-layouts.
+  Bags/Bank, Professions, Loot, Account, Character and meter details.

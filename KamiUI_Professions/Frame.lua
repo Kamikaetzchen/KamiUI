@@ -1475,7 +1475,7 @@ local function CreateOverviewPage(frame)
         frame,
         "TOPLEFT",
         Layout.CONTENT_PADDING,
-        -Layout.HEADER_HEIGHT - Layout.CONTENT_PADDING
+        -Layout.HEADER_HEIGHT - 1 - Styles.Metrics.windowContentGap
     )
     page:SetPoint(
         "BOTTOMRIGHT",
@@ -1488,7 +1488,7 @@ local function CreateOverviewPage(frame)
     frame.overviewPage = page
 
     local empty = page:CreateFontString(nil, "OVERLAY")
-    empty:SetPoint("TOPLEFT", 4, -2)
+    empty:SetPoint("TOPLEFT", 0, 0)
     Styles:ApplyText(empty, 9, Palette.muted)
     empty:SetText("No profession data cached")
     empty:Hide()
@@ -1522,7 +1522,7 @@ local function CreateCraftingPage(frame)
         frame,
         "TOPLEFT",
         Layout.CONTENT_PADDING,
-        -Layout.HEADER_HEIGHT - Layout.CONTENT_PADDING
+        -Layout.HEADER_HEIGHT - 1 - Styles.Metrics.windowContentGap
     )
     page:SetPoint(
         "BOTTOMRIGHT",
@@ -1552,8 +1552,9 @@ local function CreateCraftingPage(frame)
     )
     search:SetAutoFocus(false)
     search:SetHeight(24)
-    search:SetPoint("TOPLEFT", left, "TOPLEFT", 5, -5)
-    search:SetPoint("TOPRIGHT", left, "TOPRIGHT", -5, -5)
+    local panelInset = Styles.Metrics.panelContentInset
+    search:SetPoint("TOPLEFT", left, "TOPLEFT", panelInset, -panelInset)
+    search:SetPoint("TOPRIGHT", left, "TOPRIGHT", -panelInset, -panelInset)
     search:SetTextInsets(6, 6, 0, 0)
     Components:StyleInput(search, {
         metallic = true,
@@ -1652,13 +1653,14 @@ local function CreateCraftingPage(frame)
     )
 
     local divider = page:CreateTexture(nil, "OVERLAY")
-    divider:SetPoint("TOPLEFT", left, "TOPRIGHT", 5, 0)
-    divider:SetPoint("BOTTOMLEFT", left, "BOTTOMRIGHT", 5, 0)
+    local panelGap = Styles.Metrics.windowContentGap
+    divider:SetPoint("TOPLEFT", left, "TOPRIGHT", panelGap, 0)
+    divider:SetPoint("BOTTOMLEFT", left, "BOTTOMRIGHT", panelGap, 0)
     divider:SetWidth(1)
     Styles:SetColor(divider, Palette.border)
 
     local right = CreateFrame("Frame", nil, page)
-    right:SetPoint("TOPLEFT", left, "TOPRIGHT", 11, 0)
+    right:SetPoint("TOPLEFT", left, "TOPRIGHT", panelGap * 2 + 1, 0)
     right:SetPoint("BOTTOMRIGHT")
     frame.detailPanel = right
 
@@ -2185,14 +2187,14 @@ function Module:RefreshOverview()
     frame.overviewPage.empty:SetShown(#primary + #secondary == 0)
 
     local cardIndex = 0
-    local y = 2
+    local y = 0
 
     frame.overviewPage.primaryLabel:ClearAllPoints()
     frame.overviewPage.primaryLabel:SetPoint(
         "TOPLEFT",
         frame.overviewPage,
         "TOPLEFT",
-        4,
+        0,
         -y
     )
     frame.overviewPage.primaryLabel:SetShown(#primary > 0)
@@ -2211,14 +2213,14 @@ function Module:RefreshOverview()
                 "TOPLEFT",
                 frame.overviewPage,
                 "TOPLEFT",
-                4,
+                0,
                 -y
             )
             card:SetPoint(
                 "TOPRIGHT",
                 frame.overviewPage,
                 "TOPRIGHT",
-                -4,
+                0,
                 -y
             )
 
@@ -2277,7 +2279,7 @@ function Module:RefreshOverview()
         "TOPLEFT",
         frame.overviewPage,
         "TOPLEFT",
-        4,
+        0,
         -y
     )
     frame.overviewPage.secondaryLabel:SetShown(
@@ -2298,14 +2300,14 @@ function Module:RefreshOverview()
                 "TOPLEFT",
                 frame.overviewPage,
                 "TOPLEFT",
-                4,
+                0,
                 -y
             )
             card:SetPoint(
                 "TOPRIGHT",
                 frame.overviewPage,
                 "TOPRIGHT",
-                -4,
+                0,
                 -y
             )
 

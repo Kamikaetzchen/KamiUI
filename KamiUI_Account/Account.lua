@@ -4,6 +4,8 @@ local Styles = UI.Styles
 local Components = UI.Components
 local Module = UI:NewModule("Account", "KamiUI_Account")
 
+local INSET = Styles.Metrics.windowContentInset
+local CONTENT_TOP = 32 + 1 + Styles.Metrics.windowContentGap
 local WIDTH = 540
 local HEIGHT = 530
 local SLOT_SIZE = 36
@@ -202,7 +204,8 @@ local CHARACTER_COLUMNS = {
     { key = "class", label = "Class", x = 180, width = 91 },
     { key = "level", label = "Level", x = 274, width = 53 },
     { key = "xp", label = "XP", x = 332, width = 54 },
-    { key = "gold", label = "Gold", x = 389, width = 116 },
+    { key = "gold", label = "Gold", x = 389,
+        width = WIDTH - 2 * INSET - 389 - 3 },
 }
 
 local function GetXPPercent(profile)
@@ -453,8 +456,8 @@ end
 
 local function CreateCharactersPane(frame)
     local pane = CreateFrame("Frame", nil, frame)
-    pane:SetPoint("TOPLEFT", frame, "TOPLEFT", 14, -47)
-    pane:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -14, 35)
+    pane:SetPoint("TOPLEFT", frame, "TOPLEFT", INSET, -CONTENT_TOP)
+    pane:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -INSET, 35)
     pane.rows = {}
     pane.headings = {}
     pane.offset = 0
@@ -583,7 +586,7 @@ local function CreateCharactersPane(frame)
     end)
 
     local pageLabel = CreateLabel(pane, 10, Palette.muted)
-    pageLabel:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -16, 13)
+    pageLabel:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -INSET, INSET)
     pane.pageLabel = pageLabel
     return pane
 end
@@ -596,7 +599,7 @@ local function CreateItemsPane(frame)
     frame.itemsPane = pane
 
     local search = CreateFrame("EditBox", nil, pane, "InputBoxTemplate")
-    search:SetPoint("TOPLEFT", pane, "TOPLEFT", 16, -47)
+    search:SetPoint("TOPLEFT", pane, "TOPLEFT", INSET, -CONTENT_TOP)
     search:SetSize(370, 23)
     search:SetAutoFocus(false)
     search:SetTextInsets(7, 7, 0, 0)
@@ -607,11 +610,13 @@ local function CreateItemsPane(frame)
     pane.search = search
 
     local hint = CreateLabel(pane, 10, Palette.muted)
-    hint:SetPoint("TOPLEFT", pane, "TOPLEFT", 19, -76)
+    hint:SetPoint("TOPLEFT", search, "BOTTOMLEFT", 0,
+        -Styles.Metrics.windowContentGap)
     hint:SetText("Search by name, type, subclass or 'equipped'")
 
     local matchCount = CreateLabel(pane, 10, Palette.muted)
-    matchCount:SetPoint("TOPRIGHT", pane, "TOPRIGHT", -17, -54)
+    matchCount:SetPoint("RIGHT", pane, "TOPRIGHT", -INSET,
+        -CONTENT_TOP - 12)
     pane.matchCount = matchCount
 
     for row = 1, GRID_ROWS do
@@ -622,8 +627,8 @@ local function CreateItemsPane(frame)
             })
             button:SetPoint(
                 "TOPLEFT", pane, "TOPLEFT",
-                17 + (column - 1) * (SLOT_SIZE + SLOT_GAP),
-                -107 - (row - 1) * (SLOT_SIZE + SLOT_GAP)
+                INSET + (column - 1) * (SLOT_SIZE + SLOT_GAP),
+                -CONTENT_TOP - 60 - (row - 1) * (SLOT_SIZE + SLOT_GAP)
             )
             button:Hide()
             pane.buttons[#pane.buttons + 1] = button
@@ -650,7 +655,7 @@ local function CreateItemsPane(frame)
     end)
 
     local pageLabel = CreateLabel(pane, 10, Palette.muted)
-    pageLabel:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -16, 13)
+    pageLabel:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -INSET, INSET)
     pane.pageLabel = pageLabel
     return pane
 end
@@ -696,7 +701,7 @@ local function CreateAccountFrame()
         })
         tab:SetPoint(
             "TOPLEFT", frame, "BOTTOMLEFT",
-            16 + (index - 1) * 100, 1
+            INSET + (index - 1) * 100, 1
         )
         tab.page = definition.page
         tab:SetScript("OnClick", function(self)
