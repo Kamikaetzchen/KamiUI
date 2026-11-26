@@ -190,3 +190,9 @@ and gaps (Bags/Bank 2, Character/Account 3). Fixed grids, reserved footer
 and scrollbar areas, equipment weapon/checkbox layout and compact HUD
 layouts retain their functional geometry rather than forcing every
 internal element to the outer inset.
+
+The Account character table uses class-colored names instead of a separate
+class column. Show up to two primary profession icons plus Cooking with
+cached skill values and direct links to the existing profession window.
+Group parent/child skill lines to avoid duplicate icons; the professions
+column is not sortable. Keep the XP bar clear of the profession ranks.

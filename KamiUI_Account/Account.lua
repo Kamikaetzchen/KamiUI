@@ -199,14 +199,164 @@ local function SetClassColor(text, classFile)
     end
 end
 
+local PROFESSION_X = 293
+local PROFESSION_WIDTH = 112
+local PROFESSION_ICON_SIZE = 22
 local CHARACTER_COLUMNS = {
     { key = "name", label = "Character", x = 3, width = 174 },
-    { key = "class", label = "Class", x = 180, width = 91 },
-    { key = "level", label = "Level", x = 274, width = 53 },
-    { key = "xp", label = "XP", x = 332, width = 54 },
-    { key = "gold", label = "Gold", x = 389,
-        width = WIDTH - 2 * INSET - 389 - 3 },
+    { key = "level", label = "Level", x = 180, width = 53 },
+    { key = "xp", label = "XP", x = 236, width = 54 },
+    { key = "professions", label = "Professions", x = PROFESSION_X,
+        width = PROFESSION_WIDTH, sortable = false },
+    { key = "gold", label = "Gold", x = 409,
+        width = WIDTH - 2 * INSET - 409 - 3 },
 }
+
+local function IsPrimaryProfession(profession, id)
+    if id == 129 or id == 185 or id == 356 or id == 794 then
+        return false
+    end
+    if profession.professionSlot then
+        return profession.professionSlot <= 2
+    end
+    return profession.isPrimaryProfession == true
+end
+
+-- Use the existing character snapshot. A base skill and its recipe-bearing
+-- child skill are one profession, not two icons.
+local function GetRowProfessions(character)
+    local saved = character.professions or {}
+    local groups = {}
+    local professions = UI:GetModule("Professions")
+    for key, profession in pairs(saved) do
+        local id = profession.parentProfessionID or profession.professionID
+            or key
+        local display = saved[id] or profession
+        if display.professionName and
+            (id == 185 or IsPrimaryProfession(display, id)) then
+            local group = groups[id]
+            if not group then
+                group = { id = id, display = display, target = display }
+                groups[id] = group
+            end
+
+            local complete = professions and professions.IsRecipeCacheComplete
+                and professions:IsRecipeCacheComplete(profession)
+                or profession.recipesCached == true
+            local targetComplete = professions
+                and professions.IsRecipeCacheComplete
+                and professions:IsRecipeCacheComplete(group.target)
+                or group.target.recipesCached == true
+            if complete and (not targetComplete
+                or (profession.updated or 0) > (group.target.updated or 0)) then
+                group.target = profession
+            end
+            if not saved[id] and (profession.updated or 0)
+                > (group.display.updated or 0) then
+                group.display = profession
+            end
+        end
+    end
+
+    local primary = {}
+    for id, group in pairs(groups) do
+        if id ~= 185 then primary[#primary + 1] = group end
+    end
+    table.sort(primary, function(a, b)
+        local left = a.display.professionSlot or 99
+        local right = b.display.professionSlot or 99
+        if left ~= right then return left < right end
+        if a.display.professionName ~= b.display.professionName then
+            return a.display.professionName < b.display.professionName
+        end
+        return tostring(a.id) < tostring(b.id)
+    end)
+    return { [1] = primary[1], [2] = primary[2], [3] = groups[185] }
+end
+
+local function RenderRowProfessions(row, character)
+    local entries = GetRowProfessions(character)
+    for index, button in ipairs(row.professionButtons) do
+        local entry = entries[index]
+        button.profession = entry
+        if entry then
+            local profession = entry.display
+            button.icon:SetTexture(profession.icon or entry.target.icon
+                or "Interface\\Icons\\INV_Misc_QuestionMark")
+            button.rank:SetText(tostring(profession.skillLevel or "?"))
+            button:Show()
+        else
+            if GameTooltip:IsOwned(button) then GameTooltip:Hide() end
+            button:Hide()
+        end
+    end
+end
+
+local function CreateProfessionButton(row, index)
+    local button = Components:CreateItemSlot(row, {
+        size = PROFESSION_ICON_SIZE,
+        metallic = true,
+        rarityGlow = false,
+        count = false,
+        highlight = true,
+    })
+    local cellWidth = PROFESSION_WIDTH / 3
+    button:SetPoint("TOPLEFT", row, "TOPLEFT",
+        PROFESSION_X + (index - 1) * cellWidth
+            + (cellWidth - PROFESSION_ICON_SIZE) / 2, -1)
+    button:SetFrameLevel(row:GetFrameLevel() + 2)
+    button:RegisterForClicks("LeftButtonUp")
+
+    local rank = CreateLabel(button, 9)
+    rank:SetPoint("TOP", button, "BOTTOM", 0, -1)
+    button.rank = rank
+
+    button:SetScript("OnEnter", function(self)
+        local entry = self.profession
+        if not entry then return end
+        local profession = entry.display
+        GameTooltip:SetOwner(self, "ANCHOR_CURSOR_RIGHT")
+        GameTooltip:SetText(profession.professionName)
+        GameTooltip:AddLine(string.format("Skill: %s / %s",
+            tostring(profession.skillLevel or "?"),
+            tostring(profession.maxSkillLevel or "?")), 1, 1, 1)
+        local module = UI:GetModule("Professions")
+        if module and module.OpenProfession then
+            GameTooltip:AddLine("Click to open profession", 0.7, 0.85, 0.7)
+        else
+            GameTooltip:AddLine("Professions addon unavailable", 0.7, 0.7, 0.7)
+        end
+        GameTooltip:Show()
+    end)
+    button:SetScript("OnLeave", function(self)
+        if GameTooltip:IsOwned(self) then GameTooltip:Hide() end
+    end)
+    button:SetScript("OnHide", function(self)
+        if GameTooltip:IsOwned(self) then GameTooltip:Hide() end
+    end)
+    button:SetScript("OnClick", function(self)
+        local entry = self.profession
+        local module = UI:GetModule("Professions")
+        if not entry or not row.entryKey or not module
+            or not module.SetViewedCharacter or not module.ShowFrame
+            or not module.OpenProfession then return end
+        GameTooltip:Hide()
+        module:SetViewedCharacter(row.entryKey)
+        module:ShowFrame()
+        module:OpenProfession(entry.target)
+        if module.frame and module.frame.Raise then
+            module.frame:Raise()
+        end
+    end)
+    button:EnableMouseWheel(true)
+    button:SetScript("OnMouseWheel", function(_, delta)
+        local pane = row:GetParent()
+        local scroll = pane:GetScript("OnMouseWheel")
+        if scroll then scroll(pane, delta) end
+    end)
+    button:Hide()
+    return button
+end
 
 local function GetXPPercent(profile)
     local level = tonumber(profile.level)
@@ -262,9 +412,6 @@ local function SortCharacterEntries(entries, pane)
         if key == "name" then
             av = string.lower(a.name or select(2, UI:ParseCharacterKey(left.key)))
             bv = string.lower(b.name or select(2, UI:ParseCharacterKey(right.key)))
-        elseif key == "class" then
-            av = string.lower(a.className or a.classFile or "")
-            bv = string.lower(b.className or b.classFile or "")
         elseif key == "xp" then
             av = GetXPPercent(a) or -1
             bv = GetXPPercent(b) or -1
@@ -323,10 +470,7 @@ local function RenderCharacters()
                 profile.name or select(2, UI:ParseCharacterKey(entry.key))
             )
             SetClassColor(row.name, profile.classFile)
-            row.class:SetText(
-                profile.className or profile.classFile or "-"
-            )
-            SetClassColor(row.class, profile.classFile)
+            RenderRowProfessions(row, profile)
 
             local level = tonumber(profile.level)
             row.level:SetText(
@@ -352,6 +496,7 @@ local function RenderCharacters()
             row.xpCurrent, row.xpMaximum = nil, nil
             HideXPTooltip(row)
             row.xpBar:Hide()
+            RenderRowProfessions(row, {})
             row:Hide()
         end
     end
@@ -441,6 +586,10 @@ function Module:Show()
     if characters and characters.Refresh then
         characters:Refresh()
     end
+    local professions = UI:GetModule("Professions")
+    if professions and professions.SnapshotProfessionSkills then
+        professions:SnapshotProfessionSkills()
+    end
     self:Refresh()
     self.frame:Show()
 end
@@ -476,13 +625,14 @@ local function CreateCharactersPane(frame)
         heading:SetSize(column.width, 23)
         heading:SetPoint("TOPLEFT", pane, "TOPLEFT", column.x, -15)
         heading.label = column.label
-        heading.sortKey = column.key
+        heading.sortKey = column.sortable ~= false and column.key or nil
         heading:SetNormalFontObject("GameFontNormalSmall")
         heading:SetHighlightFontObject("GameFontHighlightSmall")
         local headingText = heading:GetFontString()
         if headingText then
             headingText:SetJustifyH(
-                column.key == "gold" and "RIGHT" or "LEFT"
+                column.key == "gold" and "RIGHT"
+                    or column.key == "professions" and "CENTER" or "LEFT"
             )
         end
 
@@ -495,11 +645,13 @@ local function CreateCharactersPane(frame)
             else
                 pane.sortKey = self.sortKey
                 pane.sortAscending = self.sortKey == "name"
-                    or self.sortKey == "class"
             end
             pane.offset = 0
             RenderCharacters()
         end)
+        if column.sortable == false then
+            heading:EnableMouse(false)
+        end
         pane.headings[#pane.headings + 1] = heading
     end
 
@@ -518,7 +670,6 @@ local function CreateCharactersPane(frame)
         row:SetHeight(ROW_HEIGHT - 1)
 
         row.name = CreateLabel(row, 11)
-        row.class = CreateLabel(row, 10)
         row.level = CreateLabel(row, 10)
         row.xp = CreateLabel(row, 10)
         row.money = CreateLabel(row, 10)
@@ -526,26 +677,32 @@ local function CreateCharactersPane(frame)
         for _, column in ipairs(CHARACTER_COLUMNS) do
             local field = column.key == "gold"
                 and row.money or row[column.key]
-            field:SetPoint(
-                column.key == "gold" and "RIGHT" or "LEFT",
-                row, "LEFT",
-                column.x + (column.key == "gold" and column.width or 0),
-                0
-            )
-            field:SetWidth(column.width - 4)
-            field:SetJustifyH(
-                column.key == "gold" and "RIGHT" or "LEFT"
-            )
-            if field.SetMaxLines then
-                field:SetMaxLines(1)
+            if field then
+                field:SetPoint(
+                    column.key == "gold" and "RIGHT" or "LEFT",
+                    row, "LEFT",
+                    column.x + (column.key == "gold" and column.width or 0),
+                    0
+                )
+                field:SetWidth(column.width - 4)
+                field:SetJustifyH(
+                    column.key == "gold" and "RIGHT" or "LEFT"
+                )
+                if field.SetMaxLines then field:SetMaxLines(1) end
             end
+        end
+
+        row.professionButtons = {}
+        for index = 1, 3 do
+            row.professionButtons[index] = CreateProfessionButton(row, index)
         end
 
         -- Use the XPBar module's colors without requiring that addon.
         -- There is enough space below the existing centered row labels.
         local xpBar = CreateFrame("StatusBar", nil, row)
         xpBar:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", 3, 4)
-        xpBar:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", -7, 4)
+        xpBar:SetPoint("BOTTOMRIGHT", row, "BOTTOMLEFT",
+            PROFESSION_X - 7, 4)
         xpBar:SetHeight(XP_BAR_HEIGHT)
         xpBar:SetStatusBarTexture("Interface\\Buttons\\WHITE8X8")
         xpBar:SetStatusBarColor(unpack(Palette.xpBar.experience))
@@ -798,6 +955,9 @@ function Module:Initialize()
     UI:RegisterEvent("PLAYER_EQUIPMENT_CHANGED", QueueRefresh)
     UI:RegisterEvent("PLAYER_MONEY", QueueRefresh)
     UI:RegisterEvent("PLAYER_LEVEL_UP", QueueRefresh)
+    UI:RegisterEvent("SKILL_LINES_CHANGED", QueueRefresh)
+    UI:RegisterEvent("TRADE_SKILL_LIST_UPDATE", QueueRefresh)
+    UI:RegisterEvent("NEW_RECIPE_LEARNED", QueueRefresh)
     UI:RegisterEvent("PLAYER_XP_UPDATE", function(_, unit)
         if unit == "player" then QueueRefresh() end
     end)
