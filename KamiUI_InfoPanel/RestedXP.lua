@@ -303,6 +303,29 @@ local function GetEstimatedPercent(snapshot, isCurrent)
         elapsed > 0, false, rank
 end
 
+-- Shared by Account; roster filtering remains the caller's responsibility.
+function RestedXP:GetCharacterPercent(key, level, maxXP)
+    if not SafeNumber(level) or level >= MAX_LEVEL
+        or not SafeNumber(maxXP) or maxXP <= 0 then
+        return nil
+    end
+    if key == UI:GetCurrentCharacterKey() then
+        local percent, maxLevel, liveMaxXP = GetCurrentValues()
+        if not maxLevel and liveMaxXP == maxXP then
+            return percent, false
+        end
+        return nil
+    end
+
+    local snapshot = GetDB().characters[key]
+    if not snapshot or snapshot.level ~= level
+        or snapshot.maxXP ~= maxXP then
+        return nil
+    end
+    local percent, estimated = GetEstimatedPercent(snapshot, false)
+    return percent, estimated
+end
+
 function RestedXP:GetCharacterEntries()
     self:CaptureCurrent()
     local snapshots = GetDB().characters

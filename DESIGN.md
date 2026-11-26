@@ -196,3 +196,11 @@ class column. Show up to two primary profession icons plus Cooking with
 cached skill values and direct links to the existing profession window.
 Group parent/child skill lines to avoid duplicate icons; the professions
 column is not sortable. Keep the XP bar clear of the profession ranks.
+
+Account XP bars use the shared purple experience and blue rested colors,
+with a 3 UI-pixel height. Reuse the InfoPanel's Well Rested-adjusted offline
+projection through its optional public per-character query. Unknown or
+mismatched snapshots remain unknown; the current character has a live API
+fallback. Keep full rested amounts in tooltips even when the bar is capped
+at the next level. The profession and XP column geometry remains unchanged
+pending layout review.

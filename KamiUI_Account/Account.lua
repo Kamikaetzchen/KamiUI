@@ -15,7 +15,7 @@ local GRID_ROWS = 9
 local ROW_HEIGHT = 39
 local CHARACTER_ROWS = 10
 local MAX_LEVEL = 60
-local XP_BAR_HEIGHT = 6
+local XP_BAR_HEIGHT = 3
 
 local function GetDatabase()
     return UI:GetDatabase("account", {})
@@ -369,6 +369,31 @@ local function GetXPPercent(profile)
     return math.max(0, math.min(100, xp / xpMax * 100))
 end
 
+local function GetRestedPercent(key, profile)
+    local level = tonumber(profile.level)
+    local maxXP = tonumber(profile.xpMax)
+    if not level or level >= MAX_LEVEL or not maxXP or maxXP <= 0 then
+        return nil
+    end
+
+    -- InfoPanel owns the offline rested-XP model and snapshots.
+    if UI.RestedXP and UI.RestedXP.GetCharacterPercent then
+        return UI.RestedXP:GetCharacterPercent(key, level, maxXP)
+    end
+
+    -- Keep live XP functional if the optional InfoPanel is disabled.
+    if key == UI:GetCurrentCharacterKey() and GetXPExhaustion then
+        local rested = UI:SafeCall(GetXPExhaustion)
+        if UI:CanAccessValue(rested) then
+            if rested == nil then rested = 0 end
+            if type(rested) == "number" then
+                return math.max(0, rested) / maxXP * 100, false
+            end
+        end
+    end
+    return nil
+end
+
 local function ShowXPTooltip(row)
     if not row.xpBar:IsShown() or not row.xpCurrent
         or not row.xpMaximum then
@@ -378,12 +403,25 @@ local function ShowXPTooltip(row)
 
     GameTooltip:SetOwner(row, "ANCHOR_CURSOR_RIGHT")
     GameTooltip:SetText("Experience", 1, 0.82, 0)
-    GameTooltip:AddLine(string.format(
+    local text = string.format(
         "%s/%s (%.1f%%)",
         UI:FormatNumber(row.xpCurrent),
         UI:FormatNumber(row.xpMaximum),
         row.xpCurrent / row.xpMaximum * 100
-    ), 1, 1, 1)
+    )
+    if row.restedPercent and row.restedPercent > 0 then
+        text = string.format("%s (+%.1f%% rested, %s XP)", text,
+            row.restedPercent,
+            UI:FormatNumber(math.floor(
+                row.xpMaximum * row.restedPercent / 100 + 0.5)))
+    end
+    GameTooltip:AddLine(text, 1, 1, 1)
+    if row.restedEstimated then
+        GameTooltip:AddLine("Rested XP is estimated while offline.",
+            0.65, 0.69, 0.76)
+    elseif row.restedPercent == nil then
+        GameTooltip:AddLine("Rested XP unavailable.", 0.65, 0.69, 0.76)
+    end
     GameTooltip:Show()
 end
 
@@ -486,6 +524,14 @@ local function RenderCharacters()
             row.xpBar:SetValue(xpPercent or 0)
             row.xpCurrent = xpPercent and tonumber(profile.xp) or nil
             row.xpMaximum = xpPercent and tonumber(profile.xpMax) or nil
+            row.restedPercent, row.restedEstimated = nil, nil
+            if xpPercent ~= nil then
+                row.restedPercent, row.restedEstimated =
+                    GetRestedPercent(entry.key, profile)
+            end
+            row.restedBar:SetShown(xpPercent ~= nil)
+            row.restedBar:SetValue(math.min(100,
+                (xpPercent or 0) + (row.restedPercent or 0)))
             row.money:SetText(
                 UI:FormatMoney(profile.money or 0, { iconSize = 12 })
             )
@@ -494,8 +540,10 @@ local function RenderCharacters()
         else
             row.entryKey = nil
             row.xpCurrent, row.xpMaximum = nil, nil
+            row.restedPercent, row.restedEstimated = nil, nil
             HideXPTooltip(row)
             row.xpBar:Hide()
+            row.restedBar:Hide()
             RenderRowProfessions(row, {})
             row:Hide()
         end
@@ -699,22 +747,33 @@ local function CreateCharactersPane(frame)
 
         -- Use the XPBar module's colors without requiring that addon.
         -- There is enough space below the existing centered row labels.
-        local xpBar = CreateFrame("StatusBar", nil, row)
-        xpBar:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", 3, 4)
-        xpBar:SetPoint("BOTTOMRIGHT", row, "BOTTOMLEFT",
+        local restedBar = CreateFrame("StatusBar", nil, row)
+        restedBar:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", 3, 4)
+        restedBar:SetPoint("BOTTOMRIGHT", row, "BOTTOMLEFT",
             PROFESSION_X - 7, 4)
-        xpBar:SetHeight(XP_BAR_HEIGHT)
+        restedBar:SetHeight(XP_BAR_HEIGHT)
+        restedBar:SetStatusBarTexture("Interface\\Buttons\\WHITE8X8")
+        restedBar:SetStatusBarColor(unpack(Palette.xpBar.rested))
+        restedBar:SetMinMaxValues(0, 100)
+        restedBar:SetValue(0)
+        restedBar:EnableMouse(false)
+
+        local background = restedBar:CreateTexture(nil, "BACKGROUND")
+        background:SetAllPoints()
+        background:SetColorTexture(unpack(Palette.xpBar.background))
+
+        local xpBar = CreateFrame("StatusBar", nil, row)
+        xpBar:SetAllPoints(restedBar)
         xpBar:SetStatusBarTexture("Interface\\Buttons\\WHITE8X8")
         xpBar:SetStatusBarColor(unpack(Palette.xpBar.experience))
+        xpBar:SetFrameLevel(restedBar:GetFrameLevel() + 1)
         xpBar:SetMinMaxValues(0, 100)
         xpBar:SetValue(0)
         xpBar:EnableMouse(false)
-
-        local background = xpBar:CreateTexture(nil, "BACKGROUND")
-        background:SetAllPoints()
-        background:SetColorTexture(unpack(Palette.xpBar.background))
         xpBar:Hide()
+        restedBar:Hide()
         row.xpBar = xpBar
+        row.restedBar = restedBar
 
         local highlight = row:CreateTexture(nil, "HIGHLIGHT")
         highlight:SetAllPoints(row)
@@ -955,6 +1014,7 @@ function Module:Initialize()
     UI:RegisterEvent("PLAYER_EQUIPMENT_CHANGED", QueueRefresh)
     UI:RegisterEvent("PLAYER_MONEY", QueueRefresh)
     UI:RegisterEvent("PLAYER_LEVEL_UP", QueueRefresh)
+    UI:RegisterEvent("UPDATE_EXHAUSTION", QueueRefresh)
     UI:RegisterEvent("SKILL_LINES_CHANGED", QueueRefresh)
     UI:RegisterEvent("TRADE_SKILL_LIST_UPDATE", QueueRefresh)
     UI:RegisterEvent("NEW_RECIPE_LEARNED", QueueRefresh)
