@@ -17,7 +17,9 @@ local ROW_GAP = 2
 local CHARACTER_ROWS = 10
 local MAX_LEVEL = 60
 local XP_BAR_HEIGHT = 3
-local XP_BAR_BOTTOM = 2
+local XP_BAR_BOTTOM = 4
+local MONEY_ICON_SIZE = 12
+local MONEY_ICON_GAP = 2
 local XP_BAR_TRACK_COLOR = { 0.65, 0.65, 0.67, 1 }
 
 local function GetDatabase()
@@ -266,8 +268,7 @@ local function LayoutNumberField(row, field, column)
     field:SetWordWrap(false)
     field:SetJustifyH("RIGHT")
     field:SetPoint("LEFT", row, "LEFT",
-        column.x + (column.width - field.numberWidth) / 2,
-        (XP_BAR_BOTTOM + XP_BAR_HEIGHT) / 2)
+        column.x + (column.width - field.numberWidth) / 2, 0)
 end
 
 local function SetNumberText(field, text)
@@ -689,9 +690,11 @@ local function RenderCharacters()
             row.restedBar:SetShown(xpPercent ~= nil)
             row.restedBar:SetValue(math.min(100,
                 (xpPercent or 0) + (row.restedPercent or 0)))
-            row.money:SetText(
-                UI:FormatMoney(profile.money or 0, { iconSize = 12 })
-            )
+            local money = UI:FormatMoney(profile.money or 0, {
+                iconSize = MONEY_ICON_SIZE,
+            })
+            -- The last coin has its own fixed anchor at the XP track end.
+            row.money:SetText((money:gsub(" |T[^|]+|t$", "")))
             row:Show()
             if GameTooltip:IsOwned(row) then ShowXPTooltip(row) end
             if GameTooltip:IsOwned(row.itemLevelCell) then
@@ -899,6 +902,10 @@ local function CreateCharactersPane(frame)
         row.xp = CreateLabel(row, 10)
         row.ilvl = CreateLabel(row, 10)
         row.money = CreateLabel(row, 10)
+        local copper = row:CreateTexture(nil, "ARTWORK")
+        copper:SetTexture("Interface\\MoneyFrame\\UI-CopperIcon")
+        copper:SetSize(MONEY_ICON_SIZE, MONEY_ICON_SIZE)
+        copper:SetPoint("RIGHT", row, "LEFT", GOLD_X + GOLD_WIDTH, 0)
 
         for _, column in ipairs(CHARACTER_COLUMNS) do
             local field = column.key == "gold"
@@ -906,16 +913,16 @@ local function CreateCharactersPane(frame)
             if field and column.digits then
                 LayoutNumberField(row, field, column)
             elseif field then
-                field:SetPoint(
-                    column.key == "gold" and "RIGHT" or "LEFT",
-                    row, "LEFT",
-                    column.x + (column.key == "gold" and column.width or 0),
-                    (XP_BAR_BOTTOM + XP_BAR_HEIGHT) / 2
-                )
-                field:SetWidth(column.width - 4)
-                field:SetJustifyH(
-                    column.key == "gold" and "RIGHT" or "LEFT"
-                )
+                if column.key == "gold" then
+                    field:SetPoint("RIGHT", copper, "LEFT", -MONEY_ICON_GAP, 0)
+                    field:SetWidth(column.width - MONEY_ICON_SIZE
+                        - MONEY_ICON_GAP - 4)
+                    field:SetJustifyH("RIGHT")
+                else
+                    field:SetPoint("LEFT", row, "LEFT", column.x, 0)
+                    field:SetWidth(column.width - 4)
+                    field:SetJustifyH("LEFT")
+                end
                 if field.SetMaxLines then field:SetMaxLines(1) end
             end
         end
@@ -948,7 +955,7 @@ local function CreateCharactersPane(frame)
         end
 
         -- Use the XPBar module's colors without requiring that addon.
-        -- End the XP track at the right edge of the gold column.
+        -- The track and copper icon share the same right-edge coordinate.
         local restedBar = CreateFrame("StatusBar", nil, row)
         restedBar:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", 3, XP_BAR_BOTTOM)
         restedBar:SetPoint("BOTTOMRIGHT", row, "BOTTOMLEFT",

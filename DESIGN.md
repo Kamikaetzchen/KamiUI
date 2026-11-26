@@ -210,8 +210,10 @@ with a 3 UI-pixel height. Reuse the InfoPanel's Well Rested-adjusted offline
 projection through its optional public per-character query. Unknown or
 mismatched snapshots remain unknown; the current character has a live API
 fallback. Keep full rested amounts in tooltips even when the bar is capped
-at the next level. The bar spans Character through Gold and ends before
-Professions. Use an opaque light gray track (RGB 0.65/0.65/0.67)
+at the next level. Position the bar four UI units above the row bottom.
+It spans Character through Gold and shares its right edge with the
+separately anchored copper icon. Use an opaque light gray track
+(RGB 0.65/0.65/0.67)
 so the unfilled portion is visible against the window. Center the 32-unit
 profession icons vertically in their own column, with three-unit gaps,
 nine units of right inset and 15 units between Gold and the first icon.
@@ -222,6 +224,7 @@ row height and icon geometry for max-level characters.
 Account numeric columns center fixed-width number blocks (Level two
 digits, XP three digits plus percent, iLvl three digits plus one decimal).
 Integer portions are right aligned and suffixes have a fixed anchor.
+Center all row text vertically regardless of whether XP is shown.
 Keep names left aligned and money right aligned. Read the current
 character's equipped item level directly for rendering and sorting;
 offline characters continue to use their last saved snapshot. Refresh
