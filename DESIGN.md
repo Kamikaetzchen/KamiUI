@@ -211,7 +211,7 @@ projection through its optional public per-character query. Unknown or
 mismatched snapshots remain unknown; the current character has a live API
 fallback. Keep full rested amounts in tooltips even when the bar is capped
 at the next level. The bar spans Character through Gold and ends before
-Professions. Use an opaque medium-dark gray track (RGB 0.30/0.30/0.32)
+Professions. Use an opaque light gray track (RGB 0.65/0.65/0.67)
 so the unfilled portion is visible against the window. Center the 32-unit
 profession icons vertically in their own column, with three-unit gaps,
 nine units of right inset and 15 units between Gold and the first icon.

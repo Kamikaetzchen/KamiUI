@@ -18,7 +18,7 @@ local CHARACTER_ROWS = 10
 local MAX_LEVEL = 60
 local XP_BAR_HEIGHT = 3
 local XP_BAR_BOTTOM = 2
-local XP_BAR_TRACK_COLOR = { 0.30, 0.30, 0.32, 1 }
+local XP_BAR_TRACK_COLOR = { 0.65, 0.65, 0.67, 1 }
 
 local function GetDatabase()
     return UI:GetDatabase("account", {})
