@@ -213,8 +213,10 @@ fallback. Keep full rested amounts in tooltips even when the bar is capped
 at the next level. The bar spans Character through Gold and ends before
 Professions. Use an opaque medium-dark gray track (RGB 0.30/0.30/0.32)
 so the unfilled portion is visible against the window. Center the 32-unit
-profession icons vertically in their own column. Show current/maximum
-skill inside each icon with an outlined, size-adjusted label. Preserve
+profession icons vertically in their own column, with three-unit gaps,
+nine units of right inset and 15 units between Gold and the first icon.
+Show current/maximum skill inside each icon with an outlined,
+size-adjusted label. Preserve
 row height and icon geometry for max-level characters.
 
 Account numeric columns center fixed-width number blocks (Level two

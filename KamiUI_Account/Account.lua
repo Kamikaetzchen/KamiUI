@@ -206,16 +206,19 @@ local ITEM_LEVEL_X = 293
 local ITEM_LEVEL_WIDTH = 57
 local GOLD_X = ITEM_LEVEL_X + ITEM_LEVEL_WIDTH + 3
 local PROFESSION_COUNT = 5
-local PROFESSION_WIDTH = 188
-local GOLD_WIDTH = WIDTH - 2 * INSET - GOLD_X - PROFESSION_WIDTH - 10
-local PROFESSION_X = GOLD_X + GOLD_WIDTH + 4
+local PROFESSION_ICON_SIZE = 32
+local PROFESSION_ICON_GAP = 3
+local PROFESSION_WIDTH = PROFESSION_COUNT * PROFESSION_ICON_SIZE
+    + (PROFESSION_COUNT - 1) * PROFESSION_ICON_GAP
+local PROFESSION_RIGHT_INSET = 9
+local PROFESSION_X = WIDTH - 2 * INSET - PROFESSION_RIGHT_INSET
+    - PROFESSION_WIDTH
+local GOLD_WIDTH = PROFESSION_X - GOLD_X - 15
 local SECONDARY_PROFESSIONS = { 185, 129, 356 } -- Cooking, First Aid, Fishing
 local SECONDARY_SLOTS = {}
 for index, id in ipairs(SECONDARY_PROFESSIONS) do
     SECONDARY_SLOTS[id] = index + 2
 end
--- Profession icons now occupy a separate full-height column.
-local PROFESSION_ICON_SIZE = 32
 local CHARACTER_COLUMNS = {
     { key = "name", label = "Character", x = 3, width = 174 },
     { key = "level", label = "Level", x = 180, width = 53,
@@ -389,10 +392,9 @@ local function CreateProfessionButton(row, index)
         count = false,
         highlight = true,
     })
-    local cellWidth = PROFESSION_WIDTH / PROFESSION_COUNT
     button:SetPoint("LEFT", row, "LEFT",
-        PROFESSION_X + (index - 1) * cellWidth
-            + (cellWidth - PROFESSION_ICON_SIZE) / 2, 0)
+        PROFESSION_X + (index - 1)
+            * (PROFESSION_ICON_SIZE + PROFESSION_ICON_GAP), 0)
     button:SetFrameLevel(row:GetFrameLevel() + 2)
     button:RegisterForClicks("LeftButtonUp")
 
