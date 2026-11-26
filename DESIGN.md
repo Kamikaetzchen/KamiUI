@@ -202,5 +202,8 @@ with a 3 UI-pixel height. Reuse the InfoPanel's Well Rested-adjusted offline
 projection through its optional public per-character query. Unknown or
 mismatched snapshots remain unknown; the current character has a live API
 fallback. Keep full rested amounts in tooltips even when the bar is capped
-at the next level. The profession and XP column geometry remains unchanged
-pending layout review.
+at the next level. The bar spans the entire character row. Profession
+icons fill the space above it, leaving two UI pixels at the top and
+between the icon and bar. Show current/maximum skill inside each icon
+with an outlined, size-adjusted label. Keep the existing row height and
+reserve the same icon geometry for max-level characters.

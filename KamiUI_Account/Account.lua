@@ -16,6 +16,8 @@ local ROW_HEIGHT = 39
 local CHARACTER_ROWS = 10
 local MAX_LEVEL = 60
 local XP_BAR_HEIGHT = 3
+local XP_BAR_BOTTOM = 2
+local PROFESSION_VERTICAL_GAP = 2
 
 local function GetDatabase()
     return UI:GetDatabase("account", {})
@@ -201,7 +203,9 @@ end
 
 local PROFESSION_X = 293
 local PROFESSION_WIDTH = 112
-local PROFESSION_ICON_SIZE = 22
+-- Row height excludes the one-pixel gap between adjacent rows.
+local PROFESSION_ICON_SIZE = ROW_HEIGHT - 1 - XP_BAR_BOTTOM
+    - XP_BAR_HEIGHT - 2 * PROFESSION_VERTICAL_GAP
 local CHARACTER_COLUMNS = {
     { key = "name", label = "Character", x = 3, width = 174 },
     { key = "level", label = "Level", x = 180, width = 53 },
@@ -283,7 +287,18 @@ local function RenderRowProfessions(row, character)
             local profession = entry.display
             button.icon:SetTexture(profession.icon or entry.target.icon
                 or "Interface\\Icons\\INV_Misc_QuestionMark")
-            button.rank:SetText(tostring(profession.skillLevel or "?"))
+            local rank = button.rank
+            rank:SetText(string.format("%s/%s",
+                tostring(profession.skillLevel or "?"),
+                tostring(profession.maxSkillLevel or "?")))
+            -- Start at eight pixels and fit wider values such as 300/300.
+            local font = "Fonts\\FRIZQT__.TTF"
+            for size = 8, 6, -1 do
+                rank:SetFont(font, size, "OUTLINE")
+                if rank:GetStringWidth() <= PROFESSION_ICON_SIZE - 4 then
+                    break
+                end
+            end
             button:Show()
         else
             if GameTooltip:IsOwned(button) then GameTooltip:Hide() end
@@ -303,12 +318,17 @@ local function CreateProfessionButton(row, index)
     local cellWidth = PROFESSION_WIDTH / 3
     button:SetPoint("TOPLEFT", row, "TOPLEFT",
         PROFESSION_X + (index - 1) * cellWidth
-            + (cellWidth - PROFESSION_ICON_SIZE) / 2, -1)
+            + (cellWidth - PROFESSION_ICON_SIZE) / 2,
+        -PROFESSION_VERTICAL_GAP)
     button:SetFrameLevel(row:GetFrameLevel() + 2)
     button:RegisterForClicks("LeftButtonUp")
 
-    local rank = CreateLabel(button, 9)
-    rank:SetPoint("TOP", button, "BOTTOM", 0, -1)
+    -- Place the skill label over the icon, like an item stack count.
+    local rank = CreateLabel(button, 8)
+    rank:SetDrawLayer("OVERLAY", 7)
+    rank:SetPoint("BOTTOM", button, "BOTTOM", 0, 3)
+    rank:SetJustifyH("CENTER")
+    rank:SetTextColor(1, 1, 1)
     button.rank = rank
 
     button:SetScript("OnEnter", function(self)
@@ -730,7 +750,7 @@ local function CreateCharactersPane(frame)
                     column.key == "gold" and "RIGHT" or "LEFT",
                     row, "LEFT",
                     column.x + (column.key == "gold" and column.width or 0),
-                    0
+                    (XP_BAR_BOTTOM + XP_BAR_HEIGHT) / 2
                 )
                 field:SetWidth(column.width - 4)
                 field:SetJustifyH(
@@ -746,11 +766,11 @@ local function CreateCharactersPane(frame)
         end
 
         -- Use the XPBar module's colors without requiring that addon.
-        -- There is enough space below the existing centered row labels.
+        -- Full-width bar below the icons and the overlaid skill labels.
         local restedBar = CreateFrame("StatusBar", nil, row)
-        restedBar:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", 3, 4)
-        restedBar:SetPoint("BOTTOMRIGHT", row, "BOTTOMLEFT",
-            PROFESSION_X - 7, 4)
+        restedBar:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", 3, XP_BAR_BOTTOM)
+        restedBar:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT",
+            -3, XP_BAR_BOTTOM)
         restedBar:SetHeight(XP_BAR_HEIGHT)
         restedBar:SetStatusBarTexture("Interface\\Buttons\\WHITE8X8")
         restedBar:SetStatusBarColor(unpack(Palette.xpBar.rested))
