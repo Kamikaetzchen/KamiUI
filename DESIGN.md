@@ -96,10 +96,10 @@ Reuse the approved metallic panel, raised text buttons, close button,
 icon mask, item slot and tab components without new textures. Inventory
 and Bank keep their semantic purple/green backgrounds and frame tints;
 special bag families override the normal slot tint using normalized
-versions of the existing family colors. Account uses the logged-in
-player's class tint on the outer frame, tabs and close button, with a
-neutral translucent window fill. Preserve
-native item interactions, cached snapshots, search dimming, XP bars and
+versions of the existing family colors. Account uses neutral outer
+window, tab and close-button frames with a neutral translucent fill.
+Only individual character rows use class tints. Preserve native item
+interactions, cached snapshots, search dimming, XP bars and
 checkboxes. Search inputs, popup surfaces and native bank purchases are
 outside this first rollout.
 
@@ -197,24 +197,25 @@ class column. Show up to two primary profession icons followed by
 Cooking, First Aid and Fishing in fixed positions, with cached skill
 values and direct links to the existing profession window. The wider
 676 UI-pixel Account window also accommodates a 17-column item grid.
-A sortable iLvl column between XP and Professions displays the last
+A sortable iLvl column between XP and Gold displays the last
 measured equipped item level. Its tooltip lists named equipment sets
 with right-aligned last measured values, equipped sets in green, and
 unknown values as --. Do not repeat the equipped item level in the
 tooltip; exclude the naked set.
 Group parent/child skill lines to avoid duplicate icons; the professions
-column is not sortable. Keep the XP bar clear of the profession ranks.
+column is not sortable. Place Professions last, after Gold.
 
 Account XP bars use the shared purple experience and blue rested colors,
 with a 3 UI-pixel height. Reuse the InfoPanel's Well Rested-adjusted offline
 projection through its optional public per-character query. Unknown or
 mismatched snapshots remain unknown; the current character has a live API
 fallback. Keep full rested amounts in tooltips even when the bar is capped
-at the next level. The bar spans the entire character row. Profession
-icons fill the space above it, leaving two UI pixels at the top and
-between the icon and bar. Show current/maximum skill inside each icon
-with an outlined, size-adjusted label. Keep the existing row height and
-reserve the same icon geometry for max-level characters.
+at the next level. The bar spans Character through Gold and ends before
+Professions. Use an opaque medium-dark gray track (RGB 0.30/0.30/0.32)
+so the unfilled portion is visible against the window. Center the 32-unit
+profession icons vertically in their own column. Show current/maximum
+skill inside each icon with an outlined, size-adjusted label. Preserve
+row height and icon geometry for max-level characters.
 
 Account numeric columns center fixed-width number blocks (Level two
 digits, XP three digits plus percent, iLvl three digits plus one decimal).
@@ -229,11 +230,11 @@ displayed character's class tint at the shared class-tint strength and
 a neutral translucent fill, reusing the fixed-cap text-button rim and
 input fill. Refresh the tint whenever rows are populated or reused;
 unknown classes fall back to neutral. Keep profession and item slots
-neutral, the close glyph red and the XP/rested colors unchanged. Keep the existing hover effect within
-the chamfered fill. After owner feedback, remove the header separator,
+neutral, the close glyph red and the XP/rested colors unchanged. Keep
+the existing hover effect within the chamfered fill. After owner feedback, remove the header separator,
 increase the row pitch to 43 units (two-unit gap) and inset the gold
 amount three more units from the right. Preserve the 41-unit row height,
-32-unit profession icons, full-width XP bars, window size, ten visible
+32-unit profession icons, shortened XP bars, window size, ten visible
 rows and mouse-wheel scrolling without a scrollbar or page buttons.
 The frame remains visible at max level. Revised appearance pending
 in-game feedback.

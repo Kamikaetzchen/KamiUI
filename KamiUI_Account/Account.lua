@@ -18,7 +18,7 @@ local CHARACTER_ROWS = 10
 local MAX_LEVEL = 60
 local XP_BAR_HEIGHT = 3
 local XP_BAR_BOTTOM = 2
-local PROFESSION_VERTICAL_GAP = 2
+local XP_BAR_TRACK_COLOR = { 0.30, 0.30, 0.32, 1 }
 
 local function GetDatabase()
     return UI:GetDatabase("account", {})
@@ -204,17 +204,18 @@ end
 
 local ITEM_LEVEL_X = 293
 local ITEM_LEVEL_WIDTH = 57
-local PROFESSION_X = ITEM_LEVEL_X + ITEM_LEVEL_WIDTH + 3
+local GOLD_X = ITEM_LEVEL_X + ITEM_LEVEL_WIDTH + 3
 local PROFESSION_COUNT = 5
 local PROFESSION_WIDTH = 188
+local GOLD_WIDTH = WIDTH - 2 * INSET - GOLD_X - PROFESSION_WIDTH - 10
+local PROFESSION_X = GOLD_X + GOLD_WIDTH + 4
 local SECONDARY_PROFESSIONS = { 185, 129, 356 } -- Cooking, First Aid, Fishing
 local SECONDARY_SLOTS = {}
 for index, id in ipairs(SECONDARY_PROFESSIONS) do
     SECONDARY_SLOTS[id] = index + 2
 end
--- Row height excludes the gap between adjacent rows.
-local PROFESSION_ICON_SIZE = ROW_HEIGHT - ROW_GAP - XP_BAR_BOTTOM
-    - XP_BAR_HEIGHT - 2 * PROFESSION_VERTICAL_GAP
+-- Profession icons now occupy a separate full-height column.
+local PROFESSION_ICON_SIZE = 32
 local CHARACTER_COLUMNS = {
     { key = "name", label = "Character", x = 3, width = 174 },
     { key = "level", label = "Level", x = 180, width = 53,
@@ -223,10 +224,9 @@ local CHARACTER_COLUMNS = {
         digits = 3, suffix = "%" },
     { key = "ilvl", label = "iLvl", x = ITEM_LEVEL_X,
         width = ITEM_LEVEL_WIDTH, digits = 3, suffix = ".0" },
+    { key = "gold", label = "Gold", x = GOLD_X, width = GOLD_WIDTH },
     { key = "professions", label = "Professions", x = PROFESSION_X,
         width = PROFESSION_WIDTH, sortable = false },
-    { key = "gold", label = "Gold", x = PROFESSION_X + PROFESSION_WIDTH + 4,
-        width = WIDTH - 2 * INSET - PROFESSION_X - PROFESSION_WIDTH - 10 },
 }
 
 -- Center a fixed-width number block in each column, then align the
@@ -390,10 +390,9 @@ local function CreateProfessionButton(row, index)
         highlight = true,
     })
     local cellWidth = PROFESSION_WIDTH / PROFESSION_COUNT
-    button:SetPoint("TOPLEFT", row, "TOPLEFT",
+    button:SetPoint("LEFT", row, "LEFT",
         PROFESSION_X + (index - 1) * cellWidth
-            + (cellWidth - PROFESSION_ICON_SIZE) / 2,
-        -PROFESSION_VERTICAL_GAP)
+            + (cellWidth - PROFESSION_ICON_SIZE) / 2, 0)
     button:SetFrameLevel(row:GetFrameLevel() + 2)
     button:RegisterForClicks("LeftButtonUp")
 
@@ -947,11 +946,11 @@ local function CreateCharactersPane(frame)
         end
 
         -- Use the XPBar module's colors without requiring that addon.
-        -- Full-width bar below the icons and the overlaid skill labels.
+        -- End the XP track at the right edge of the gold column.
         local restedBar = CreateFrame("StatusBar", nil, row)
         restedBar:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", 3, XP_BAR_BOTTOM)
-        restedBar:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT",
-            -3, XP_BAR_BOTTOM)
+        restedBar:SetPoint("BOTTOMRIGHT", row, "BOTTOMLEFT",
+            GOLD_X + GOLD_WIDTH, XP_BAR_BOTTOM)
         restedBar:SetHeight(XP_BAR_HEIGHT)
         restedBar:SetStatusBarTexture("Interface\\Buttons\\WHITE8X8")
         restedBar:SetStatusBarColor(unpack(Palette.xpBar.rested))
@@ -961,7 +960,7 @@ local function CreateCharactersPane(frame)
 
         local background = restedBar:CreateTexture(nil, "BACKGROUND")
         background:SetAllPoints()
-        background:SetColorTexture(unpack(Palette.xpBar.background))
+        background:SetColorTexture(unpack(XP_BAR_TRACK_COLOR))
 
         local xpBar = CreateFrame("StatusBar", nil, row)
         xpBar:SetAllPoints(restedBar)
@@ -1080,13 +1079,12 @@ local function CreateItemsPane(frame)
 end
 
 local function CreateAccountFrame()
-    local tint = Palette:GetPlayerClassTint()
     local frame, header = Components:CreateWindow("KamiUIAccountFrame", {
         metallic = true,
         width = WIDTH,
         height = HEIGHT,
         backgroundColor = Palette.window.neutral,
-        borderColor = tint,
+        borderColor = Palette.metallicTint.neutral,
         header = {
             height = 32,
             title = "Account",
@@ -1098,7 +1096,6 @@ local function CreateAccountFrame()
     Module.frame = frame
     local close = Components:CreateHeaderCloseButton(header, {
         metallic = true,
-        frameColor = tint,
         clicks = { "LeftButtonUp" },
         onClick = function() Module:Hide() end,
     })
@@ -1114,7 +1111,6 @@ local function CreateAccountFrame()
     }) do
         local tab = Components:CreateTab(frame, {
             metallic = true,
-            frameColor = tint,
             width = 100,
             height = 22,
             text = definition.label,
@@ -1133,12 +1129,6 @@ local function CreateAccountFrame()
     end
 
     frame:SetScript("OnShow", function()
-        local playerTint = Palette:GetPlayerClassTint()
-        frame.KamiMetallicPanel:SetFrameColor(playerTint)
-        Components:SetButtonFrameColor(close, playerTint)
-        for _, tab in ipairs(frame.tabs) do
-            Components:SetTabFrameColor(tab, playerTint)
-        end
         Module:Refresh()
     end)
     Components:RegisterEscapeClose(frame)
