@@ -2,7 +2,7 @@
 ## Title: KamiUI - Professions
 ## Notes: Flat profession overview and crafting UI for KamiUI
 ## Author: Kami Katze
-## Version: 0.3.8
+## Version: 0.3.9
 ## IconTexture: Interface\Icons\Trade_BlackSmithing
 ## RequiredDeps: KamiUI
 ## OptionalDeps: auxForever, ItemDB

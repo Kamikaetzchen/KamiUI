@@ -2066,6 +2066,7 @@ function Module:CreateFrame()
     end)
 
     frame:SetScript("OnHide", function()
+        Module.craftBatch = nil
         Module.viewCharacterKey = nil
         Module.cachedProfessionID = nil
         Module.selectedRecipeID = nil
@@ -2747,6 +2748,40 @@ function Module:RefreshRecipeList()
     end
 end
 
+-- Blizzard exposes the remaining repetitions, excluding the active
+-- craft. Read its queue rather than counting bag items or spell casts.
+function Module:SyncCraftQuantity()
+    local batch = self.craftBatch
+    if not batch or batch.recipeID ~= self.selectedRecipeID
+        or not C_TradeSkillUI or not C_TradeSkillUI.GetRemainingRecasts then
+        return false
+    end
+
+    local _, _, isCurrent = GetViewedCharacter()
+    if not isCurrent then return false end
+
+    local remaining = UI:SafeCall(C_TradeSkillUI.GetRemainingRecasts)
+    if not UI:CanAccessValue(remaining) or type(remaining) ~= "number"
+        or remaining < 0 then return false end
+
+    -- Never display more than originally requested, even if another
+    -- source changes the native recast queue.
+    self:SetCraftQuantity(math.min(batch.quantity, remaining + 1))
+    return true
+end
+
+function Module:FinishCraftBatch()
+    local batch = self.craftBatch
+    self.craftBatch = nil
+    if not batch or batch.recipeID ~= self.selectedRecipeID then return end
+
+    local _, _, isCurrent = GetViewedCharacter()
+    if isCurrent then
+        -- Like Blizzard, return to one ready-to-craft operation.
+        self:SetCraftQuantity(1)
+    end
+end
+
 function Module:SetCraftQuantity(value)
     local frame = self.frame
 
@@ -3403,9 +3438,11 @@ function Module:RefreshRecipeDetails()
         Components:SetButtonText(frame.craftButton, "Select reagent")
     end
 
-    self:SetCraftQuantity(
-        math.min(self.craftQuantity or 1, math.max(1, self.maxCraftable))
-    )
+    if not self:SyncCraftQuantity() then
+        self:SetCraftQuantity(
+            math.min(self.craftQuantity or 1, math.max(1, self.maxCraftable))
+        )
+    end
 end
 
 function Module:CraftSelectedRecipe(quantityOverride)
@@ -3448,6 +3485,16 @@ function Module:CraftSelectedRecipe(quantityOverride)
                 or 1
         )
     )
+
+    quantity = math.floor(quantity)
+    self:SetCraftQuantity(quantity)
+
+    if C_TradeSkillUI.GetRemainingRecasts then
+        self.craftBatch = {
+            recipeID = self.selectedRecipeID,
+            quantity = quantity,
+        }
+    end
 
     C_TradeSkillUI.CraftRecipe(
         self.selectedRecipeID,
@@ -3653,6 +3700,7 @@ function Module:InitializeFrame()
     end)
 
     UI:RegisterEvent("TRADE_SKILL_SHOW", function()
+        Module.craftBatch = nil
         Module.forceOverview = false
         Module.cachedProfessionID = nil
         Module.selectedRecipeID = nil
@@ -3686,7 +3734,28 @@ function Module:InitializeFrame()
         end)
     end
 
+    UI:RegisterEvent("UPDATE_TRADESKILL_CAST_STOPPED", function(_, isScrapping)
+        if UI:CanAccessValue(isScrapping) and not isScrapping then
+            Module:FinishCraftBatch()
+        end
+    end)
+
+    for _, event in ipairs({
+        "UNIT_SPELLCAST_FAILED",
+        "UNIT_SPELLCAST_INTERRUPTED",
+    }) do
+        UI:RegisterEvent(event, function(_, unit, _, spellID)
+            if Module.craftBatch
+                and UI:CanAccessValue(unit) and unit == "player"
+                and UI:CanAccessValue(spellID)
+                and spellID == Module.craftBatch.recipeID then
+                Module:FinishCraftBatch()
+            end
+        end)
+    end
+
     UI:RegisterEvent("TRADE_SKILL_CLOSE", function()
+        Module.craftBatch = nil
         if Module.frame and Module.frame:IsShown() then
             Module.suppressBackendClose = true
             Module.frame:Hide()
