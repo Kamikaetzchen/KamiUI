@@ -883,6 +883,19 @@ local function CreateCharactersPane(frame)
             0, -43 - (i - 1) * ROW_HEIGHT)
         row:SetHeight(ROW_HEIGHT - 1)
 
+        -- Flat metallic card: retain the existing row geometry and actions.
+        local metal = UI.Media.DarkMetallic
+        Components:CreateMetallicButtonSlice(row, {
+            asset = metal.inputFill,
+            color = Palette.panel,
+            sublevel = -7,
+        })
+        Components:CreateMetallicButtonSlice(row, {
+            asset = metal.textButtonFrame .. "normal",
+            color = { 0.72, 0.72, 0.72, 1 },
+            sublevel = -6,
+        })
+
         row.name = CreateLabel(row, 11)
         row.level = CreateLabel(row, 10)
         row.xp = CreateLabel(row, 10)
@@ -966,9 +979,11 @@ local function CreateCharactersPane(frame)
         row.xpBar = xpBar
         row.restedBar = restedBar
 
-        local highlight = row:CreateTexture(nil, "HIGHLIGHT")
-        highlight:SetAllPoints(row)
-        highlight:SetColorTexture(1, 1, 1, 0.06)
+        Components:CreateMetallicButtonSlice(row, {
+            asset = metal.inputFill,
+            layer = "HIGHLIGHT",
+            color = { 1, 1, 1, Styles.State.hoverAlpha },
+        })
 
         -- The bar is non-interactive so the entire row stays clickable.
         -- Hovering the row, including its XP bar, shows exact XP values.

@@ -222,3 +222,11 @@ Keep names left aligned and money right aligned. Read the current
 character's equipped item level directly for rendering and sorting;
 offline characters continue to use their last saved snapshot. Refresh
 visible character rows on equipment events and after deferred capture.
+
+Account character rows use individual flat metallic frames with a muted
+neutral rim and translucent fill, reusing the fixed-cap text-button rim
+and input fill. Keep the existing hover effect within the chamfered fill.
+Preserve the 42-unit row pitch, one-unit gap, 32-unit profession icons,
+full-width XP bars, ten visible rows and mouse-wheel scrolling without
+a scrollbar or page buttons. The frame remains visible at max level.
+In-game appearance pending owner feedback.
