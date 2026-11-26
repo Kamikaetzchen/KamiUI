@@ -664,6 +664,8 @@ local function RenderCharacters()
                 profile.name or select(2, UI:ParseCharacterKey(entry.key))
             )
             SetClassColor(row.name, profile.classFile)
+            local tint = Palette:GetClassTint(profile.classFile)
+            row.metallicFrame:SetVertexColor(unpack(tint))
             RenderRowProfessions(row, profile)
 
             local level = tonumber(profile.level)
@@ -885,7 +887,7 @@ local function CreateCharactersPane(frame)
             color = Palette.panel,
             sublevel = -7,
         })
-        Components:CreateMetallicButtonSlice(row, {
+        row.metallicFrame = Components:CreateMetallicButtonSlice(row, {
             asset = metal.textButtonFrame .. "normal",
             color = Palette.metallicTint.neutral,
             sublevel = -6,
@@ -1078,12 +1080,13 @@ local function CreateItemsPane(frame)
 end
 
 local function CreateAccountFrame()
+    local tint = Palette:GetPlayerClassTint()
     local frame, header = Components:CreateWindow("KamiUIAccountFrame", {
         metallic = true,
         width = WIDTH,
         height = HEIGHT,
         backgroundColor = Palette.window.neutral,
-        borderColor = Palette.border,
+        borderColor = tint,
         header = {
             height = 32,
             title = "Account",
@@ -1095,6 +1098,7 @@ local function CreateAccountFrame()
     Module.frame = frame
     local close = Components:CreateHeaderCloseButton(header, {
         metallic = true,
+        frameColor = tint,
         clicks = { "LeftButtonUp" },
         onClick = function() Module:Hide() end,
     })
@@ -1110,6 +1114,7 @@ local function CreateAccountFrame()
     }) do
         local tab = Components:CreateTab(frame, {
             metallic = true,
+            frameColor = tint,
             width = 100,
             height = 22,
             text = definition.label,
@@ -1128,6 +1133,12 @@ local function CreateAccountFrame()
     end
 
     frame:SetScript("OnShow", function()
+        local playerTint = Palette:GetPlayerClassTint()
+        frame.KamiMetallicPanel:SetFrameColor(playerTint)
+        Components:SetButtonFrameColor(close, playerTint)
+        for _, tab in ipairs(frame.tabs) do
+            Components:SetTabFrameColor(tab, playerTint)
+        end
         Module:Refresh()
     end)
     Components:RegisterEscapeClose(frame)

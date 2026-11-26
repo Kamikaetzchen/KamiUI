@@ -96,8 +96,9 @@ Reuse the approved metallic panel, raised text buttons, close button,
 icon mask, item slot and tab components without new textures. Inventory
 and Bank keep their semantic purple/green backgrounds and frame tints;
 special bag families override the normal slot tint using normalized
-versions of the existing family colors. Account is a neutral account-wide
-window rather than a single-character class-colored window. Preserve
+versions of the existing family colors. Account uses the logged-in
+player's class tint on the outer frame, tabs and close button, with a
+neutral translucent window fill. Preserve
 native item interactions, cached snapshots, search dimming, XP bars and
 checkboxes. Search inputs, popup surfaces and native bank purchases are
 outside this first rollout.
@@ -223,9 +224,12 @@ character's equipped item level directly for rendering and sorting;
 offline characters continue to use their last saved snapshot. Refresh
 visible character rows on equipment events and after deferred capture.
 
-Account character rows use individual flat metallic frames with a neutral
-rim at full brightness and translucent fill, reusing the fixed-cap
-text-button rim and input fill. Keep the existing hover effect within
+Account character rows use individual flat metallic frames with the
+displayed character's class tint at the shared class-tint strength and
+a neutral translucent fill, reusing the fixed-cap text-button rim and
+input fill. Refresh the tint whenever rows are populated or reused;
+unknown classes fall back to neutral. Keep profession and item slots
+neutral, the close glyph red and the XP/rested colors unchanged. Keep the existing hover effect within
 the chamfered fill. After owner feedback, remove the header separator,
 increase the row pitch to 43 units (two-unit gap) and inset the gold
 amount three more units from the right. Preserve the 41-unit row height,
