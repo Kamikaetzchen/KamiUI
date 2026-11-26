@@ -192,8 +192,10 @@ layouts retain their functional geometry rather than forcing every
 internal element to the outer inset.
 
 The Account character table uses class-colored names instead of a separate
-class column. Show up to two primary profession icons plus Cooking with
-cached skill values and direct links to the existing profession window.
+class column. Show up to two primary profession icons followed by
+Cooking, First Aid and Fishing in fixed positions, with cached skill
+values and direct links to the existing profession window. The wider
+616 UI-pixel Account window also accommodates a 15-column item grid.
 Group parent/child skill lines to avoid duplicate icons; the professions
 column is not sortable. Keep the XP bar clear of the profession ranks.
 

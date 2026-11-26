@@ -6,11 +6,11 @@ local Module = UI:NewModule("Account", "KamiUI_Account")
 
 local INSET = Styles.Metrics.windowContentInset
 local CONTENT_TOP = 32 + 1 + Styles.Metrics.windowContentGap
-local WIDTH = 540
+local WIDTH = 616
 local HEIGHT = 540
 local SLOT_SIZE = 36
 local SLOT_GAP = 3
-local GRID_COLUMNS = 12
+local GRID_COLUMNS = 15
 local GRID_ROWS = 9
 local ROW_HEIGHT = 42
 local CHARACTER_ROWS = 10
@@ -202,7 +202,13 @@ local function SetClassColor(text, classFile)
 end
 
 local PROFESSION_X = 293
-local PROFESSION_WIDTH = 112
+local PROFESSION_COUNT = 5
+local PROFESSION_WIDTH = 188
+local SECONDARY_PROFESSIONS = { 185, 129, 356 } -- Cooking, First Aid, Fishing
+local SECONDARY_SLOTS = {}
+for index, id in ipairs(SECONDARY_PROFESSIONS) do
+    SECONDARY_SLOTS[id] = index + 2
+end
 -- Row height excludes the one-pixel gap between adjacent rows.
 local PROFESSION_ICON_SIZE = ROW_HEIGHT - 1 - XP_BAR_BOTTOM
     - XP_BAR_HEIGHT - 2 * PROFESSION_VERTICAL_GAP
@@ -212,8 +218,8 @@ local CHARACTER_COLUMNS = {
     { key = "xp", label = "XP", x = 236, width = 54 },
     { key = "professions", label = "Professions", x = PROFESSION_X,
         width = PROFESSION_WIDTH, sortable = false },
-    { key = "gold", label = "Gold", x = 409,
-        width = WIDTH - 2 * INSET - 409 - 3 },
+    { key = "gold", label = "Gold", x = PROFESSION_X + PROFESSION_WIDTH + 4,
+        width = WIDTH - 2 * INSET - PROFESSION_X - PROFESSION_WIDTH - 7 },
 }
 
 local function IsPrimaryProfession(profession, id)
@@ -237,7 +243,7 @@ local function GetRowProfessions(character)
             or key
         local display = saved[id] or profession
         if display.professionName and
-            (id == 185 or IsPrimaryProfession(display, id)) then
+            (SECONDARY_SLOTS[id] or IsPrimaryProfession(display, id)) then
             local group = groups[id]
             if not group then
                 group = { id = id, display = display, target = display }
@@ -264,7 +270,9 @@ local function GetRowProfessions(character)
 
     local primary = {}
     for id, group in pairs(groups) do
-        if id ~= 185 then primary[#primary + 1] = group end
+        if not SECONDARY_SLOTS[id] then
+            primary[#primary + 1] = group
+        end
     end
     table.sort(primary, function(a, b)
         local left = a.display.professionSlot or 99
@@ -275,7 +283,11 @@ local function GetRowProfessions(character)
         end
         return tostring(a.id) < tostring(b.id)
     end)
-    return { [1] = primary[1], [2] = primary[2], [3] = groups[185] }
+    local entries = { [1] = primary[1], [2] = primary[2] }
+    for id, slot in pairs(SECONDARY_SLOTS) do
+        entries[slot] = groups[id]
+    end
+    return entries
 end
 
 local function RenderRowProfessions(row, character)
@@ -315,7 +327,7 @@ local function CreateProfessionButton(row, index)
         count = false,
         highlight = true,
     })
-    local cellWidth = PROFESSION_WIDTH / 3
+    local cellWidth = PROFESSION_WIDTH / PROFESSION_COUNT
     button:SetPoint("TOPLEFT", row, "TOPLEFT",
         PROFESSION_X + (index - 1) * cellWidth
             + (cellWidth - PROFESSION_ICON_SIZE) / 2,
@@ -761,7 +773,7 @@ local function CreateCharactersPane(frame)
         end
 
         row.professionButtons = {}
-        for index = 1, 3 do
+        for index = 1, PROFESSION_COUNT do
             row.professionButtons[index] = CreateProfessionButton(row, index)
         end
 
