@@ -205,8 +205,10 @@ tooltip; exclude the naked set.
 Group parent/child skill lines to avoid duplicate icons; the professions
 column is not sortable. Place Professions last, after Gold.
 
-Account XP bars use the shared purple experience and blue rested colors,
-with a 3 UI-pixel height. Reuse the InfoPanel's Well Rested-adjusted offline
+Account XP bars use the shared purple experience and blue rested RGB
+colors, both fully opaque, with a 3 UI-pixel height. The rested opacity
+is overridden only in Account to avoid blending with its light track.
+Reuse the InfoPanel's Well Rested-adjusted offline
 projection through its optional public per-character query. Unknown or
 mismatched snapshots remain unknown; the current character has a live API
 fallback. Keep full rested amounts in tooltips even when the bar is capped
