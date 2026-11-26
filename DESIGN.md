@@ -214,3 +214,11 @@ icons fill the space above it, leaving two UI pixels at the top and
 between the icon and bar. Show current/maximum skill inside each icon
 with an outlined, size-adjusted label. Keep the existing row height and
 reserve the same icon geometry for max-level characters.
+
+Account numeric columns center fixed-width number blocks (Level two
+digits, XP three digits plus percent, iLvl three digits plus one decimal).
+Integer portions are right aligned and suffixes have a fixed anchor.
+Keep names left aligned and money right aligned. Read the current
+character's equipped item level directly for rendering and sorting;
+offline characters continue to use their last saved snapshot. Refresh
+visible character rows on equipment events and after deferred capture.

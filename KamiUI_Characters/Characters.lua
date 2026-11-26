@@ -232,14 +232,20 @@ local function GetSlotID(slotKey)
     return GetInventorySlotInfo(slotKey)
 end
 
+function Module:GetLiveEquippedItemLevel()
+    local _, equipped = UI:SafeCall(GetAverageItemLevel)
+    if not UI:CanAccessValue(equipped) or type(equipped) ~= "number"
+        or equipped ~= equipped or equipped < 0
+        or equipped == math.huge then return nil end
+    return equipped
+end
+
 local function CaptureItemLevels()
     local _, character = Module:GetCurrentCharacter()
     if not character then return end
 
-    local _, equipped = UI:SafeCall(GetAverageItemLevel)
-    if not UI:CanAccessValue(equipped) or type(equipped) ~= "number"
-        or equipped ~= equipped or equipped < 0 then return end
-
+    local equipped = Module:GetLiveEquippedItemLevel()
+    if equipped == nil then return end
     character.equippedItemLevel = equipped
 
     -- Build a fresh roster only if the full native enumeration is readable.
@@ -280,16 +286,21 @@ local itemLevelCaptureGeneration = 0
 local function QueueItemLevelCapture()
     itemLevelCaptureGeneration = itemLevelCaptureGeneration + 1
     local generation = itemLevelCaptureGeneration
-    C_Timer.After(0.1, function()
+    local function CaptureSettled()
         if generation ~= itemLevelCaptureGeneration then return end
         UI:RunOutOfCombat("characters.itemLevels", function()
+            if generation ~= itemLevelCaptureGeneration then return end
             CaptureItemLevels()
             local account = UI:GetModule("Account")
             if account and account.RefreshCharacterRows then
                 account:RefreshCharacterRows()
             end
         end)
-    end)
+    end
+
+    -- Some clients update the derived item level after the slot event.
+    C_Timer.After(0.1, CaptureSettled)
+    C_Timer.After(0.5, CaptureSettled)
 end
 
 local function SaveCurrentEquipmentSnapshot()

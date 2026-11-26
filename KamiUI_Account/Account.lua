@@ -216,15 +216,72 @@ local PROFESSION_ICON_SIZE = ROW_HEIGHT - 1 - XP_BAR_BOTTOM
     - XP_BAR_HEIGHT - 2 * PROFESSION_VERTICAL_GAP
 local CHARACTER_COLUMNS = {
     { key = "name", label = "Character", x = 3, width = 174 },
-    { key = "level", label = "Level", x = 180, width = 53 },
-    { key = "xp", label = "XP", x = 236, width = 54 },
+    { key = "level", label = "Level", x = 180, width = 53,
+        digits = 2 },
+    { key = "xp", label = "XP", x = 236, width = 54,
+        digits = 3, suffix = "%" },
     { key = "ilvl", label = "iLvl", x = ITEM_LEVEL_X,
-        width = ITEM_LEVEL_WIDTH },
+        width = ITEM_LEVEL_WIDTH, digits = 3, suffix = ".0" },
     { key = "professions", label = "Professions", x = PROFESSION_X,
         width = PROFESSION_WIDTH, sortable = false },
     { key = "gold", label = "Gold", x = PROFESSION_X + PROFESSION_WIDTH + 4,
         width = WIDTH - 2 * INSET - PROFESSION_X - PROFESSION_WIDTH - 7 },
 }
+
+-- Center a fixed-width number block in each column, then align the
+-- integer to its right edge. Separate suffixes keep decimal points and
+-- percent signs at the same x-coordinate, even with proportional fonts.
+local function LayoutNumberField(row, field, column)
+    local digitWidth = 0
+    for digit = 0, 9 do
+        field:SetText(tostring(digit))
+        digitWidth = math.max(digitWidth, field:GetStringWidth())
+    end
+    local integerWidth = math.ceil(digitWidth * column.digits) + 1
+    local suffixWidth = 0
+    if column.suffix then
+        if column.suffix == ".0" then
+            field:SetText(".")
+            suffixWidth = math.ceil(field:GetStringWidth() + digitWidth) + 1
+        else
+            field:SetText(column.suffix)
+            suffixWidth = math.ceil(field:GetStringWidth()) + 1
+        end
+        local suffix = CreateLabel(row, 10)
+        suffix:SetPoint("LEFT", field, "RIGHT", 0, 0)
+        suffix:SetWidth(suffixWidth)
+        suffix:SetJustifyH("LEFT")
+        suffix:SetWordWrap(false)
+        field.numberSuffix = suffix
+    end
+
+    field.integerWidth = integerWidth
+    field.numberWidth = integerWidth + suffixWidth
+    field:SetText("")
+    field:SetWidth(integerWidth)
+    field:SetWordWrap(false)
+    field:SetJustifyH("RIGHT")
+    field:SetPoint("LEFT", row, "LEFT",
+        column.x + (column.width - field.numberWidth) / 2,
+        (XP_BAR_BOTTOM + XP_BAR_HEIGHT) / 2)
+end
+
+local function SetNumberText(field, text)
+    local integer, suffix = text:match("^(%d+)(.*)$")
+    if integer then
+        field:SetWidth(field.integerWidth)
+        field:SetJustifyH("RIGHT")
+        field:SetText(integer)
+    else
+        field:SetWidth(field.numberWidth)
+        field:SetJustifyH("CENTER")
+        field:SetText(text)
+    end
+    if field.numberSuffix then
+        field.numberSuffix:SetText(integer and suffix or "")
+        field.numberSuffix:SetShown(integer ~= nil)
+    end
+end
 
 local function IsPrimaryProfession(profession, id)
     if id == 129 or id == 185 or id == 356 or id == 794 then
@@ -534,8 +591,8 @@ local function SortCharacterEntries(entries, pane)
             av = GetXPPercent(a) or -1
             bv = GetXPPercent(b) or -1
         elseif key == "ilvl" then
-            av = tonumber(a.equippedItemLevel)
-            bv = tonumber(b.equippedItemLevel)
+            av = left.itemLevel
+            bv = right.itemLevel
             if (av == nil) ~= (bv == nil) then return av ~= nil end
         elseif key == "gold" then
             av = tonumber(a.money) or 0
@@ -551,6 +608,7 @@ local function SortCharacterEntries(entries, pane)
         end
 
         -- Deterministic ordering for equal values.
+        if left.key == right.key then return false end
         if left.key == currentKey then return true end
         if right.key == currentKey then return false end
         return left.key < right.key
@@ -563,6 +621,17 @@ local function RenderCharacters()
 
     local pane = frame.charactersPane
     local entries = GetCharacterEntries()
+    local currentKey = UI:GetCurrentCharacterKey()
+    local characters = UI:GetCharactersModule()
+    local liveItemLevel = characters and characters.GetLiveEquippedItemLevel
+        and characters:GetLiveEquippedItemLevel()
+    for _, entry in ipairs(entries) do
+        -- The current character is live; offline characters use snapshots.
+        entry.itemLevel = tonumber(entry.character.equippedItemLevel)
+        if entry.key == currentKey and liveItemLevel ~= nil then
+            entry.itemLevel = liveItemLevel
+        end
+    end
     SortCharacterEntries(entries, pane)
 
     local maxOffset = math.max(0, #entries - CHARACTER_ROWS)
@@ -589,7 +658,7 @@ local function RenderCharacters()
             local profile = entry.character or {}
             row.entryKey = entry.key
             row.equipmentSetItemLevels = profile.equipmentSetItemLevels
-            row.ilvl:SetText(FormatItemLevel(profile.equippedItemLevel))
+            SetNumberText(row.ilvl, FormatItemLevel(entry.itemLevel))
             row.name:SetText(
                 profile.name or select(2, UI:ParseCharacterKey(entry.key))
             )
@@ -597,13 +666,11 @@ local function RenderCharacters()
             RenderRowProfessions(row, profile)
 
             local level = tonumber(profile.level)
-            row.level:SetText(
-                level and level > 0 and tostring(level) or "-"
-            )
+            SetNumberText(row.level,
+                level and level > 0 and tostring(level) or "-")
             local xpPercent = GetXPPercent(profile)
-            row.xp:SetText(
-                xpPercent and string.format("%.0f%%", xpPercent) or "-"
-            )
+            SetNumberText(row.xp,
+                xpPercent and string.format("%.0f%%", xpPercent) or "-")
             -- Offline characters use their last recorded XP snapshot.
             -- A missing snapshot is unknown, not zero progress.
             row.xpBar:SetShown(xpPercent ~= nil)
@@ -778,7 +845,8 @@ local function CreateCharactersPane(frame)
         if headingText then
             headingText:SetJustifyH(
                 column.key == "gold" and "RIGHT"
-                    or column.key == "professions" and "CENTER" or "LEFT"
+                    or (column.digits or column.key == "professions")
+                        and "CENTER" or "LEFT"
             )
         end
 
@@ -824,7 +892,9 @@ local function CreateCharactersPane(frame)
         for _, column in ipairs(CHARACTER_COLUMNS) do
             local field = column.key == "gold"
                 and row.money or row[column.key]
-            if field then
+            if field and column.digits then
+                LayoutNumberField(row, field, column)
+            elseif field then
                 field:SetPoint(
                     column.key == "gold" and "RIGHT" or "LEFT",
                     row, "LEFT",
@@ -1132,9 +1202,13 @@ function Module:Initialize()
     UI:RegisterEvent("PLAYER_ENTERING_WORLD", EnsureAccountHotkey)
 
     UI:RegisterEvent("BAG_UPDATE_DELAYED", QueueRefresh)
-    UI:RegisterEvent("PLAYER_EQUIPMENT_CHANGED", QueueRefresh)
-    UI:RegisterEvent("EQUIPMENT_SETS_CHANGED", QueueRefresh)
-    UI:RegisterEvent("EQUIPMENT_SWAP_FINISHED", QueueRefresh)
+    local function RefreshEquipmentRows()
+        Module:RefreshCharacterRows()
+        QueueRefresh()
+    end
+    UI:RegisterEvent("PLAYER_EQUIPMENT_CHANGED", RefreshEquipmentRows)
+    UI:RegisterEvent("EQUIPMENT_SETS_CHANGED", RefreshEquipmentRows)
+    UI:RegisterEvent("EQUIPMENT_SWAP_FINISHED", RefreshEquipmentRows)
     UI:RegisterEvent("PLAYER_MONEY", QueueRefresh)
     UI:RegisterEvent("PLAYER_LEVEL_UP", QueueRefresh)
     UI:RegisterEvent("UPDATE_EXHAUSTION", QueueRefresh)
