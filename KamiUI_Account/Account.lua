@@ -12,7 +12,8 @@ local SLOT_SIZE = 36
 local SLOT_GAP = 3
 local GRID_COLUMNS = 17
 local GRID_ROWS = 9
-local ROW_HEIGHT = 42
+local ROW_HEIGHT = 43
+local ROW_GAP = 2
 local CHARACTER_ROWS = 10
 local MAX_LEVEL = 60
 local XP_BAR_HEIGHT = 3
@@ -211,8 +212,8 @@ local SECONDARY_SLOTS = {}
 for index, id in ipairs(SECONDARY_PROFESSIONS) do
     SECONDARY_SLOTS[id] = index + 2
 end
--- Row height excludes the one-pixel gap between adjacent rows.
-local PROFESSION_ICON_SIZE = ROW_HEIGHT - 1 - XP_BAR_BOTTOM
+-- Row height excludes the gap between adjacent rows.
+local PROFESSION_ICON_SIZE = ROW_HEIGHT - ROW_GAP - XP_BAR_BOTTOM
     - XP_BAR_HEIGHT - 2 * PROFESSION_VERTICAL_GAP
 local CHARACTER_COLUMNS = {
     { key = "name", label = "Character", x = 3, width = 174 },
@@ -225,7 +226,7 @@ local CHARACTER_COLUMNS = {
     { key = "professions", label = "Professions", x = PROFESSION_X,
         width = PROFESSION_WIDTH, sortable = false },
     { key = "gold", label = "Gold", x = PROFESSION_X + PROFESSION_WIDTH + 4,
-        width = WIDTH - 2 * INSET - PROFESSION_X - PROFESSION_WIDTH - 7 },
+        width = WIDTH - 2 * INSET - PROFESSION_X - PROFESSION_WIDTH - 10 },
 }
 
 -- Center a fixed-width number block in each column, then align the
@@ -819,7 +820,7 @@ end
 local function CreateCharactersPane(frame)
     local pane = CreateFrame("Frame", nil, frame)
     pane:SetPoint("TOPLEFT", frame, "TOPLEFT", INSET, -CONTENT_TOP)
-    pane:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -INSET, 35)
+    pane:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -INSET, 26)
     pane.rows = {}
     pane.headings = {}
     pane.offset = 0
@@ -869,19 +870,13 @@ local function CreateCharactersPane(frame)
         pane.headings[#pane.headings + 1] = heading
     end
 
-    local separator = pane:CreateTexture(nil, "ARTWORK")
-    separator:SetColorTexture(0.35, 0.35, 0.35, 0.6)
-    separator:SetPoint("TOPLEFT", pane, "TOPLEFT", 0, -40)
-    separator:SetPoint("TOPRIGHT", pane, "TOPRIGHT", 0, -40)
-    separator:SetHeight(1)
-
     for i = 1, CHARACTER_ROWS do
         local row = CreateFrame("Button", nil, pane)
         row:SetPoint("TOPLEFT", pane, "TOPLEFT",
             0, -43 - (i - 1) * ROW_HEIGHT)
         row:SetPoint("TOPRIGHT", pane, "TOPRIGHT",
             0, -43 - (i - 1) * ROW_HEIGHT)
-        row:SetHeight(ROW_HEIGHT - 1)
+        row:SetHeight(ROW_HEIGHT - ROW_GAP)
 
         -- Flat metallic card: retain the existing row geometry and actions.
         local metal = UI.Media.DarkMetallic
@@ -892,7 +887,7 @@ local function CreateCharactersPane(frame)
         })
         Components:CreateMetallicButtonSlice(row, {
             asset = metal.textButtonFrame .. "normal",
-            color = { 0.72, 0.72, 0.72, 1 },
+            color = Palette.metallicTint.neutral,
             sublevel = -6,
         })
 
