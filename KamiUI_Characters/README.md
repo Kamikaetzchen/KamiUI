@@ -105,3 +105,19 @@ Character names are displayed without realm suffixes. Realm metadata
 is retained, but does not affect shared roster ordering. Bank characters
 remain at the bottom and the current character is first within its group.
 No realm-based roster filtering is applied.
+
+## Equipped item level and equipment sets
+
+The character cache stores the second return of GetAverageItemLevel as
+`equippedItemLevel`. The existing equipment snapshot path schedules a
+coalesced capture after equipment changes, set changes, login and refresh;
+combat-restricted reads are deferred through the core scheduler. The
+`equipmentSetItemLevels` table uses Blizzard's per-character set IDs.
+Only a set reporting isEquipped=true receives a new measured item level;
+mixed equipment changes only the current item level. Unmeasured sets have
+no rating. The name naked (case-insensitive) is excluded from the set
+roster, not the current item level. A fully readable enumeration removes
+deleted sets and refreshes names. Editing an unequipped set retains its
+last measured value until it is next equipped. No full set gear snapshots
+are stored. Account uses these values for the sortable iLvl column and
+its equipment-set tooltip.

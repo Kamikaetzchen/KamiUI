@@ -232,6 +232,66 @@ local function GetSlotID(slotKey)
     return GetInventorySlotInfo(slotKey)
 end
 
+local function CaptureItemLevels()
+    local _, character = Module:GetCurrentCharacter()
+    if not character then return end
+
+    local _, equipped = UI:SafeCall(GetAverageItemLevel)
+    if not UI:CanAccessValue(equipped) or type(equipped) ~= "number"
+        or equipped ~= equipped or equipped < 0 then return end
+
+    character.equippedItemLevel = equipped
+
+    -- Build a fresh roster only if the full native enumeration is readable.
+    -- This keeps deleted sets out of the cache without losing known values
+    -- when the client temporarily restricts access to equipment data.
+    if not C_EquipmentSet or not C_EquipmentSet.GetEquipmentSetIDs
+        or not C_EquipmentSet.GetEquipmentSetInfo then return end
+    local ids = UI:SafeCall(C_EquipmentSet.GetEquipmentSetIDs)
+    if not UI:CanAccessValue(ids) or type(ids) ~= "table" then return end
+
+    local previous = character.equipmentSetItemLevels or {}
+    local sets = {}
+    for _, id in ipairs(ids) do
+        if not UI:CanAccessValue(id) or type(id) ~= "number" then return end
+        local name, _, _, isEquipped = UI:SafeCall(
+            C_EquipmentSet.GetEquipmentSetInfo, id)
+        if not UI:CanAccessValue(name) or type(name) ~= "string"
+            or name == "" then return end
+
+        if name:match("^%s*(.-)%s*$"):lower() ~= "naked" then
+            if not UI:CanAccessValue(isEquipped)
+                or type(isEquipped) ~= "boolean" then return end
+            local old = previous[id]
+            sets[id] = {
+                name = name,
+                itemLevel = isEquipped and equipped
+                    or (old and old.itemLevel),
+                isEquipped = isEquipped,
+            }
+        end
+    end
+    character.equipmentSetItemLevels = sets
+end
+
+-- Equipment swaps can emit several slot events before the native set state
+-- settles. Coalesce them and read the actual current state outside combat.
+local itemLevelCaptureGeneration = 0
+local function QueueItemLevelCapture()
+    itemLevelCaptureGeneration = itemLevelCaptureGeneration + 1
+    local generation = itemLevelCaptureGeneration
+    C_Timer.After(0.1, function()
+        if generation ~= itemLevelCaptureGeneration then return end
+        UI:RunOutOfCombat("characters.itemLevels", function()
+            CaptureItemLevels()
+            local account = UI:GetModule("Account")
+            if account and account.RefreshCharacterRows then
+                account:RefreshCharacterRows()
+            end
+        end)
+    end)
+end
+
 local function SaveCurrentEquipmentSnapshot()
     local _, character = UpdateCurrentCharacter()
 
@@ -239,6 +299,7 @@ local function SaveCurrentEquipmentSnapshot()
         return
     end
 
+    QueueItemLevelCapture()
     character.equipment = character.equipment or {}
 
     for _, definition in ipairs(SLOT_LAYOUT) do
@@ -4742,6 +4803,12 @@ function Module:Initialize()
 
     UI:RegisterEvent("PLAYER_MONEY", function()
         UpdateCurrentCharacter()
+    end)
+
+    UI:RegisterEvent("PLAYER_LOGOUT", function()
+        if not InCombatLockdown or not InCombatLockdown() then
+            CaptureItemLevels()
+        end
     end)
 
     UI:RegisterEvent("PLAYER_EQUIPMENT_CHANGED", function()

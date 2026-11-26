@@ -6,11 +6,11 @@ local Module = UI:NewModule("Account", "KamiUI_Account")
 
 local INSET = Styles.Metrics.windowContentInset
 local CONTENT_TOP = 32 + 1 + Styles.Metrics.windowContentGap
-local WIDTH = 616
+local WIDTH = 676
 local HEIGHT = 540
 local SLOT_SIZE = 36
 local SLOT_GAP = 3
-local GRID_COLUMNS = 15
+local GRID_COLUMNS = 17
 local GRID_ROWS = 9
 local ROW_HEIGHT = 42
 local CHARACTER_ROWS = 10
@@ -201,7 +201,9 @@ local function SetClassColor(text, classFile)
     end
 end
 
-local PROFESSION_X = 293
+local ITEM_LEVEL_X = 293
+local ITEM_LEVEL_WIDTH = 57
+local PROFESSION_X = ITEM_LEVEL_X + ITEM_LEVEL_WIDTH + 3
 local PROFESSION_COUNT = 5
 local PROFESSION_WIDTH = 188
 local SECONDARY_PROFESSIONS = { 185, 129, 356 } -- Cooking, First Aid, Fishing
@@ -216,6 +218,8 @@ local CHARACTER_COLUMNS = {
     { key = "name", label = "Character", x = 3, width = 174 },
     { key = "level", label = "Level", x = 180, width = 53 },
     { key = "xp", label = "XP", x = 236, width = 54 },
+    { key = "ilvl", label = "iLvl", x = ITEM_LEVEL_X,
+        width = ITEM_LEVEL_WIDTH },
     { key = "professions", label = "Professions", x = PROFESSION_X,
         width = PROFESSION_WIDTH, sortable = false },
     { key = "gold", label = "Gold", x = PROFESSION_X + PROFESSION_WIDTH + 4,
@@ -461,6 +465,50 @@ local function HideXPTooltip(row)
     if GameTooltip:IsOwned(row) then GameTooltip:Hide() end
 end
 
+local function FormatItemLevel(value)
+    return type(value) == "number" and string.format("%.1f", value) or "--"
+end
+
+local function ShowItemLevelTooltip(cell)
+    local row = cell:GetParent()
+    if not row.entryKey then return end
+    local sets = {}
+    for id, set in pairs(row.equipmentSetItemLevels or {}) do
+        if type(set.name) == "string" then
+            sets[#sets + 1] = { id = id, data = set }
+        end
+    end
+    table.sort(sets, function(a, b)
+        local left, right = a.data, b.data
+        if left.isEquipped ~= right.isEquipped then
+            return left.isEquipped == true
+        end
+        local an, bn = left.name:lower(), right.name:lower()
+        if an ~= bn then return an < bn end
+        return tostring(a.id) < tostring(b.id)
+    end)
+
+    GameTooltip:SetOwner(cell, "ANCHOR_CURSOR_RIGHT")
+    GameTooltip:SetText("Equipment Sets", 1, 0.82, 0)
+    if #sets == 0 then
+        GameTooltip:AddLine("No cached equipment sets.", 0.65, 0.69, 0.76)
+    end
+    for _, entry in ipairs(sets) do
+        local set = entry.data
+        local r, g, b = 0.93, 0.93, 0.93
+        if set.isEquipped then r, g, b = 0.25, 0.9, 0.4 end
+        GameTooltip:AddDoubleLine(
+            set.name .. (set.isEquipped and " (Equipped)" or ""),
+            FormatItemLevel(set.itemLevel), r, g, b, r, g, b
+        )
+    end
+    GameTooltip:Show()
+end
+
+local function HideItemLevelTooltip(cell)
+    if GameTooltip:IsOwned(cell) then GameTooltip:Hide() end
+end
+
 local function SortCharacterEntries(entries, pane)
     local key = pane.sortKey or "level"
     local ascending = pane.sortAscending == true
@@ -485,6 +533,10 @@ local function SortCharacterEntries(entries, pane)
         elseif key == "xp" then
             av = GetXPPercent(a) or -1
             bv = GetXPPercent(b) or -1
+        elseif key == "ilvl" then
+            av = tonumber(a.equippedItemLevel)
+            bv = tonumber(b.equippedItemLevel)
+            if (av == nil) ~= (bv == nil) then return av ~= nil end
         elseif key == "gold" then
             av = tonumber(a.money) or 0
             bv = tonumber(b.money) or 0
@@ -536,6 +588,8 @@ local function RenderCharacters()
         if entry then
             local profile = entry.character or {}
             row.entryKey = entry.key
+            row.equipmentSetItemLevels = profile.equipmentSetItemLevels
+            row.ilvl:SetText(FormatItemLevel(profile.equippedItemLevel))
             row.name:SetText(
                 profile.name or select(2, UI:ParseCharacterKey(entry.key))
             )
@@ -569,8 +623,13 @@ local function RenderCharacters()
             )
             row:Show()
             if GameTooltip:IsOwned(row) then ShowXPTooltip(row) end
+            if GameTooltip:IsOwned(row.itemLevelCell) then
+                ShowItemLevelTooltip(row.itemLevelCell)
+            end
         else
             row.entryKey = nil
+            row.equipmentSetItemLevels = nil
+            HideItemLevelTooltip(row.itemLevelCell)
             row.xpCurrent, row.xpMaximum = nil, nil
             row.restedPercent, row.restedEstimated = nil, nil
             HideXPTooltip(row)
@@ -629,6 +688,13 @@ local function RenderItems()
             (start + 1) .. "-" .. math.min(#matches, start + #pane.buttons)
             .. " of " .. #matches
         )
+    end
+end
+
+function Module:RefreshCharacterRows()
+    if self.frame and self.frame:IsShown()
+        and self.frame.charactersPane:IsShown() then
+        RenderCharacters()
     end
 end
 
@@ -752,6 +818,7 @@ local function CreateCharactersPane(frame)
         row.name = CreateLabel(row, 11)
         row.level = CreateLabel(row, 10)
         row.xp = CreateLabel(row, 10)
+        row.ilvl = CreateLabel(row, 10)
         row.money = CreateLabel(row, 10)
 
         for _, column in ipairs(CHARACTER_COLUMNS) do
@@ -771,6 +838,28 @@ local function CreateCharactersPane(frame)
                 if field.SetMaxLines then field:SetMaxLines(1) end
             end
         end
+
+        -- A separate mouse target lets iLvl show its own tooltip while
+        -- preserving the character row click and mouse-wheel navigation.
+        local cell = CreateFrame("Button", nil, row)
+        cell:SetPoint("TOPLEFT", row, "TOPLEFT", ITEM_LEVEL_X, 0)
+        cell:SetPoint("BOTTOMRIGHT", row, "BOTTOMLEFT",
+            ITEM_LEVEL_X + ITEM_LEVEL_WIDTH, XP_BAR_BOTTOM + XP_BAR_HEIGHT)
+        cell:SetFrameLevel(row:GetFrameLevel() + 2)
+        cell:RegisterForClicks("LeftButtonUp")
+        cell:SetScript("OnEnter", ShowItemLevelTooltip)
+        cell:SetScript("OnLeave", HideItemLevelTooltip)
+        cell:SetScript("OnHide", HideItemLevelTooltip)
+        cell:SetScript("OnClick", function()
+            local click = row:GetScript("OnClick")
+            if click then click(row) end
+        end)
+        cell:EnableMouseWheel(true)
+        cell:SetScript("OnMouseWheel", function(_, delta)
+            local scroll = pane:GetScript("OnMouseWheel")
+            if scroll then scroll(pane, delta) end
+        end)
+        row.itemLevelCell = cell
 
         row.professionButtons = {}
         for index = 1, PROFESSION_COUNT do
@@ -1044,6 +1133,8 @@ function Module:Initialize()
 
     UI:RegisterEvent("BAG_UPDATE_DELAYED", QueueRefresh)
     UI:RegisterEvent("PLAYER_EQUIPMENT_CHANGED", QueueRefresh)
+    UI:RegisterEvent("EQUIPMENT_SETS_CHANGED", QueueRefresh)
+    UI:RegisterEvent("EQUIPMENT_SWAP_FINISHED", QueueRefresh)
     UI:RegisterEvent("PLAYER_MONEY", QueueRefresh)
     UI:RegisterEvent("PLAYER_LEVEL_UP", QueueRefresh)
     UI:RegisterEvent("UPDATE_EXHAUSTION", QueueRefresh)

@@ -195,7 +195,12 @@ The Account character table uses class-colored names instead of a separate
 class column. Show up to two primary profession icons followed by
 Cooking, First Aid and Fishing in fixed positions, with cached skill
 values and direct links to the existing profession window. The wider
-616 UI-pixel Account window also accommodates a 15-column item grid.
+676 UI-pixel Account window also accommodates a 17-column item grid.
+A sortable iLvl column between XP and Professions displays the last
+measured equipped item level. Its tooltip lists named equipment sets
+with right-aligned last measured values, equipped sets in green, and
+unknown values as --. Do not repeat the equipped item level in the
+tooltip; exclude the naked set.
 Group parent/child skill lines to avoid duplicate icons; the professions
 column is not sortable. Keep the XP bar clear of the profession ranks.
 
